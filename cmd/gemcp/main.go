@@ -13,6 +13,7 @@ import (
 	"github.com/XR-Lee/Gemcp/internal/buildinfo"
 	"github.com/XR-Lee/Gemcp/internal/config"
 	"github.com/XR-Lee/Gemcp/internal/database"
+	"github.com/XR-Lee/Gemcp/internal/secrets"
 	"github.com/XR-Lee/Gemcp/internal/server"
 )
 
@@ -42,12 +43,26 @@ func run(args []string) error {
 		return fmt.Errorf("watchdog is reserved for the M0 scheduler release")
 	case "phase0":
 		return runPhaseZero(args[1:])
+	case "keygen":
+		key, err := secrets.GenerateMasterKey()
+		if err != nil {
+			return err
+		}
+		fmt.Println(key)
+		return nil
+	case "bootstrap-token":
+		token, _, err := secrets.RandomToken("gmb", 32)
+		if err != nil {
+			return err
+		}
+		fmt.Println(token)
+		return nil
 	case "version":
 		info := buildinfo.New(version, commit, builtAt)
 		fmt.Printf("%s %s (%s, %s)\n", info.Name, info.Version, info.Commit, info.BuiltAt)
 		return nil
 	default:
-		return fmt.Errorf("unknown command %q (expected serve, watchdog, phase0, or version)", command)
+		return fmt.Errorf("unknown command %q (expected serve, watchdog, phase0, keygen, bootstrap-token, or version)", command)
 	}
 }
 
@@ -57,17 +72,21 @@ func runServer() error {
 		return fmt.Errorf("load config: %w", err)
 	}
 	configureLogger(cfg.LogLevel)
+	secretBox, err := secrets.New(cfg.MasterKey)
+	if err != nil {
+		return fmt.Errorf("load master key: %w", err)
+	}
 
 	connectCtx, cancelConnect := context.WithTimeout(context.Background(), cfg.DatabaseConnectTimeout)
 	defer cancelConnect()
-	pool, err := database.Open(connectCtx, cfg.DatabaseURL)
+	store, err := database.Open(connectCtx, cfg.DatabaseURL, cfg.AutoMigrate)
 	if err != nil {
 		return err
 	}
-	defer pool.Close()
+	defer store.Close()
 
 	info := buildinfo.New(version, commit, builtAt)
-	httpServer := server.New(server.Dependencies{Config: cfg, Build: info, DB: pool})
+	httpServer := server.New(server.Dependencies{Config: cfg, Build: info, DB: store, Ent: store.Client, Secrets: secretBox})
 
 	errCh := make(chan error, 1)
 	go func() {

@@ -6,8 +6,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/XR-Lee/Gemcp/ent"
+	"github.com/XR-Lee/Gemcp/internal/auth"
 	"github.com/XR-Lee/Gemcp/internal/buildinfo"
 	"github.com/XR-Lee/Gemcp/internal/config"
+	"github.com/XR-Lee/Gemcp/internal/httpapi"
+	"github.com/XR-Lee/Gemcp/internal/secrets"
+	setupservice "github.com/XR-Lee/Gemcp/internal/setup"
 	"github.com/XR-Lee/Gemcp/internal/web"
 	"github.com/gin-gonic/gin"
 )
@@ -17,9 +22,11 @@ type Database interface {
 }
 
 type Dependencies struct {
-	Config config.Config
-	Build  buildinfo.Info
-	DB     Database
+	Config  config.Config
+	Build   buildinfo.Info
+	DB      Database
+	Ent     *ent.Client
+	Secrets *secrets.Box
 }
 
 func New(deps Dependencies) *http.Server {
@@ -28,7 +35,8 @@ func New(deps Dependencies) *http.Server {
 	}
 
 	router := gin.New()
-	router.Use(gin.Recovery())
+	_ = router.SetTrustedProxies(nil)
+	router.Use(gin.Recovery(), securityHeaders(), limitRequestBody(1<<20))
 
 	router.GET("/healthz", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
@@ -39,6 +47,16 @@ func New(deps Dependencies) *http.Server {
 	api.GET("/version", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"data": deps.Build})
 	})
+
+	setupHandlers := httpapi.NewSetupHandlers(setupservice.NewService(deps.Ent, deps.Secrets), deps.Config.BootstrapToken)
+	authHandlers := httpapi.NewAuthHandlers(auth.NewService(deps.Ent, deps.Secrets, 12*time.Hour), deps.Config.SecureCookies)
+	api.GET("/setup/status", setupHandlers.Status)
+	api.POST("/setup", setupHandlers.Initialize)
+	api.POST("/auth/login", authHandlers.Login)
+	protected := api.Group("")
+	protected.Use(authHandlers.RequireSession())
+	protected.GET("/auth/me", authHandlers.Me)
+	protected.POST("/auth/logout", authHandlers.Logout)
 
 	frontend := web.Handler()
 	router.NoRoute(func(c *gin.Context) {
@@ -65,6 +83,26 @@ func New(deps Dependencies) *http.Server {
 		Handler:           router,
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       90 * time.Second,
+	}
+}
+
+func securityHeaders() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Header("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'")
+		c.Header("Referrer-Policy", "no-referrer")
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Header("X-Frame-Options", "DENY")
+		c.Header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+		c.Next()
+	}
+}
+
+func limitRequestBody(maxBytes int64) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if c.Request.Body != nil {
+			c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxBytes)
+		}
+		c.Next()
 	}
 }
 

@@ -4,7 +4,7 @@ Gemcp is a private, single-organization control plane for running bounded AutoDL
 
 ## Current release
 
-`v0.2.0` adds a typed AutoDL developer API client and a spend-gated phase-zero probe. Production scheduling remains disabled until live behavior is recorded and accepted.
+`v0.3.0` adds the durable Ent/PostgreSQL control model, AES-GCM credential storage, one-time initialization, Owner password login, revocable database Sessions, and CSRF protection. Production scheduling remains disabled until live phase-zero behavior is recorded and accepted.
 
 ## Architecture
 
@@ -54,6 +54,15 @@ Phase-zero commands:
 ```
 
 A live Job probe is separately gated by a JSON specification, a conservative spend cap, and an exact confirmation phrase. Read [Phase-zero validation](docs/phase-zero.md) before using it.
+
+Generate both required bootstrap credentials on the deployment host:
+
+```bash
+./bin/gemcp keygen
+./bin/gemcp bootstrap-token
+```
+
+Store them only in the protected deployment `.env`. The first-run setup transaction and Session API are documented in [First-run setup](docs/setup-api.md).
 
 ## Deployment
 

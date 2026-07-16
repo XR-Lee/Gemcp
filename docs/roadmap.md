@@ -14,16 +14,26 @@
 - Explicit spend-gated minimal Job probe.
 - Secret-free provider behavior report and acceptance checklist.
 
-## v0.3.0: M0 control loop
+## v0.3.0: Durable control foundation (complete)
 
-- First-run Owner and encrypted AutoDL connection.
-- One project, environment, resource profile, Agent token, and private Git deploy key.
-- Async MCP submit/get/list/cancel/cost tools.
+- Ent/PostgreSQL tenant, Owner, Provider, project, environment, profile, repository, Agent token, Session, and audit schemas.
+- AES-256-GCM credential encryption and HMAC Token digests.
+- Serializable first-run initialization and one-time Agent Token display.
+- Owner password login, revocable database Sessions, strict cookies, and CSRF validation.
+- CI PostgreSQL migration coverage.
+
+## v0.4.0: Agent-facing experiment core
+
+- Private Git deploy-key registration and commit validation.
 - Immutable experiments, attempts, idempotency, budget reservations, and FIFO admission.
-- Elastic Job or Pro provider selected by phase zero.
+- Async MCP submit/get/list/cancel/cost tools.
+
+## v0.5.0: M0 execution and operations
+
+- Elastic Job or Pro provider selected by live phase zero.
 - Runner callbacks, fixed AutoDL file-storage output path, and cost estimates.
 - Independent watchdog and critical SMTP notifications.
-- Minimal experiment list and detail UI.
+- First-run, login, experiment list, and detail Web UI.
 
 ## Trial additions
 

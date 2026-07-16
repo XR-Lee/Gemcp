@@ -28,7 +28,7 @@ M0 may run the scheduler in the controlplane process. The watchdog remains a sep
 
 ## Durable coordination
 
-PostgreSQL is authoritative for experiments, attempts, reservations, provider resources, idempotency records, audit events, and leases. In-memory queues may wake workers but never own job state.
+PostgreSQL is authoritative for identity, configuration, experiments, attempts, reservations, provider resources, idempotency records, audit events, and leases. In-memory queues may wake workers but never own job state.
 
 A submitted experiment is immutable. Infrastructure retries create attempts under the same experiment. A manual rerun creates a new experiment linked to its parent.
 
