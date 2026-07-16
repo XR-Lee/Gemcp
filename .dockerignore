@@ -1,0 +1,11 @@
+.git
+.pi
+.env
+bin
+coverage
+data
+postgres_data
+frontend/node_modules
+frontend/dist
+internal/web/dist
+*.log

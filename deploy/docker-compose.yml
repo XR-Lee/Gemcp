@@ -1,0 +1,42 @@
+services:
+  controlplane:
+    build:
+      context: ..
+      args:
+        VERSION: ${GEMCP_VERSION:-dev}
+    image: gemcp:${GEMCP_VERSION:-dev}
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      GEMCP_DATABASE_URL: ${GEMCP_DATABASE_URL}
+    ports:
+      - "127.0.0.1:${GEMCP_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-T", "5", "-O", "/dev/null", "http://127.0.0.1:8080/readyz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-gemcp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-gemcp}
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gemcp} -d ${POSTGRES_DB:-gemcp}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  default:
+    name: gemcp

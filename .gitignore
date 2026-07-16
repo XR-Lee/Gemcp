@@ -1,0 +1,13 @@
+.pi/
+.env
+.env.*
+!.env.example
+bin/
+coverage/
+data/
+postgres_data/
+frontend/node_modules/
+frontend/dist/
+internal/web/dist/
+*.log
+.DS_Store
