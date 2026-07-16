@@ -1,18 +1,18 @@
 # Roadmap
 
-## v0.1.0: Application foundation
+## v0.1.0: Application foundation (complete)
 
 - Go/Gin service and PostgreSQL readiness.
 - Embedded Vue operations shell.
 - Multi-stage container build and localhost-only Compose binding.
 - Versioned, testable release workflow.
 
-## v0.2.0: Phase-zero AutoDL validation
+## v0.2.0: Phase-zero AutoDL validation (implemented, live validation pending)
 
 - Typed AutoDL developer API client.
 - Read-only balance, image, inventory, deployment, container, and event probes.
 - Explicit spend-gated minimal Job probe.
-- Captured provider behavior report without secrets.
+- Secret-free provider behavior report and acceptance checklist.
 
 ## v0.3.0: M0 control loop
 

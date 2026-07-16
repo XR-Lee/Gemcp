@@ -5,13 +5,16 @@ COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 BUILT_AT := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.builtAt=$(BUILT_AT)
 
-.PHONY: fmt test vet frontend-install frontend-test frontend-build stage-frontend build check
+.PHONY: fmt test vet vuln frontend-install frontend-test frontend-build stage-frontend build check
 
 fmt:
 	$(GO) fmt ./...
 
 vet:
 	$(GO) vet ./...
+
+vuln:
+	$(GO) run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./...
 
 test:
 	$(GO) test ./...
@@ -32,4 +35,4 @@ build: stage-frontend
 	mkdir -p bin
 	$(GO) build -tags webembed -trimpath -ldflags "$(LDFLAGS)" -o bin/gemcp ./cmd/gemcp
 
-check: fmt vet test frontend-test frontend-build
+check: fmt vet test vuln frontend-test frontend-build

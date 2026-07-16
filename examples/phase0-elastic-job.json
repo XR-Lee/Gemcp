@@ -1,0 +1,18 @@
+{
+  "region": "westDC2",
+  "gpu_names": ["RTX 4090"],
+  "gpu_num": 1,
+  "cuda_from": 118,
+  "cuda_to": 128,
+  "cpu_from": 1,
+  "cpu_to": 128,
+  "memory_from_gb": 1,
+  "memory_to_gb": 512,
+  "price_from_milli_per_hour": 10,
+  "price_to_milli_per_hour": 3000,
+  "image_uuid": "replace-with-existing-image-uuid",
+  "max_runtime_seconds": 60,
+  "provision_timeout_seconds": 600,
+  "output_root": "/root/autodl-fs/gemcp-phase0",
+  "reuse_container": false
+}

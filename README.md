@@ -4,7 +4,7 @@ Gemcp is a private, single-organization control plane for running bounded AutoDL
 
 ## Current release
 
-`v0.1.0` establishes the Go/Vue/PostgreSQL application foundation. AutoDL operations are added in subsequent milestones after live API validation.
+`v0.2.0` adds a typed AutoDL developer API client and a spend-gated phase-zero probe. Production scheduling remains disabled until live behavior is recorded and accepted.
 
 ## Architecture
 
@@ -45,6 +45,15 @@ GET /healthz
 GET /readyz
 GET /api/v1/version
 ```
+
+Phase-zero commands:
+
+```bash
+./bin/gemcp phase0 read --backend pro
+./bin/gemcp phase0 read --backend elastic --region westDC2
+```
+
+A live Job probe is separately gated by a JSON specification, a conservative spend cap, and an exact confirmation phrase. Read [Phase-zero validation](docs/phase-zero.md) before using it.
 
 ## Deployment
 

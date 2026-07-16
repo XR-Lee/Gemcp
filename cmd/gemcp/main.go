@@ -40,12 +40,14 @@ func run(args []string) error {
 		return runServer()
 	case "watchdog":
 		return fmt.Errorf("watchdog is reserved for the M0 scheduler release")
+	case "phase0":
+		return runPhaseZero(args[1:])
 	case "version":
 		info := buildinfo.New(version, commit, builtAt)
 		fmt.Printf("%s %s (%s, %s)\n", info.Name, info.Version, info.Commit, info.BuiltAt)
 		return nil
 	default:
-		return fmt.Errorf("unknown command %q (expected serve, watchdog, or version)", command)
+		return fmt.Errorf("unknown command %q (expected serve, watchdog, phase0, or version)", command)
 	}
 }
 
