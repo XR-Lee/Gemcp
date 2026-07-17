@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -352,12 +353,28 @@ func TestBootstrapScriptParsesAndLaunchCommandRequiresHTTPSOrigin(t *testing.T) 
 	if _, err := LaunchCommand("http://gemcp.example.com", strings.Repeat("x", 40)); err == nil {
 		t.Fatal("LaunchCommand accepted HTTP")
 	}
-	command, err := LaunchCommand("https://gemcp.example.com", strings.Repeat("x", 40))
-	if err != nil || !strings.HasPrefix(command, "/bin/sh -lc ") || !strings.Contains(command, "GEMCP_RUNNER_TOKEN") || strings.Contains(command, "python train.py") {
+	token := strings.Repeat("x", 40)
+	command, err := LaunchCommand("https://gemcp.example.com", token)
+	if err != nil || !strings.HasPrefix(command, "set -eu; ") || !strings.Contains(command, "/root/miniconda3/bin/python3") || strings.ContainsAny(command, `$'"`) || strings.Contains(command, token) || strings.Contains(command, "python train.py") {
 		t.Fatalf("command=%q err=%v", command, err)
 	}
-	if output, err := exec.Command("/bin/sh", "-n", "-c", command).CombinedOutput(); err != nil {
+	if output, err := exec.Command("/bin/bash", "-n", "-c", command).CombinedOutput(); err != nil {
 		t.Fatalf("Provider launch command syntax: %v: %s", err, output)
+	}
+	const payloadPrefix = "printf %s "
+	payloadStart := strings.Index(command, payloadPrefix)
+	if payloadStart < 0 {
+		t.Fatalf("Provider launch command has no encoded payload: %q", command)
+	}
+	payloadStart += len(payloadPrefix)
+	payloadEnd := strings.Index(command[payloadStart:], " | /usr/bin/base64 -d")
+	if payloadEnd < 0 {
+		t.Fatalf("Provider launch command has no payload terminator: %q", command)
+	}
+	payloadEnd += payloadStart
+	program, err := base64.StdEncoding.DecodeString(command[payloadStart:payloadEnd])
+	if err != nil || !strings.Contains(string(program), "https://gemcp.example.com") || !strings.Contains(string(program), token) || !strings.Contains(string(program), downloader) {
+		t.Fatalf("encoded program is invalid: err=%v program=%q", err, program)
 	}
 	if !strings.Contains(BootstrapScript(), "normalized_stop_reason") || !strings.Contains(BootstrapScript(), `value[-maximum:].decode("utf-8", errors="ignore")`) {
 		t.Fatal("bootstrap is missing bounded completion normalization")

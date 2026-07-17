@@ -1,8 +1,10 @@
 package runner
 
 import (
+	"encoding/base64"
 	"fmt"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -255,12 +257,14 @@ func LaunchCommand(publicURL, token string) (string, error) {
 	if len(token) < 32 || len(token) > 4096 {
 		return "", fmt.Errorf("Runner token is invalid")
 	}
-	script := "set -eu; PYTHON=$(command -v python3 || command -v python); test -n \"$PYTHON\"; " +
-		"GEMCP_RUNNER_URL=" + shellQuote(parsed.String()) + " GEMCP_RUNNER_TOKEN=" + shellQuote(token) +
-		" \"$PYTHON\" -c " + shellQuote(downloader)
-	return "/bin/sh -lc " + shellQuote(script), nil
-}
-
-func shellQuote(value string) string {
-	return "'" + strings.ReplaceAll(value, "'", `'"'"'`) + "'"
+	program := `import os;os.environ["GEMCP_RUNNER_URL"]=` + strconv.Quote(parsed.String()) +
+		`;os.environ["GEMCP_RUNNER_TOKEN"]=` + strconv.Quote(token) + `;` + downloader
+	payload := base64.StdEncoding.EncodeToString([]byte(program))
+	python := "/root/miniconda3/bin/python3"
+	command := "set -eu; "
+	for _, delay := range []int{1, 2, 4, 8, 16, 29} {
+		command += fmt.Sprintf("test -x %s || sleep %d; ", python, delay)
+	}
+	command += "test -x " + python + "; printf %s " + payload + " | /usr/bin/base64 -d | " + python
+	return command, nil
 }
