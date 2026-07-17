@@ -56,7 +56,7 @@ The Token can access only its own specification, source, and event endpoint. Its
 
 ## Runner
 
-The Provider command downloads a small Python bootstrap. `v0.6.2` fixes the incomplete one-line URL opener found during the first live control-plane trial by using Python's standard opener construction with an explicit redirect-denying handler. It then:
+The Provider command downloads a small Python bootstrap. `v0.6.2` fixes the incomplete one-line URL opener found during the first live control-plane trial by using Python's standard opener construction with an explicit redirect-denying handler. `v0.6.3` wraps that script in an explicit `/bin/sh -lc` command so Private Cloud does not interpret the shell builtin `set` as the executable. It then:
 
 - safely downloads and bounds the source archive;
 - reports `started` and heartbeats every 15 seconds;
@@ -94,4 +94,4 @@ Cancellation and emergency stop do not grant an extension. Stop and delete are i
 
 Submission reserves the maximum configured price across command runtime, the automatic timeout extension, termination grace, 600 seconds of provisioning uncertainty, and a 30-second shutdown-observation margin. At dispatch, Gemcp migrates that reservation into the current month if it crossed the project's configured monthly billing boundary and rechecks capacity. Historical queued records that omit extension or grace from their reservation are failed without Provider creation and must be resubmitted. Terminal settlement writes one negative release and one positive estimated charge entry. Estimates use the configured maximum price, observed resource lifetime, and bounded integer arithmetic; they are operational controls, not financial invoices.
 
-`v0.6.0` had complete mocked lifecycle and fault-path coverage but was not allowed to create a paid Job during release validation. The first authorized live control-plane trial on `v0.6.1` confirmed create, observation, provisioning-timeout cleanup, deletion confirmation, and ledger settlement; it also exposed the incomplete Runner downloader fixed in `v0.6.2`.
+`v0.6.0` had complete mocked lifecycle and fault-path coverage but was not allowed to create a paid Job during release validation. The first authorized live control-plane trial on `v0.6.1` confirmed create, observation, provisioning-timeout cleanup, deletion confirmation, and ledger settlement; it also exposed the incomplete Runner downloader fixed in `v0.6.2`. Subsequent `v0.6.2` retries showed that Private Cloud received the unwrapped script as a direct command and never contacted the callback endpoint; `v0.6.3` adds the explicit shell entrypoint.

@@ -255,10 +255,10 @@ func LaunchCommand(publicURL, token string) (string, error) {
 	if len(token) < 32 || len(token) > 4096 {
 		return "", fmt.Errorf("Runner token is invalid")
 	}
-	command := "set -eu; PYTHON=$(command -v python3 || command -v python); test -n \"$PYTHON\"; " +
+	script := "set -eu; PYTHON=$(command -v python3 || command -v python); test -n \"$PYTHON\"; " +
 		"GEMCP_RUNNER_URL=" + shellQuote(parsed.String()) + " GEMCP_RUNNER_TOKEN=" + shellQuote(token) +
 		" \"$PYTHON\" -c " + shellQuote(downloader)
-	return command, nil
+	return "/bin/sh -lc " + shellQuote(script), nil
 }
 
 func shellQuote(value string) string {

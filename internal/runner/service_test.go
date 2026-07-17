@@ -353,8 +353,11 @@ func TestBootstrapScriptParsesAndLaunchCommandRequiresHTTPSOrigin(t *testing.T) 
 		t.Fatal("LaunchCommand accepted HTTP")
 	}
 	command, err := LaunchCommand("https://gemcp.example.com", strings.Repeat("x", 40))
-	if err != nil || !strings.Contains(command, "GEMCP_RUNNER_TOKEN") || strings.Contains(command, "python train.py") {
+	if err != nil || !strings.HasPrefix(command, "/bin/sh -lc ") || !strings.Contains(command, "GEMCP_RUNNER_TOKEN") || strings.Contains(command, "python train.py") {
 		t.Fatalf("command=%q err=%v", command, err)
+	}
+	if output, err := exec.Command("/bin/sh", "-n", "-c", command).CombinedOutput(); err != nil {
+		t.Fatalf("Provider launch command syntax: %v: %s", err, output)
 	}
 	if !strings.Contains(BootstrapScript(), "normalized_stop_reason") || !strings.Contains(BootstrapScript(), `value[-maximum:].decode("utf-8", errors="ignore")`) {
 		t.Fatal("bootstrap is missing bounded completion normalization")

@@ -1,6 +1,6 @@
 import { expect, test, type Page, type Route } from '@playwright/test'
 
-const build = { name: 'Gemcp', version: '0.6.2', commit: 'abc1234', built_at: '2026-07-16T00:00:00Z' }
+const build = { name: 'Gemcp', version: '0.6.3', commit: 'abc1234', built_at: '2026-07-16T00:00:00Z' }
 const project = {
   id: 'b492cbe4-f198-4d87-bbf9-3f77d8a3ab0a', name: 'Point Models', slug: 'point-models', status: 'active',
   monthly_budget_milli: 100000, max_experiment_milli: 20000, max_concurrency: 2, max_runtime_seconds: 86400,
