@@ -1,10 +1,39 @@
 package database
 
 import (
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 
 	entmigrate "github.com/XR-Lee/Gemcp/ent/migrate"
 )
+
+func TestPostgres18ComposeSecuresCorrectedBindRoot(t *testing.T) {
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("resolve test path")
+	}
+	content, err := os.ReadFile(filepath.Join(filepath.Dir(filename), "..", "..", "deploy", "docker-compose.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	compose := string(content)
+	for _, required := range []string{
+		"- ./postgres_data:/var/lib/postgresql\n",
+		"chown postgres:postgres /var/lib/postgresql",
+		"chmod 0700 /var/lib/postgresql",
+		"exec docker-entrypoint.sh postgres",
+	} {
+		if !strings.Contains(compose, required) {
+			t.Fatalf("Compose is missing PostgreSQL 18 bind-root protection %q", required)
+		}
+	}
+	if strings.Contains(compose, "./postgres_data:/var/lib/postgresql/data") {
+		t.Fatal("Compose uses the PostgreSQL 17 data mount target")
+	}
+}
 
 func TestAttemptResultColumnsRemainNullableForV05Upgrade(t *testing.T) {
 	for _, name := range []string{"metrics", "provider_request_ids"} {

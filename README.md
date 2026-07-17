@@ -4,7 +4,7 @@ Gemcp is a private, single-organization control plane for running bounded AutoDL
 
 ## Current release
 
-`v0.6.0` adds opt-in production execution for AutoDL Private Cloud: a PostgreSQL-authoritative FIFO scheduler, immutable Attempts, server-side private-source archives, scoped Runner callbacks, managed-resource ownership, local and independent hard deadlines, idempotent cleanup, and an independently deployed Watchdog. Owner operations now include managed deployment stop, confirmed emergency shutdown, service heartbeats, encrypted SMTP settings, and a durable critical-notification outbox.
+`v0.6.1` hardens PostgreSQL 18 bind-root initialization and the documented `v0.5.x` upgrade path. `v0.6.0` adds opt-in production execution for AutoDL Private Cloud: a PostgreSQL-authoritative FIFO scheduler, immutable Attempts, server-side private-source archives, scoped Runner callbacks, managed-resource ownership, local and independent hard deadlines, idempotent cleanup, and an independently deployed Watchdog. Owner operations now include managed deployment stop, confirmed emergency shutdown, service heartbeats, encrypted SMTP settings, and a durable critical-notification outbox.
 
 New dispatch remains disabled after upgrade until `GEMCP_SCHEDULER_ENABLED=true` is explicitly set with a reachable HTTPS `GEMCP_PUBLIC_URL`. Reconciliation of existing Attempts still runs while dispatch is off; historical queued experiments cannot start automatically.
 

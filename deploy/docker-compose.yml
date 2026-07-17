@@ -45,6 +45,15 @@ services:
   postgres:
     image: postgres:18-alpine
     restart: unless-stopped
+    # A user-created 0700 bind root must be traversable after the official entrypoint drops privileges.
+    user: "0:0"
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        chown postgres:postgres /var/lib/postgresql
+        chmod 0700 /var/lib/postgresql
+        exec docker-entrypoint.sh postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-gemcp}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
