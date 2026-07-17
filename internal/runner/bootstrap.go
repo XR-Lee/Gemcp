@@ -8,6 +8,8 @@ import (
 	"strings"
 )
 
+const runnerUserAgent = "Gemcp-Runner/1"
+
 const bootstrapScript = `import ctypes
 import json
 import os
@@ -23,6 +25,7 @@ import urllib.request
 
 BASE_URL = os.environ.pop("GEMCP_RUNNER_URL", "").rstrip("/")
 TOKEN = os.environ.pop("GEMCP_RUNNER_TOKEN", "")
+USER_AGENT = "` + runnerUserAgent + `"
 try:
     ctypes.CDLL(None).prctl(4, 0, 0, 0, 0)
 except Exception:
@@ -36,7 +39,7 @@ OPENER = urllib.request.build_opener(NoRedirect())
 
 def request(path, payload=None, retries=1):
     body = None
-    headers = {"Authorization": "Bearer " + TOKEN, "Accept": "application/json"}
+    headers = {"Authorization": "Bearer " + TOKEN, "Accept": "application/json", "User-Agent": USER_AGENT}
     if payload is not None:
         body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
         headers["Content-Type"] = "application/json"
@@ -244,7 +247,7 @@ except Exception as error:
     sys.exit(70)
 `
 
-const downloader = `import os,urllib.request;u=os.environ["GEMCP_RUNNER_URL"].rstrip("/");t=os.environ["GEMCP_RUNNER_TOKEN"];q=urllib.request.Request(u+"/api/v1/runner/bootstrap",headers={"Authorization":"Bearer "+t});N=type("NoRedirect",(urllib.request.HTTPRedirectHandler,),{"redirect_request":lambda *args:None});o=urllib.request.build_opener(N());c=o.open(q,timeout=30).read(131073);assert len(c)<=131072;exec(compile(c,"gemcp-runner","exec"))`
+const downloader = `import os,urllib.request;u=os.environ["GEMCP_RUNNER_URL"].rstrip("/");t=os.environ["GEMCP_RUNNER_TOKEN"];q=urllib.request.Request(u+"/api/v1/runner/bootstrap",headers={"Authorization":"Bearer "+t,"Accept":"application/json","User-Agent":"` + runnerUserAgent + `"});N=type("NoRedirect",(urllib.request.HTTPRedirectHandler,),{"redirect_request":lambda *args:None});o=urllib.request.build_opener(N());c=o.open(q,timeout=30).read(131073);assert len(c)<=131072;exec(compile(c,"gemcp-runner","exec"))`
 
 func BootstrapScript() string { return bootstrapScript }
 

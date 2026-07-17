@@ -252,7 +252,7 @@ func TestBootstrapNormalizesOwnerStopBeforeCompletionCallback(t *testing.T) {
 	outputPath := t.TempDir()
 	finishedEvents := make(chan EventInput, 1)
 	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
-		if request.Header.Get("Authorization") != "Bearer "+strings.Repeat("t", 40) {
+		if request.Header.Get("Authorization") != "Bearer "+strings.Repeat("t", 40) || request.Header.Get("User-Agent") != runnerUserAgent {
 			http.Error(response, "unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -315,7 +315,7 @@ func TestDownloaderUsesCompleteOpenerAndRejectsRedirects(t *testing.T) {
 	token := strings.Repeat("t", 40)
 	marker := filepath.Join(t.TempDir(), "downloaded")
 	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
-		if request.URL.Path != "/api/v1/runner/bootstrap" || request.Header.Get("Authorization") != "Bearer "+token {
+		if request.URL.Path != "/api/v1/runner/bootstrap" || request.Header.Get("Authorization") != "Bearer "+token || request.Header.Get("User-Agent") != runnerUserAgent {
 			http.Error(response, "unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -358,6 +358,9 @@ func TestBootstrapScriptParsesAndLaunchCommandRequiresHTTPSOrigin(t *testing.T) 
 	if err != nil || !strings.HasPrefix(command, "set -eu; ") || !strings.Contains(command, "/root/miniconda3/bin/python3") || strings.ContainsAny(command, `$'"`) || strings.Contains(command, token) || strings.Contains(command, "python train.py") {
 		t.Fatalf("command=%q err=%v", command, err)
 	}
+	if len(command) > 4096 {
+		t.Fatalf("Provider launch command is %d bytes, want at most 4096", len(command))
+	}
 	if output, err := exec.Command("/bin/bash", "-n", "-c", command).CombinedOutput(); err != nil {
 		t.Fatalf("Provider launch command syntax: %v: %s", err, output)
 	}
@@ -373,10 +376,10 @@ func TestBootstrapScriptParsesAndLaunchCommandRequiresHTTPSOrigin(t *testing.T) 
 	}
 	payloadEnd += payloadStart
 	program, err := base64.StdEncoding.DecodeString(command[payloadStart:payloadEnd])
-	if err != nil || !strings.Contains(string(program), "https://gemcp.example.com") || !strings.Contains(string(program), token) || !strings.Contains(string(program), downloader) {
+	if err != nil || !strings.Contains(string(program), "https://gemcp.example.com") || !strings.Contains(string(program), token) || !strings.Contains(string(program), downloader) || !strings.Contains(string(program), runnerUserAgent) {
 		t.Fatalf("encoded program is invalid: err=%v program=%q", err, program)
 	}
-	if !strings.Contains(BootstrapScript(), "normalized_stop_reason") || !strings.Contains(BootstrapScript(), `value[-maximum:].decode("utf-8", errors="ignore")`) {
+	if !strings.Contains(BootstrapScript(), "normalized_stop_reason") || !strings.Contains(BootstrapScript(), `value[-maximum:].decode("utf-8", errors="ignore")`) || !strings.Contains(BootstrapScript(), `"User-Agent": USER_AGENT`) || !strings.Contains(BootstrapScript(), runnerUserAgent) {
 		t.Fatal("bootstrap is missing bounded completion normalization")
 	}
 	python, err := exec.LookPath("python3")

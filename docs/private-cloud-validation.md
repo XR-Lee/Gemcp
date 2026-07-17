@@ -39,6 +39,17 @@ Both deployments were deleted successfully. A final read found zero deployments 
 - The observed container price was `1000 milli-CNY/hour`, below the probe's `9000 milli-CNY/hour` scheduling ceiling.
 - Container API responses may contain SSH and root-password data under `info`. Gemcp deliberately drops those fields during decoding and must not persist or log them.
 
+## Cloudflare callback compatibility
+
+A bounded AutoDL container probe reached a temporary Quick Tunnel with HTTP 200 but received HTTP 403 from the formal production hostname. Follow-up requests through two Cloudflare Anycast addresses reproduced the rejection independently of AutoDL:
+
+- Empty, curl, and browser User-Agents returned HTTP 200.
+- `Python-urllib/3.10` returned HTTP 403, `Server: cloudflare`, and the body `error code: 1010`.
+- `Gemcp-Runner/1` returned HTTP 200 through the same hostname and edge addresses.
+- Distributed HTTP probes from Beijing, Shanghai, Shenzhen, Hong Kong, and Singapore all returned HTTP 200, excluding a broad China or datacenter-network block.
+
+Cloudflare error 1010 is a site-owner browser-signature/User-Agent rejection. `v0.7.1` sets `User-Agent: Gemcp-Runner/1` on both the encoded initial downloader and every subsequent spec, source, and event request. The application-layer Attempt-scoped Bearer Token remains the authentication boundary; the User-Agent is only a stable machine-client identity and is not a credential.
+
 ## Remaining validation
 
 - Confirm the probe files directly from the configured network-storage mount and verify that output survives deployment deletion independently of container cache reuse.

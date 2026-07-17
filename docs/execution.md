@@ -56,7 +56,7 @@ The Token can access only its own specification, source, and event endpoint. Its
 
 ## Runner
 
-The Provider command downloads a small Python bootstrap. `v0.6.2` fixes the incomplete one-line URL opener found during the first live control-plane trial by using Python's standard opener construction with an explicit redirect-denying handler. Live diagnostics later showed that Private Cloud expands command variables and quotes before its final `bash -c` process. `v0.6.4` therefore emits a quote-free command with no shell variables, waits up to 60 seconds for `/root/miniconda3/bin/python3`, and streams a Base64-encoded downloader through `/usr/bin/base64` to Python standard input. It then:
+The Provider command downloads a small Python bootstrap. `v0.6.2` fixes the incomplete one-line URL opener found during the first live control-plane trial by using Python's standard opener construction with an explicit redirect-denying handler. Live diagnostics later showed that Private Cloud expands command variables and quotes before its final `bash -c` process. `v0.6.4` therefore emits a quote-free command with no shell variables, waits up to 60 seconds for `/root/miniconda3/bin/python3`, and streams a Base64-encoded downloader through `/usr/bin/base64` to Python standard input. `v0.7.1` explicitly sends `User-Agent: Gemcp-Runner/1` on the initial download and every callback after Cloudflare error 1010 rejected Python's default `Python-urllib/*` signature. It then:
 
 - safely downloads and bounds the source archive;
 - reports `started` and heartbeats every 15 seconds;

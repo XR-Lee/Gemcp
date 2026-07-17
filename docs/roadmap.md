@@ -43,6 +43,10 @@ PostgreSQL 18 bind-root hardening, real Private Cloud Runner diagnostics, Provid
 
 Owner-managed project Agent Token issuance, bounded scopes, optional expiry, effective-status and last-use views, immediate revocation, one-time MCP JSON export, audit events, client-specific Claude Code, Cursor, VS Code, and Codex documentation, plus session-cached Provider snapshots with visible-page background refresh.
 
+### v0.7.1 - Cloudflare-compatible Runner callbacks
+
+The initial downloader and all Runner requests send the stable `Gemcp-Runner/1` User-Agent instead of Python's default `Python-urllib/*` signature, which the production Cloudflare zone rejects with error 1010.
+
 ## Further validation
 
 The following items still require the target environment or newly authorized paid resources:
