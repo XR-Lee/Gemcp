@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -302,6 +303,48 @@ func TestBootstrapNormalizesOwnerStopBeforeCompletionCallback(t *testing.T) {
 		}
 	default:
 		t.Fatal("bootstrap sent no completion callback")
+	}
+}
+
+func TestDownloaderUsesCompleteOpenerAndRejectsRedirects(t *testing.T) {
+	python, err := exec.LookPath("python3")
+	if err != nil {
+		t.Skip("python3 is unavailable")
+	}
+	token := strings.Repeat("t", 40)
+	marker := filepath.Join(t.TempDir(), "downloaded")
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		if request.URL.Path != "/api/v1/runner/bootstrap" || request.Header.Get("Authorization") != "Bearer "+token {
+			http.Error(response, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		_, _ = fmt.Fprintf(response, "import pathlib;pathlib.Path(%q).write_text('ok')", marker)
+	}))
+	command := exec.Command(python, "-c", downloader)
+	command.Env = append(os.Environ(), "GEMCP_RUNNER_URL="+server.URL, "GEMCP_RUNNER_TOKEN="+token)
+	if output, err := command.CombinedOutput(); err != nil {
+		server.Close()
+		t.Fatalf("downloader failed: %v: %s", err, output)
+	}
+	server.Close()
+	if content, err := os.ReadFile(marker); err != nil || string(content) != "ok" {
+		t.Fatalf("downloaded bootstrap result = %q, %v", content, err)
+	}
+
+	var redirected atomic.Bool
+	target := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { redirected.Store(true) }))
+	defer target.Close()
+	redirect := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		http.Redirect(response, request, target.URL, http.StatusFound)
+	}))
+	defer redirect.Close()
+	command = exec.Command(python, "-c", downloader)
+	command.Env = append(os.Environ(), "GEMCP_RUNNER_URL="+redirect.URL, "GEMCP_RUNNER_TOKEN="+token)
+	if err := command.Run(); err == nil {
+		t.Fatal("downloader followed or accepted a redirect")
+	}
+	if redirected.Load() {
+		t.Fatal("downloader leaked the request to a redirect target")
 	}
 }
 

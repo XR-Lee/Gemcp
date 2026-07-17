@@ -242,7 +242,7 @@ except Exception as error:
     sys.exit(70)
 `
 
-const downloader = `import os,urllib.request;u=os.environ["GEMCP_RUNNER_URL"].rstrip("/");t=os.environ["GEMCP_RUNNER_TOKEN"];q=urllib.request.Request(u+"/api/v1/runner/bootstrap",headers={"Authorization":"Bearer "+t});o=urllib.request.OpenerDirector();o.add_handler(urllib.request.HTTPSHandler());o.add_handler(urllib.request.HTTPErrorProcessor());c=o.open(q,timeout=30).read(131073);assert len(c)<=131072;exec(compile(c,"gemcp-runner","exec"))`
+const downloader = `import os,urllib.request;u=os.environ["GEMCP_RUNNER_URL"].rstrip("/");t=os.environ["GEMCP_RUNNER_TOKEN"];q=urllib.request.Request(u+"/api/v1/runner/bootstrap",headers={"Authorization":"Bearer "+t});N=type("NoRedirect",(urllib.request.HTTPRedirectHandler,),{"redirect_request":lambda *args:None});o=urllib.request.build_opener(N());c=o.open(q,timeout=30).read(131073);assert len(c)<=131072;exec(compile(c,"gemcp-runner","exec"))`
 
 func BootstrapScript() string { return bootstrapScript }
 

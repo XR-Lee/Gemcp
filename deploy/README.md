@@ -4,7 +4,7 @@
 2. Copy `../.env.example` to `.env` in this directory.
 3. Replace `GEMCP_MASTER_KEY`, `GEMCP_BOOTSTRAP_TOKEN`, and both PostgreSQL password occurrences. Set `GEMCP_VERSION`, the full immutable `GEMCP_COMMIT`, and `GEMCP_BUILT_AT` for release metadata.
 4. Restrict the file with `chmod 600 .env`.
-5. Create the bind root with `mkdir -m 700 postgres_data`. The Compose PostgreSQL entrypoint changes only this root to the image's `postgres` user while retaining mode `0700`, then delegates to the official entrypoint.
+5. Choose the PostgreSQL bind root. `GEMCP_POSTGRES_DATA_DIR` defaults to `./postgres_data`; for an in-place source checkout, prefer an absolute protected path outside the Git worktree so Go and Docker build traversal never touches the PostgreSQL-owned `0700` directory. Create the chosen directory with mode `0700`. The Compose PostgreSQL entrypoint changes only this root to the image's `postgres` user while retaining mode `0700`, then delegates to the official entrypoint.
 6. Run `docker compose up -d --build`.
 7. Configure Cloudflare Tunnel to forward the public hostname to `http://127.0.0.1:8080`.
 8. Keep `GEMCP_SCHEDULER_ENABLED=false` through first startup and migration.
@@ -12,7 +12,7 @@
 10. Log in and verify `/api/v1/runtime/status` shows recent scheduler, Watchdog, and notification-worker heartbeats.
 11. Configure and test SMTP, review existing queued experiments, then explicitly enable scheduling and recreate only the controlplane so the changed environment is loaded: `docker compose up -d --no-deps --force-recreate controlplane`.
 
-The Compose file binds Gemcp only to loopback. PostgreSQL has no published host port. The `watchdog` uses the same immutable image but runs `gemcp watchdog` independently, with no HTTP listener and no Provider create capability. Do not deploy the controlplane execution path without this service.
+The Compose file binds Gemcp only to loopback. PostgreSQL has no published host port. Relative `GEMCP_POSTGRES_DATA_DIR` values resolve from this deployment directory. The `watchdog` uses the same immutable image but runs `gemcp watchdog` independently, with no HTTP listener and no Provider create capability. Do not deploy the controlplane execution path without this service.
 
 Read [Execution and shutdown enforcement](../docs/execution.md) for the complete arming and recovery model.
 

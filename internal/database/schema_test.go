@@ -21,7 +21,7 @@ func TestPostgres18ComposeSecuresCorrectedBindRoot(t *testing.T) {
 	}
 	compose := string(content)
 	for _, required := range []string{
-		"- ./postgres_data:/var/lib/postgresql\n",
+		"- ${GEMCP_POSTGRES_DATA_DIR:-./postgres_data}:/var/lib/postgresql\n",
 		"chown postgres:postgres /var/lib/postgresql",
 		"chmod 0700 /var/lib/postgresql",
 		"exec docker-entrypoint.sh postgres",
