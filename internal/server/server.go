@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/XR-Lee/Gemcp/ent"
+	"github.com/XR-Lee/Gemcp/internal/agentaccess"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
 	"github.com/XR-Lee/Gemcp/internal/auth"
 	"github.com/XR-Lee/Gemcp/internal/buildinfo"
@@ -77,6 +78,10 @@ func New(deps Dependencies) *http.Server {
 	protected.POST("/auth/logout", authHandlers.Logout)
 	projectHandlers := httpapi.NewProjectHandlers(deps.Ent)
 	protected.GET("/projects", projectHandlers.List)
+	agentTokenHandlers := httpapi.NewAgentTokenHandlers(agentaccess.NewService(deps.Ent, deps.Secrets, deps.Config.PublicURL))
+	protected.GET("/projects/:id/agent-tokens", agentTokenHandlers.List)
+	protected.POST("/projects/:id/agent-tokens", agentTokenHandlers.Issue)
+	protected.DELETE("/projects/:id/agent-tokens/:tokenID", agentTokenHandlers.Revoke)
 
 	providerService := providerservice.NewService(deps.Ent, deps.Secrets, deps.Build.Version)
 	providerHandlers := httpapi.NewProviderHandlers(providerService)

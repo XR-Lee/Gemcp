@@ -67,6 +67,42 @@ describe('API security headers', () => {
     expect(JSON.parse(String(options.body))).toEqual({ confirmation: 'STOP' })
   })
 
+  it('issues and revokes Agent tokens only through CSRF-protected project endpoints', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        json: async () => ({ data: { token: { id: 'token-id' }, agent_token: 'gmc_secret', mcp_config: {} } }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ data: { id: 'token-id', status: 'revoked' } }),
+      })
+    vi.stubGlobal('fetch', fetchMock)
+    setCSRFToken('csrf-agent-token')
+
+    await api.issueAgentToken('project/id', {
+      label: 'third-party', scopes: ['read', 'submit'], expires_in_days: 90, never_expires: false,
+    })
+    await api.revokeAgentToken('project/id', 'token/id')
+
+    const [issuePath, issueOptions] = fetchMock.mock.calls[0]
+    const issueHeaders = issueOptions.headers as Headers
+    expect(issuePath).toBe('/api/v1/projects/project%2Fid/agent-tokens')
+    expect(issueOptions.method).toBe('POST')
+    expect(issueHeaders.get('X-CSRF-Token')).toBe('csrf-agent-token')
+    expect(JSON.parse(String(issueOptions.body))).toEqual({
+      label: 'third-party', scopes: ['read', 'submit'], expires_in_days: 90, never_expires: false,
+    })
+
+    const [revokePath, revokeOptions] = fetchMock.mock.calls[1]
+    const revokeHeaders = revokeOptions.headers as Headers
+    expect(revokePath).toBe('/api/v1/projects/project%2Fid/agent-tokens/token%2Fid')
+    expect(revokeOptions.method).toBe('DELETE')
+    expect(revokeHeaders.get('X-CSRF-Token')).toBe('csrf-agent-token')
+  })
+
   it('adds the current CSRF token to state-changing Owner requests', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

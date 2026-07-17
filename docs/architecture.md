@@ -32,7 +32,7 @@ PostgreSQL is authoritative for identity, configuration, experiments, attempts, 
 
 A submitted experiment is immutable. Submission verifies a full Git commit SHA before a serializable transaction creates the experiment, budget reservation, Token-scoped idempotency record, and audit event. Infrastructure retries create attempts under the same experiment. A manual rerun creates a new experiment.
 
-The remote MCP endpoint uses the official Go SDK's Streamable HTTP transport. Agent Bearer Tokens are checked against PostgreSQL for each request, and MCP sessions are bound to the authenticated Token identity.
+The remote MCP endpoint uses the official Go SDK's Streamable HTTP transport. Agent Bearer Tokens are checked against PostgreSQL for each request, and MCP sessions are bound to the authenticated Token identity. Owner-only APIs issue project credentials with bounded scopes and optional expiry, return plaintext once, and generate the canonical MCP URL only from `GEMCP_PUBLIC_URL`.
 
 ## Provider boundary
 
@@ -54,7 +54,7 @@ Stopped-container reuse is an opportunistic cache. Correctness cannot depend on 
 
 ## Security boundary
 
-Agent Bearer Tokens identify project-scoped principals and are stored as keyed hashes. AutoDL, Git Deploy Key, SMTP, and transient Runner credentials are encrypted with a master key that is not stored in PostgreSQL. GitHub host keys are pinned by trusted SHA256 fingerprint before a repository can become active.
+Agent Bearer Tokens identify project-scoped principals and are stored as keyed hashes. Issuance and revocation are audited; token lists expose only prefix, scopes, status, expiry, and usage timestamps. One-time MCP exports contain a live secret and are never persisted by Gemcp. AutoDL, Git Deploy Key, SMTP, and transient Runner credentials are encrypted with a master key that is not stored in PostgreSQL. GitHub host keys are pinned by trusted SHA256 fingerprint before a repository can become active.
 
 Owner Sessions use Secure, HttpOnly, SameSite=Strict cookies plus CSRF validation for state-changing requests. API and MCP responses are marked `no-store`, including the one-time setup response containing the first Agent Token. Provider responses expose only a credential-presence boolean; neither plaintext Token nor ciphertext has an API representation.
 

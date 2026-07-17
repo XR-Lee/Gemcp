@@ -30,7 +30,7 @@ func New(agentAuth *agentauth.Service, experiments *experiment.Service, version 
 	}
 	server := &Server{agentAuth: agentAuth, experiments: experiments, logger: logger}
 	mcpServer := mcp.NewServer(&mcp.Implementation{Name: "gemcp", Version: version}, &mcp.ServerOptions{
-		Instructions: "Submit and inspect immutable, budget-governed experiments in the Agent token's project.",
+		Instructions: "Manage immutable, budget-governed experiments in the Agent token's project. Call get_project_options and get_project_cost before submission, use a full Git commit SHA, and reuse an idempotency key only for an identical request.",
 	})
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "get_project_options", Description: "List the project policy and approved repositories, environments, and resource profiles.",

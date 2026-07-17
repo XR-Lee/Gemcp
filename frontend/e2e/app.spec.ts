@@ -1,6 +1,7 @@
+import { readFile, unlink } from 'node:fs/promises'
 import { expect, test, type Page, type Route } from '@playwright/test'
 
-const build = { name: 'Gemcp', version: '0.6.4', commit: 'abc1234', built_at: '2026-07-16T00:00:00Z' }
+const build = { name: 'Gemcp', version: '0.7.0', commit: 'abc1234', built_at: '2026-07-16T00:00:00Z' }
 const project = {
   id: 'b492cbe4-f198-4d87-bbf9-3f77d8a3ab0a', name: 'Point Models', slug: 'point-models', status: 'active',
   monthly_budget_milli: 100000, max_experiment_milli: 20000, max_concurrency: 2, max_runtime_seconds: 86400,
@@ -38,6 +39,42 @@ const experiments = [
     finished_at: '2026-07-15T06:02:00Z', exit_code: 1, metrics: { accuracy: 0.82 },
   },
 ]
+const agentTokens = [
+  {
+    id: 'agent-token-active-1', project_id: project.id, label: 'default-agent', prefix: 'gmc_abcd123',
+    scopes: ['read', 'submit', 'cancel'], status: 'active', expires_at: '2026-10-15T02:00:00Z',
+    last_used_at: '2026-07-17T01:58:00Z', created_at: '2026-07-16T00:00:00Z', updated_at: '2026-07-17T01:58:00Z',
+  },
+  {
+    id: 'agent-token-revoked-1', project_id: project.id, label: 'retired-agent', prefix: 'gmc_old1234',
+    scopes: ['read'], status: 'revoked', created_at: '2026-06-01T00:00:00Z', updated_at: '2026-07-01T00:00:00Z',
+  },
+]
+const issuedAgentToken = 'gmc_new1234_test-secret'
+const issuedAgent = {
+  id: 'agent-token-issued-1', project_id: project.id, label: 'integration-agent', prefix: 'gmc_new1234',
+  scopes: ['read', 'submit', 'cancel'], status: 'active', expires_at: '2026-08-16T02:00:00Z',
+  created_at: '2026-07-17T02:00:00Z', updated_at: '2026-07-17T02:00:00Z',
+}
+const mcpConfig = {
+  mcpServers: {
+    'gemcp-point-models': {
+      type: 'http', url: 'https://gemcp.example.com/mcp',
+      headers: { Authorization: `Bearer ${issuedAgentToken}` },
+    },
+  },
+}
+const agentTokenList = {
+  tokens: agentTokens, mcp_url: 'https://gemcp.example.com/mcp', config_file_name: 'gemcp-point-models-mcp.json',
+  config_template: {
+    mcpServers: {
+      'gemcp-point-models': {
+        type: 'http', url: 'https://gemcp.example.com/mcp',
+        headers: { Authorization: 'Bearer ${GEMCP_AGENT_TOKEN}' },
+      },
+    },
+  },
+}
 const attemptHistory = [{
   id: 'attempt-live-1', number: 1, state: 'running', provider_resource_id: 'deployment-live-1',
   estimated_cost_milli: 0, log_tail: 'epoch 3 loss=0.42\n', metrics: { loss: 0.42 },
@@ -149,6 +186,19 @@ async function mockConsole(page: Page) {
       ],
     })
     if (path === '/api/v1/projects') return fulfill(route, [project])
+    if (path === `/api/v1/projects/${project.id}/agent-tokens` && route.request().method() === 'GET') return fulfill(route, agentTokenList)
+    if (path === `/api/v1/projects/${project.id}/agent-tokens` && route.request().method() === 'POST') {
+      expect(route.request().postDataJSON()).toEqual({
+        label: 'integration-agent', scopes: ['read', 'submit', 'cancel'], expires_in_days: 30, never_expires: false,
+      })
+      return fulfill(route, {
+        token: issuedAgent, agent_token: issuedAgentToken, mcp_url: 'https://gemcp.example.com/mcp',
+        mcp_config: mcpConfig, config_file_name: 'gemcp-point-models-mcp.json',
+      }, 201)
+    }
+    if (path === `/api/v1/projects/${project.id}/agent-tokens/${agentTokens[0].id}` && route.request().method() === 'DELETE') {
+      return fulfill(route, { ...agentTokens[0], status: 'revoked', updated_at: '2026-07-17T02:01:00Z' })
+    }
     if (path === '/api/v1/repositories') return fulfill(route, repositories)
     if (path === '/api/v1/experiments') return fulfill(route, experiments)
     if (path === `/api/v1/experiments/${experiments[0].id}/attempts`) return fulfill(route, attemptHistory)
@@ -236,6 +286,55 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await expect(page.getByText('epoch 3 loss=0.42')).toBeVisible()
   await expectNoPageOverflow(page)
   await page.screenshot({ path: '/tmp/gemcp-experiment-detail.png', fullPage: true })
+})
+
+test('Agent token issuance, MCP JSON export and revocation fit desktop and mobile', async ({ page }) => {
+  await mockConsole(page)
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Agents', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Agent access', level: 1 })).toBeVisible()
+  await expect(page.getByText('default-agent', { exact: true })).toBeVisible()
+  await expect(page.getByText('gmc_abcd123', { exact: true })).toBeVisible()
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: '/tmp/gemcp-agents-desktop.png', fullPage: true })
+
+  await page.getByRole('button', { name: 'Generate token' }).click()
+  const issueDialog = page.getByRole('dialog', { name: 'Generate Agent token' })
+  await expect(issueDialog).toBeVisible()
+  await issueDialog.getByLabel('Label').fill('integration-agent')
+  await issueDialog.getByLabel('Expiration').selectOption('30')
+  await expect(issueDialog.getByLabel('Read')).toBeChecked()
+  await expect(issueDialog.getByLabel('Submit')).toBeChecked()
+  await expect(issueDialog.getByLabel('Cancel')).toBeChecked()
+  await issueDialog.getByRole('button', { name: 'Generate token' }).click()
+
+  const revealDialog = page.getByRole('dialog', { name: 'Agent token and MCP configuration' })
+  await expect(revealDialog).toBeVisible()
+  await expect(revealDialog.getByText(issuedAgentToken, { exact: true })).toBeVisible()
+  const downloadPromise = page.waitForEvent('download')
+  await revealDialog.getByRole('button', { name: 'Download JSON' }).click()
+  const download = await downloadPromise
+  expect(download.suggestedFilename()).toBe('gemcp-point-models-mcp.json')
+  const downloadPath = '/tmp/gemcp-exported-mcp.json'
+  await download.saveAs(downloadPath)
+  const exported = JSON.parse(await readFile(downloadPath, 'utf8'))
+  expect(exported).toEqual(mcpConfig)
+  await unlink(downloadPath)
+  await page.screenshot({ path: '/tmp/gemcp-agent-token-reveal.png', fullPage: true })
+  await revealDialog.getByTitle('Close Agent token').click()
+  await expect(page.getByText(issuedAgentToken, { exact: true })).toHaveCount(0)
+
+  const defaultRow = page.getByRole('row').filter({ hasText: 'default-agent' })
+  await defaultRow.getByTitle('Revoke Agent token').click()
+  const revokeDialog = page.getByRole('alertdialog', { name: 'Revoke Agent token' })
+  await expect(revokeDialog).toBeVisible()
+  await revokeDialog.getByRole('button', { name: 'Revoke token' }).click()
+  await expect(defaultRow.getByText('revoked', { exact: true })).toBeVisible()
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: '/tmp/gemcp-agents-mobile.png', fullPage: true })
 })
 
 test('live Provider resources and details fit desktop and mobile', async ({ page }) => {

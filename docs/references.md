@@ -9,6 +9,10 @@ Gemcp is an independent implementation. These projects inform specific design ch
 - kyuwon-shim-ARL/runpod-mcp: independent provider watchdog pattern and its durability limitations.
 
 - modelcontextprotocol/go-sdk `v1.6.1`: official MCP Streamable HTTP server, typed tool schemas, Bearer middleware, and authenticated session binding.
+- Claude Code remote HTTP MCP configuration: `https://docs.anthropic.com/en/docs/claude-code/mcp`.
+- Cursor MCP JSON and environment interpolation: `https://cursor.com/docs/mcp`.
+- VS Code MCP server configuration: `https://code.visualstudio.com/docs/copilot/chat/mcp-servers`.
+- OpenAI Codex Streamable HTTP and bearer-token configuration: `https://developers.openai.com/codex/mcp`.
 - AutoDL Private Cloud Developer API: `https://private.autodl.com/docs/esd_api_doc/`.
 - AutoDL Private Cloud image and storage behavior: `https://private.autodl.com/docs/image/` and `https://private.autodl.com/docs/fs/`.
 

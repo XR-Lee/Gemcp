@@ -36,11 +36,15 @@ func TestRuntimeAndNotificationOperationsRequireOwner(t *testing.T) {
 	})
 	runtimeHandlers := NewRuntimeHandlers(nil)
 	notificationHandlers := NewNotificationHandlers(nil)
+	agentTokenHandlers := NewAgentTokenHandlers(nil)
 	router.GET("/managed", runtimeHandlers.List)
 	router.GET("/runtime/status", runtimeHandlers.Status)
 	router.POST("/emergency", runtimeHandlers.EmergencyStop)
 	router.GET("/notifications", notificationHandlers.List)
 	router.PUT("/notifications/settings", notificationHandlers.Configure)
+	router.GET("/projects/:id/agent-tokens", agentTokenHandlers.List)
+	router.POST("/projects/:id/agent-tokens", agentTokenHandlers.Issue)
+	router.DELETE("/projects/:id/agent-tokens/:tokenID", agentTokenHandlers.Revoke)
 
 	for _, request := range []*http.Request{
 		httptest.NewRequest(http.MethodGet, "/managed", nil),
@@ -48,6 +52,9 @@ func TestRuntimeAndNotificationOperationsRequireOwner(t *testing.T) {
 		httptest.NewRequest(http.MethodPost, "/emergency", nil),
 		httptest.NewRequest(http.MethodGet, "/notifications", nil),
 		httptest.NewRequest(http.MethodPut, "/notifications/settings", nil),
+		httptest.NewRequest(http.MethodGet, "/projects/project-id/agent-tokens", nil),
+		httptest.NewRequest(http.MethodPost, "/projects/project-id/agent-tokens", nil),
+		httptest.NewRequest(http.MethodDelete, "/projects/project-id/agent-tokens/token-id", nil),
 	} {
 		response := httptest.NewRecorder()
 		router.ServeHTTP(response, request)

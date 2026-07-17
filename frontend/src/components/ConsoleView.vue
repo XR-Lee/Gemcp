@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import {
   Activity,
   Bell,
+  Bot,
   Boxes,
   Check,
   CircleDollarSign,
@@ -23,11 +24,12 @@ import { APIError, api, type Attempt, type BuildInfo, type Cost, type Experiment
 import ExperimentTable from './ExperimentTable.vue'
 import ProviderView from './ProviderView.vue'
 import NotificationView from './NotificationView.vue'
+import AgentView from './AgentView.vue'
 
 const props = defineProps<{ build: BuildInfo | null; user: User }>()
 const emit = defineEmits<{ signedOut: [] }>()
 
-type ViewName = 'overview' | 'experiments' | 'projects' | 'provider' | 'notifications'
+type ViewName = 'overview' | 'experiments' | 'projects' | 'agents' | 'provider' | 'notifications'
 const activeView = ref<ViewName>('overview')
 const projects = ref<Project[]>([])
 const selectedProjectID = ref('')
@@ -60,6 +62,7 @@ const viewTitle = computed(() => ({
   overview: 'Overview',
   experiments: 'Experiments',
   projects: 'Project configuration',
+  agents: 'Agent access',
   provider: 'Private Cloud resources',
   notifications: 'Notifications',
 })[activeView.value])
@@ -253,6 +256,7 @@ onMounted(refreshAll)
         <button class="nav-item" :class="{ active: activeView === 'overview' }" type="button" aria-label="Overview" title="Overview" @click="activeView = 'overview'"><Activity :size="17" /><span>Overview</span></button>
         <button class="nav-item" :class="{ active: activeView === 'experiments' }" type="button" aria-label="Experiments" title="Experiments" @click="activeView = 'experiments'"><FlaskConical :size="17" /><span>Experiments</span></button>
         <button class="nav-item" :class="{ active: activeView === 'projects' }" type="button" aria-label="Project" title="Project" @click="activeView = 'projects'"><Boxes :size="17" /><span>Project</span></button>
+        <button class="nav-item" :class="{ active: activeView === 'agents' }" type="button" aria-label="Agents" title="Agents" @click="activeView = 'agents'"><Bot :size="17" /><span>Agents</span></button>
         <button class="nav-item" :class="{ active: activeView === 'provider' }" type="button" aria-label="Provider" title="Provider" @click="activeView = 'provider'"><Server :size="17" /><span>Provider</span></button>
         <button class="nav-item" :class="{ active: activeView === 'notifications' }" type="button" aria-label="Alerts" title="Alerts" @click="activeView = 'notifications'"><Bell :size="17" /><span>Alerts</span></button>
         <button class="nav-item nav-bottom" type="button" aria-label="Sign out" title="Sign out" :disabled="signingOut" @click="signOut"><LogOut :size="17" /><span>Sign out</span></button>
@@ -319,7 +323,8 @@ onMounted(refreshAll)
         <div v-else class="empty-state compact-empty"><span class="empty-icon"><GitBranch :size="21" /></span><h3>No repositories registered</h3><p>Register the private GitHub repository used by the first experiment.</p></div>
       </section>
 
-      <ProviderView v-if="activeView === 'provider'" :active="true" @unauthorized="emit('signedOut')" />
+      <AgentView v-if="activeView === 'agents'" :active="true" :project="selectedProject" @unauthorized="emit('signedOut')" />
+      <ProviderView v-else-if="activeView === 'provider'" :active="true" @unauthorized="emit('signedOut')" />
       <NotificationView v-else-if="activeView === 'notifications'" :active="true" @unauthorized="emit('signedOut')" />
 
       <footer class="console-footer"><span>{{ props.build?.name ?? 'Gemcp' }} {{ props.build?.version ?? 'dev' }}</span><span>Commit {{ props.build?.commit ?? 'unknown' }}</span><span>Operational estimates only</span></footer>

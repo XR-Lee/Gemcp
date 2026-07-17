@@ -26,6 +26,47 @@ export type Project = {
   timezone: string
 }
 
+export type AgentScope = 'read' | 'submit' | 'cancel'
+
+export type AgentToken = {
+  id: string
+  project_id: string
+  label: string
+  prefix: string
+  scopes: AgentScope[]
+  status: 'active' | 'expired' | 'revoked'
+  expires_at?: string
+  last_used_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export type MCPServerConfig = {
+  type: 'http'
+  url: string
+  headers: Record<string, string>
+}
+
+export type MCPConfig = {
+  mcpServers: Record<string, MCPServerConfig>
+}
+
+export type AgentTokenList = {
+  tokens: AgentToken[]
+  mcp_url?: string
+  config_template?: MCPConfig
+  config_file_name: string
+  truncated?: boolean
+}
+
+export type AgentTokenIssue = {
+  token: AgentToken
+  agent_token: string
+  mcp_url: string
+  mcp_config: MCPConfig
+  config_file_name: string
+}
+
 export type Repository = {
   id: string
   project_id: string
@@ -345,6 +386,17 @@ export const api = {
     setCSRFToken('')
   },
   projects: () => request<Project[]>('/api/v1/projects'),
+  agentTokens: (projectID: string) =>
+    request<AgentTokenList>(`/api/v1/projects/${encodeURIComponent(projectID)}/agent-tokens`),
+  issueAgentToken: (projectID: string, payload: {
+    label: string; scopes: AgentScope[]; expires_in_days?: number; never_expires: boolean;
+  }) => request<AgentTokenIssue>(`/api/v1/projects/${encodeURIComponent(projectID)}/agent-tokens`, {
+    method: 'POST', body: JSON.stringify(payload),
+  }),
+  revokeAgentToken: (projectID: string, tokenID: string) =>
+    request<AgentToken>(`/api/v1/projects/${encodeURIComponent(projectID)}/agent-tokens/${encodeURIComponent(tokenID)}`, {
+      method: 'DELETE',
+    }),
   repositories: (projectID: string) =>
     request<Repository[]>(`/api/v1/repositories?project_id=${encodeURIComponent(projectID)}`),
   createRepository: (payload: { project_id: string; name: string; ssh_url: string; default_branch: string }) =>

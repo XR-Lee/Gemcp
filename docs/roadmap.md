@@ -35,11 +35,18 @@ Credential-safe Provider resource views, bounded pagination, safe DTOs, deployme
 
 Dispatch defaults off so upgrades cannot launch historical queued work; reconciliation remains active.
 
-## Next trial
+### v0.6.1-v0.6.4 - deployment and Runner validation
 
-The initial controlled deployment should validate what cannot be proven without the target environment or newly authorized paid resources:
+PostgreSQL 18 bind-root hardening, real Private Cloud Runner diagnostics, Provider-safe quote-free bootstrap launch, and a successful controlled RTX 3090 CUDA experiment with confirmed cleanup and ledger settlement.
 
-- Cloudflare HTTPS callback reachability from an AutoDL Job.
+### v0.7.0 - third-party Agent access
+
+Owner-managed project Agent Token issuance, bounded scopes, optional expiry, effective-status and last-use views, immediate revocation, one-time MCP JSON export, audit events, and client-specific Claude Code, Cursor, VS Code, and Codex documentation.
+
+## Further validation
+
+The following items still require the target environment or newly authorized paid resources:
+
 - `/root/autodl-fs` output persistence after deployment deletion and cache eviction.
 - Command failure, OOM, timeout extension, cancellation, repeated cleanup, and controlplane restart recovery.
 - Watchdog enforcement while the controlplane is stopped.
@@ -50,7 +57,7 @@ The initial controlled deployment should validate what cannot be proven without 
 ## Later increments
 
 - Environment and resource-profile administration beyond first-run defaults.
-- Agent Token issue, revoke, expiry, and repository-key rotation UI.
+- Repository-key rotation UI.
 - Project-scoped Secret registration, rotation, and low-privilege Runner injection.
 - Artifact manifests and controlled downloads where shared-storage access permits.
 - Optional off-host backups and restore drills.
