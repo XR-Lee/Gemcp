@@ -1,127 +1,71 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import {
-  Activity,
-  Boxes,
-  CircleDollarSign,
-  FlaskConical,
-  KeyRound,
-  RefreshCw,
-  Settings,
-} from '@lucide/vue'
+import { FlaskConical, RefreshCw } from '@lucide/vue'
+import { APIError, api, type BuildInfo, type User } from './api'
+import ConsoleView from './components/ConsoleView.vue'
+import LoginView from './components/LoginView.vue'
+import SetupView from './components/SetupView.vue'
 
-type BuildInfo = {
-  name: string
-  version: string
-  commit: string
-  built_at: string
-}
+type Phase = 'loading' | 'setup' | 'login' | 'console' | 'unavailable'
 
+const phase = ref<Phase>('loading')
 const build = ref<BuildInfo | null>(null)
-const loading = ref(false)
-const online = ref(false)
+const user = ref<User | null>(null)
+const startupError = ref('')
 
-async function refreshStatus() {
-  loading.value = true
+async function initialize() {
+  phase.value = 'loading'
+  startupError.value = ''
+  const buildRequest = api.build().then((value) => (build.value = value)).catch(() => undefined)
   try {
-    const response = await fetch('/api/v1/version', { headers: { Accept: 'application/json' } })
-    if (!response.ok) throw new Error(`HTTP ${response.status}`)
-    const payload = (await response.json()) as { data: BuildInfo }
-    build.value = payload.data
-    online.value = true
-  } catch {
-    online.value = false
-  } finally {
-    loading.value = false
+    const status = await api.setupStatus()
+    await buildRequest
+    if (!status.initialized) {
+      phase.value = 'setup'
+      return
+    }
+    try {
+      user.value = await api.me()
+      phase.value = 'console'
+    } catch (caught) {
+      if (caught instanceof APIError && caught.status === 401) {
+        phase.value = 'login'
+        return
+      }
+      throw caught
+    }
+  } catch (caught) {
+    startupError.value = caught instanceof APIError ? caught.message : 'Gemcp is not reachable.'
+    phase.value = 'unavailable'
   }
 }
 
-onMounted(refreshStatus)
+function authenticated(value: User) {
+  user.value = value
+  phase.value = 'console'
+}
+
+function signedOut() {
+  user.value = null
+  phase.value = 'login'
+}
+
+onMounted(initialize)
 </script>
 
 <template>
-  <div class="app-shell">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-mark" aria-hidden="true"><FlaskConical :size="19" /></div>
-        <div>
-          <strong>Gemcp</strong>
-          <span>AutoDL control plane</span>
-        </div>
-      </div>
-
-      <nav aria-label="Primary navigation">
-        <a class="nav-item active" href="#overview"><Activity :size="17" />Overview</a>
-        <a class="nav-item" href="#experiments"><FlaskConical :size="17" />Experiments</a>
-        <a class="nav-item" href="#projects"><Boxes :size="17" />Projects</a>
-        <a class="nav-item" href="#access"><KeyRound :size="17" />Access</a>
-        <a class="nav-item nav-bottom" href="#settings"><Settings :size="17" />Settings</a>
-      </nav>
-    </aside>
-
-    <main>
-      <header class="topbar">
-        <div>
-          <p class="eyebrow">Operations</p>
-          <h1>Overview</h1>
-        </div>
-        <div class="topbar-actions">
-          <span class="status" :class="online ? 'online' : 'offline'">
-            <span class="status-dot" />{{ online ? 'Control plane online' : 'Control plane unavailable' }}
-          </span>
-          <button class="icon-button" type="button" title="Refresh status" :disabled="loading" @click="refreshStatus">
-            <RefreshCw :size="17" :class="{ spinning: loading }" />
-          </button>
-        </div>
-      </header>
-
-      <section id="overview" class="content-band">
-        <div class="metric-grid" aria-label="System metrics">
-          <div class="metric">
-            <span>Running</span>
-            <strong>0</strong>
-            <small>No active experiments</small>
-          </div>
-          <div class="metric">
-            <span>Queued</span>
-            <strong>0</strong>
-            <small>Queue is clear</small>
-          </div>
-          <div class="metric accent-green">
-            <span>Estimated spend</span>
-            <strong>CNY 0.00</strong>
-            <small>Current project period</small>
-          </div>
-          <div class="metric accent-coral">
-            <span>Provider balance</span>
-            <strong>Not connected</strong>
-            <small>Configure AutoDL in Settings</small>
-          </div>
-        </div>
-      </section>
-
-      <section class="workspace">
-        <div class="section-heading">
-          <div>
-            <h2>Recent experiments</h2>
-            <p>Agent-submitted jobs will appear here.</p>
-          </div>
-          <span class="version-chip">{{ build?.version ?? 'dev' }}</span>
-        </div>
-
-        <div class="empty-state">
-          <div class="empty-icon"><FlaskConical :size="22" /></div>
-          <h3>No experiments yet</h3>
-          <p>Create the first project and Agent token, then submit through MCP.</p>
-        </div>
-      </section>
-
-      <footer>
-        <span>{{ build?.name ?? 'Gemcp' }} {{ build?.version ?? 'dev' }}</span>
-        <span class="footer-separator">Commit {{ build?.commit ?? 'unknown' }}</span>
-        <CircleDollarSign :size="14" aria-hidden="true" />
-        <span>Operational estimates only</span>
-      </footer>
-    </main>
+  <div v-if="phase === 'loading'" class="startup-state" aria-live="polite">
+    <span class="brand-mark"><FlaskConical :size="21" /></span>
+    <strong>Gemcp</strong>
+    <span>Connecting to the control plane...</span>
   </div>
+  <div v-else-if="phase === 'unavailable'" class="startup-state unavailable-state">
+    <span class="brand-mark error-mark"><FlaskConical :size="21" /></span>
+    <strong>Control plane unavailable</strong>
+    <span>{{ startupError }}</span>
+    <button class="secondary-button" type="button" @click="initialize"><RefreshCw :size="16" />Retry</button>
+  </div>
+  <SetupView v-else-if="phase === 'setup'" @ready="phase = 'login'" />
+  <LoginView v-else-if="phase === 'login'" :build="build" @authenticated="authenticated" />
+  <ConsoleView v-else-if="user" :build="build" :user="user" @signed-out="signedOut" />
 </template>

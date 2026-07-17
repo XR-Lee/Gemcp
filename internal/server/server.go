@@ -71,6 +71,11 @@ func New(deps Dependencies) *http.Server {
 	protected.POST("/repositories/:id/verify", repositoryHandlers.Verify)
 
 	experimentService := experiment.NewService(deps.Ent, deps.Secrets, repositoryService)
+	experimentHandlers := httpapi.NewExperimentHandlers(experimentService)
+	protected.GET("/experiments", experimentHandlers.List)
+	protected.GET("/experiments/:id", experimentHandlers.Get)
+	protected.GET("/projects/:id/cost", experimentHandlers.Cost)
+
 	agentAuthService := agentauth.NewService(deps.Ent, deps.Secrets)
 	mcpHandler := mcpserver.New(agentAuthService, experimentService, deps.Build.Version, nil).Handler()
 	router.Any("/mcp", gin.WrapH(mcpHandler))
@@ -111,6 +116,10 @@ func securityHeaders() gin.HandlerFunc {
 		c.Header("X-Content-Type-Options", "nosniff")
 		c.Header("X-Frame-Options", "DENY")
 		c.Header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+		if strings.HasPrefix(c.Request.URL.Path, "/api/") || strings.HasPrefix(c.Request.URL.Path, "/mcp") {
+			c.Header("Cache-Control", "no-store")
+			c.Header("Pragma", "no-cache")
+		}
 		c.Next()
 	}
 }

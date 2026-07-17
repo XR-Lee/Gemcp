@@ -1,5 +1,7 @@
 # First-run setup and Web authentication
 
+The embedded Web application drives these endpoints automatically. The raw contract below is retained for recovery, testing, and non-browser administration.
+
 Gemcp starts only when `GEMCP_MASTER_KEY` is a valid base64-encoded 32-byte key. Generate it locally on the control server:
 
 ```bash

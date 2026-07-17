@@ -5,7 +5,7 @@ COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 BUILT_AT := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.builtAt=$(BUILT_AT)
 
-.PHONY: fmt test vet vuln frontend-install frontend-test frontend-build stage-frontend build check
+.PHONY: fmt test vet vuln frontend-install frontend-test frontend-e2e frontend-build stage-frontend build check
 
 fmt:
 	$(GO) fmt ./...
@@ -24,6 +24,9 @@ frontend-install:
 
 frontend-test:
 	cd frontend && $(NPM) run test:run
+
+frontend-e2e:
+	cd frontend && $(NPM) run test:e2e
 
 frontend-build:
 	cd frontend && $(NPM) run build

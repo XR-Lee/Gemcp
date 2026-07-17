@@ -48,6 +48,9 @@ func TestVersion(t *testing.T) {
 	if body := response.Body.String(); body == "" || !containsAll(body, "Gemcp", "abc123") {
 		t.Fatalf("unexpected body: %s", body)
 	}
+	if got := response.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("Cache-Control = %q, want no-store", got)
+	}
 }
 
 func containsAll(value string, parts ...string) bool {

@@ -8,6 +8,8 @@ data/
 postgres_data/
 frontend/node_modules/
 frontend/dist/
+frontend/playwright-report/
+frontend/test-results/
 internal/web/dist/
 *.log
 .DS_Store

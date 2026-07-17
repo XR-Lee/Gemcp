@@ -209,6 +209,30 @@ func TestReserveCostRoundsWithoutOverflow(t *testing.T) {
 	}
 }
 
+func TestOwnerQueriesEnforceTenantBoundary(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	ctx := context.Background()
+	submitted, err := f.service.Submit(ctx, f.principal, validSubmit(f, "request-0001"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	listed, err := f.service.OwnerList(ctx, f.principal.TenantID, f.project.PublicID.String(), ListInput{})
+	if err != nil || len(listed.Experiments) != 1 {
+		t.Fatalf("OwnerList() = %+v, %v", listed, err)
+	}
+	view, err := f.service.OwnerGet(ctx, f.principal.TenantID, f.project.PublicID.String(), submitted.Experiment.ID)
+	if err != nil || view.ID != submitted.Experiment.ID {
+		t.Fatalf("OwnerGet() = %+v, %v", view, err)
+	}
+	otherTenant, _ := f.client.Tenant.Create().SetName("Other").Save(ctx)
+	otherProject, _ := f.client.Project.Create().
+		SetTenantID(otherTenant.ID).SetName("Other").SetSlug("other").
+		SetMonthlyBudgetMilli(1000).SetMaxExperimentMilli(1000).Save(ctx)
+	if _, err := f.service.OwnerList(ctx, f.principal.TenantID, otherProject.PublicID.String(), ListInput{}); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("cross-tenant OwnerList() error = %v", err)
+	}
+}
+
 func TestOptionsAndList(t *testing.T) {
 	f := newFixture(t, 100000, 20000)
 	ctx := context.Background()

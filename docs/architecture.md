@@ -16,7 +16,7 @@ AutoDL owns physical scheduling, container execution, provider billing, images, 
 
 ## Runtime topology
 
-The production image contains one Go binary and the embedded Vue assets. The same image supports separate process modes:
+The production image contains one Go binary and the embedded Vue assets. The Web application selects first-run setup, Owner login, or the operations console from server state; it does not require a separate frontend runtime. The same image supports separate process modes:
 
 ```text
 controlplane: HTTP API, Web, MCP, scheduler, reconciler, email
@@ -52,5 +52,7 @@ Stopped-container reuse is an opportunistic cache. Correctness cannot depend on 
 ## Security boundary
 
 Agent Bearer Tokens identify project-scoped principals and are stored as keyed hashes. AutoDL, Git deploy-key, SMTP, and project Secret values are encrypted with a master key that is not stored in PostgreSQL. GitHub host keys are pinned by trusted SHA256 fingerprint before a repository can become active.
+
+Owner Sessions use Secure, HttpOnly, SameSite=Strict cookies plus CSRF validation for state-changing requests. API and MCP responses are marked `no-store`, including the one-time setup response containing the first Agent Token.
 
 Experiments may access the public Internet. Any injected Secret must therefore be project-scoped, low privilege, and readily rotatable. Gemcp does not claim to sandbox arbitrary experiment code.

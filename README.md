@@ -4,7 +4,7 @@ Gemcp is a private, single-organization control plane for running bounded AutoDL
 
 ## Current release
 
-`v0.4.0` adds encrypted per-repository GitHub Deploy Keys, pinned SSH host verification, immutable experiments, serializable hard-budget reservations, Token-scoped idempotency, and seven authenticated MCP tools over Streamable HTTP. Accepted experiments remain queued until live phase-zero validation selects the production AutoDL backend.
+`v0.4.1` adds the embedded first-run, Owner login, project, repository, budget, experiment list, and experiment detail Web workflows on top of the `v0.4.0` MCP experiment core. Accepted experiments remain queued until live phase-zero validation selects the production AutoDL backend.
 
 ## Architecture
 
@@ -29,6 +29,10 @@ npm --prefix frontend install
 make test
 make frontend-test
 make build
+
+# Once per browser-test environment:
+npx --prefix frontend playwright install chromium
+make frontend-e2e
 ```
 
 The backend requires PostgreSQL when started:
@@ -46,6 +50,8 @@ GET /readyz
 GET /api/v1/version
 GET /api/v1/projects
 GET /api/v1/repositories
+GET /api/v1/experiments
+GET /api/v1/projects/:id/cost
 POST|GET|DELETE /mcp
 ```
 
@@ -67,7 +73,7 @@ Generate both required bootstrap credentials on the deployment host:
 
 Store them only in the protected deployment `.env`. The first-run setup transaction and Session API are documented in [First-run setup](docs/setup-api.md).
 
-After initialization, register the private repository using [Private Git repositories](docs/repositories.md), then connect an Agent using the [MCP endpoint](docs/mcp.md).
+After initialization, register the private repository using the [Owner Web console](docs/web-console.md) or [Private Git repository API](docs/repositories.md), then connect an Agent using the [MCP endpoint](docs/mcp.md).
 
 ## Deployment
 

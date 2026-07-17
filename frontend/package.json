@@ -1,12 +1,13 @@
 {
   "name": "gemcp-frontend",
   "private": true,
-  "version": "0.4.0",
+  "version": "0.4.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
     "test:run": "vitest run",
+    "test:e2e": "playwright test",
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
@@ -14,6 +15,7 @@
     "vue": "3.5.40"
   },
   "devDependencies": {
+    "@playwright/test": "1.61.1",
     "@tailwindcss/vite": "4.3.3",
     "@types/node": "22.20.1",
     "@vitejs/plugin-vue": "6.0.8",

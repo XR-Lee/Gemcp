@@ -30,12 +30,20 @@
 - Project-scoped Agent Token authentication with per-request revocation, expiration, and scope checks.
 - Owner project and repository management APIs.
 
+## v0.4.1: Owner operations console (complete)
+
+- Embedded first-run setup and Owner login flows.
+- Project budget and queue overview, experiment list, filters, and immutable detail view.
+- Repository registration, Deploy public-key display, and pinned-host verification UI.
+- Tenant-scoped Owner experiment and cost APIs.
+- Desktop and mobile Playwright browser coverage.
+
 ## v0.5.0: M0 execution and operations
 
 - Elastic Job or Pro provider selected by live phase zero.
 - Runner callbacks, fixed AutoDL file-storage output path, and cost estimates.
 - Independent watchdog and critical SMTP notifications.
-- First-run, login, experiment list, and detail Web UI.
+- Provider lifecycle, live status, emergency-stop, and notification views in the existing Web console.
 
 ## Trial additions
 
