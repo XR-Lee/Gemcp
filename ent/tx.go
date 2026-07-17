@@ -26,16 +26,24 @@ type Tx struct {
 	Experiment *ExperimentClient
 	// IdempotencyRecord is the client for interacting with the IdempotencyRecord builders.
 	IdempotencyRecord *IdempotencyRecordClient
+	// Notification is the client for interacting with the Notification builders.
+	Notification *NotificationClient
+	// NotificationSetting is the client for interacting with the NotificationSetting builders.
+	NotificationSetting *NotificationSettingClient
 	// Project is the client for interacting with the Project builders.
 	Project *ProjectClient
 	// ProviderAccount is the client for interacting with the ProviderAccount builders.
 	ProviderAccount *ProviderAccountClient
+	// ProviderResource is the client for interacting with the ProviderResource builders.
+	ProviderResource *ProviderResourceClient
 	// RecordMixin is the client for interacting with the RecordMixin builders.
 	RecordMixin *RecordMixinClient
 	// Repository is the client for interacting with the Repository builders.
 	Repository *RepositoryClient
 	// ResourceProfile is the client for interacting with the ResourceProfile builders.
 	ResourceProfile *ResourceProfileClient
+	// ServiceHeartbeat is the client for interacting with the ServiceHeartbeat builders.
+	ServiceHeartbeat *ServiceHeartbeatClient
 	// Session is the client for interacting with the Session builders.
 	Session *SessionClient
 	// Tenant is the client for interacting with the Tenant builders.
@@ -180,11 +188,15 @@ func (tx *Tx) init() {
 	tx.Environment = NewEnvironmentClient(tx.config)
 	tx.Experiment = NewExperimentClient(tx.config)
 	tx.IdempotencyRecord = NewIdempotencyRecordClient(tx.config)
+	tx.Notification = NewNotificationClient(tx.config)
+	tx.NotificationSetting = NewNotificationSettingClient(tx.config)
 	tx.Project = NewProjectClient(tx.config)
 	tx.ProviderAccount = NewProviderAccountClient(tx.config)
+	tx.ProviderResource = NewProviderResourceClient(tx.config)
 	tx.RecordMixin = NewRecordMixinClient(tx.config)
 	tx.Repository = NewRepositoryClient(tx.config)
 	tx.ResourceProfile = NewResourceProfileClient(tx.config)
+	tx.ServiceHeartbeat = NewServiceHeartbeatClient(tx.config)
 	tx.Session = NewSessionClient(tx.config)
 	tx.Tenant = NewTenantClient(tx.config)
 	tx.User = NewUserClient(tx.config)

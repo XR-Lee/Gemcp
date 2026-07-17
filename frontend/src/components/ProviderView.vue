@@ -12,6 +12,8 @@ import {
   LoaderCircle,
   RefreshCw,
   Server,
+  ShieldAlert,
+  Square,
   X,
 } from '@lucide/vue'
 import {
@@ -19,6 +21,7 @@ import {
   api,
   type ProviderDeployment,
   type ProviderDeploymentDetails,
+  type ManagedProviderResource,
   type ProviderImage,
   type ProviderResources,
   type ProviderSummary,
@@ -41,6 +44,12 @@ const credentialBusy = ref(false)
 const credentialError = ref('')
 const selectedDeployment = ref<ProviderDeploymentDetails | null>(null)
 const deploymentLoading = ref(false)
+const managedResources = ref<ManagedProviderResource[]>([])
+const resourceAction = ref('')
+const emergencyDialog = ref(false)
+const emergencyBusy = ref(false)
+const emergencyConfirmation = ref('')
+const operationError = ref('')
 const credentialForm = reactive({ name: 'AutoDL Private Cloud', token: '' })
 
 const images = computed(() => [...(resources.value?.private_images ?? []), ...(resources.value?.system_images ?? [])])
@@ -51,6 +60,9 @@ const activeDeploymentCount = computed(() => (resources.value?.deployments ?? []
   return !terminalStatus && item.finished_num < item.replica_num
 }).length)
 const reusableCacheCount = computed(() => (resources.value?.cached_containers ?? []).filter((item) => item.status === 'in_cache').length)
+const managedByProvider = computed(() => new Map(managedResources.value.filter((item) => item.provider_id).map((item) => [item.provider_id as string, item])))
+const managedActiveCount = computed(() => managedResources.value.filter((item) => !['deleted', 'error'].includes(item.state)).length)
+const selectedManagedResource = computed(() => selectedDeployment.value ? managedByProvider.value.get(selectedDeployment.value.deployment.uuid) : undefined)
 
 function handleError(caught: unknown, fallback: string) {
   if (caught instanceof APIError && caught.status === 401) {
@@ -66,9 +78,14 @@ async function loadProvider() {
   error.value = ''
   try {
     summary.value = await api.provider()
+    const managedPromise = api.managedProviderResources()
     if (summary.value.credential_configured) {
-      resources.value = await api.queryProvider()
-      summary.value = resources.value.provider
+      const [snapshot, managed] = await Promise.all([api.queryProvider(), managedPromise])
+      resources.value = snapshot
+      summary.value = snapshot.provider
+      managedResources.value = managed
+    } else {
+      managedResources.value = await managedPromise
     }
     initialized.value = true
   } catch (caught) {
@@ -83,8 +100,10 @@ async function refreshLive() {
   loading.value = true
   error.value = ''
   try {
-    resources.value = await api.queryProvider()
-    summary.value = resources.value.provider
+    const [snapshot, managed] = await Promise.all([api.queryProvider(), api.managedProviderResources()])
+    resources.value = snapshot
+    summary.value = snapshot.provider
+    managedResources.value = managed
     initialized.value = true
   } catch (caught) {
     handleError(caught, 'Private Cloud refresh failed.')
@@ -122,6 +141,7 @@ async function configureProvider() {
     })
     summary.value = result.provider
     resources.value = result.resources
+    managedResources.value = await api.managedProviderResources()
     credentialForm.token = ''
     credentialDialog.value = false
     initialized.value = true
@@ -134,6 +154,48 @@ async function configureProvider() {
   } finally {
     credentialForm.token = ''
     credentialBusy.value = false
+  }
+}
+
+function managedFor(deploymentID: string) {
+  return managedByProvider.value.get(deploymentID)
+}
+
+async function requestStop(deployment: ProviderDeployment) {
+  if (!managedFor(deployment.uuid) || resourceAction.value) return
+  resourceAction.value = deployment.uuid
+  operationError.value = ''
+  try {
+    const updated = await api.stopManagedDeployment(deployment.uuid)
+    managedResources.value = managedResources.value.map((item) => item.id === updated.id ? updated : item)
+  } catch (caught) {
+    if (caught instanceof APIError && caught.status === 401) emit('unauthorized')
+    else operationError.value = caught instanceof APIError ? caught.message : 'Could not request deployment stop.'
+  } finally {
+    resourceAction.value = ''
+  }
+}
+
+function openEmergencyDialog() {
+  emergencyConfirmation.value = ''
+  operationError.value = ''
+  emergencyDialog.value = true
+}
+
+async function emergencyStop() {
+  if (emergencyConfirmation.value !== 'STOP' || emergencyBusy.value) return
+  emergencyBusy.value = true
+  operationError.value = ''
+  try {
+    await api.emergencyStop(emergencyConfirmation.value)
+    managedResources.value = await api.managedProviderResources()
+    emergencyDialog.value = false
+    emergencyConfirmation.value = ''
+  } catch (caught) {
+    if (caught instanceof APIError && caught.status === 401) emit('unauthorized')
+    else operationError.value = caught instanceof APIError ? caught.message : 'Emergency stop request failed.'
+  } finally {
+    emergencyBusy.value = false
   }
 }
 
@@ -190,7 +252,7 @@ watch(
 
 <template>
   <section class="provider-page">
-    <div v-if="error" class="page-alert provider-alert" role="alert">{{ error }}<button type="button" title="Dismiss" @click="error = ''"><X :size="16" /></button></div>
+    <div v-if="error || operationError" class="page-alert provider-alert" role="alert">{{ error || operationError }}<button type="button" title="Dismiss" @click="error = ''; operationError = ''"><X :size="16" /></button></div>
 
     <header class="provider-heading">
       <div>
@@ -200,6 +262,7 @@ watch(
       </div>
       <div class="provider-actions">
         <span class="state-badge" :data-state="summary?.status ?? 'pending_validation'"><span />{{ stateLabel(summary?.status ?? 'not connected') }}</span>
+        <button class="danger-button" type="button" :disabled="managedActiveCount === 0" @click="openEmergencyDialog"><ShieldAlert :size="16" />Emergency stop</button>
         <button class="secondary-button" type="button" @click="openCredentialDialog"><KeyRound :size="16" />Rotate token</button>
         <button class="primary-button" type="button" :disabled="loading || !summary?.credential_configured" @click="refreshLive"><RefreshCw :size="16" :class="{ spinning: loading }" />Refresh live</button>
       </div>
@@ -211,7 +274,7 @@ watch(
       <section class="provider-metrics">
         <div><span><Gauge :size="16" />GPU capacity</span><strong>{{ idleGPU }} / {{ totalGPU }}</strong><small>Idle / total</small></div>
         <div><span><Image :size="16" />Images</span><strong>{{ images.length }}</strong><small>{{ resources.private_images.length }} private, {{ resources.system_images.length }} system</small></div>
-        <div><span><Server :size="16" />Deployments</span><strong>{{ activeDeploymentCount }}</strong><small>{{ resources.deployments.length }} returned by Provider</small></div>
+        <div><span><Server :size="16" />Deployments</span><strong>{{ activeDeploymentCount }}</strong><small>{{ managedActiveCount }} managed / {{ resources.deployments.length }} Provider</small></div>
         <div><span><HardDrive :size="16" />Reusable cache</span><strong>{{ reusableCacheCount }}</strong><small>{{ resources.cached_containers.length }} released containers</small></div>
       </section>
 
@@ -252,8 +315,8 @@ watch(
         <div class="section-heading"><div><h2>Deployments</h2><p>Live Provider deployment state and completion counters.</p></div><Boxes :size="18" /></div>
         <div v-if="resources.deployments.length" class="table-scroll">
           <table class="data-table provider-table deployment-table">
-            <thead><tr><th>Status</th><th>Name</th><th>Type</th><th>Replicas</th><th>Starting</th><th>Running</th><th>Finished</th><th>Failed</th><th>Containers</th><th>Created</th></tr></thead>
-            <tbody><tr v-for="deployment in resources.deployments" :key="deployment.uuid" tabindex="0" @click="openDeployment(deployment)" @keydown.enter="openDeployment(deployment)"><td><span class="state-badge" :data-state="deployment.status"><span />{{ stateLabel(deployment.status) }}</span></td><td><strong>{{ deployment.name }}</strong><small><code>{{ deployment.uuid }}</code></small></td><td>{{ deployment.type }}</td><td>{{ deployment.replica_num }}</td><td>{{ deployment.starting_num }}</td><td>{{ deployment.running_num }}</td><td>{{ deployment.finished_num }}</td><td>{{ deployment.failed_num }}</td><td>{{ containerCount(deployment.uuid) }}</td><td>{{ dateTime(deployment.created_at) }}</td></tr></tbody>
+            <thead><tr><th>Status</th><th>Ownership</th><th>Name</th><th>Type</th><th>Replicas</th><th>Starting</th><th>Running</th><th>Finished</th><th>Failed</th><th>Containers</th><th>Created</th><th>Action</th></tr></thead>
+            <tbody><tr v-for="deployment in resources.deployments" :key="deployment.uuid" tabindex="0" @click="openDeployment(deployment)" @keydown.enter="openDeployment(deployment)"><td><span class="state-badge" :data-state="deployment.status"><span />{{ stateLabel(deployment.status) }}</span></td><td><span class="ownership-chip" :data-managed="Boolean(managedFor(deployment.uuid))">{{ managedFor(deployment.uuid) ? 'Managed' : 'External' }}</span></td><td><strong>{{ deployment.name }}</strong><small><code>{{ deployment.uuid }}</code></small></td><td>{{ deployment.type }}</td><td>{{ deployment.replica_num }}</td><td>{{ deployment.starting_num }}</td><td>{{ deployment.running_num }}</td><td>{{ deployment.finished_num }}</td><td>{{ deployment.failed_num }}</td><td>{{ containerCount(deployment.uuid) }}</td><td>{{ dateTime(deployment.created_at) }}</td><td><button v-if="managedFor(deployment.uuid)" class="icon-button stop-button" type="button" title="Stop managed deployment" :disabled="Boolean(resourceAction) || Boolean(managedFor(deployment.uuid)?.stop_requested_at)" @click.stop="requestStop(deployment)"><LoaderCircle v-if="resourceAction === deployment.uuid" :size="15" class="spinning" /><Square v-else :size="14" /></button><span v-else class="muted-cell">Read only</span></td></tr></tbody>
           </table>
         </div>
         <div v-else class="empty-state compact-empty"><span class="empty-icon"><CheckCircle2 :size="21" /></span><h3>No deployments</h3><p>The configured Provider Token returned no active deployment records.</p></div>
@@ -276,6 +339,17 @@ watch(
     <div v-else-if="summary && !summary.credential_configured" class="empty-state provider-empty"><span class="empty-icon"><KeyRound :size="21" /></span><h3>Provider credential missing</h3><button class="primary-button" type="button" @click="openCredentialDialog"><KeyRound :size="16" />Configure token</button></div>
   </section>
 
+  <div v-if="emergencyDialog" class="modal-backdrop" @click.self="!emergencyBusy && (emergencyDialog = false)">
+    <section class="modal emergency-modal" role="alertdialog" aria-modal="true" aria-label="Emergency stop all managed resources">
+      <header><div><p class="eyebrow">Shutdown enforcement</p><h2>Emergency stop</h2></div><button class="icon-button" type="button" title="Close emergency stop" :disabled="emergencyBusy" @click="emergencyDialog = false"><X :size="17" /></button></header>
+      <form class="dialog-form" @submit.prevent="emergencyStop">
+        <div class="emergency-warning"><ShieldAlert :size="20" /><p>Request stop and deletion for all {{ managedActiveCount }} active Gemcp-managed resources.</p></div>
+        <label>Type STOP to confirm<input v-model="emergencyConfirmation" autocomplete="off" spellcheck="false" /></label>
+        <button class="danger-button emergency-submit" type="submit" :disabled="emergencyBusy || emergencyConfirmation !== 'STOP'"><LoaderCircle v-if="emergencyBusy" :size="16" class="spinning" /><ShieldAlert v-else :size="16" />Stop all managed resources</button>
+      </form>
+    </section>
+  </div>
+
   <div v-if="credentialDialog" class="modal-backdrop" @click.self="closeCredentialDialog">
     <section class="modal" role="dialog" aria-modal="true" aria-label="Rotate Provider token">
       <header><div><p class="eyebrow">Credential custody</p><h2>Rotate Provider token</h2></div><button class="icon-button" type="button" title="Close" :disabled="credentialBusy" @click="closeCredentialDialog"><X :size="17" /></button></header>
@@ -295,7 +369,7 @@ watch(
       <header><div><p class="eyebrow">Private Cloud deployment</p><h2>{{ selectedDeployment?.deployment.name ?? 'Loading deployment' }}</h2></div><button class="icon-button" type="button" title="Close details" @click="selectedDeployment = null"><X :size="17" /></button></header>
       <div v-if="deploymentLoading" class="provider-loading"><LoaderCircle :size="20" class="spinning" /></div>
       <template v-else-if="selectedDeployment">
-        <div class="detail-state"><span class="state-badge" :data-state="selectedDeployment.deployment.status"><span />{{ stateLabel(selectedDeployment.deployment.status) }}</span><code>{{ selectedDeployment.deployment.uuid }}</code></div>
+        <div class="detail-state"><span class="state-badge" :data-state="selectedDeployment.deployment.status"><span />{{ stateLabel(selectedDeployment.deployment.status) }}</span><span class="ownership-chip" :data-managed="Boolean(selectedManagedResource)">{{ selectedManagedResource ? 'Managed' : 'External' }}</span><code>{{ selectedDeployment.deployment.uuid }}</code><button v-if="selectedManagedResource" class="danger-button small-button" type="button" :disabled="Boolean(resourceAction) || Boolean(selectedManagedResource.stop_requested_at)" @click="requestStop(selectedDeployment.deployment)"><LoaderCircle v-if="resourceAction" :size="15" class="spinning" /><Square v-else :size="14" />{{ selectedManagedResource.stop_requested_at ? 'Stop requested' : 'Stop deployment' }}</button></div>
         <dl class="detail-list provider-detail-list">
           <div><dt>Type</dt><dd>{{ selectedDeployment.deployment.type }}</dd></div>
           <div><dt>Image</dt><dd><code>{{ selectedDeployment.deployment.image_uuid || 'Not set' }}</code></dd></div>

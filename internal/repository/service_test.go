@@ -5,6 +5,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"errors"
+	"os"
 	"strings"
 	"testing"
 
@@ -31,6 +32,26 @@ func (f *fakeGitVerifier) VerifyCommit(_ context.Context, _, _ string, privateKe
 	f.privateKey = append([]byte(nil), privateKey...)
 	f.commitSHA = sha
 	return f.commitErr
+}
+
+func TestBoundedFileWriterStopsAtLimit(t *testing.T) {
+	path := t.TempDir() + "/archive.tar"
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writer := &boundedFileWriter{file: file, remaining: 3}
+	written, writeErr := writer.Write([]byte("abcd"))
+	if closeErr := file.Close(); closeErr != nil {
+		t.Fatal(closeErr)
+	}
+	info, statErr := os.Stat(path)
+	if statErr != nil {
+		t.Fatal(statErr)
+	}
+	if writeErr == nil || written != 3 || !writer.exceeded || info.Size() != 3 {
+		t.Fatalf("written=%d err=%v exceeded=%t size=%d", written, writeErr, writer.exceeded, info.Size())
+	}
 }
 
 func TestRepositoryDeployKeyLifecycle(t *testing.T) {

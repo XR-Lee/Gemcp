@@ -16,9 +16,12 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
+	"github.com/XR-Lee/Gemcp/ent/notification"
+	"github.com/XR-Lee/Gemcp/ent/notificationsetting"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/provideraccount"
+	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
 	"github.com/XR-Lee/Gemcp/ent/user"
 )
@@ -145,6 +148,21 @@ func (_u *TenantUpdate) AddAttempts(v ...*Attempt) *TenantUpdate {
 	return _u.AddAttemptIDs(ids...)
 }
 
+// AddProviderResourceIDs adds the "provider_resources" edge to the ProviderResource entity by IDs.
+func (_u *TenantUpdate) AddProviderResourceIDs(ids ...int) *TenantUpdate {
+	_u.mutation.AddProviderResourceIDs(ids...)
+	return _u
+}
+
+// AddProviderResources adds the "provider_resources" edges to the ProviderResource entity.
+func (_u *TenantUpdate) AddProviderResources(v ...*ProviderResource) *TenantUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddProviderResourceIDs(ids...)
+}
+
 // AddBudgetEntryIDs adds the "budget_entries" edge to the BudgetEntry entity by IDs.
 func (_u *TenantUpdate) AddBudgetEntryIDs(ids ...int) *TenantUpdate {
 	_u.mutation.AddBudgetEntryIDs(ids...)
@@ -188,6 +206,36 @@ func (_u *TenantUpdate) AddAuditEvents(v ...*AuditEvent) *TenantUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.AddAuditEventIDs(ids...)
+}
+
+// AddNotificationSettingIDs adds the "notification_settings" edge to the NotificationSetting entity by IDs.
+func (_u *TenantUpdate) AddNotificationSettingIDs(ids ...int) *TenantUpdate {
+	_u.mutation.AddNotificationSettingIDs(ids...)
+	return _u
+}
+
+// AddNotificationSettings adds the "notification_settings" edges to the NotificationSetting entity.
+func (_u *TenantUpdate) AddNotificationSettings(v ...*NotificationSetting) *TenantUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddNotificationSettingIDs(ids...)
+}
+
+// AddNotificationIDs adds the "notifications" edge to the Notification entity by IDs.
+func (_u *TenantUpdate) AddNotificationIDs(ids ...int) *TenantUpdate {
+	_u.mutation.AddNotificationIDs(ids...)
+	return _u
+}
+
+// AddNotifications adds the "notifications" edges to the Notification entity.
+func (_u *TenantUpdate) AddNotifications(v ...*Notification) *TenantUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddNotificationIDs(ids...)
 }
 
 // Mutation returns the TenantMutation object of the builder.
@@ -300,6 +348,27 @@ func (_u *TenantUpdate) RemoveAttempts(v ...*Attempt) *TenantUpdate {
 	return _u.RemoveAttemptIDs(ids...)
 }
 
+// ClearProviderResources clears all "provider_resources" edges to the ProviderResource entity.
+func (_u *TenantUpdate) ClearProviderResources() *TenantUpdate {
+	_u.mutation.ClearProviderResources()
+	return _u
+}
+
+// RemoveProviderResourceIDs removes the "provider_resources" edge to ProviderResource entities by IDs.
+func (_u *TenantUpdate) RemoveProviderResourceIDs(ids ...int) *TenantUpdate {
+	_u.mutation.RemoveProviderResourceIDs(ids...)
+	return _u
+}
+
+// RemoveProviderResources removes "provider_resources" edges to ProviderResource entities.
+func (_u *TenantUpdate) RemoveProviderResources(v ...*ProviderResource) *TenantUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveProviderResourceIDs(ids...)
+}
+
 // ClearBudgetEntries clears all "budget_entries" edges to the BudgetEntry entity.
 func (_u *TenantUpdate) ClearBudgetEntries() *TenantUpdate {
 	_u.mutation.ClearBudgetEntries()
@@ -361,6 +430,48 @@ func (_u *TenantUpdate) RemoveAuditEvents(v ...*AuditEvent) *TenantUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveAuditEventIDs(ids...)
+}
+
+// ClearNotificationSettings clears all "notification_settings" edges to the NotificationSetting entity.
+func (_u *TenantUpdate) ClearNotificationSettings() *TenantUpdate {
+	_u.mutation.ClearNotificationSettings()
+	return _u
+}
+
+// RemoveNotificationSettingIDs removes the "notification_settings" edge to NotificationSetting entities by IDs.
+func (_u *TenantUpdate) RemoveNotificationSettingIDs(ids ...int) *TenantUpdate {
+	_u.mutation.RemoveNotificationSettingIDs(ids...)
+	return _u
+}
+
+// RemoveNotificationSettings removes "notification_settings" edges to NotificationSetting entities.
+func (_u *TenantUpdate) RemoveNotificationSettings(v ...*NotificationSetting) *TenantUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveNotificationSettingIDs(ids...)
+}
+
+// ClearNotifications clears all "notifications" edges to the Notification entity.
+func (_u *TenantUpdate) ClearNotifications() *TenantUpdate {
+	_u.mutation.ClearNotifications()
+	return _u
+}
+
+// RemoveNotificationIDs removes the "notifications" edge to Notification entities by IDs.
+func (_u *TenantUpdate) RemoveNotificationIDs(ids ...int) *TenantUpdate {
+	_u.mutation.RemoveNotificationIDs(ids...)
+	return _u
+}
+
+// RemoveNotifications removes "notifications" edges to Notification entities.
+func (_u *TenantUpdate) RemoveNotifications(v ...*Notification) *TenantUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveNotificationIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -660,6 +771,51 @@ func (_u *TenantUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.ProviderResourcesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ProviderResourcesTable,
+			Columns: []string{tenant.ProviderResourcesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(providerresource.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedProviderResourcesIDs(); len(nodes) > 0 && !_u.mutation.ProviderResourcesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ProviderResourcesTable,
+			Columns: []string{tenant.ProviderResourcesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(providerresource.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ProviderResourcesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ProviderResourcesTable,
+			Columns: []string{tenant.ProviderResourcesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(providerresource.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _u.mutation.BudgetEntriesCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -788,6 +944,96 @@ func (_u *TenantUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(auditevent.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.NotificationSettingsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.NotificationSettingsTable,
+			Columns: []string{tenant.NotificationSettingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(notificationsetting.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedNotificationSettingsIDs(); len(nodes) > 0 && !_u.mutation.NotificationSettingsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.NotificationSettingsTable,
+			Columns: []string{tenant.NotificationSettingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(notificationsetting.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.NotificationSettingsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.NotificationSettingsTable,
+			Columns: []string{tenant.NotificationSettingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(notificationsetting.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.NotificationsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.NotificationsTable,
+			Columns: []string{tenant.NotificationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(notification.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedNotificationsIDs(); len(nodes) > 0 && !_u.mutation.NotificationsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.NotificationsTable,
+			Columns: []string{tenant.NotificationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(notification.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.NotificationsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.NotificationsTable,
+			Columns: []string{tenant.NotificationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(notification.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -924,6 +1170,21 @@ func (_u *TenantUpdateOne) AddAttempts(v ...*Attempt) *TenantUpdateOne {
 	return _u.AddAttemptIDs(ids...)
 }
 
+// AddProviderResourceIDs adds the "provider_resources" edge to the ProviderResource entity by IDs.
+func (_u *TenantUpdateOne) AddProviderResourceIDs(ids ...int) *TenantUpdateOne {
+	_u.mutation.AddProviderResourceIDs(ids...)
+	return _u
+}
+
+// AddProviderResources adds the "provider_resources" edges to the ProviderResource entity.
+func (_u *TenantUpdateOne) AddProviderResources(v ...*ProviderResource) *TenantUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddProviderResourceIDs(ids...)
+}
+
 // AddBudgetEntryIDs adds the "budget_entries" edge to the BudgetEntry entity by IDs.
 func (_u *TenantUpdateOne) AddBudgetEntryIDs(ids ...int) *TenantUpdateOne {
 	_u.mutation.AddBudgetEntryIDs(ids...)
@@ -967,6 +1228,36 @@ func (_u *TenantUpdateOne) AddAuditEvents(v ...*AuditEvent) *TenantUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.AddAuditEventIDs(ids...)
+}
+
+// AddNotificationSettingIDs adds the "notification_settings" edge to the NotificationSetting entity by IDs.
+func (_u *TenantUpdateOne) AddNotificationSettingIDs(ids ...int) *TenantUpdateOne {
+	_u.mutation.AddNotificationSettingIDs(ids...)
+	return _u
+}
+
+// AddNotificationSettings adds the "notification_settings" edges to the NotificationSetting entity.
+func (_u *TenantUpdateOne) AddNotificationSettings(v ...*NotificationSetting) *TenantUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddNotificationSettingIDs(ids...)
+}
+
+// AddNotificationIDs adds the "notifications" edge to the Notification entity by IDs.
+func (_u *TenantUpdateOne) AddNotificationIDs(ids ...int) *TenantUpdateOne {
+	_u.mutation.AddNotificationIDs(ids...)
+	return _u
+}
+
+// AddNotifications adds the "notifications" edges to the Notification entity.
+func (_u *TenantUpdateOne) AddNotifications(v ...*Notification) *TenantUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddNotificationIDs(ids...)
 }
 
 // Mutation returns the TenantMutation object of the builder.
@@ -1079,6 +1370,27 @@ func (_u *TenantUpdateOne) RemoveAttempts(v ...*Attempt) *TenantUpdateOne {
 	return _u.RemoveAttemptIDs(ids...)
 }
 
+// ClearProviderResources clears all "provider_resources" edges to the ProviderResource entity.
+func (_u *TenantUpdateOne) ClearProviderResources() *TenantUpdateOne {
+	_u.mutation.ClearProviderResources()
+	return _u
+}
+
+// RemoveProviderResourceIDs removes the "provider_resources" edge to ProviderResource entities by IDs.
+func (_u *TenantUpdateOne) RemoveProviderResourceIDs(ids ...int) *TenantUpdateOne {
+	_u.mutation.RemoveProviderResourceIDs(ids...)
+	return _u
+}
+
+// RemoveProviderResources removes "provider_resources" edges to ProviderResource entities.
+func (_u *TenantUpdateOne) RemoveProviderResources(v ...*ProviderResource) *TenantUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveProviderResourceIDs(ids...)
+}
+
 // ClearBudgetEntries clears all "budget_entries" edges to the BudgetEntry entity.
 func (_u *TenantUpdateOne) ClearBudgetEntries() *TenantUpdateOne {
 	_u.mutation.ClearBudgetEntries()
@@ -1140,6 +1452,48 @@ func (_u *TenantUpdateOne) RemoveAuditEvents(v ...*AuditEvent) *TenantUpdateOne 
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveAuditEventIDs(ids...)
+}
+
+// ClearNotificationSettings clears all "notification_settings" edges to the NotificationSetting entity.
+func (_u *TenantUpdateOne) ClearNotificationSettings() *TenantUpdateOne {
+	_u.mutation.ClearNotificationSettings()
+	return _u
+}
+
+// RemoveNotificationSettingIDs removes the "notification_settings" edge to NotificationSetting entities by IDs.
+func (_u *TenantUpdateOne) RemoveNotificationSettingIDs(ids ...int) *TenantUpdateOne {
+	_u.mutation.RemoveNotificationSettingIDs(ids...)
+	return _u
+}
+
+// RemoveNotificationSettings removes "notification_settings" edges to NotificationSetting entities.
+func (_u *TenantUpdateOne) RemoveNotificationSettings(v ...*NotificationSetting) *TenantUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveNotificationSettingIDs(ids...)
+}
+
+// ClearNotifications clears all "notifications" edges to the Notification entity.
+func (_u *TenantUpdateOne) ClearNotifications() *TenantUpdateOne {
+	_u.mutation.ClearNotifications()
+	return _u
+}
+
+// RemoveNotificationIDs removes the "notifications" edge to Notification entities by IDs.
+func (_u *TenantUpdateOne) RemoveNotificationIDs(ids ...int) *TenantUpdateOne {
+	_u.mutation.RemoveNotificationIDs(ids...)
+	return _u
+}
+
+// RemoveNotifications removes "notifications" edges to Notification entities.
+func (_u *TenantUpdateOne) RemoveNotifications(v ...*Notification) *TenantUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveNotificationIDs(ids...)
 }
 
 // Where appends a list predicates to the TenantUpdate builder.
@@ -1469,6 +1823,51 @@ func (_u *TenantUpdateOne) sqlSave(ctx context.Context) (_node *Tenant, err erro
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.ProviderResourcesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ProviderResourcesTable,
+			Columns: []string{tenant.ProviderResourcesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(providerresource.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedProviderResourcesIDs(); len(nodes) > 0 && !_u.mutation.ProviderResourcesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ProviderResourcesTable,
+			Columns: []string{tenant.ProviderResourcesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(providerresource.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ProviderResourcesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ProviderResourcesTable,
+			Columns: []string{tenant.ProviderResourcesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(providerresource.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _u.mutation.BudgetEntriesCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -1597,6 +1996,96 @@ func (_u *TenantUpdateOne) sqlSave(ctx context.Context) (_node *Tenant, err erro
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(auditevent.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.NotificationSettingsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.NotificationSettingsTable,
+			Columns: []string{tenant.NotificationSettingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(notificationsetting.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedNotificationSettingsIDs(); len(nodes) > 0 && !_u.mutation.NotificationSettingsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.NotificationSettingsTable,
+			Columns: []string{tenant.NotificationSettingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(notificationsetting.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.NotificationSettingsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.NotificationSettingsTable,
+			Columns: []string{tenant.NotificationSettingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(notificationsetting.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.NotificationsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.NotificationsTable,
+			Columns: []string{tenant.NotificationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(notification.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedNotificationsIDs(); len(nodes) > 0 && !_u.mutation.NotificationsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.NotificationsTable,
+			Columns: []string{tenant.NotificationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(notification.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.NotificationsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.NotificationsTable,
+			Columns: []string{tenant.NotificationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(notification.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

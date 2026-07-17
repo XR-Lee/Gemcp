@@ -38,6 +38,8 @@ const (
 	FieldLastValidatedAt = "last_validated_at"
 	// EdgeTenant holds the string denoting the tenant edge name in mutations.
 	EdgeTenant = "tenant"
+	// EdgeProviderResources holds the string denoting the provider_resources edge name in mutations.
+	EdgeProviderResources = "provider_resources"
 	// Table holds the table name of the provideraccount in the database.
 	Table = "provider_accounts"
 	// TenantTable is the table that holds the tenant relation/edge.
@@ -47,6 +49,13 @@ const (
 	TenantInverseTable = "tenants"
 	// TenantColumn is the table column denoting the tenant relation/edge.
 	TenantColumn = "tenant_id"
+	// ProviderResourcesTable is the table that holds the provider_resources relation/edge.
+	ProviderResourcesTable = "provider_resources"
+	// ProviderResourcesInverseTable is the table name for the ProviderResource entity.
+	// It exists in this package in order to avoid circular dependency with the "providerresource" package.
+	ProviderResourcesInverseTable = "provider_resources"
+	// ProviderResourcesColumn is the table column denoting the provider_resources relation/edge.
+	ProviderResourcesColumn = "provider_account_id"
 )
 
 // Columns holds all SQL columns for provideraccount fields.
@@ -209,10 +218,31 @@ func ByTenantField(field string, opts ...sql.OrderTermOption) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newTenantStep(), sql.OrderByField(field, opts...))
 	}
 }
+
+// ByProviderResourcesCount orders the results by provider_resources count.
+func ByProviderResourcesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newProviderResourcesStep(), opts...)
+	}
+}
+
+// ByProviderResources orders the results by provider_resources terms.
+func ByProviderResources(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newProviderResourcesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newTenantStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(TenantInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.M2O, true, TenantTable, TenantColumn),
+	)
+}
+func newProviderResourcesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ProviderResourcesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ProviderResourcesTable, ProviderResourcesColumn),
 	)
 }

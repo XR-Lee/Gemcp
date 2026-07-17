@@ -877,6 +877,29 @@ func HasAttemptsWith(preds ...predicate.Attempt) predicate.Project {
 	})
 }
 
+// HasProviderResources applies the HasEdge predicate on the "provider_resources" edge.
+func HasProviderResources() predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ProviderResourcesTable, ProviderResourcesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasProviderResourcesWith applies the HasEdge predicate on the "provider_resources" edge with a given conditions (other predicates).
+func HasProviderResourcesWith(preds ...predicate.ProviderResource) predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := newProviderResourcesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasBudgetEntries applies the HasEdge predicate on the "budget_entries" edge.
 func HasBudgetEntries() predicate.Project {
 	return predicate.Project(func(s *sql.Selector) {

@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
+	"github.com/XR-Lee/Gemcp/ent/providerresource"
 )
 
 // AttemptUpdate is the builder for updating Attempt entities.
@@ -65,6 +66,99 @@ func (_u *AttemptUpdate) SetNillableProviderResourceID(v *string) *AttemptUpdate
 // ClearProviderResourceID clears the value of the "provider_resource_id" field.
 func (_u *AttemptUpdate) ClearProviderResourceID() *AttemptUpdate {
 	_u.mutation.ClearProviderResourceID()
+	return _u
+}
+
+// SetRunnerTokenHash sets the "runner_token_hash" field.
+func (_u *AttemptUpdate) SetRunnerTokenHash(v []byte) *AttemptUpdate {
+	_u.mutation.SetRunnerTokenHash(v)
+	return _u
+}
+
+// ClearRunnerTokenHash clears the value of the "runner_token_hash" field.
+func (_u *AttemptUpdate) ClearRunnerTokenHash() *AttemptUpdate {
+	_u.mutation.ClearRunnerTokenHash()
+	return _u
+}
+
+// SetRunnerTokenCiphertext sets the "runner_token_ciphertext" field.
+func (_u *AttemptUpdate) SetRunnerTokenCiphertext(v string) *AttemptUpdate {
+	_u.mutation.SetRunnerTokenCiphertext(v)
+	return _u
+}
+
+// SetNillableRunnerTokenCiphertext sets the "runner_token_ciphertext" field if the given value is not nil.
+func (_u *AttemptUpdate) SetNillableRunnerTokenCiphertext(v *string) *AttemptUpdate {
+	if v != nil {
+		_u.SetRunnerTokenCiphertext(*v)
+	}
+	return _u
+}
+
+// ClearRunnerTokenCiphertext clears the value of the "runner_token_ciphertext" field.
+func (_u *AttemptUpdate) ClearRunnerTokenCiphertext() *AttemptUpdate {
+	_u.mutation.ClearRunnerTokenCiphertext()
+	return _u
+}
+
+// SetRunnerTokenExpiresAt sets the "runner_token_expires_at" field.
+func (_u *AttemptUpdate) SetRunnerTokenExpiresAt(v time.Time) *AttemptUpdate {
+	_u.mutation.SetRunnerTokenExpiresAt(v)
+	return _u
+}
+
+// SetNillableRunnerTokenExpiresAt sets the "runner_token_expires_at" field if the given value is not nil.
+func (_u *AttemptUpdate) SetNillableRunnerTokenExpiresAt(v *time.Time) *AttemptUpdate {
+	if v != nil {
+		_u.SetRunnerTokenExpiresAt(*v)
+	}
+	return _u
+}
+
+// ClearRunnerTokenExpiresAt clears the value of the "runner_token_expires_at" field.
+func (_u *AttemptUpdate) ClearRunnerTokenExpiresAt() *AttemptUpdate {
+	_u.mutation.ClearRunnerTokenExpiresAt()
+	return _u
+}
+
+// SetSourceDownloads sets the "source_downloads" field.
+func (_u *AttemptUpdate) SetSourceDownloads(v int) *AttemptUpdate {
+	_u.mutation.ResetSourceDownloads()
+	_u.mutation.SetSourceDownloads(v)
+	return _u
+}
+
+// SetNillableSourceDownloads sets the "source_downloads" field if the given value is not nil.
+func (_u *AttemptUpdate) SetNillableSourceDownloads(v *int) *AttemptUpdate {
+	if v != nil {
+		_u.SetSourceDownloads(*v)
+	}
+	return _u
+}
+
+// AddSourceDownloads adds value to the "source_downloads" field.
+func (_u *AttemptUpdate) AddSourceDownloads(v int) *AttemptUpdate {
+	_u.mutation.AddSourceDownloads(v)
+	return _u
+}
+
+// SetLastHeartbeatAt sets the "last_heartbeat_at" field.
+func (_u *AttemptUpdate) SetLastHeartbeatAt(v time.Time) *AttemptUpdate {
+	_u.mutation.SetLastHeartbeatAt(v)
+	return _u
+}
+
+// SetNillableLastHeartbeatAt sets the "last_heartbeat_at" field if the given value is not nil.
+func (_u *AttemptUpdate) SetNillableLastHeartbeatAt(v *time.Time) *AttemptUpdate {
+	if v != nil {
+		_u.SetLastHeartbeatAt(*v)
+	}
+	return _u
+}
+
+// ClearLastHeartbeatAt clears the value of the "last_heartbeat_at" field.
+func (_u *AttemptUpdate) ClearLastHeartbeatAt() *AttemptUpdate {
+	_u.mutation.ClearLastHeartbeatAt()
 	return _u
 }
 
@@ -189,9 +283,105 @@ func (_u *AttemptUpdate) AddEstimatedCostMilli(v int64) *AttemptUpdate {
 	return _u
 }
 
+// SetExitCode sets the "exit_code" field.
+func (_u *AttemptUpdate) SetExitCode(v int) *AttemptUpdate {
+	_u.mutation.ResetExitCode()
+	_u.mutation.SetExitCode(v)
+	return _u
+}
+
+// SetNillableExitCode sets the "exit_code" field if the given value is not nil.
+func (_u *AttemptUpdate) SetNillableExitCode(v *int) *AttemptUpdate {
+	if v != nil {
+		_u.SetExitCode(*v)
+	}
+	return _u
+}
+
+// AddExitCode adds value to the "exit_code" field.
+func (_u *AttemptUpdate) AddExitCode(v int) *AttemptUpdate {
+	_u.mutation.AddExitCode(v)
+	return _u
+}
+
+// ClearExitCode clears the value of the "exit_code" field.
+func (_u *AttemptUpdate) ClearExitCode() *AttemptUpdate {
+	_u.mutation.ClearExitCode()
+	return _u
+}
+
+// SetLogTail sets the "log_tail" field.
+func (_u *AttemptUpdate) SetLogTail(v string) *AttemptUpdate {
+	_u.mutation.SetLogTail(v)
+	return _u
+}
+
+// SetNillableLogTail sets the "log_tail" field if the given value is not nil.
+func (_u *AttemptUpdate) SetNillableLogTail(v *string) *AttemptUpdate {
+	if v != nil {
+		_u.SetLogTail(*v)
+	}
+	return _u
+}
+
+// ClearLogTail clears the value of the "log_tail" field.
+func (_u *AttemptUpdate) ClearLogTail() *AttemptUpdate {
+	_u.mutation.ClearLogTail()
+	return _u
+}
+
+// SetMetrics sets the "metrics" field.
+func (_u *AttemptUpdate) SetMetrics(v map[string]interface{}) *AttemptUpdate {
+	_u.mutation.SetMetrics(v)
+	return _u
+}
+
+// ClearMetrics clears the value of the "metrics" field.
+func (_u *AttemptUpdate) ClearMetrics() *AttemptUpdate {
+	_u.mutation.ClearMetrics()
+	return _u
+}
+
+// SetProviderRequestIds sets the "provider_request_ids" field.
+func (_u *AttemptUpdate) SetProviderRequestIds(v map[string]string) *AttemptUpdate {
+	_u.mutation.SetProviderRequestIds(v)
+	return _u
+}
+
+// ClearProviderRequestIds clears the value of the "provider_request_ids" field.
+func (_u *AttemptUpdate) ClearProviderRequestIds() *AttemptUpdate {
+	_u.mutation.ClearProviderRequestIds()
+	return _u
+}
+
+// SetOwnedResourceID sets the "owned_resource" edge to the ProviderResource entity by ID.
+func (_u *AttemptUpdate) SetOwnedResourceID(id int) *AttemptUpdate {
+	_u.mutation.SetOwnedResourceID(id)
+	return _u
+}
+
+// SetNillableOwnedResourceID sets the "owned_resource" edge to the ProviderResource entity by ID if the given value is not nil.
+func (_u *AttemptUpdate) SetNillableOwnedResourceID(id *int) *AttemptUpdate {
+	if id != nil {
+		_u = _u.SetOwnedResourceID(*id)
+	}
+	return _u
+}
+
+// SetOwnedResource sets the "owned_resource" edge to the ProviderResource entity.
+func (_u *AttemptUpdate) SetOwnedResource(v *ProviderResource) *AttemptUpdate {
+	return _u.SetOwnedResourceID(v.ID)
+}
+
 // Mutation returns the AttemptMutation object of the builder.
 func (_u *AttemptUpdate) Mutation() *AttemptMutation {
 	return _u.mutation
+}
+
+// ClearOwnedResource clears the "owned_resource" edge to the ProviderResource entity.
+func (_u *AttemptUpdate) ClearOwnedResource() *AttemptUpdate {
+	_u.mutation.ClearOwnedResource()
+	return _u
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -240,6 +430,11 @@ func (_u *AttemptUpdate) check() error {
 	if v, ok := _u.mutation.ProviderResourceID(); ok {
 		if err := attempt.ProviderResourceIDValidator(v); err != nil {
 			return &ValidationError{Name: "provider_resource_id", err: fmt.Errorf(`ent: validator failed for field "Attempt.provider_resource_id": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.SourceDownloads(); ok {
+		if err := attempt.SourceDownloadsValidator(v); err != nil {
+			return &ValidationError{Name: "source_downloads", err: fmt.Errorf(`ent: validator failed for field "Attempt.source_downloads": %w`, err)}
 		}
 	}
 	if v, ok := _u.mutation.RetryReason(); ok {
@@ -293,6 +488,36 @@ func (_u *AttemptUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.ProviderResourceIDCleared() {
 		_spec.ClearField(attempt.FieldProviderResourceID, field.TypeString)
 	}
+	if value, ok := _u.mutation.RunnerTokenHash(); ok {
+		_spec.SetField(attempt.FieldRunnerTokenHash, field.TypeBytes, value)
+	}
+	if _u.mutation.RunnerTokenHashCleared() {
+		_spec.ClearField(attempt.FieldRunnerTokenHash, field.TypeBytes)
+	}
+	if value, ok := _u.mutation.RunnerTokenCiphertext(); ok {
+		_spec.SetField(attempt.FieldRunnerTokenCiphertext, field.TypeString, value)
+	}
+	if _u.mutation.RunnerTokenCiphertextCleared() {
+		_spec.ClearField(attempt.FieldRunnerTokenCiphertext, field.TypeString)
+	}
+	if value, ok := _u.mutation.RunnerTokenExpiresAt(); ok {
+		_spec.SetField(attempt.FieldRunnerTokenExpiresAt, field.TypeTime, value)
+	}
+	if _u.mutation.RunnerTokenExpiresAtCleared() {
+		_spec.ClearField(attempt.FieldRunnerTokenExpiresAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.SourceDownloads(); ok {
+		_spec.SetField(attempt.FieldSourceDownloads, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedSourceDownloads(); ok {
+		_spec.AddField(attempt.FieldSourceDownloads, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.LastHeartbeatAt(); ok {
+		_spec.SetField(attempt.FieldLastHeartbeatAt, field.TypeTime, value)
+	}
+	if _u.mutation.LastHeartbeatAtCleared() {
+		_spec.ClearField(attempt.FieldLastHeartbeatAt, field.TypeTime)
+	}
 	if value, ok := _u.mutation.RetryReason(); ok {
 		_spec.SetField(attempt.FieldRetryReason, field.TypeString, value)
 	}
@@ -328,6 +553,62 @@ func (_u *AttemptUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AddedEstimatedCostMilli(); ok {
 		_spec.AddField(attempt.FieldEstimatedCostMilli, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.ExitCode(); ok {
+		_spec.SetField(attempt.FieldExitCode, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedExitCode(); ok {
+		_spec.AddField(attempt.FieldExitCode, field.TypeInt, value)
+	}
+	if _u.mutation.ExitCodeCleared() {
+		_spec.ClearField(attempt.FieldExitCode, field.TypeInt)
+	}
+	if value, ok := _u.mutation.LogTail(); ok {
+		_spec.SetField(attempt.FieldLogTail, field.TypeString, value)
+	}
+	if _u.mutation.LogTailCleared() {
+		_spec.ClearField(attempt.FieldLogTail, field.TypeString)
+	}
+	if value, ok := _u.mutation.Metrics(); ok {
+		_spec.SetField(attempt.FieldMetrics, field.TypeJSON, value)
+	}
+	if _u.mutation.MetricsCleared() {
+		_spec.ClearField(attempt.FieldMetrics, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.ProviderRequestIds(); ok {
+		_spec.SetField(attempt.FieldProviderRequestIds, field.TypeJSON, value)
+	}
+	if _u.mutation.ProviderRequestIdsCleared() {
+		_spec.ClearField(attempt.FieldProviderRequestIds, field.TypeJSON)
+	}
+	if _u.mutation.OwnedResourceCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   attempt.OwnedResourceTable,
+			Columns: []string{attempt.OwnedResourceColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(providerresource.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.OwnedResourceIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   attempt.OwnedResourceTable,
+			Columns: []string{attempt.OwnedResourceColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(providerresource.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -386,6 +667,99 @@ func (_u *AttemptUpdateOne) SetNillableProviderResourceID(v *string) *AttemptUpd
 // ClearProviderResourceID clears the value of the "provider_resource_id" field.
 func (_u *AttemptUpdateOne) ClearProviderResourceID() *AttemptUpdateOne {
 	_u.mutation.ClearProviderResourceID()
+	return _u
+}
+
+// SetRunnerTokenHash sets the "runner_token_hash" field.
+func (_u *AttemptUpdateOne) SetRunnerTokenHash(v []byte) *AttemptUpdateOne {
+	_u.mutation.SetRunnerTokenHash(v)
+	return _u
+}
+
+// ClearRunnerTokenHash clears the value of the "runner_token_hash" field.
+func (_u *AttemptUpdateOne) ClearRunnerTokenHash() *AttemptUpdateOne {
+	_u.mutation.ClearRunnerTokenHash()
+	return _u
+}
+
+// SetRunnerTokenCiphertext sets the "runner_token_ciphertext" field.
+func (_u *AttemptUpdateOne) SetRunnerTokenCiphertext(v string) *AttemptUpdateOne {
+	_u.mutation.SetRunnerTokenCiphertext(v)
+	return _u
+}
+
+// SetNillableRunnerTokenCiphertext sets the "runner_token_ciphertext" field if the given value is not nil.
+func (_u *AttemptUpdateOne) SetNillableRunnerTokenCiphertext(v *string) *AttemptUpdateOne {
+	if v != nil {
+		_u.SetRunnerTokenCiphertext(*v)
+	}
+	return _u
+}
+
+// ClearRunnerTokenCiphertext clears the value of the "runner_token_ciphertext" field.
+func (_u *AttemptUpdateOne) ClearRunnerTokenCiphertext() *AttemptUpdateOne {
+	_u.mutation.ClearRunnerTokenCiphertext()
+	return _u
+}
+
+// SetRunnerTokenExpiresAt sets the "runner_token_expires_at" field.
+func (_u *AttemptUpdateOne) SetRunnerTokenExpiresAt(v time.Time) *AttemptUpdateOne {
+	_u.mutation.SetRunnerTokenExpiresAt(v)
+	return _u
+}
+
+// SetNillableRunnerTokenExpiresAt sets the "runner_token_expires_at" field if the given value is not nil.
+func (_u *AttemptUpdateOne) SetNillableRunnerTokenExpiresAt(v *time.Time) *AttemptUpdateOne {
+	if v != nil {
+		_u.SetRunnerTokenExpiresAt(*v)
+	}
+	return _u
+}
+
+// ClearRunnerTokenExpiresAt clears the value of the "runner_token_expires_at" field.
+func (_u *AttemptUpdateOne) ClearRunnerTokenExpiresAt() *AttemptUpdateOne {
+	_u.mutation.ClearRunnerTokenExpiresAt()
+	return _u
+}
+
+// SetSourceDownloads sets the "source_downloads" field.
+func (_u *AttemptUpdateOne) SetSourceDownloads(v int) *AttemptUpdateOne {
+	_u.mutation.ResetSourceDownloads()
+	_u.mutation.SetSourceDownloads(v)
+	return _u
+}
+
+// SetNillableSourceDownloads sets the "source_downloads" field if the given value is not nil.
+func (_u *AttemptUpdateOne) SetNillableSourceDownloads(v *int) *AttemptUpdateOne {
+	if v != nil {
+		_u.SetSourceDownloads(*v)
+	}
+	return _u
+}
+
+// AddSourceDownloads adds value to the "source_downloads" field.
+func (_u *AttemptUpdateOne) AddSourceDownloads(v int) *AttemptUpdateOne {
+	_u.mutation.AddSourceDownloads(v)
+	return _u
+}
+
+// SetLastHeartbeatAt sets the "last_heartbeat_at" field.
+func (_u *AttemptUpdateOne) SetLastHeartbeatAt(v time.Time) *AttemptUpdateOne {
+	_u.mutation.SetLastHeartbeatAt(v)
+	return _u
+}
+
+// SetNillableLastHeartbeatAt sets the "last_heartbeat_at" field if the given value is not nil.
+func (_u *AttemptUpdateOne) SetNillableLastHeartbeatAt(v *time.Time) *AttemptUpdateOne {
+	if v != nil {
+		_u.SetLastHeartbeatAt(*v)
+	}
+	return _u
+}
+
+// ClearLastHeartbeatAt clears the value of the "last_heartbeat_at" field.
+func (_u *AttemptUpdateOne) ClearLastHeartbeatAt() *AttemptUpdateOne {
+	_u.mutation.ClearLastHeartbeatAt()
 	return _u
 }
 
@@ -510,9 +884,105 @@ func (_u *AttemptUpdateOne) AddEstimatedCostMilli(v int64) *AttemptUpdateOne {
 	return _u
 }
 
+// SetExitCode sets the "exit_code" field.
+func (_u *AttemptUpdateOne) SetExitCode(v int) *AttemptUpdateOne {
+	_u.mutation.ResetExitCode()
+	_u.mutation.SetExitCode(v)
+	return _u
+}
+
+// SetNillableExitCode sets the "exit_code" field if the given value is not nil.
+func (_u *AttemptUpdateOne) SetNillableExitCode(v *int) *AttemptUpdateOne {
+	if v != nil {
+		_u.SetExitCode(*v)
+	}
+	return _u
+}
+
+// AddExitCode adds value to the "exit_code" field.
+func (_u *AttemptUpdateOne) AddExitCode(v int) *AttemptUpdateOne {
+	_u.mutation.AddExitCode(v)
+	return _u
+}
+
+// ClearExitCode clears the value of the "exit_code" field.
+func (_u *AttemptUpdateOne) ClearExitCode() *AttemptUpdateOne {
+	_u.mutation.ClearExitCode()
+	return _u
+}
+
+// SetLogTail sets the "log_tail" field.
+func (_u *AttemptUpdateOne) SetLogTail(v string) *AttemptUpdateOne {
+	_u.mutation.SetLogTail(v)
+	return _u
+}
+
+// SetNillableLogTail sets the "log_tail" field if the given value is not nil.
+func (_u *AttemptUpdateOne) SetNillableLogTail(v *string) *AttemptUpdateOne {
+	if v != nil {
+		_u.SetLogTail(*v)
+	}
+	return _u
+}
+
+// ClearLogTail clears the value of the "log_tail" field.
+func (_u *AttemptUpdateOne) ClearLogTail() *AttemptUpdateOne {
+	_u.mutation.ClearLogTail()
+	return _u
+}
+
+// SetMetrics sets the "metrics" field.
+func (_u *AttemptUpdateOne) SetMetrics(v map[string]interface{}) *AttemptUpdateOne {
+	_u.mutation.SetMetrics(v)
+	return _u
+}
+
+// ClearMetrics clears the value of the "metrics" field.
+func (_u *AttemptUpdateOne) ClearMetrics() *AttemptUpdateOne {
+	_u.mutation.ClearMetrics()
+	return _u
+}
+
+// SetProviderRequestIds sets the "provider_request_ids" field.
+func (_u *AttemptUpdateOne) SetProviderRequestIds(v map[string]string) *AttemptUpdateOne {
+	_u.mutation.SetProviderRequestIds(v)
+	return _u
+}
+
+// ClearProviderRequestIds clears the value of the "provider_request_ids" field.
+func (_u *AttemptUpdateOne) ClearProviderRequestIds() *AttemptUpdateOne {
+	_u.mutation.ClearProviderRequestIds()
+	return _u
+}
+
+// SetOwnedResourceID sets the "owned_resource" edge to the ProviderResource entity by ID.
+func (_u *AttemptUpdateOne) SetOwnedResourceID(id int) *AttemptUpdateOne {
+	_u.mutation.SetOwnedResourceID(id)
+	return _u
+}
+
+// SetNillableOwnedResourceID sets the "owned_resource" edge to the ProviderResource entity by ID if the given value is not nil.
+func (_u *AttemptUpdateOne) SetNillableOwnedResourceID(id *int) *AttemptUpdateOne {
+	if id != nil {
+		_u = _u.SetOwnedResourceID(*id)
+	}
+	return _u
+}
+
+// SetOwnedResource sets the "owned_resource" edge to the ProviderResource entity.
+func (_u *AttemptUpdateOne) SetOwnedResource(v *ProviderResource) *AttemptUpdateOne {
+	return _u.SetOwnedResourceID(v.ID)
+}
+
 // Mutation returns the AttemptMutation object of the builder.
 func (_u *AttemptUpdateOne) Mutation() *AttemptMutation {
 	return _u.mutation
+}
+
+// ClearOwnedResource clears the "owned_resource" edge to the ProviderResource entity.
+func (_u *AttemptUpdateOne) ClearOwnedResource() *AttemptUpdateOne {
+	_u.mutation.ClearOwnedResource()
+	return _u
 }
 
 // Where appends a list predicates to the AttemptUpdate builder.
@@ -574,6 +1044,11 @@ func (_u *AttemptUpdateOne) check() error {
 	if v, ok := _u.mutation.ProviderResourceID(); ok {
 		if err := attempt.ProviderResourceIDValidator(v); err != nil {
 			return &ValidationError{Name: "provider_resource_id", err: fmt.Errorf(`ent: validator failed for field "Attempt.provider_resource_id": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.SourceDownloads(); ok {
+		if err := attempt.SourceDownloadsValidator(v); err != nil {
+			return &ValidationError{Name: "source_downloads", err: fmt.Errorf(`ent: validator failed for field "Attempt.source_downloads": %w`, err)}
 		}
 	}
 	if v, ok := _u.mutation.RetryReason(); ok {
@@ -644,6 +1119,36 @@ func (_u *AttemptUpdateOne) sqlSave(ctx context.Context) (_node *Attempt, err er
 	if _u.mutation.ProviderResourceIDCleared() {
 		_spec.ClearField(attempt.FieldProviderResourceID, field.TypeString)
 	}
+	if value, ok := _u.mutation.RunnerTokenHash(); ok {
+		_spec.SetField(attempt.FieldRunnerTokenHash, field.TypeBytes, value)
+	}
+	if _u.mutation.RunnerTokenHashCleared() {
+		_spec.ClearField(attempt.FieldRunnerTokenHash, field.TypeBytes)
+	}
+	if value, ok := _u.mutation.RunnerTokenCiphertext(); ok {
+		_spec.SetField(attempt.FieldRunnerTokenCiphertext, field.TypeString, value)
+	}
+	if _u.mutation.RunnerTokenCiphertextCleared() {
+		_spec.ClearField(attempt.FieldRunnerTokenCiphertext, field.TypeString)
+	}
+	if value, ok := _u.mutation.RunnerTokenExpiresAt(); ok {
+		_spec.SetField(attempt.FieldRunnerTokenExpiresAt, field.TypeTime, value)
+	}
+	if _u.mutation.RunnerTokenExpiresAtCleared() {
+		_spec.ClearField(attempt.FieldRunnerTokenExpiresAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.SourceDownloads(); ok {
+		_spec.SetField(attempt.FieldSourceDownloads, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedSourceDownloads(); ok {
+		_spec.AddField(attempt.FieldSourceDownloads, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.LastHeartbeatAt(); ok {
+		_spec.SetField(attempt.FieldLastHeartbeatAt, field.TypeTime, value)
+	}
+	if _u.mutation.LastHeartbeatAtCleared() {
+		_spec.ClearField(attempt.FieldLastHeartbeatAt, field.TypeTime)
+	}
 	if value, ok := _u.mutation.RetryReason(); ok {
 		_spec.SetField(attempt.FieldRetryReason, field.TypeString, value)
 	}
@@ -679,6 +1184,62 @@ func (_u *AttemptUpdateOne) sqlSave(ctx context.Context) (_node *Attempt, err er
 	}
 	if value, ok := _u.mutation.AddedEstimatedCostMilli(); ok {
 		_spec.AddField(attempt.FieldEstimatedCostMilli, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.ExitCode(); ok {
+		_spec.SetField(attempt.FieldExitCode, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedExitCode(); ok {
+		_spec.AddField(attempt.FieldExitCode, field.TypeInt, value)
+	}
+	if _u.mutation.ExitCodeCleared() {
+		_spec.ClearField(attempt.FieldExitCode, field.TypeInt)
+	}
+	if value, ok := _u.mutation.LogTail(); ok {
+		_spec.SetField(attempt.FieldLogTail, field.TypeString, value)
+	}
+	if _u.mutation.LogTailCleared() {
+		_spec.ClearField(attempt.FieldLogTail, field.TypeString)
+	}
+	if value, ok := _u.mutation.Metrics(); ok {
+		_spec.SetField(attempt.FieldMetrics, field.TypeJSON, value)
+	}
+	if _u.mutation.MetricsCleared() {
+		_spec.ClearField(attempt.FieldMetrics, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.ProviderRequestIds(); ok {
+		_spec.SetField(attempt.FieldProviderRequestIds, field.TypeJSON, value)
+	}
+	if _u.mutation.ProviderRequestIdsCleared() {
+		_spec.ClearField(attempt.FieldProviderRequestIds, field.TypeJSON)
+	}
+	if _u.mutation.OwnedResourceCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   attempt.OwnedResourceTable,
+			Columns: []string{attempt.OwnedResourceColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(providerresource.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.OwnedResourceIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   attempt.OwnedResourceTable,
+			Columns: []string{attempt.OwnedResourceColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(providerresource.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &Attempt{config: _u.config}
 	_spec.Assign = _node.assignValues

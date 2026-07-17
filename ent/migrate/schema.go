@@ -59,12 +59,21 @@ var (
 		{Name: "number", Type: field.TypeInt},
 		{Name: "state", Type: field.TypeString, Default: "starting"},
 		{Name: "provider_resource_id", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "runner_token_hash", Type: field.TypeBytes, Nullable: true},
+		{Name: "runner_token_ciphertext", Type: field.TypeString, Nullable: true},
+		{Name: "runner_token_expires_at", Type: field.TypeTime, Nullable: true},
+		{Name: "source_downloads", Type: field.TypeInt, Default: 0},
+		{Name: "last_heartbeat_at", Type: field.TypeTime, Nullable: true},
 		{Name: "retry_reason", Type: field.TypeString, Nullable: true, Size: 255},
 		{Name: "failure_code", Type: field.TypeString, Nullable: true, Size: 100},
 		{Name: "failure_reason", Type: field.TypeString, Nullable: true, Size: 2147483647},
 		{Name: "started_at", Type: field.TypeTime, Nullable: true},
 		{Name: "finished_at", Type: field.TypeTime, Nullable: true},
 		{Name: "estimated_cost_milli", Type: field.TypeInt64, Default: 0},
+		{Name: "exit_code", Type: field.TypeInt, Nullable: true},
+		{Name: "log_tail", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "metrics", Type: field.TypeJSON, Nullable: true},
+		{Name: "provider_request_ids", Type: field.TypeJSON, Nullable: true},
 		{Name: "experiment_id", Type: field.TypeInt},
 		{Name: "project_id", Type: field.TypeInt},
 		{Name: "tenant_id", Type: field.TypeInt},
@@ -77,19 +86,19 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "attempts_experiments_attempts",
-				Columns:    []*schema.Column{AttemptsColumns[13]},
+				Columns:    []*schema.Column{AttemptsColumns[22]},
 				RefColumns: []*schema.Column{ExperimentsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "attempts_projects_attempts",
-				Columns:    []*schema.Column{AttemptsColumns[14]},
+				Columns:    []*schema.Column{AttemptsColumns[23]},
 				RefColumns: []*schema.Column{ProjectsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "attempts_tenants_attempts",
-				Columns:    []*schema.Column{AttemptsColumns[15]},
+				Columns:    []*schema.Column{AttemptsColumns[24]},
 				RefColumns: []*schema.Column{TenantsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -98,12 +107,17 @@ var (
 			{
 				Name:    "attempt_experiment_id_number",
 				Unique:  true,
-				Columns: []*schema.Column{AttemptsColumns[13], AttemptsColumns[4]},
+				Columns: []*schema.Column{AttemptsColumns[22], AttemptsColumns[4]},
 			},
 			{
 				Name:    "attempt_project_id_state_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{AttemptsColumns[14], AttemptsColumns[5], AttemptsColumns[2]},
+				Columns: []*schema.Column{AttemptsColumns[23], AttemptsColumns[5], AttemptsColumns[2]},
+			},
+			{
+				Name:    "attempt_runner_token_hash",
+				Unique:  true,
+				Columns: []*schema.Column{AttemptsColumns[7]},
 			},
 		},
 	}
@@ -270,6 +284,8 @@ var (
 		{Name: "log_tail", Type: field.TypeString, Nullable: true, Size: 2147483647},
 		{Name: "metrics", Type: field.TypeJSON},
 		{Name: "cancel_requested_at", Type: field.TypeTime, Nullable: true},
+		{Name: "timeout_extended_at", Type: field.TypeTime, Nullable: true},
+		{Name: "budget_finalized_at", Type: field.TypeTime, Nullable: true},
 		{Name: "lease_expires_at", Type: field.TypeTime, Nullable: true},
 		{Name: "lease_owner", Type: field.TypeString, Nullable: true, Size: 255},
 		{Name: "next_attempt_at", Type: field.TypeTime},
@@ -288,37 +304,37 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "experiments_agent_tokens_experiments",
-				Columns:    []*schema.Column{ExperimentsColumns[32]},
+				Columns:    []*schema.Column{ExperimentsColumns[34]},
 				RefColumns: []*schema.Column{AgentTokensColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "experiments_environments_experiments",
-				Columns:    []*schema.Column{ExperimentsColumns[33]},
+				Columns:    []*schema.Column{ExperimentsColumns[35]},
 				RefColumns: []*schema.Column{EnvironmentsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "experiments_projects_experiments",
-				Columns:    []*schema.Column{ExperimentsColumns[34]},
+				Columns:    []*schema.Column{ExperimentsColumns[36]},
 				RefColumns: []*schema.Column{ProjectsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "experiments_repositories_experiments",
-				Columns:    []*schema.Column{ExperimentsColumns[35]},
+				Columns:    []*schema.Column{ExperimentsColumns[37]},
 				RefColumns: []*schema.Column{RepositoriesColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "experiments_resource_profiles_experiments",
-				Columns:    []*schema.Column{ExperimentsColumns[36]},
+				Columns:    []*schema.Column{ExperimentsColumns[38]},
 				RefColumns: []*schema.Column{ResourceProfilesColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "experiments_tenants_experiments",
-				Columns:    []*schema.Column{ExperimentsColumns[37]},
+				Columns:    []*schema.Column{ExperimentsColumns[39]},
 				RefColumns: []*schema.Column{TenantsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -327,12 +343,12 @@ var (
 			{
 				Name:    "experiment_project_id_state_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{ExperimentsColumns[34], ExperimentsColumns[4], ExperimentsColumns[2]},
+				Columns: []*schema.Column{ExperimentsColumns[36], ExperimentsColumns[4], ExperimentsColumns[2]},
 			},
 			{
 				Name:    "experiment_state_next_attempt_at_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{ExperimentsColumns[4], ExperimentsColumns[31], ExperimentsColumns[2]},
+				Columns: []*schema.Column{ExperimentsColumns[4], ExperimentsColumns[33], ExperimentsColumns[2]},
 			},
 			{
 				Name:    "experiment_provider_resource_id",
@@ -389,6 +405,95 @@ var (
 				Name:    "idempotencyrecord_expires_at",
 				Unique:  false,
 				Columns: []*schema.Column{IdempotencyRecordsColumns[6]},
+			},
+		},
+	}
+	// NotificationsColumns holds the columns for the "notifications" table.
+	NotificationsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "public_id", Type: field.TypeUUID, Unique: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "dedup_key", Type: field.TypeString, Size: 180},
+		{Name: "kind", Type: field.TypeString, Size: 80},
+		{Name: "severity", Type: field.TypeEnum, Enums: []string{"info", "warning", "critical"}, Default: "critical"},
+		{Name: "subject", Type: field.TypeString, Size: 200},
+		{Name: "body", Type: field.TypeString, Size: 2147483647},
+		{Name: "state", Type: field.TypeEnum, Enums: []string{"pending", "sending", "sent", "failed"}, Default: "pending"},
+		{Name: "attempts", Type: field.TypeInt, Default: 0},
+		{Name: "next_attempt_at", Type: field.TypeTime},
+		{Name: "last_error", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "sent_at", Type: field.TypeTime, Nullable: true},
+		{Name: "tenant_id", Type: field.TypeInt},
+	}
+	// NotificationsTable holds the schema information for the "notifications" table.
+	NotificationsTable = &schema.Table{
+		Name:       "notifications",
+		Columns:    NotificationsColumns,
+		PrimaryKey: []*schema.Column{NotificationsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "notifications_tenants_notifications",
+				Columns:    []*schema.Column{NotificationsColumns[14]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "notification_tenant_id_dedup_key",
+				Unique:  true,
+				Columns: []*schema.Column{NotificationsColumns[14], NotificationsColumns[4]},
+			},
+			{
+				Name:    "notification_state_next_attempt_at_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{NotificationsColumns[9], NotificationsColumns[11], NotificationsColumns[2]},
+			},
+			{
+				Name:    "notification_tenant_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{NotificationsColumns[14], NotificationsColumns[2]},
+			},
+		},
+	}
+	// NotificationSettingsColumns holds the columns for the "notification_settings" table.
+	NotificationSettingsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "public_id", Type: field.TypeUUID, Unique: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "enabled", Type: field.TypeBool, Default: false},
+		{Name: "host", Type: field.TypeString, Size: 255},
+		{Name: "port", Type: field.TypeInt},
+		{Name: "tls_mode", Type: field.TypeEnum, Enums: []string{"starttls", "tls"}, Default: "starttls"},
+		{Name: "username", Type: field.TypeString, Nullable: true, Size: 320},
+		{Name: "password_ciphertext", Type: field.TypeString, Nullable: true},
+		{Name: "from_address", Type: field.TypeString, Size: 320},
+		{Name: "recipients", Type: field.TypeJSON},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"ready", "error"}, Default: "ready"},
+		{Name: "last_tested_at", Type: field.TypeTime, Nullable: true},
+		{Name: "last_error", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "tenant_id", Type: field.TypeInt},
+	}
+	// NotificationSettingsTable holds the schema information for the "notification_settings" table.
+	NotificationSettingsTable = &schema.Table{
+		Name:       "notification_settings",
+		Columns:    NotificationSettingsColumns,
+		PrimaryKey: []*schema.Column{NotificationSettingsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "notification_settings_tenants_notification_settings",
+				Columns:    []*schema.Column{NotificationSettingsColumns[15]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "notificationsetting_tenant_id",
+				Unique:  true,
+				Columns: []*schema.Column{NotificationSettingsColumns[15]},
 			},
 		},
 	}
@@ -463,6 +568,100 @@ var (
 				Name:    "provideraccount_tenant_id_name",
 				Unique:  true,
 				Columns: []*schema.Column{ProviderAccountsColumns[10], ProviderAccountsColumns[4]},
+			},
+		},
+	}
+	// ProviderResourcesColumns holds the columns for the "provider_resources" table.
+	ProviderResourcesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "public_id", Type: field.TypeUUID, Unique: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"deployment"}, Default: "deployment"},
+		{Name: "name", Type: field.TypeString, Size: 120},
+		{Name: "provider_id", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "state", Type: field.TypeEnum, Enums: []string{"creating", "active", "stopping", "stopped", "deleting", "deleted", "error"}, Default: "creating"},
+		{Name: "owned", Type: field.TypeBool, Default: true},
+		{Name: "provider_status", Type: field.TypeString, Nullable: true, Size: 120},
+		{Name: "create_attempts", Type: field.TypeInt, Default: 0},
+		{Name: "create_attempted_at", Type: field.TypeTime, Nullable: true},
+		{Name: "last_seen_at", Type: field.TypeTime, Nullable: true},
+		{Name: "terminal_observed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "hard_deadline_at", Type: field.TypeTime, Nullable: true},
+		{Name: "stop_requested_at", Type: field.TypeTime, Nullable: true},
+		{Name: "stop_reason", Type: field.TypeString, Nullable: true, Size: 80},
+		{Name: "stopped_at", Type: field.TypeTime, Nullable: true},
+		{Name: "delete_requested_at", Type: field.TypeTime, Nullable: true},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
+		{Name: "price_milli_per_hour", Type: field.TypeInt64, Default: 0},
+		{Name: "provider_started_at", Type: field.TypeTime, Nullable: true},
+		{Name: "request_ids", Type: field.TypeJSON},
+		{Name: "last_error", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "lease_owner", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "lease_expires_at", Type: field.TypeTime, Nullable: true},
+		{Name: "attempt_id", Type: field.TypeInt, Unique: true},
+		{Name: "experiment_id", Type: field.TypeInt},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "provider_account_id", Type: field.TypeInt},
+		{Name: "tenant_id", Type: field.TypeInt},
+	}
+	// ProviderResourcesTable holds the schema information for the "provider_resources" table.
+	ProviderResourcesTable = &schema.Table{
+		Name:       "provider_resources",
+		Columns:    ProviderResourcesColumns,
+		PrimaryKey: []*schema.Column{ProviderResourcesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "provider_resources_attempts_owned_resource",
+				Columns:    []*schema.Column{ProviderResourcesColumns[26]},
+				RefColumns: []*schema.Column{AttemptsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "provider_resources_experiments_provider_resources",
+				Columns:    []*schema.Column{ProviderResourcesColumns[27]},
+				RefColumns: []*schema.Column{ExperimentsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "provider_resources_projects_provider_resources",
+				Columns:    []*schema.Column{ProviderResourcesColumns[28]},
+				RefColumns: []*schema.Column{ProjectsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "provider_resources_provider_accounts_provider_resources",
+				Columns:    []*schema.Column{ProviderResourcesColumns[29]},
+				RefColumns: []*schema.Column{ProviderAccountsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "provider_resources_tenants_provider_resources",
+				Columns:    []*schema.Column{ProviderResourcesColumns[30]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "providerresource_provider_id",
+				Unique:  true,
+				Columns: []*schema.Column{ProviderResourcesColumns[6]},
+			},
+			{
+				Name:    "providerresource_state_hard_deadline_at",
+				Unique:  false,
+				Columns: []*schema.Column{ProviderResourcesColumns[7], ProviderResourcesColumns[14]},
+			},
+			{
+				Name:    "providerresource_state_lease_expires_at",
+				Unique:  false,
+				Columns: []*schema.Column{ProviderResourcesColumns[7], ProviderResourcesColumns[25]},
+			},
+			{
+				Name:    "providerresource_experiment_id_state",
+				Unique:  false,
+				Columns: []*schema.Column{ProviderResourcesColumns[27], ProviderResourcesColumns[7]},
 			},
 		},
 	}
@@ -558,6 +757,36 @@ var (
 				Name:    "resourceprofile_project_id_name",
 				Unique:  true,
 				Columns: []*schema.Column{ResourceProfilesColumns[19], ResourceProfilesColumns[4]},
+			},
+		},
+	}
+	// ServiceHeartbeatsColumns holds the columns for the "service_heartbeats" table.
+	ServiceHeartbeatsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "public_id", Type: field.TypeUUID, Unique: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "role", Type: field.TypeEnum, Enums: []string{"scheduler", "watchdog", "notification"}},
+		{Name: "instance_id", Type: field.TypeString, Size: 255},
+		{Name: "last_seen_at", Type: field.TypeTime},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"running", "error"}, Default: "running"},
+		{Name: "metadata", Type: field.TypeJSON},
+	}
+	// ServiceHeartbeatsTable holds the schema information for the "service_heartbeats" table.
+	ServiceHeartbeatsTable = &schema.Table{
+		Name:       "service_heartbeats",
+		Columns:    ServiceHeartbeatsColumns,
+		PrimaryKey: []*schema.Column{ServiceHeartbeatsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "serviceheartbeat_role_instance_id",
+				Unique:  true,
+				Columns: []*schema.Column{ServiceHeartbeatsColumns[4], ServiceHeartbeatsColumns[5]},
+			},
+			{
+				Name:    "serviceheartbeat_role_last_seen_at",
+				Unique:  false,
+				Columns: []*schema.Column{ServiceHeartbeatsColumns[4], ServiceHeartbeatsColumns[6]},
 			},
 		},
 	}
@@ -657,11 +886,15 @@ var (
 		EnvironmentsTable,
 		ExperimentsTable,
 		IdempotencyRecordsTable,
+		NotificationsTable,
+		NotificationSettingsTable,
 		ProjectsTable,
 		ProviderAccountsTable,
+		ProviderResourcesTable,
 		RecordMixinsTable,
 		RepositoriesTable,
 		ResourceProfilesTable,
+		ServiceHeartbeatsTable,
 		SessionsTable,
 		TenantsTable,
 		UsersTable,
@@ -687,8 +920,15 @@ func init() {
 	IdempotencyRecordsTable.ForeignKeys[0].RefTable = AgentTokensTable
 	IdempotencyRecordsTable.ForeignKeys[1].RefTable = ExperimentsTable
 	IdempotencyRecordsTable.ForeignKeys[2].RefTable = TenantsTable
+	NotificationsTable.ForeignKeys[0].RefTable = TenantsTable
+	NotificationSettingsTable.ForeignKeys[0].RefTable = TenantsTable
 	ProjectsTable.ForeignKeys[0].RefTable = TenantsTable
 	ProviderAccountsTable.ForeignKeys[0].RefTable = TenantsTable
+	ProviderResourcesTable.ForeignKeys[0].RefTable = AttemptsTable
+	ProviderResourcesTable.ForeignKeys[1].RefTable = ExperimentsTable
+	ProviderResourcesTable.ForeignKeys[2].RefTable = ProjectsTable
+	ProviderResourcesTable.ForeignKeys[3].RefTable = ProviderAccountsTable
+	ProviderResourcesTable.ForeignKeys[4].RefTable = TenantsTable
 	RepositoriesTable.ForeignKeys[0].RefTable = ProjectsTable
 	ResourceProfilesTable.ForeignKeys[0].RefTable = ProjectsTable
 	SessionsTable.ForeignKeys[0].RefTable = UsersTable

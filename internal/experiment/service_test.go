@@ -3,11 +3,14 @@ package experiment
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
 
 	"entgo.io/ent/dialect"
 	"github.com/XR-Lee/Gemcp/ent"
 	"github.com/XR-Lee/Gemcp/ent/enttest"
+	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
 	"github.com/XR-Lee/Gemcp/internal/secrets"
 	_ "github.com/mattn/go-sqlite3"
@@ -115,7 +118,7 @@ func TestSubmitIsAtomicAndIdempotent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Submit() error = %v", err)
 	}
-	if first.Idempotent || first.Experiment.State != "queued" || first.Experiment.ReservedCostMilli != 3500 {
+	if first.Idempotent || first.Experiment.State != "queued" || first.Experiment.ReservedCostMilli != 6575 {
 		t.Fatalf("unexpected first result: %+v", first)
 	}
 	if first.Experiment.ProjectID != f.project.PublicID.String() || first.Experiment.EnvironmentID != f.environment.PublicID.String() {
@@ -143,7 +146,7 @@ func TestSubmitIsAtomicAndIdempotent(t *testing.T) {
 }
 
 func TestSubmitEnforcesHardBudget(t *testing.T) {
-	f := newFixture(t, 5000, 5000)
+	f := newFixture(t, 7000, 7000)
 	ctx := context.Background()
 	if _, err := f.service.Submit(ctx, f.principal, validSubmit(f, "request-0001")); err != nil {
 		t.Fatalf("first Submit() error = %v", err)
@@ -153,6 +156,46 @@ func TestSubmitEnforcesHardBudget(t *testing.T) {
 	}
 	if count, _ := f.client.Experiment.Query().Count(ctx); count != 1 {
 		t.Fatalf("experiment count = %d", count)
+	}
+}
+
+func TestSubmitRejectsUnimplementedSecretInjection(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	input := validSubmit(f, "request-secret")
+	input.SecretNames = []string{"GITHUB_TOKEN"}
+	if _, err := f.service.Submit(context.Background(), f.principal, input); err == nil {
+		t.Fatal("Submit() accepted secret_names without an injection implementation")
+	}
+	if f.verifier.calls != 0 {
+		t.Fatalf("commit verifier called %d times", f.verifier.calls)
+	}
+}
+
+func TestOwnerAttemptsExposeResultsWithoutRunnerCredentials(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	submitted, err := f.service.Submit(context.Background(), f.principal, validSubmit(f, "request-attempts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	experimentRecord, err := f.client.Experiment.Query().Only(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	exitCode := 0
+	_, err = f.client.Attempt.Create().SetTenantID(f.principal.TenantID).SetProjectID(f.principal.ProjectID).
+		SetExperimentID(experimentRecord.ID).SetNumber(1).SetState("succeeded").SetProviderResourceID("deployment-1").
+		SetRunnerTokenHash([]byte("must-not-leak")).SetRunnerTokenCiphertext("must-not-leak").SetExitCode(exitCode).
+		SetLogTail("done\n").SetMetrics(map[string]any{"accuracy": 0.9}).Save(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	attempts, err := f.service.OwnerAttempts(context.Background(), f.principal.TenantID, f.project.PublicID.String(), submitted.Experiment.ID)
+	if err != nil || len(attempts) != 1 {
+		t.Fatalf("attempts=%+v err=%v", attempts, err)
+	}
+	encoded := fmt.Sprintf("%+v", attempts[0])
+	if attempts[0].ProviderResourceID == nil || *attempts[0].ProviderResourceID != "deployment-1" || attempts[0].LogTail == nil || strings.Contains(encoded, "must-not-leak") {
+		t.Fatalf("attempt view = %+v", attempts[0])
 	}
 }
 
@@ -185,6 +228,49 @@ func TestQueuedCancellationReleasesBudgetOnce(t *testing.T) {
 	}
 }
 
+func TestRunningCancellationDurablyRequestsOwnedResourceStop(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	ctx := context.Background()
+	submitted, err := f.service.Submit(ctx, f.principal, validSubmit(f, "request-0001"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	experimentRecord, _ := f.client.Experiment.Query().Only(ctx)
+	_, _ = experimentRecord.Update().SetState("running").Save(ctx)
+	providerAccount, err := f.client.ProviderAccount.Create().SetTenantID(f.principal.TenantID).SetName("provider").
+		SetBaseURL("https://private.autodl.com").SetBackend("private").SetStatus("active").SetCredentialCiphertext("cipher").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	attemptRecord, err := f.client.Attempt.Create().SetTenantID(f.principal.TenantID).SetProjectID(f.project.ID).
+		SetExperimentID(experimentRecord.ID).SetNumber(1).SetState("running").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resourceRecord, err := f.client.ProviderResource.Create().SetTenantID(f.principal.TenantID).SetProjectID(f.project.ID).
+		SetExperimentID(experimentRecord.ID).SetAttemptID(attemptRecord.ID).SetProviderAccountID(providerAccount.ID).
+		SetName("gemcp-attempt").SetProviderID("deployment-1").SetState(providerresource.StateActive).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cancelled, err := f.service.Cancel(ctx, f.principal, submitted.Experiment.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resourceRecord, _ = f.client.ProviderResource.Get(ctx, resourceRecord.ID)
+	if cancelled.State != "cancelling" || resourceRecord.StopRequestedAt == nil || resourceRecord.StopReason == nil || *resourceRecord.StopReason != "cancelled" {
+		t.Fatalf("cancelled=%+v resource=%+v", cancelled, resourceRecord)
+	}
+	resourceRecord, _ = resourceRecord.Update().SetStopReason("emergency").Save(ctx)
+	if _, err := f.service.Cancel(ctx, f.principal, submitted.Experiment.ID); err != nil {
+		t.Fatalf("idempotent cancel: %v", err)
+	}
+	resourceRecord, _ = f.client.ProviderResource.Get(ctx, resourceRecord.ID)
+	if resourceRecord.StopReason == nil || *resourceRecord.StopReason != "emergency" {
+		t.Fatalf("repeated cancel downgraded stop reason: %+v", resourceRecord)
+	}
+}
+
 func TestProjectBoundaryAndCommitFailure(t *testing.T) {
 	f := newFixture(t, 100000, 20000)
 	other := newFixture(t, 100000, 20000)
@@ -204,7 +290,7 @@ func TestReserveCostRoundsWithoutOverflow(t *testing.T) {
 	if err != nil || cost != 1 {
 		t.Fatalf("reserveCost(1,1,1) = %d, %v", cost, err)
 	}
-	if _, err := reserveCost(int64(^uint64(0)>>1), 1, int(^uint(0)>>1)); err == nil {
+	if _, err := reserveCost(int64(^uint64(0)>>1), 1, int64(^uint64(0)>>1)); err == nil {
 		t.Fatal("reserveCost() accepted overflowing values")
 	}
 }

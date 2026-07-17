@@ -110,7 +110,7 @@ func TestStreamableHTTPToolsWithAgentToken(t *testing.T) {
 	}
 	var submitOutput experiment.SubmitResult
 	decodeStructured(t, submitted.StructuredContent, &submitOutput)
-	if submitOutput.Experiment.State != "queued" || submitOutput.Experiment.ReservedCostMilli != 3500 {
+	if submitOutput.Experiment.State != "queued" || submitOutput.Experiment.ReservedCostMilli != 6575 {
 		t.Fatalf("unexpected submit output: %+v", submitOutput)
 	}
 }

@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"database/sql/driver"
 	"fmt"
 	"math"
 
@@ -13,17 +14,19 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 	"github.com/XR-Lee/Gemcp/ent/provideraccount"
+	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
 )
 
 // ProviderAccountQuery is the builder for querying ProviderAccount entities.
 type ProviderAccountQuery struct {
 	config
-	ctx        *QueryContext
-	order      []provideraccount.OrderOption
-	inters     []Interceptor
-	predicates []predicate.ProviderAccount
-	withTenant *TenantQuery
+	ctx                   *QueryContext
+	order                 []provideraccount.OrderOption
+	inters                []Interceptor
+	predicates            []predicate.ProviderAccount
+	withTenant            *TenantQuery
+	withProviderResources *ProviderResourceQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -75,6 +78,28 @@ func (_q *ProviderAccountQuery) QueryTenant() *TenantQuery {
 			sqlgraph.From(provideraccount.Table, provideraccount.FieldID, selector),
 			sqlgraph.To(tenant.Table, tenant.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, true, provideraccount.TenantTable, provideraccount.TenantColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryProviderResources chains the current query on the "provider_resources" edge.
+func (_q *ProviderAccountQuery) QueryProviderResources() *ProviderResourceQuery {
+	query := (&ProviderResourceClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(provideraccount.Table, provideraccount.FieldID, selector),
+			sqlgraph.To(providerresource.Table, providerresource.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, provideraccount.ProviderResourcesTable, provideraccount.ProviderResourcesColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -269,12 +294,13 @@ func (_q *ProviderAccountQuery) Clone() *ProviderAccountQuery {
 		return nil
 	}
 	return &ProviderAccountQuery{
-		config:     _q.config,
-		ctx:        _q.ctx.Clone(),
-		order:      append([]provideraccount.OrderOption{}, _q.order...),
-		inters:     append([]Interceptor{}, _q.inters...),
-		predicates: append([]predicate.ProviderAccount{}, _q.predicates...),
-		withTenant: _q.withTenant.Clone(),
+		config:                _q.config,
+		ctx:                   _q.ctx.Clone(),
+		order:                 append([]provideraccount.OrderOption{}, _q.order...),
+		inters:                append([]Interceptor{}, _q.inters...),
+		predicates:            append([]predicate.ProviderAccount{}, _q.predicates...),
+		withTenant:            _q.withTenant.Clone(),
+		withProviderResources: _q.withProviderResources.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -289,6 +315,17 @@ func (_q *ProviderAccountQuery) WithTenant(opts ...func(*TenantQuery)) *Provider
 		opt(query)
 	}
 	_q.withTenant = query
+	return _q
+}
+
+// WithProviderResources tells the query-builder to eager-load the nodes that are connected to
+// the "provider_resources" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ProviderAccountQuery) WithProviderResources(opts ...func(*ProviderResourceQuery)) *ProviderAccountQuery {
+	query := (&ProviderResourceClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withProviderResources = query
 	return _q
 }
 
@@ -370,8 +407,9 @@ func (_q *ProviderAccountQuery) sqlAll(ctx context.Context, hooks ...queryHook) 
 	var (
 		nodes       = []*ProviderAccount{}
 		_spec       = _q.querySpec()
-		loadedTypes = [1]bool{
+		loadedTypes = [2]bool{
 			_q.withTenant != nil,
+			_q.withProviderResources != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -395,6 +433,15 @@ func (_q *ProviderAccountQuery) sqlAll(ctx context.Context, hooks ...queryHook) 
 	if query := _q.withTenant; query != nil {
 		if err := _q.loadTenant(ctx, query, nodes, nil,
 			func(n *ProviderAccount, e *Tenant) { n.Edges.Tenant = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withProviderResources; query != nil {
+		if err := _q.loadProviderResources(ctx, query, nodes,
+			func(n *ProviderAccount) { n.Edges.ProviderResources = []*ProviderResource{} },
+			func(n *ProviderAccount, e *ProviderResource) {
+				n.Edges.ProviderResources = append(n.Edges.ProviderResources, e)
+			}); err != nil {
 			return nil, err
 		}
 	}
@@ -427,6 +474,36 @@ func (_q *ProviderAccountQuery) loadTenant(ctx context.Context, query *TenantQue
 		for i := range nodes {
 			assign(nodes[i], n)
 		}
+	}
+	return nil
+}
+func (_q *ProviderAccountQuery) loadProviderResources(ctx context.Context, query *ProviderResourceQuery, nodes []*ProviderAccount, init func(*ProviderAccount), assign func(*ProviderAccount, *ProviderResource)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*ProviderAccount)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(providerresource.FieldProviderAccountID)
+	}
+	query.Where(predicate.ProviderResource(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(provideraccount.ProviderResourcesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ProviderAccountID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "provider_account_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
 	}
 	return nil
 }

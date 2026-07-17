@@ -83,6 +83,10 @@ const (
 	FieldMetrics = "metrics"
 	// FieldCancelRequestedAt holds the string denoting the cancel_requested_at field in the database.
 	FieldCancelRequestedAt = "cancel_requested_at"
+	// FieldTimeoutExtendedAt holds the string denoting the timeout_extended_at field in the database.
+	FieldTimeoutExtendedAt = "timeout_extended_at"
+	// FieldBudgetFinalizedAt holds the string denoting the budget_finalized_at field in the database.
+	FieldBudgetFinalizedAt = "budget_finalized_at"
 	// FieldLeaseExpiresAt holds the string denoting the lease_expires_at field in the database.
 	FieldLeaseExpiresAt = "lease_expires_at"
 	// FieldLeaseOwner holds the string denoting the lease_owner field in the database.
@@ -103,6 +107,8 @@ const (
 	EdgeResourceProfile = "resource_profile"
 	// EdgeAttempts holds the string denoting the attempts edge name in mutations.
 	EdgeAttempts = "attempts"
+	// EdgeProviderResources holds the string denoting the provider_resources edge name in mutations.
+	EdgeProviderResources = "provider_resources"
 	// EdgeBudgetEntries holds the string denoting the budget_entries edge name in mutations.
 	EdgeBudgetEntries = "budget_entries"
 	// EdgeIdempotencyRecords holds the string denoting the idempotency_records edge name in mutations.
@@ -158,6 +164,13 @@ const (
 	AttemptsInverseTable = "attempts"
 	// AttemptsColumn is the table column denoting the attempts relation/edge.
 	AttemptsColumn = "experiment_id"
+	// ProviderResourcesTable is the table that holds the provider_resources relation/edge.
+	ProviderResourcesTable = "provider_resources"
+	// ProviderResourcesInverseTable is the table name for the ProviderResource entity.
+	// It exists in this package in order to avoid circular dependency with the "providerresource" package.
+	ProviderResourcesInverseTable = "provider_resources"
+	// ProviderResourcesColumn is the table column denoting the provider_resources relation/edge.
+	ProviderResourcesColumn = "experiment_id"
 	// BudgetEntriesTable is the table that holds the budget_entries relation/edge.
 	BudgetEntriesTable = "budget_entries"
 	// BudgetEntriesInverseTable is the table name for the BudgetEntry entity.
@@ -211,6 +224,8 @@ var Columns = []string{
 	FieldLogTail,
 	FieldMetrics,
 	FieldCancelRequestedAt,
+	FieldTimeoutExtendedAt,
+	FieldBudgetFinalizedAt,
 	FieldLeaseExpiresAt,
 	FieldLeaseOwner,
 	FieldNextAttemptAt,
@@ -428,6 +443,16 @@ func ByCancelRequestedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCancelRequestedAt, opts...).ToFunc()
 }
 
+// ByTimeoutExtendedAt orders the results by the timeout_extended_at field.
+func ByTimeoutExtendedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTimeoutExtendedAt, opts...).ToFunc()
+}
+
+// ByBudgetFinalizedAt orders the results by the budget_finalized_at field.
+func ByBudgetFinalizedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBudgetFinalizedAt, opts...).ToFunc()
+}
+
 // ByLeaseExpiresAt orders the results by the lease_expires_at field.
 func ByLeaseExpiresAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldLeaseExpiresAt, opts...).ToFunc()
@@ -496,6 +521,20 @@ func ByAttemptsCount(opts ...sql.OrderTermOption) OrderOption {
 func ByAttempts(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	return func(s *sql.Selector) {
 		sqlgraph.OrderByNeighborTerms(s, newAttemptsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByProviderResourcesCount orders the results by provider_resources count.
+func ByProviderResourcesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newProviderResourcesStep(), opts...)
+	}
+}
+
+// ByProviderResources orders the results by provider_resources terms.
+func ByProviderResources(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newProviderResourcesStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
 
@@ -573,6 +612,13 @@ func newAttemptsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(AttemptsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, AttemptsTable, AttemptsColumn),
+	)
+}
+func newProviderResourcesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ProviderResourcesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ProviderResourcesTable, ProviderResourcesColumn),
 	)
 }
 func newBudgetEntriesStep() *sqlgraph.Step {

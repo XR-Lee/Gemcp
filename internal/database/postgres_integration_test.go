@@ -25,6 +25,15 @@ func TestPostgresMigration(t *testing.T) {
 	if _, err := store.Client.BudgetEntry.Query().Count(ctx); err != nil {
 		t.Fatalf("query migrated budget entries table: %v", err)
 	}
+	if _, err := store.Client.ProviderResource.Query().Count(ctx); err != nil {
+		t.Fatalf("query migrated Provider resources table: %v", err)
+	}
+	if _, err := store.Client.Notification.Query().Count(ctx); err != nil {
+		t.Fatalf("query migrated notifications table: %v", err)
+	}
+	if _, err := store.Client.ServiceHeartbeat.Query().Count(ctx); err != nil {
+		t.Fatalf("query migrated service heartbeats table: %v", err)
+	}
 	tenant, err := store.Client.Tenant.Create().SetName("migration-test").Save(ctx)
 	if err != nil {
 		t.Fatalf("create tenant: %v", err)

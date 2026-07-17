@@ -27,7 +27,7 @@ func EncryptCredential(box *secrets.Box, token string) (string, error) {
 	return ciphertext, nil
 }
 
-func decryptCredential(box *secrets.Box, ciphertext string) (string, error) {
+func DecryptCredential(box *secrets.Box, ciphertext string) (string, error) {
 	plaintext, err := box.Decrypt(ciphertext, CredentialAAD)
 	if err != nil {
 		return "", fmt.Errorf("decrypt Provider token: %w", err)

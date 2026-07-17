@@ -1,6 +1,6 @@
 # Private Cloud Provider operations
 
-Gemcp `v0.5.0` adds an Owner-only, live AutoDL Private Cloud resource view. The control plane decrypts the configured Developer Token only inside the server process, queries `https://private.autodl.com`, and returns a normalized credential-free response to the Web console.
+Gemcp provides an Owner-only live AutoDL Private Cloud resource view. The controlplane decrypts the configured Developer Token only inside the server process, queries `https://private.autodl.com`, and returns a normalized credential-free response. `v0.6.0` additionally identifies persisted Gemcp-owned resources and permits bounded lifecycle operations on those resources only.
 
 ## Security boundary
 
@@ -50,6 +50,18 @@ GET /api/v1/provider/deployments/:deployment-id
 
 Returns the selected deployment, active and released containers, and lifecycle events. The deployment ID is validated before it reaches the Provider API.
 
+### Managed resources and stop
+
+```http
+GET  /api/v1/provider/managed-resources
+POST /api/v1/provider/deployments/:deployment-id/stop
+POST /api/v1/provider/emergency-stop
+```
+
+The managed list comes from PostgreSQL ownership records, not name-prefix inference. Stop requires an active owned deployment; external Provider resources return not found. The request persists stop intent for both scheduler and Watchdog and is idempotent.
+
+Emergency stop requires `{"confirmation":"STOP"}`. It marks every active owned resource for immediate stop, preserves any stronger existing stop reason, and records an audit event and critical notification. It does not stop unknown or external Provider resources.
+
 ### Validate and rotate credential
 
 ```http
@@ -73,17 +85,17 @@ The `Provider` navigation view contains:
 - Connection state and last validation time.
 - Live GPU capacity.
 - Private and system image inventory.
-- Deployment completion counters.
-- Active and released container inventory.
-- Reusable cache count.
+- Deployment completion counters with Managed or External ownership labels.
+- Active and released container inventory and reusable cache count.
+- Managed deployment stop and phrase-confirmed emergency stop.
 - Deployment container and event details.
 - Validate-and-rotate credential dialog.
 
-The resource view is operational observability only. `v0.5.0` does not create, stop, delete, or mutate Provider resources from the Web console. Durable experiment execution remains disabled until the scheduler, Runner, and independent Watchdog are delivered in `v0.6.0`.
+Create remains an internal scheduler operation. The Web console never exposes arbitrary Provider create, shell, password, SSH, URL, or credential controls.
 
 ## Live integration test
 
-The normal test suite skips real Provider access. An operator can explicitly run the read-only live contract with a protected Token file:
+The normal test suite skips real Provider access and never creates paid resources. An operator can explicitly run the read-only live contract with a protected Token file:
 
 ```bash
 GEMCP_TEST_PRIVATE_TOKEN_FILE=/secure/path/to/token \

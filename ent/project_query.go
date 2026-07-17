@@ -19,6 +19,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 	"github.com/XR-Lee/Gemcp/ent/project"
+	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/repository"
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
@@ -27,18 +28,19 @@ import (
 // ProjectQuery is the builder for querying Project entities.
 type ProjectQuery struct {
 	config
-	ctx                  *QueryContext
-	order                []project.OrderOption
-	inters               []Interceptor
-	predicates           []predicate.Project
-	withTenant           *TenantQuery
-	withEnvironments     *EnvironmentQuery
-	withResourceProfiles *ResourceProfileQuery
-	withRepositories     *RepositoryQuery
-	withAgentTokens      *AgentTokenQuery
-	withExperiments      *ExperimentQuery
-	withAttempts         *AttemptQuery
-	withBudgetEntries    *BudgetEntryQuery
+	ctx                   *QueryContext
+	order                 []project.OrderOption
+	inters                []Interceptor
+	predicates            []predicate.Project
+	withTenant            *TenantQuery
+	withEnvironments      *EnvironmentQuery
+	withResourceProfiles  *ResourceProfileQuery
+	withRepositories      *RepositoryQuery
+	withAgentTokens       *AgentTokenQuery
+	withExperiments       *ExperimentQuery
+	withAttempts          *AttemptQuery
+	withProviderResources *ProviderResourceQuery
+	withBudgetEntries     *BudgetEntryQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -222,6 +224,28 @@ func (_q *ProjectQuery) QueryAttempts() *AttemptQuery {
 			sqlgraph.From(project.Table, project.FieldID, selector),
 			sqlgraph.To(attempt.Table, attempt.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, project.AttemptsTable, project.AttemptsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryProviderResources chains the current query on the "provider_resources" edge.
+func (_q *ProjectQuery) QueryProviderResources() *ProviderResourceQuery {
+	query := (&ProviderResourceClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, selector),
+			sqlgraph.To(providerresource.Table, providerresource.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.ProviderResourcesTable, project.ProviderResourcesColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -438,19 +462,20 @@ func (_q *ProjectQuery) Clone() *ProjectQuery {
 		return nil
 	}
 	return &ProjectQuery{
-		config:               _q.config,
-		ctx:                  _q.ctx.Clone(),
-		order:                append([]project.OrderOption{}, _q.order...),
-		inters:               append([]Interceptor{}, _q.inters...),
-		predicates:           append([]predicate.Project{}, _q.predicates...),
-		withTenant:           _q.withTenant.Clone(),
-		withEnvironments:     _q.withEnvironments.Clone(),
-		withResourceProfiles: _q.withResourceProfiles.Clone(),
-		withRepositories:     _q.withRepositories.Clone(),
-		withAgentTokens:      _q.withAgentTokens.Clone(),
-		withExperiments:      _q.withExperiments.Clone(),
-		withAttempts:         _q.withAttempts.Clone(),
-		withBudgetEntries:    _q.withBudgetEntries.Clone(),
+		config:                _q.config,
+		ctx:                   _q.ctx.Clone(),
+		order:                 append([]project.OrderOption{}, _q.order...),
+		inters:                append([]Interceptor{}, _q.inters...),
+		predicates:            append([]predicate.Project{}, _q.predicates...),
+		withTenant:            _q.withTenant.Clone(),
+		withEnvironments:      _q.withEnvironments.Clone(),
+		withResourceProfiles:  _q.withResourceProfiles.Clone(),
+		withRepositories:      _q.withRepositories.Clone(),
+		withAgentTokens:       _q.withAgentTokens.Clone(),
+		withExperiments:       _q.withExperiments.Clone(),
+		withAttempts:          _q.withAttempts.Clone(),
+		withProviderResources: _q.withProviderResources.Clone(),
+		withBudgetEntries:     _q.withBudgetEntries.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -531,6 +556,17 @@ func (_q *ProjectQuery) WithAttempts(opts ...func(*AttemptQuery)) *ProjectQuery 
 		opt(query)
 	}
 	_q.withAttempts = query
+	return _q
+}
+
+// WithProviderResources tells the query-builder to eager-load the nodes that are connected to
+// the "provider_resources" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ProjectQuery) WithProviderResources(opts ...func(*ProviderResourceQuery)) *ProjectQuery {
+	query := (&ProviderResourceClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withProviderResources = query
 	return _q
 }
 
@@ -623,7 +659,7 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 	var (
 		nodes       = []*Project{}
 		_spec       = _q.querySpec()
-		loadedTypes = [8]bool{
+		loadedTypes = [9]bool{
 			_q.withTenant != nil,
 			_q.withEnvironments != nil,
 			_q.withResourceProfiles != nil,
@@ -631,6 +667,7 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 			_q.withAgentTokens != nil,
 			_q.withExperiments != nil,
 			_q.withAttempts != nil,
+			_q.withProviderResources != nil,
 			_q.withBudgetEntries != nil,
 		}
 	)
@@ -697,6 +734,15 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 		if err := _q.loadAttempts(ctx, query, nodes,
 			func(n *Project) { n.Edges.Attempts = []*Attempt{} },
 			func(n *Project, e *Attempt) { n.Edges.Attempts = append(n.Edges.Attempts, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withProviderResources; query != nil {
+		if err := _q.loadProviderResources(ctx, query, nodes,
+			func(n *Project) { n.Edges.ProviderResources = []*ProviderResource{} },
+			func(n *Project, e *ProviderResource) {
+				n.Edges.ProviderResources = append(n.Edges.ProviderResources, e)
+			}); err != nil {
 			return nil, err
 		}
 	}
@@ -904,6 +950,36 @@ func (_q *ProjectQuery) loadAttempts(ctx context.Context, query *AttemptQuery, n
 	}
 	query.Where(predicate.Attempt(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(project.AttemptsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ProjectID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "project_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *ProjectQuery) loadProviderResources(ctx context.Context, query *ProviderResourceQuery, nodes []*Project, init func(*Project), assign func(*Project, *ProviderResource)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Project)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(providerresource.FieldProjectID)
+	}
+	query.Where(predicate.ProviderResource(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(project.ProviderResourcesColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

@@ -93,6 +93,30 @@ func (f IdempotencyRecordFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.IdempotencyRecordMutation", m)
 }
 
+// The NotificationFunc type is an adapter to allow the use of ordinary
+// function as Notification mutator.
+type NotificationFunc func(context.Context, *ent.NotificationMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f NotificationFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.NotificationMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.NotificationMutation", m)
+}
+
+// The NotificationSettingFunc type is an adapter to allow the use of ordinary
+// function as NotificationSetting mutator.
+type NotificationSettingFunc func(context.Context, *ent.NotificationSettingMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f NotificationSettingFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.NotificationSettingMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.NotificationSettingMutation", m)
+}
+
 // The ProjectFunc type is an adapter to allow the use of ordinary
 // function as Project mutator.
 type ProjectFunc func(context.Context, *ent.ProjectMutation) (ent.Value, error)
@@ -115,6 +139,18 @@ func (f ProviderAccountFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Va
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ProviderAccountMutation", m)
+}
+
+// The ProviderResourceFunc type is an adapter to allow the use of ordinary
+// function as ProviderResource mutator.
+type ProviderResourceFunc func(context.Context, *ent.ProviderResourceMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ProviderResourceFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ProviderResourceMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ProviderResourceMutation", m)
 }
 
 // The RecordMixinFunc type is an adapter to allow the use of ordinary
@@ -151,6 +187,18 @@ func (f ResourceProfileFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Va
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ResourceProfileMutation", m)
+}
+
+// The ServiceHeartbeatFunc type is an adapter to allow the use of ordinary
+// function as ServiceHeartbeat mutator.
+type ServiceHeartbeatFunc func(context.Context, *ent.ServiceHeartbeatMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ServiceHeartbeatFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ServiceHeartbeatMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ServiceHeartbeatMutation", m)
 }
 
 // The SessionFunc type is an adapter to allow the use of ordinary

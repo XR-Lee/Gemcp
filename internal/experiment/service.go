@@ -41,8 +41,9 @@ var (
 )
 
 const (
-	idempotencyRetention  = 30 * 24 * time.Hour
-	startupReserveSeconds = int64(600)
+	idempotencyRetention              = 30 * 24 * time.Hour
+	startupReserveSeconds             = int64(600)
+	shutdownObservationReserveSeconds = int64(30)
 )
 
 type ValidationError struct{ Message string }
@@ -176,7 +177,11 @@ func (s *Service) createSubmission(ctx context.Context, principal agentauth.Prin
 	if runtimeSeconds <= 0 || runtimeSeconds > projectRecord.MaxRuntimeSeconds {
 		return result, &ValidationError{Message: fmt.Sprintf("max_runtime_seconds must be between 1 and %d", projectRecord.MaxRuntimeSeconds)}
 	}
-	reservation, err := reserveCost(profileRecord.PriceToMilli, profileRecord.GpuNum, runtimeSeconds)
+	billableSeconds, err := billableRuntimeSeconds(runtimeSeconds, projectRecord.TimeoutExtensionSeconds, projectRecord.TerminationGraceSeconds)
+	if err != nil {
+		return result, err
+	}
+	reservation, err := reserveCost(profileRecord.PriceToMilli, profileRecord.GpuNum, billableSeconds)
 	if err != nil {
 		return result, err
 	}
@@ -356,6 +361,9 @@ func normalizeSubmit(input SubmitInput) (normalizedSubmit, error) {
 	if !idempotencyPattern.MatchString(strings.TrimSpace(input.IdempotencyKey)) {
 		return normalized, &ValidationError{Message: "idempotency_key must contain 8 to 128 URL-safe characters"}
 	}
+	if len(input.SecretNames) > 0 {
+		return normalized, &ValidationError{Message: "secret_names must be omitted because project Secret injection is not available"}
+	}
 	seen := make(map[string]struct{}, len(input.SecretNames))
 	for _, value := range input.SecretNames {
 		name := strings.TrimSpace(value)
@@ -372,14 +380,28 @@ func normalizeSubmit(input SubmitInput) (normalizedSubmit, error) {
 	return normalized, nil
 }
 
-func reserveCost(priceToMilli int64, gpuCount, runtimeSeconds int) (int64, error) {
+func billableRuntimeSeconds(values ...int) (int64, error) {
+	var result int64
+	for _, value := range values {
+		if value < 0 || result > math.MaxInt64-int64(value) {
+			return 0, fmt.Errorf("billable runtime overflow")
+		}
+		result += int64(value)
+	}
+	if result <= 0 {
+		return 0, fmt.Errorf("billable runtime must be positive")
+	}
+	return result, nil
+}
+
+func reserveCost(priceToMilli int64, gpuCount int, runtimeSeconds int64) (int64, error) {
 	if priceToMilli <= 0 || gpuCount <= 0 || runtimeSeconds <= 0 {
 		return 0, fmt.Errorf("invalid resource profile price or runtime")
 	}
-	if int64(runtimeSeconds) > math.MaxInt64-startupReserveSeconds {
+	if runtimeSeconds > math.MaxInt64-startupReserveSeconds-shutdownObservationReserveSeconds {
 		return 0, fmt.Errorf("cost reservation overflow")
 	}
-	seconds := int64(runtimeSeconds) + startupReserveSeconds
+	seconds := runtimeSeconds + startupReserveSeconds + shutdownObservationReserveSeconds
 	if priceToMilli > math.MaxInt64/int64(gpuCount) || priceToMilli*int64(gpuCount) > math.MaxInt64/seconds {
 		return 0, fmt.Errorf("cost reservation overflow")
 	}

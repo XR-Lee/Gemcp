@@ -15,8 +15,11 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
+	"github.com/XR-Lee/Gemcp/ent/notification"
+	"github.com/XR-Lee/Gemcp/ent/notificationsetting"
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/provideraccount"
+	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
 	"github.com/XR-Lee/Gemcp/ent/user"
 	"github.com/google/uuid"
@@ -166,6 +169,21 @@ func (_c *TenantCreate) AddAttempts(v ...*Attempt) *TenantCreate {
 	return _c.AddAttemptIDs(ids...)
 }
 
+// AddProviderResourceIDs adds the "provider_resources" edge to the ProviderResource entity by IDs.
+func (_c *TenantCreate) AddProviderResourceIDs(ids ...int) *TenantCreate {
+	_c.mutation.AddProviderResourceIDs(ids...)
+	return _c
+}
+
+// AddProviderResources adds the "provider_resources" edges to the ProviderResource entity.
+func (_c *TenantCreate) AddProviderResources(v ...*ProviderResource) *TenantCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddProviderResourceIDs(ids...)
+}
+
 // AddBudgetEntryIDs adds the "budget_entries" edge to the BudgetEntry entity by IDs.
 func (_c *TenantCreate) AddBudgetEntryIDs(ids ...int) *TenantCreate {
 	_c.mutation.AddBudgetEntryIDs(ids...)
@@ -209,6 +227,36 @@ func (_c *TenantCreate) AddAuditEvents(v ...*AuditEvent) *TenantCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddAuditEventIDs(ids...)
+}
+
+// AddNotificationSettingIDs adds the "notification_settings" edge to the NotificationSetting entity by IDs.
+func (_c *TenantCreate) AddNotificationSettingIDs(ids ...int) *TenantCreate {
+	_c.mutation.AddNotificationSettingIDs(ids...)
+	return _c
+}
+
+// AddNotificationSettings adds the "notification_settings" edges to the NotificationSetting entity.
+func (_c *TenantCreate) AddNotificationSettings(v ...*NotificationSetting) *TenantCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddNotificationSettingIDs(ids...)
+}
+
+// AddNotificationIDs adds the "notifications" edge to the Notification entity by IDs.
+func (_c *TenantCreate) AddNotificationIDs(ids ...int) *TenantCreate {
+	_c.mutation.AddNotificationIDs(ids...)
+	return _c
+}
+
+// AddNotifications adds the "notifications" edges to the Notification entity.
+func (_c *TenantCreate) AddNotifications(v ...*Notification) *TenantCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddNotificationIDs(ids...)
 }
 
 // Mutation returns the TenantMutation object of the builder.
@@ -417,6 +465,22 @@ func (_c *TenantCreate) createSpec() (*Tenant, *sqlgraph.CreateSpec) {
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
+	if nodes := _c.mutation.ProviderResourcesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ProviderResourcesTable,
+			Columns: []string{tenant.ProviderResourcesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(providerresource.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
 	if nodes := _c.mutation.BudgetEntriesIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -458,6 +522,38 @@ func (_c *TenantCreate) createSpec() (*Tenant, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(auditevent.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.NotificationSettingsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.NotificationSettingsTable,
+			Columns: []string{tenant.NotificationSettingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(notificationsetting.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.NotificationsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.NotificationsTable,
+			Columns: []string{tenant.NotificationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(notification.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

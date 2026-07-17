@@ -69,11 +69,13 @@ type ProjectEdges struct {
 	Experiments []*Experiment `json:"experiments,omitempty"`
 	// Attempts holds the value of the attempts edge.
 	Attempts []*Attempt `json:"attempts,omitempty"`
+	// ProviderResources holds the value of the provider_resources edge.
+	ProviderResources []*ProviderResource `json:"provider_resources,omitempty"`
 	// BudgetEntries holds the value of the budget_entries edge.
 	BudgetEntries []*BudgetEntry `json:"budget_entries,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [8]bool
+	loadedTypes [9]bool
 }
 
 // TenantOrErr returns the Tenant value or an error if the edge
@@ -141,10 +143,19 @@ func (e ProjectEdges) AttemptsOrErr() ([]*Attempt, error) {
 	return nil, &NotLoadedError{edge: "attempts"}
 }
 
+// ProviderResourcesOrErr returns the ProviderResources value or an error if the edge
+// was not loaded in eager-loading.
+func (e ProjectEdges) ProviderResourcesOrErr() ([]*ProviderResource, error) {
+	if e.loadedTypes[7] {
+		return e.ProviderResources, nil
+	}
+	return nil, &NotLoadedError{edge: "provider_resources"}
+}
+
 // BudgetEntriesOrErr returns the BudgetEntries value or an error if the edge
 // was not loaded in eager-loading.
 func (e ProjectEdges) BudgetEntriesOrErr() ([]*BudgetEntry, error) {
-	if e.loadedTypes[7] {
+	if e.loadedTypes[8] {
 		return e.BudgetEntries, nil
 	}
 	return nil, &NotLoadedError{edge: "budget_entries"}
@@ -314,6 +325,11 @@ func (_m *Project) QueryExperiments() *ExperimentQuery {
 // QueryAttempts queries the "attempts" edge of the Project entity.
 func (_m *Project) QueryAttempts() *AttemptQuery {
 	return NewProjectClient(_m.config).QueryAttempts(_m)
+}
+
+// QueryProviderResources queries the "provider_resources" edge of the Project entity.
+func (_m *Project) QueryProviderResources() *ProviderResourceQuery {
+	return NewProjectClient(_m.config).QueryProviderResources(_m)
 }
 
 // QueryBudgetEntries queries the "budget_entries" edge of the Project entity.

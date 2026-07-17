@@ -93,6 +93,10 @@ type Experiment struct {
 	Metrics map[string]interface{} `json:"metrics,omitempty"`
 	// CancelRequestedAt holds the value of the "cancel_requested_at" field.
 	CancelRequestedAt *time.Time `json:"cancel_requested_at,omitempty"`
+	// TimeoutExtendedAt holds the value of the "timeout_extended_at" field.
+	TimeoutExtendedAt *time.Time `json:"timeout_extended_at,omitempty"`
+	// BudgetFinalizedAt holds the value of the "budget_finalized_at" field.
+	BudgetFinalizedAt *time.Time `json:"budget_finalized_at,omitempty"`
 	// LeaseExpiresAt holds the value of the "lease_expires_at" field.
 	LeaseExpiresAt *time.Time `json:"lease_expires_at,omitempty"`
 	// LeaseOwner holds the value of the "lease_owner" field.
@@ -121,13 +125,15 @@ type ExperimentEdges struct {
 	ResourceProfile *ResourceProfile `json:"resource_profile,omitempty"`
 	// Attempts holds the value of the attempts edge.
 	Attempts []*Attempt `json:"attempts,omitempty"`
+	// ProviderResources holds the value of the provider_resources edge.
+	ProviderResources []*ProviderResource `json:"provider_resources,omitempty"`
 	// BudgetEntries holds the value of the budget_entries edge.
 	BudgetEntries []*BudgetEntry `json:"budget_entries,omitempty"`
 	// IdempotencyRecords holds the value of the idempotency_records edge.
 	IdempotencyRecords []*IdempotencyRecord `json:"idempotency_records,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [9]bool
+	loadedTypes [10]bool
 }
 
 // TenantOrErr returns the Tenant value or an error if the edge
@@ -205,10 +211,19 @@ func (e ExperimentEdges) AttemptsOrErr() ([]*Attempt, error) {
 	return nil, &NotLoadedError{edge: "attempts"}
 }
 
+// ProviderResourcesOrErr returns the ProviderResources value or an error if the edge
+// was not loaded in eager-loading.
+func (e ExperimentEdges) ProviderResourcesOrErr() ([]*ProviderResource, error) {
+	if e.loadedTypes[7] {
+		return e.ProviderResources, nil
+	}
+	return nil, &NotLoadedError{edge: "provider_resources"}
+}
+
 // BudgetEntriesOrErr returns the BudgetEntries value or an error if the edge
 // was not loaded in eager-loading.
 func (e ExperimentEdges) BudgetEntriesOrErr() ([]*BudgetEntry, error) {
-	if e.loadedTypes[7] {
+	if e.loadedTypes[8] {
 		return e.BudgetEntries, nil
 	}
 	return nil, &NotLoadedError{edge: "budget_entries"}
@@ -217,7 +232,7 @@ func (e ExperimentEdges) BudgetEntriesOrErr() ([]*BudgetEntry, error) {
 // IdempotencyRecordsOrErr returns the IdempotencyRecords value or an error if the edge
 // was not loaded in eager-loading.
 func (e ExperimentEdges) IdempotencyRecordsOrErr() ([]*IdempotencyRecord, error) {
-	if e.loadedTypes[8] {
+	if e.loadedTypes[9] {
 		return e.IdempotencyRecords, nil
 	}
 	return nil, &NotLoadedError{edge: "idempotency_records"}
@@ -234,7 +249,7 @@ func (*Experiment) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullInt64)
 		case experiment.FieldState, experiment.FieldDesiredState, experiment.FieldCommitSha, experiment.FieldCommand, experiment.FieldOutputPath, experiment.FieldProviderResourceID, experiment.FieldProviderStatus, experiment.FieldFailureCode, experiment.FieldFailureReason, experiment.FieldLogTail, experiment.FieldLeaseOwner:
 			values[i] = new(sql.NullString)
-		case experiment.FieldCreatedAt, experiment.FieldUpdatedAt, experiment.FieldStartedAt, experiment.FieldDeadlineAt, experiment.FieldFinishedAt, experiment.FieldCancelRequestedAt, experiment.FieldLeaseExpiresAt, experiment.FieldNextAttemptAt:
+		case experiment.FieldCreatedAt, experiment.FieldUpdatedAt, experiment.FieldStartedAt, experiment.FieldDeadlineAt, experiment.FieldFinishedAt, experiment.FieldCancelRequestedAt, experiment.FieldTimeoutExtendedAt, experiment.FieldBudgetFinalizedAt, experiment.FieldLeaseExpiresAt, experiment.FieldNextAttemptAt:
 			values[i] = new(sql.NullTime)
 		case experiment.FieldPublicID:
 			values[i] = new(uuid.UUID)
@@ -483,6 +498,20 @@ func (_m *Experiment) assignValues(columns []string, values []any) error {
 				_m.CancelRequestedAt = new(time.Time)
 				*_m.CancelRequestedAt = value.Time
 			}
+		case experiment.FieldTimeoutExtendedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field timeout_extended_at", values[i])
+			} else if value.Valid {
+				_m.TimeoutExtendedAt = new(time.Time)
+				*_m.TimeoutExtendedAt = value.Time
+			}
+		case experiment.FieldBudgetFinalizedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field budget_finalized_at", values[i])
+			} else if value.Valid {
+				_m.BudgetFinalizedAt = new(time.Time)
+				*_m.BudgetFinalizedAt = value.Time
+			}
 		case experiment.FieldLeaseExpiresAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field lease_expires_at", values[i])
@@ -549,6 +578,11 @@ func (_m *Experiment) QueryResourceProfile() *ResourceProfileQuery {
 // QueryAttempts queries the "attempts" edge of the Experiment entity.
 func (_m *Experiment) QueryAttempts() *AttemptQuery {
 	return NewExperimentClient(_m.config).QueryAttempts(_m)
+}
+
+// QueryProviderResources queries the "provider_resources" edge of the Experiment entity.
+func (_m *Experiment) QueryProviderResources() *ProviderResourceQuery {
+	return NewExperimentClient(_m.config).QueryProviderResources(_m)
 }
 
 // QueryBudgetEntries queries the "budget_entries" edge of the Experiment entity.
@@ -703,6 +737,16 @@ func (_m *Experiment) String() string {
 	builder.WriteString(", ")
 	if v := _m.CancelRequestedAt; v != nil {
 		builder.WriteString("cancel_requested_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.TimeoutExtendedAt; v != nil {
+		builder.WriteString("timeout_extended_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.BudgetFinalizedAt; v != nil {
+		builder.WriteString("budget_finalized_at=")
 		builder.WriteString(v.Format(time.ANSIC))
 	}
 	builder.WriteString(", ")

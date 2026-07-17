@@ -24,7 +24,7 @@ watchdog:     independent overdue-resource shutdown loop
 postgres:     authoritative durable state
 ```
 
-M0 may run the scheduler in the controlplane process. The watchdog remains a separate process so a stuck request path cannot disable shutdown enforcement.
+The FIFO scheduler runs in the controlplane process only when explicitly enabled. The watchdog remains a separate process so a stuck or unavailable HTTP path cannot disable shutdown enforcement. Each long-running role writes an independently visible PostgreSQL heartbeat.
 
 ## Durable coordination
 
@@ -40,19 +40,21 @@ The production AutoDL adapter uses documented Developer APIs; browser automation
 
 Private Cloud differs materially from public Elastic: it has a separate API host, no Developer wallet endpoint, a non-regional GPU inventory, one `cuda_v` selector, and Provider statuses where `finished_num=1` may coexist with `status=running`. The official console's read-only system-image endpoint is used only to enumerate valid base-image UUIDs during phase zero.
 
-The `v0.5.0` observer decrypts the Provider credential only inside the server process and exposes normalized Owner-only GPU, image, deployment, container, cache, and event views. Token rotation validates the candidate against all required read endpoints before an atomic encrypted update and audit event. Container access fields are intentionally absent from the decoded model.
+The Provider adapter decrypts the credential only inside the controlplane or Watchdog process. Owner APIs expose normalized GPU, image, deployment, container, cache, and event views. Token rotation validates the candidate against all required read endpoints before an atomic encrypted update and audit event. Container access fields are intentionally absent from the decoded model.
 
-The future execution adapter is idempotent at the control-plane boundary and records every Provider request ID available in responses. The validated Private Cloud installation did not return request IDs, so ownership records, immutable local attempt IDs, and reconciliation queries remain mandatory.
+Execution records every Provider request ID available in responses. The validated Private Cloud installation did not return request IDs, so deterministic resource names, persisted ownership before create, immutable local Attempt IDs, and reconciliation queries are mandatory. An Attempt makes at most one create request; an uncertain response is resolved by name before retrying at the experiment level. Truncated listings cannot prove absence.
+
+Stop intent is durable and monotonic. Agent cancel, Owner stop, emergency stop, deadline expiry, and budget enforcement all update owned resource rows. Scheduler and Watchdog idempotently converge those resources to stopped and deleted. Neither process adopts or mutates external resources.
 
 ## Storage boundary
 
-M0 uses an existing validated path under `/root/autodl-fs`. Experiment output remains in project-scoped directories there. PostgreSQL stores bounded log tails, scalar metrics, manifests, and paths, not large artifacts.
+M0 uses an existing path under `/root/autodl-fs`. Experiment output remains in UUID-scoped project and experiment directories there. PostgreSQL stores bounded log tails, scalar metrics, Runner result fields, and paths, not large artifacts. The controlplane securely archives the exact verified private Git commit; an Attempt-scoped Runner Token retrieves it without exposing the Deploy private key to the experiment.
 
 Stopped-container reuse is an opportunistic cache. Correctness cannot depend on a cache hit.
 
 ## Security boundary
 
-Agent Bearer Tokens identify project-scoped principals and are stored as keyed hashes. AutoDL, Git deploy-key, SMTP, and project Secret values are encrypted with a master key that is not stored in PostgreSQL. GitHub host keys are pinned by trusted SHA256 fingerprint before a repository can become active.
+Agent Bearer Tokens identify project-scoped principals and are stored as keyed hashes. AutoDL, Git Deploy Key, SMTP, and transient Runner credentials are encrypted with a master key that is not stored in PostgreSQL. GitHub host keys are pinned by trusted SHA256 fingerprint before a repository can become active.
 
 Owner Sessions use Secure, HttpOnly, SameSite=Strict cookies plus CSRF validation for state-changing requests. API and MCP responses are marked `no-store`, including the one-time setup response containing the first Agent Token. Provider responses expose only a credential-presence boolean; neither plaintext Token nor ciphertext has an API representation.
 

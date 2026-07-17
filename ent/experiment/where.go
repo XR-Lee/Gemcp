@@ -201,6 +201,16 @@ func CancelRequestedAt(v time.Time) predicate.Experiment {
 	return predicate.Experiment(sql.FieldEQ(FieldCancelRequestedAt, v))
 }
 
+// TimeoutExtendedAt applies equality check predicate on the "timeout_extended_at" field. It's identical to TimeoutExtendedAtEQ.
+func TimeoutExtendedAt(v time.Time) predicate.Experiment {
+	return predicate.Experiment(sql.FieldEQ(FieldTimeoutExtendedAt, v))
+}
+
+// BudgetFinalizedAt applies equality check predicate on the "budget_finalized_at" field. It's identical to BudgetFinalizedAtEQ.
+func BudgetFinalizedAt(v time.Time) predicate.Experiment {
+	return predicate.Experiment(sql.FieldEQ(FieldBudgetFinalizedAt, v))
+}
+
 // LeaseExpiresAt applies equality check predicate on the "lease_expires_at" field. It's identical to LeaseExpiresAtEQ.
 func LeaseExpiresAt(v time.Time) predicate.Experiment {
 	return predicate.Experiment(sql.FieldEQ(FieldLeaseExpiresAt, v))
@@ -1606,6 +1616,106 @@ func CancelRequestedAtNotNil() predicate.Experiment {
 	return predicate.Experiment(sql.FieldNotNull(FieldCancelRequestedAt))
 }
 
+// TimeoutExtendedAtEQ applies the EQ predicate on the "timeout_extended_at" field.
+func TimeoutExtendedAtEQ(v time.Time) predicate.Experiment {
+	return predicate.Experiment(sql.FieldEQ(FieldTimeoutExtendedAt, v))
+}
+
+// TimeoutExtendedAtNEQ applies the NEQ predicate on the "timeout_extended_at" field.
+func TimeoutExtendedAtNEQ(v time.Time) predicate.Experiment {
+	return predicate.Experiment(sql.FieldNEQ(FieldTimeoutExtendedAt, v))
+}
+
+// TimeoutExtendedAtIn applies the In predicate on the "timeout_extended_at" field.
+func TimeoutExtendedAtIn(vs ...time.Time) predicate.Experiment {
+	return predicate.Experiment(sql.FieldIn(FieldTimeoutExtendedAt, vs...))
+}
+
+// TimeoutExtendedAtNotIn applies the NotIn predicate on the "timeout_extended_at" field.
+func TimeoutExtendedAtNotIn(vs ...time.Time) predicate.Experiment {
+	return predicate.Experiment(sql.FieldNotIn(FieldTimeoutExtendedAt, vs...))
+}
+
+// TimeoutExtendedAtGT applies the GT predicate on the "timeout_extended_at" field.
+func TimeoutExtendedAtGT(v time.Time) predicate.Experiment {
+	return predicate.Experiment(sql.FieldGT(FieldTimeoutExtendedAt, v))
+}
+
+// TimeoutExtendedAtGTE applies the GTE predicate on the "timeout_extended_at" field.
+func TimeoutExtendedAtGTE(v time.Time) predicate.Experiment {
+	return predicate.Experiment(sql.FieldGTE(FieldTimeoutExtendedAt, v))
+}
+
+// TimeoutExtendedAtLT applies the LT predicate on the "timeout_extended_at" field.
+func TimeoutExtendedAtLT(v time.Time) predicate.Experiment {
+	return predicate.Experiment(sql.FieldLT(FieldTimeoutExtendedAt, v))
+}
+
+// TimeoutExtendedAtLTE applies the LTE predicate on the "timeout_extended_at" field.
+func TimeoutExtendedAtLTE(v time.Time) predicate.Experiment {
+	return predicate.Experiment(sql.FieldLTE(FieldTimeoutExtendedAt, v))
+}
+
+// TimeoutExtendedAtIsNil applies the IsNil predicate on the "timeout_extended_at" field.
+func TimeoutExtendedAtIsNil() predicate.Experiment {
+	return predicate.Experiment(sql.FieldIsNull(FieldTimeoutExtendedAt))
+}
+
+// TimeoutExtendedAtNotNil applies the NotNil predicate on the "timeout_extended_at" field.
+func TimeoutExtendedAtNotNil() predicate.Experiment {
+	return predicate.Experiment(sql.FieldNotNull(FieldTimeoutExtendedAt))
+}
+
+// BudgetFinalizedAtEQ applies the EQ predicate on the "budget_finalized_at" field.
+func BudgetFinalizedAtEQ(v time.Time) predicate.Experiment {
+	return predicate.Experiment(sql.FieldEQ(FieldBudgetFinalizedAt, v))
+}
+
+// BudgetFinalizedAtNEQ applies the NEQ predicate on the "budget_finalized_at" field.
+func BudgetFinalizedAtNEQ(v time.Time) predicate.Experiment {
+	return predicate.Experiment(sql.FieldNEQ(FieldBudgetFinalizedAt, v))
+}
+
+// BudgetFinalizedAtIn applies the In predicate on the "budget_finalized_at" field.
+func BudgetFinalizedAtIn(vs ...time.Time) predicate.Experiment {
+	return predicate.Experiment(sql.FieldIn(FieldBudgetFinalizedAt, vs...))
+}
+
+// BudgetFinalizedAtNotIn applies the NotIn predicate on the "budget_finalized_at" field.
+func BudgetFinalizedAtNotIn(vs ...time.Time) predicate.Experiment {
+	return predicate.Experiment(sql.FieldNotIn(FieldBudgetFinalizedAt, vs...))
+}
+
+// BudgetFinalizedAtGT applies the GT predicate on the "budget_finalized_at" field.
+func BudgetFinalizedAtGT(v time.Time) predicate.Experiment {
+	return predicate.Experiment(sql.FieldGT(FieldBudgetFinalizedAt, v))
+}
+
+// BudgetFinalizedAtGTE applies the GTE predicate on the "budget_finalized_at" field.
+func BudgetFinalizedAtGTE(v time.Time) predicate.Experiment {
+	return predicate.Experiment(sql.FieldGTE(FieldBudgetFinalizedAt, v))
+}
+
+// BudgetFinalizedAtLT applies the LT predicate on the "budget_finalized_at" field.
+func BudgetFinalizedAtLT(v time.Time) predicate.Experiment {
+	return predicate.Experiment(sql.FieldLT(FieldBudgetFinalizedAt, v))
+}
+
+// BudgetFinalizedAtLTE applies the LTE predicate on the "budget_finalized_at" field.
+func BudgetFinalizedAtLTE(v time.Time) predicate.Experiment {
+	return predicate.Experiment(sql.FieldLTE(FieldBudgetFinalizedAt, v))
+}
+
+// BudgetFinalizedAtIsNil applies the IsNil predicate on the "budget_finalized_at" field.
+func BudgetFinalizedAtIsNil() predicate.Experiment {
+	return predicate.Experiment(sql.FieldIsNull(FieldBudgetFinalizedAt))
+}
+
+// BudgetFinalizedAtNotNil applies the NotNil predicate on the "budget_finalized_at" field.
+func BudgetFinalizedAtNotNil() predicate.Experiment {
+	return predicate.Experiment(sql.FieldNotNull(FieldBudgetFinalizedAt))
+}
+
 // LeaseExpiresAtEQ applies the EQ predicate on the "lease_expires_at" field.
 func LeaseExpiresAtEQ(v time.Time) predicate.Experiment {
 	return predicate.Experiment(sql.FieldEQ(FieldLeaseExpiresAt, v))
@@ -1924,6 +2034,29 @@ func HasAttempts() predicate.Experiment {
 func HasAttemptsWith(preds ...predicate.Attempt) predicate.Experiment {
 	return predicate.Experiment(func(s *sql.Selector) {
 		step := newAttemptsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasProviderResources applies the HasEdge predicate on the "provider_resources" edge.
+func HasProviderResources() predicate.Experiment {
+	return predicate.Experiment(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ProviderResourcesTable, ProviderResourcesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasProviderResourcesWith applies the HasEdge predicate on the "provider_resources" edge with a given conditions (other predicates).
+func HasProviderResourcesWith(preds ...predicate.ProviderResource) predicate.Experiment {
+	return predicate.Experiment(func(s *sql.Selector) {
+		step := newProviderResourcesStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

@@ -2,8 +2,10 @@ package repository
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,9 +21,68 @@ type CommandVerifier struct {
 	sshKeyscanBinary string
 }
 
+type Archive interface {
+	Open() (io.ReadCloser, error)
+	Close() error
+	SizeBytes() int64
+}
+
+type SourceArchive struct {
+	path    string
+	tempDir string
+	Size    int64
+	RawSize int64
+}
+
+func (a *SourceArchive) Open() (io.ReadCloser, error) {
+	if a == nil || a.path == "" {
+		return nil, fmt.Errorf("source archive is closed")
+	}
+	return os.Open(a.path)
+}
+
+func (a *SourceArchive) SizeBytes() int64 {
+	if a == nil {
+		return 0
+	}
+	return a.Size
+}
+
+func (a *SourceArchive) Close() error {
+	if a == nil || a.tempDir == "" {
+		return nil
+	}
+	err := os.RemoveAll(a.tempDir)
+	a.path = ""
+	a.tempDir = ""
+	return err
+}
+
 type cappedBuffer struct {
 	buffer bytes.Buffer
 	limit  int
+}
+
+type boundedFileWriter struct {
+	file      *os.File
+	remaining int64
+	exceeded  bool
+}
+
+func (w *boundedFileWriter) Write(value []byte) (int, error) {
+	if int64(len(value)) > w.remaining {
+		allowed := int(w.remaining)
+		written := 0
+		if allowed > 0 {
+			written, _ = w.file.Write(value[:allowed])
+			w.remaining -= int64(written)
+		}
+		w.exceeded = true
+		return written, fmt.Errorf("source archive size limit exceeded")
+	}
+	written, err := w.file.Write(value)
+	w.remaining -= int64(written)
+	return written, err
 }
 
 func (b *cappedBuffer) Write(value []byte) (int, error) {
@@ -51,30 +112,99 @@ func (v *CommandVerifier) VerifyCommit(ctx context.Context, sshURL, host string,
 	return v.verify(ctx, sshURL, host, privateKey, fingerprint, commitSHA)
 }
 
-func (v *CommandVerifier) verify(ctx context.Context, sshURL, host string, privateKey []byte, fingerprint, ref string) error {
-	tempDir, err := os.MkdirTemp("", "gemcp-git-verify-*")
-	if err != nil {
-		return fmt.Errorf("create verification workspace: %w", err)
+func (v *CommandVerifier) ArchiveCommit(ctx context.Context, sshURL, host string, privateKey []byte, fingerprint, commitSHA string, maxBytes int64) (Archive, error) {
+	if maxBytes <= 0 {
+		return nil, fmt.Errorf("source archive size limit must be positive")
 	}
-	defer os.RemoveAll(tempDir)
+	tempDir, repositoryPath, environment, err := v.fetch(ctx, sshURL, host, privateKey, fingerprint, commitSHA)
+	if err != nil {
+		return nil, err
+	}
+	_ = os.Remove(filepath.Join(tempDir, "deploy_key"))
+	_ = os.Remove(filepath.Join(tempDir, "known_hosts"))
+	cleanup := true
+	defer func() {
+		if cleanup {
+			_ = os.RemoveAll(tempDir)
+		}
+	}()
+
+	tarPath := filepath.Join(tempDir, "source.tar")
+	archivePath := filepath.Join(tempDir, "source.tar.gz")
+	tarFile, err := os.OpenFile(tarPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	if err != nil {
+		return nil, fmt.Errorf("create source archive: %w", err)
+	}
+	writer := &boundedFileWriter{file: tarFile, remaining: maxBytes}
+	stderr := &cappedBuffer{limit: maxCommandOutput}
+	command := exec.CommandContext(ctx, v.gitBinary, "-C", repositoryPath, "archive", "--format=tar", "FETCH_HEAD")
+	command.Env = environment
+	command.Stdout = writer
+	command.Stderr = stderr
+	commandErr := command.Run()
+	closeErr := tarFile.Close()
+	if writer.exceeded {
+		return nil, fmt.Errorf("source archive exceeds %d bytes", maxBytes)
+	}
+	if commandErr != nil {
+		return nil, fmt.Errorf("archive requested Git commit: %w: %s", commandErr, strings.TrimSpace(stderr.String()))
+	}
+	if closeErr != nil {
+		return nil, fmt.Errorf("close source archive: %w", closeErr)
+	}
+	info, err := os.Stat(tarPath)
+	if err != nil {
+		return nil, fmt.Errorf("inspect source archive: %w", err)
+	}
+	if err := gzipFile(tarPath, archivePath); err != nil {
+		return nil, err
+	}
+	compressed, err := os.Stat(archivePath)
+	if err != nil {
+		return nil, fmt.Errorf("inspect compressed source archive: %w", err)
+	}
+	_ = os.Remove(tarPath)
+	_ = os.RemoveAll(repositoryPath)
+	cleanup = false
+	return &SourceArchive{path: archivePath, tempDir: tempDir, Size: compressed.Size(), RawSize: info.Size()}, nil
+}
+
+func (v *CommandVerifier) verify(ctx context.Context, sshURL, host string, privateKey []byte, fingerprint, ref string) error {
+	tempDir, _, _, err := v.fetch(ctx, sshURL, host, privateKey, fingerprint, ref)
+	if tempDir != "" {
+		defer os.RemoveAll(tempDir)
+	}
+	return err
+}
+
+func (v *CommandVerifier) fetch(ctx context.Context, sshURL, host string, privateKey []byte, fingerprint, ref string) (string, string, []string, error) {
+	tempDir, err := os.MkdirTemp("", "gemcp-git-fetch-*")
+	if err != nil {
+		return "", "", nil, fmt.Errorf("create Git workspace: %w", err)
+	}
+	fail := func(err error) (string, string, []string, error) {
+		_ = os.RemoveAll(tempDir)
+		return "", "", nil, err
+	}
+
 	keyPath := filepath.Join(tempDir, "deploy_key")
 	knownHostsPath := filepath.Join(tempDir, "known_hosts")
 	repositoryPath := filepath.Join(tempDir, "repository.git")
 	if err := os.WriteFile(keyPath, privateKey, 0o600); err != nil {
-		return fmt.Errorf("write deploy key: %w", err)
+		return fail(fmt.Errorf("write deploy key: %w", err))
 	}
 
 	scan := exec.CommandContext(ctx, v.sshKeyscanBinary, "-T", "10", "-t", "ed25519,ecdsa,rsa", host)
 	hostKeys, scanStderr, err := run(scan, verificationEnvironment(tempDir))
 	if err != nil || len(hostKeys) == 0 {
-		return fmt.Errorf("scan SSH host key: %w: %s", err, scanStderr)
+		return fail(fmt.Errorf("scan SSH host key: %w: %s", err, scanStderr))
 	}
 	pinnedHostKeys, ok := filterPinnedHostKeys(hostKeys, fingerprint)
 	if !ok {
-		return fmt.Errorf("SSH host key fingerprint did not match the pinned value")
+		return fail(fmt.Errorf("SSH host key fingerprint did not match the pinned value"))
 	}
 	if err := os.WriteFile(knownHostsPath, pinnedHostKeys, 0o600); err != nil {
-		return fmt.Errorf("write known hosts: %w", err)
+		return fail(fmt.Errorf("write known hosts: %w", err))
 	}
 	environment := verificationEnvironment(tempDir)
 	environment = append(environment, "GIT_SSH_COMMAND=ssh -F /dev/null -i "+shellQuote(keyPath)+
@@ -82,22 +212,47 @@ func (v *CommandVerifier) verify(ctx context.Context, sshURL, host string, priva
 		" -o BatchMode=yes -o ConnectTimeout=15")
 	initCommand := exec.CommandContext(ctx, v.gitBinary, "init", "--bare", repositoryPath)
 	if _, stderr, err := run(initCommand, environment); err != nil {
-		return fmt.Errorf("initialize verification repository: %w: %s", err, stderr)
+		return fail(fmt.Errorf("initialize Git repository: %w: %s", err, stderr))
 	}
 	fetchCommand := exec.CommandContext(ctx, v.gitBinary, "-C", repositoryPath, "fetch", "--depth=1", "--no-tags", sshURL, ref)
 	if _, stderr, err := run(fetchCommand, environment); err != nil {
-		return fmt.Errorf("fetch requested Git ref: %w: %s", err, stderr)
+		return fail(fmt.Errorf("fetch requested Git ref: %w: %s", err, stderr))
 	}
-	if ref == "HEAD" {
-		return nil
+	if ref != "HEAD" {
+		revParse := exec.CommandContext(ctx, v.gitBinary, "-C", repositoryPath, "rev-parse", "FETCH_HEAD")
+		output, stderr, err := run(revParse, environment)
+		if err != nil {
+			return fail(fmt.Errorf("resolve fetched commit: %w: %s", err, stderr))
+		}
+		if !strings.EqualFold(strings.TrimSpace(string(output)), strings.TrimSpace(ref)) {
+			return fail(fmt.Errorf("fetched commit did not match the requested SHA"))
+		}
 	}
-	revParse := exec.CommandContext(ctx, v.gitBinary, "-C", repositoryPath, "rev-parse", "FETCH_HEAD")
-	output, stderr, err := run(revParse, environment)
+	return tempDir, repositoryPath, environment, nil
+}
+
+func gzipFile(sourcePath, destinationPath string) error {
+	source, err := os.Open(sourcePath)
 	if err != nil {
-		return fmt.Errorf("resolve fetched commit: %w: %s", err, stderr)
+		return fmt.Errorf("open source archive: %w", err)
 	}
-	if !strings.EqualFold(strings.TrimSpace(string(output)), strings.TrimSpace(ref)) {
-		return fmt.Errorf("fetched commit did not match the requested SHA")
+	defer source.Close()
+	destination, err := os.OpenFile(destinationPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	if err != nil {
+		return fmt.Errorf("create compressed source archive: %w", err)
+	}
+	writer := gzip.NewWriter(destination)
+	_, copyErr := io.Copy(writer, source)
+	gzipErr := writer.Close()
+	fileErr := destination.Close()
+	if copyErr != nil {
+		return fmt.Errorf("compress source archive: %w", copyErr)
+	}
+	if gzipErr != nil {
+		return fmt.Errorf("finish source compression: %w", gzipErr)
+	}
+	if fileErr != nil {
+		return fmt.Errorf("close compressed source archive: %w", fileErr)
 	}
 	return nil
 }

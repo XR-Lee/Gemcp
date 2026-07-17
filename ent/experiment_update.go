@@ -16,6 +16,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
+	"github.com/XR-Lee/Gemcp/ent/providerresource"
 )
 
 // ExperimentUpdate is the builder for updating Experiment entities.
@@ -299,6 +300,46 @@ func (_u *ExperimentUpdate) ClearCancelRequestedAt() *ExperimentUpdate {
 	return _u
 }
 
+// SetTimeoutExtendedAt sets the "timeout_extended_at" field.
+func (_u *ExperimentUpdate) SetTimeoutExtendedAt(v time.Time) *ExperimentUpdate {
+	_u.mutation.SetTimeoutExtendedAt(v)
+	return _u
+}
+
+// SetNillableTimeoutExtendedAt sets the "timeout_extended_at" field if the given value is not nil.
+func (_u *ExperimentUpdate) SetNillableTimeoutExtendedAt(v *time.Time) *ExperimentUpdate {
+	if v != nil {
+		_u.SetTimeoutExtendedAt(*v)
+	}
+	return _u
+}
+
+// ClearTimeoutExtendedAt clears the value of the "timeout_extended_at" field.
+func (_u *ExperimentUpdate) ClearTimeoutExtendedAt() *ExperimentUpdate {
+	_u.mutation.ClearTimeoutExtendedAt()
+	return _u
+}
+
+// SetBudgetFinalizedAt sets the "budget_finalized_at" field.
+func (_u *ExperimentUpdate) SetBudgetFinalizedAt(v time.Time) *ExperimentUpdate {
+	_u.mutation.SetBudgetFinalizedAt(v)
+	return _u
+}
+
+// SetNillableBudgetFinalizedAt sets the "budget_finalized_at" field if the given value is not nil.
+func (_u *ExperimentUpdate) SetNillableBudgetFinalizedAt(v *time.Time) *ExperimentUpdate {
+	if v != nil {
+		_u.SetBudgetFinalizedAt(*v)
+	}
+	return _u
+}
+
+// ClearBudgetFinalizedAt clears the value of the "budget_finalized_at" field.
+func (_u *ExperimentUpdate) ClearBudgetFinalizedAt() *ExperimentUpdate {
+	_u.mutation.ClearBudgetFinalizedAt()
+	return _u
+}
+
 // SetLeaseExpiresAt sets the "lease_expires_at" field.
 func (_u *ExperimentUpdate) SetLeaseExpiresAt(v time.Time) *ExperimentUpdate {
 	_u.mutation.SetLeaseExpiresAt(v)
@@ -368,6 +409,21 @@ func (_u *ExperimentUpdate) AddAttempts(v ...*Attempt) *ExperimentUpdate {
 	return _u.AddAttemptIDs(ids...)
 }
 
+// AddProviderResourceIDs adds the "provider_resources" edge to the ProviderResource entity by IDs.
+func (_u *ExperimentUpdate) AddProviderResourceIDs(ids ...int) *ExperimentUpdate {
+	_u.mutation.AddProviderResourceIDs(ids...)
+	return _u
+}
+
+// AddProviderResources adds the "provider_resources" edges to the ProviderResource entity.
+func (_u *ExperimentUpdate) AddProviderResources(v ...*ProviderResource) *ExperimentUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddProviderResourceIDs(ids...)
+}
+
 // AddBudgetEntryIDs adds the "budget_entries" edge to the BudgetEntry entity by IDs.
 func (_u *ExperimentUpdate) AddBudgetEntryIDs(ids ...int) *ExperimentUpdate {
 	_u.mutation.AddBudgetEntryIDs(ids...)
@@ -422,6 +478,27 @@ func (_u *ExperimentUpdate) RemoveAttempts(v ...*Attempt) *ExperimentUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveAttemptIDs(ids...)
+}
+
+// ClearProviderResources clears all "provider_resources" edges to the ProviderResource entity.
+func (_u *ExperimentUpdate) ClearProviderResources() *ExperimentUpdate {
+	_u.mutation.ClearProviderResources()
+	return _u
+}
+
+// RemoveProviderResourceIDs removes the "provider_resources" edge to ProviderResource entities by IDs.
+func (_u *ExperimentUpdate) RemoveProviderResourceIDs(ids ...int) *ExperimentUpdate {
+	_u.mutation.RemoveProviderResourceIDs(ids...)
+	return _u
+}
+
+// RemoveProviderResources removes "provider_resources" edges to ProviderResource entities.
+func (_u *ExperimentUpdate) RemoveProviderResources(v ...*ProviderResource) *ExperimentUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveProviderResourceIDs(ids...)
 }
 
 // ClearBudgetEntries clears all "budget_entries" edges to the BudgetEntry entity.
@@ -653,6 +730,18 @@ func (_u *ExperimentUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	if _u.mutation.CancelRequestedAtCleared() {
 		_spec.ClearField(experiment.FieldCancelRequestedAt, field.TypeTime)
 	}
+	if value, ok := _u.mutation.TimeoutExtendedAt(); ok {
+		_spec.SetField(experiment.FieldTimeoutExtendedAt, field.TypeTime, value)
+	}
+	if _u.mutation.TimeoutExtendedAtCleared() {
+		_spec.ClearField(experiment.FieldTimeoutExtendedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.BudgetFinalizedAt(); ok {
+		_spec.SetField(experiment.FieldBudgetFinalizedAt, field.TypeTime, value)
+	}
+	if _u.mutation.BudgetFinalizedAtCleared() {
+		_spec.ClearField(experiment.FieldBudgetFinalizedAt, field.TypeTime)
+	}
 	if value, ok := _u.mutation.LeaseExpiresAt(); ok {
 		_spec.SetField(experiment.FieldLeaseExpiresAt, field.TypeTime, value)
 	}
@@ -706,6 +795,51 @@ func (_u *ExperimentUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(attempt.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ProviderResourcesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   experiment.ProviderResourcesTable,
+			Columns: []string{experiment.ProviderResourcesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(providerresource.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedProviderResourcesIDs(); len(nodes) > 0 && !_u.mutation.ProviderResourcesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   experiment.ProviderResourcesTable,
+			Columns: []string{experiment.ProviderResourcesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(providerresource.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ProviderResourcesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   experiment.ProviderResourcesTable,
+			Columns: []string{experiment.ProviderResourcesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(providerresource.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -1091,6 +1225,46 @@ func (_u *ExperimentUpdateOne) ClearCancelRequestedAt() *ExperimentUpdateOne {
 	return _u
 }
 
+// SetTimeoutExtendedAt sets the "timeout_extended_at" field.
+func (_u *ExperimentUpdateOne) SetTimeoutExtendedAt(v time.Time) *ExperimentUpdateOne {
+	_u.mutation.SetTimeoutExtendedAt(v)
+	return _u
+}
+
+// SetNillableTimeoutExtendedAt sets the "timeout_extended_at" field if the given value is not nil.
+func (_u *ExperimentUpdateOne) SetNillableTimeoutExtendedAt(v *time.Time) *ExperimentUpdateOne {
+	if v != nil {
+		_u.SetTimeoutExtendedAt(*v)
+	}
+	return _u
+}
+
+// ClearTimeoutExtendedAt clears the value of the "timeout_extended_at" field.
+func (_u *ExperimentUpdateOne) ClearTimeoutExtendedAt() *ExperimentUpdateOne {
+	_u.mutation.ClearTimeoutExtendedAt()
+	return _u
+}
+
+// SetBudgetFinalizedAt sets the "budget_finalized_at" field.
+func (_u *ExperimentUpdateOne) SetBudgetFinalizedAt(v time.Time) *ExperimentUpdateOne {
+	_u.mutation.SetBudgetFinalizedAt(v)
+	return _u
+}
+
+// SetNillableBudgetFinalizedAt sets the "budget_finalized_at" field if the given value is not nil.
+func (_u *ExperimentUpdateOne) SetNillableBudgetFinalizedAt(v *time.Time) *ExperimentUpdateOne {
+	if v != nil {
+		_u.SetBudgetFinalizedAt(*v)
+	}
+	return _u
+}
+
+// ClearBudgetFinalizedAt clears the value of the "budget_finalized_at" field.
+func (_u *ExperimentUpdateOne) ClearBudgetFinalizedAt() *ExperimentUpdateOne {
+	_u.mutation.ClearBudgetFinalizedAt()
+	return _u
+}
+
 // SetLeaseExpiresAt sets the "lease_expires_at" field.
 func (_u *ExperimentUpdateOne) SetLeaseExpiresAt(v time.Time) *ExperimentUpdateOne {
 	_u.mutation.SetLeaseExpiresAt(v)
@@ -1160,6 +1334,21 @@ func (_u *ExperimentUpdateOne) AddAttempts(v ...*Attempt) *ExperimentUpdateOne {
 	return _u.AddAttemptIDs(ids...)
 }
 
+// AddProviderResourceIDs adds the "provider_resources" edge to the ProviderResource entity by IDs.
+func (_u *ExperimentUpdateOne) AddProviderResourceIDs(ids ...int) *ExperimentUpdateOne {
+	_u.mutation.AddProviderResourceIDs(ids...)
+	return _u
+}
+
+// AddProviderResources adds the "provider_resources" edges to the ProviderResource entity.
+func (_u *ExperimentUpdateOne) AddProviderResources(v ...*ProviderResource) *ExperimentUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddProviderResourceIDs(ids...)
+}
+
 // AddBudgetEntryIDs adds the "budget_entries" edge to the BudgetEntry entity by IDs.
 func (_u *ExperimentUpdateOne) AddBudgetEntryIDs(ids ...int) *ExperimentUpdateOne {
 	_u.mutation.AddBudgetEntryIDs(ids...)
@@ -1214,6 +1403,27 @@ func (_u *ExperimentUpdateOne) RemoveAttempts(v ...*Attempt) *ExperimentUpdateOn
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveAttemptIDs(ids...)
+}
+
+// ClearProviderResources clears all "provider_resources" edges to the ProviderResource entity.
+func (_u *ExperimentUpdateOne) ClearProviderResources() *ExperimentUpdateOne {
+	_u.mutation.ClearProviderResources()
+	return _u
+}
+
+// RemoveProviderResourceIDs removes the "provider_resources" edge to ProviderResource entities by IDs.
+func (_u *ExperimentUpdateOne) RemoveProviderResourceIDs(ids ...int) *ExperimentUpdateOne {
+	_u.mutation.RemoveProviderResourceIDs(ids...)
+	return _u
+}
+
+// RemoveProviderResources removes "provider_resources" edges to ProviderResource entities.
+func (_u *ExperimentUpdateOne) RemoveProviderResources(v ...*ProviderResource) *ExperimentUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveProviderResourceIDs(ids...)
 }
 
 // ClearBudgetEntries clears all "budget_entries" edges to the BudgetEntry entity.
@@ -1475,6 +1685,18 @@ func (_u *ExperimentUpdateOne) sqlSave(ctx context.Context) (_node *Experiment, 
 	if _u.mutation.CancelRequestedAtCleared() {
 		_spec.ClearField(experiment.FieldCancelRequestedAt, field.TypeTime)
 	}
+	if value, ok := _u.mutation.TimeoutExtendedAt(); ok {
+		_spec.SetField(experiment.FieldTimeoutExtendedAt, field.TypeTime, value)
+	}
+	if _u.mutation.TimeoutExtendedAtCleared() {
+		_spec.ClearField(experiment.FieldTimeoutExtendedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.BudgetFinalizedAt(); ok {
+		_spec.SetField(experiment.FieldBudgetFinalizedAt, field.TypeTime, value)
+	}
+	if _u.mutation.BudgetFinalizedAtCleared() {
+		_spec.ClearField(experiment.FieldBudgetFinalizedAt, field.TypeTime)
+	}
 	if value, ok := _u.mutation.LeaseExpiresAt(); ok {
 		_spec.SetField(experiment.FieldLeaseExpiresAt, field.TypeTime, value)
 	}
@@ -1528,6 +1750,51 @@ func (_u *ExperimentUpdateOne) sqlSave(ctx context.Context) (_node *Experiment, 
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(attempt.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ProviderResourcesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   experiment.ProviderResourcesTable,
+			Columns: []string{experiment.ProviderResourcesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(providerresource.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedProviderResourcesIDs(); len(nodes) > 0 && !_u.mutation.ProviderResourcesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   experiment.ProviderResourcesTable,
+			Columns: []string{experiment.ProviderResourcesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(providerresource.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ProviderResourcesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   experiment.ProviderResourcesTable,
+			Columns: []string{experiment.ProviderResourcesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(providerresource.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

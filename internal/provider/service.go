@@ -309,7 +309,7 @@ func (s *Service) clientFor(record *ent.ProviderAccount) (api, error) {
 	if strings.TrimRight(record.BaseURL, "/") != autodl.PrivateBaseURL {
 		return nil, ErrUnsupportedBackend
 	}
-	token, err := decryptCredential(s.box, record.CredentialCiphertext)
+	token, err := DecryptCredential(s.box, record.CredentialCiphertext)
 	if err != nil {
 		return nil, err
 	}

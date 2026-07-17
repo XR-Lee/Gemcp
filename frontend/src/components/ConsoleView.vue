@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import {
   Activity,
+  Bell,
   Boxes,
   Check,
   CircleDollarSign,
@@ -18,24 +19,29 @@ import {
   ShieldCheck,
   X,
 } from '@lucide/vue'
-import { APIError, api, type BuildInfo, type Cost, type Experiment, type Project, type Repository, type User } from '../api'
+import { APIError, api, type Attempt, type BuildInfo, type Cost, type Experiment, type Project, type Repository, type RuntimeStatus, type User } from '../api'
 import ExperimentTable from './ExperimentTable.vue'
 import ProviderView from './ProviderView.vue'
+import NotificationView from './NotificationView.vue'
 
 const props = defineProps<{ build: BuildInfo | null; user: User }>()
 const emit = defineEmits<{ signedOut: [] }>()
 
-type ViewName = 'overview' | 'experiments' | 'projects' | 'provider'
+type ViewName = 'overview' | 'experiments' | 'projects' | 'provider' | 'notifications'
 const activeView = ref<ViewName>('overview')
 const projects = ref<Project[]>([])
 const selectedProjectID = ref('')
 const repositories = ref<Repository[]>([])
 const experiments = ref<Experiment[]>([])
 const cost = ref<Cost | null>(null)
+const runtimeStatus = ref<RuntimeStatus | null>(null)
 const loading = ref(false)
 const error = ref('')
 const signingOut = ref(false)
 const selectedExperiment = ref<Experiment | null>(null)
+const attempts = ref<Attempt[]>([])
+const attemptsLoading = ref(false)
+const attemptsError = ref('')
 const stateFilter = ref('all')
 const repositoryDialog = ref<'create' | 'key' | 'verify' | null>(null)
 const selectedRepository = ref<Repository | null>(null)
@@ -49,11 +55,13 @@ const runningCount = computed(() => experiments.value.filter((item) => ['provisi
 const queuedCount = computed(() => experiments.value.filter((item) => item.state === 'queued').length)
 const filteredExperiments = computed(() => stateFilter.value === 'all' ? experiments.value : experiments.value.filter((item) => item.state === stateFilter.value))
 const recentExperiments = computed(() => experiments.value.slice(0, 8))
+const latestAttempt = computed(() => attempts.value.at(-1) ?? null)
 const viewTitle = computed(() => ({
   overview: 'Overview',
   experiments: 'Experiments',
   projects: 'Project configuration',
   provider: 'Private Cloud resources',
+  notifications: 'Notifications',
 })[activeView.value])
 
 function handleError(caught: unknown, fallback: string) {
@@ -68,8 +76,9 @@ async function refreshAll() {
   loading.value = true
   error.value = ''
   try {
-    const loadedProjects = await api.projects()
+    const [loadedProjects, loadedRuntime] = await Promise.all([api.projects(), api.runtimeStatus()])
     projects.value = loadedProjects
+    runtimeStatus.value = loadedRuntime
     if (!loadedProjects.some((item) => item.id === selectedProjectID.value)) {
       selectedProjectID.value = loadedProjects[0]?.id ?? ''
     }
@@ -104,6 +113,36 @@ async function refreshProject(showSpinner = true) {
   } finally {
     if (showSpinner) loading.value = false
   }
+}
+
+async function openExperiment(experiment: Experiment) {
+  selectedExperiment.value = experiment
+  attempts.value = []
+  attemptsError.value = ''
+  attemptsLoading.value = true
+  try {
+    const [detail, history] = await Promise.all([
+      api.experiment(experiment.project_id, experiment.id),
+      api.attempts(experiment.project_id, experiment.id),
+    ])
+    if (selectedExperiment.value?.id === experiment.id) {
+      selectedExperiment.value = detail
+      attempts.value = history
+    }
+  } catch (caught) {
+    if (selectedExperiment.value?.id !== experiment.id) return
+    if (caught instanceof APIError && caught.status === 401) emit('signedOut')
+    else attemptsError.value = caught instanceof APIError ? caught.message : 'Could not load Attempt history.'
+  } finally {
+    if (selectedExperiment.value?.id === experiment.id) attemptsLoading.value = false
+  }
+}
+
+function closeExperiment() {
+  selectedExperiment.value = null
+  attempts.value = []
+  attemptsError.value = ''
+  attemptsLoading.value = false
 }
 
 async function signOut() {
@@ -192,6 +231,10 @@ function dateTime(value?: string) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 }
 
+function metricsJSON(value?: Record<string, unknown>) {
+  return JSON.stringify(value ?? {}, null, 2)
+}
+
 function stateLabel(value: string) {
   return value.replaceAll('_', ' ')
 }
@@ -207,11 +250,12 @@ onMounted(refreshAll)
         <div><strong>Gemcp</strong><span>AutoDL control plane</span></div>
       </div>
       <nav aria-label="Primary navigation">
-        <button class="nav-item" :class="{ active: activeView === 'overview' }" type="button" @click="activeView = 'overview'"><Activity :size="17" /><span>Overview</span></button>
-        <button class="nav-item" :class="{ active: activeView === 'experiments' }" type="button" @click="activeView = 'experiments'"><FlaskConical :size="17" /><span>Experiments</span></button>
-        <button class="nav-item" :class="{ active: activeView === 'projects' }" type="button" @click="activeView = 'projects'"><Boxes :size="17" /><span>Project</span></button>
-        <button class="nav-item" :class="{ active: activeView === 'provider' }" type="button" @click="activeView = 'provider'"><Server :size="17" /><span>Provider</span></button>
-        <button class="nav-item nav-bottom" type="button" :disabled="signingOut" @click="signOut"><LogOut :size="17" /><span>Sign out</span></button>
+        <button class="nav-item" :class="{ active: activeView === 'overview' }" type="button" aria-label="Overview" title="Overview" @click="activeView = 'overview'"><Activity :size="17" /><span>Overview</span></button>
+        <button class="nav-item" :class="{ active: activeView === 'experiments' }" type="button" aria-label="Experiments" title="Experiments" @click="activeView = 'experiments'"><FlaskConical :size="17" /><span>Experiments</span></button>
+        <button class="nav-item" :class="{ active: activeView === 'projects' }" type="button" aria-label="Project" title="Project" @click="activeView = 'projects'"><Boxes :size="17" /><span>Project</span></button>
+        <button class="nav-item" :class="{ active: activeView === 'provider' }" type="button" aria-label="Provider" title="Provider" @click="activeView = 'provider'"><Server :size="17" /><span>Provider</span></button>
+        <button class="nav-item" :class="{ active: activeView === 'notifications' }" type="button" aria-label="Alerts" title="Alerts" @click="activeView = 'notifications'"><Bell :size="17" /><span>Alerts</span></button>
+        <button class="nav-item nav-bottom" type="button" aria-label="Sign out" title="Sign out" :disabled="signingOut" @click="signOut"><LogOut :size="17" /><span>Sign out</span></button>
       </nav>
       <div class="sidebar-user"><span>{{ props.user.email }}</span><small>{{ props.user.role }}</small></div>
     </aside>
@@ -223,9 +267,9 @@ onMounted(refreshAll)
           <h1>{{ viewTitle }}</h1>
         </div>
         <div class="topbar-actions">
-          <label v-if="activeView !== 'provider'" class="project-select"><span>Project</span><select v-model="selectedProjectID" @change="refreshProject()"><option v-for="project in projects" :key="project.id" :value="project.id">{{ project.name }}</option></select></label>
+          <label v-if="!['provider', 'notifications'].includes(activeView)" class="project-select"><span>Project</span><select v-model="selectedProjectID" @change="refreshProject()"><option v-for="project in projects" :key="project.id" :value="project.id">{{ project.name }}</option></select></label>
           <span class="status online"><span class="status-dot" />Online</span>
-          <button v-if="activeView !== 'provider'" class="icon-button" type="button" title="Refresh project" :disabled="loading" @click="refreshAll"><RefreshCw :size="17" :class="{ spinning: loading }" /></button>
+          <button v-if="!['provider', 'notifications'].includes(activeView)" class="icon-button" type="button" title="Refresh project" :disabled="loading" @click="refreshAll"><RefreshCw :size="17" :class="{ spinning: loading }" /></button>
         </div>
       </header>
 
@@ -242,18 +286,19 @@ onMounted(refreshAll)
         </section>
         <section class="workspace">
           <div class="section-heading"><div><h2>Recent experiments</h2><p>Latest Agent submissions for {{ selectedProject?.name ?? 'this project' }}.</p></div><button class="text-button" type="button" @click="activeView = 'experiments'">View all</button></div>
-          <ExperimentTable :experiments="recentExperiments" compact @select="selectedExperiment = $event" />
+          <ExperimentTable :experiments="recentExperiments" compact @select="openExperiment" />
         </section>
         <section class="status-band">
-          <div><Server :size="18" /><span><strong>AutoDL Private Cloud</strong><small>Live phase-zero validated</small></span></div>
-          <div><GitBranch :size="18" /><span><strong>{{ repositories.filter((item) => item.status === 'active').length }} active repositories</strong><small>{{ repositories.length }} registered</small></span></div>
+          <div><Server :size="18" /><span><strong>{{ !runtimeStatus?.scheduler_enabled ? (runtimeStatus?.scheduler_healthy ? 'Dispatch disabled' : 'Reconciler unavailable') : runtimeStatus.scheduler_healthy ? 'Scheduler healthy' : 'Scheduler unavailable' }}</strong><small>{{ runtimeStatus?.scheduler_enabled ? `Global concurrency ${runtimeStatus.global_concurrency}` : 'Reconciliation remains active' }}</small></span></div>
+          <div><ShieldCheck :size="18" /><span><strong>{{ runtimeStatus?.watchdog_healthy ? 'Watchdog healthy' : 'Watchdog unavailable' }}</strong><small>{{ runtimeStatus?.watchdog_heartbeat ? dateTime(runtimeStatus.watchdog_heartbeat.last_seen_at) : 'No heartbeat' }}</small></span></div>
+          <div><Bell :size="18" /><span><strong>{{ runtimeStatus?.notification_worker_healthy ? 'Notification worker healthy' : 'Notification worker unavailable' }}</strong><small>{{ runtimeStatus?.notification_heartbeat ? dateTime(runtimeStatus.notification_heartbeat.last_seen_at) : 'No heartbeat' }}</small></span></div>
           <div><CircleDollarSign :size="18" /><span><strong>{{ money(cost?.monthly_budget_milli) }}</strong><small>Monthly hard budget</small></span></div>
         </section>
       </template>
 
       <section v-else-if="activeView === 'experiments'" class="page-workspace">
         <div class="section-heading page-section-heading"><div><h2>Experiments</h2><p>Immutable specifications and current lifecycle state.</p></div><div class="segmented-control" aria-label="Experiment state filter"><button v-for="filter in ['all', 'queued', 'running', 'succeeded', 'failed']" :key="filter" type="button" :class="{ active: stateFilter === filter }" @click="stateFilter = filter">{{ filter }}</button></div></div>
-        <ExperimentTable :experiments="filteredExperiments" @select="selectedExperiment = $event" />
+        <ExperimentTable :experiments="filteredExperiments" @select="openExperiment" />
       </section>
 
       <section v-else-if="activeView === 'projects'" class="page-workspace project-workspace">
@@ -274,15 +319,16 @@ onMounted(refreshAll)
         <div v-else class="empty-state compact-empty"><span class="empty-icon"><GitBranch :size="21" /></span><h3>No repositories registered</h3><p>Register the private GitHub repository used by the first experiment.</p></div>
       </section>
 
-      <ProviderView v-show="activeView === 'provider'" :active="activeView === 'provider'" @unauthorized="emit('signedOut')" />
+      <ProviderView v-if="activeView === 'provider'" :active="true" @unauthorized="emit('signedOut')" />
+      <NotificationView v-else-if="activeView === 'notifications'" :active="true" @unauthorized="emit('signedOut')" />
 
       <footer class="console-footer"><span>{{ props.build?.name ?? 'Gemcp' }} {{ props.build?.version ?? 'dev' }}</span><span>Commit {{ props.build?.commit ?? 'unknown' }}</span><span>Operational estimates only</span></footer>
     </main>
   </div>
 
-  <div v-if="selectedExperiment" class="modal-backdrop" @click.self="selectedExperiment = null">
+  <div v-if="selectedExperiment" class="modal-backdrop" @click.self="closeExperiment">
     <section class="detail-panel" role="dialog" aria-modal="true" aria-label="Experiment details">
-      <header><div><p class="eyebrow">Experiment</p><h2>{{ selectedExperiment.id.slice(0, 12) }}</h2></div><button class="icon-button" type="button" title="Close details" @click="selectedExperiment = null"><X :size="17" /></button></header>
+      <header><div><p class="eyebrow">Experiment</p><h2>{{ selectedExperiment.id.slice(0, 12) }}</h2></div><button class="icon-button" type="button" title="Close details" @click="closeExperiment"><X :size="17" /></button></header>
       <div class="detail-state"><span class="state-badge" :data-state="selectedExperiment.state"><span />{{ stateLabel(selectedExperiment.state) }}</span><span>Desired: {{ selectedExperiment.desired_state }}</span></div>
       <dl class="detail-list">
         <div><dt>Commit</dt><dd><code>{{ selectedExperiment.commit_sha }}</code></dd></div>
@@ -293,6 +339,25 @@ onMounted(refreshAll)
         <div><dt>Output path</dt><dd><code>{{ selectedExperiment.output_path }}</code></dd></div>
         <div v-if="selectedExperiment.failure_reason"><dt>Failure</dt><dd>{{ selectedExperiment.failure_reason }}</dd></div>
       </dl>
+      <section class="attempt-history">
+        <div class="attempt-heading"><div><h3>Attempts</h3><p>Immutable infrastructure retries and the latest Runner result.</p></div><LoaderCircle v-if="attemptsLoading" :size="18" class="spinning" /></div>
+        <div v-if="attemptsError" class="form-error">{{ attemptsError }}</div>
+        <div v-else-if="attempts.length" class="table-scroll">
+          <table class="data-table attempt-table">
+            <thead><tr><th>#</th><th>State</th><th>Provider ID</th><th>Exit</th><th>Estimate</th><th>Finished</th></tr></thead>
+            <tbody><tr v-for="item in attempts" :key="item.id"><td>{{ item.number }}</td><td><span class="state-badge" :data-state="item.state"><span />{{ stateLabel(item.state) }}</span></td><td><code>{{ item.provider_resource_id ?? 'Pending' }}</code></td><td>{{ item.exit_code ?? '—' }}</td><td>{{ money(item.estimated_cost_milli) }}</td><td>{{ dateTime(item.finished_at) }}</td></tr></tbody>
+          </table>
+        </div>
+        <div v-else-if="!attemptsLoading" class="attempt-empty">No Attempt has been dispatched.</div>
+        <template v-if="latestAttempt">
+          <dl v-if="latestAttempt.failure_reason || latestAttempt.retry_reason" class="attempt-result">
+            <div v-if="latestAttempt.retry_reason"><dt>Retry reason</dt><dd>{{ latestAttempt.retry_reason }}</dd></div>
+            <div v-if="latestAttempt.failure_reason"><dt>Attempt failure</dt><dd>{{ latestAttempt.failure_reason }}</dd></div>
+          </dl>
+          <div v-if="latestAttempt.metrics && Object.keys(latestAttempt.metrics).length" class="attempt-output"><span>Metrics</span><pre>{{ metricsJSON(latestAttempt.metrics) }}</pre></div>
+          <div v-if="latestAttempt.log_tail" class="attempt-output"><span>Log tail</span><pre>{{ latestAttempt.log_tail }}</pre></div>
+        </template>
+      </section>
     </section>
   </div>
 

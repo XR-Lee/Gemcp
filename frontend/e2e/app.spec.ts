@@ -1,6 +1,6 @@
 import { expect, test, type Page, type Route } from '@playwright/test'
 
-const build = { name: 'Gemcp', version: '0.5.0', commit: 'abc1234', built_at: '2026-07-16T00:00:00Z' }
+const build = { name: 'Gemcp', version: '0.6.0', commit: 'abc1234', built_at: '2026-07-16T00:00:00Z' }
 const project = {
   id: 'b492cbe4-f198-4d87-bbf9-3f77d8a3ab0a', name: 'Point Models', slug: 'point-models', status: 'active',
   monthly_budget_milli: 100000, max_experiment_milli: 20000, max_concurrency: 2, max_runtime_seconds: 86400,
@@ -38,6 +38,11 @@ const experiments = [
     finished_at: '2026-07-15T06:02:00Z', exit_code: 1, metrics: { accuracy: 0.82 },
   },
 ]
+const attemptHistory = [{
+  id: 'attempt-live-1', number: 1, state: 'running', provider_resource_id: 'deployment-live-1',
+  estimated_cost_milli: 0, log_tail: 'epoch 3 loss=0.42\n', metrics: { loss: 0.42 },
+  started_at: '2026-07-17T01:56:00Z', created_at: '2026-07-17T01:55:00Z', updated_at: '2026-07-17T02:00:00Z',
+}]
 const provider = {
   id: 'provider-id', name: 'AutoDL Private Cloud', base_url: 'https://private.autodl.com', backend: 'private',
   status: 'active', credential_configured: true, last_validated_at: '2026-07-17T02:00:00Z',
@@ -47,6 +52,12 @@ const providerDeployment = {
   uuid: 'deployment-live-1', name: 'live-job', type: 'Job', status: 'running', replica_num: 1, parallelism_num: 1,
   starting_num: 0, running_num: 1, finished_num: 0, failed_num: 0, image_uuid: 'base-image-1',
   reuse_container: true, price_estimate_milli: 1000, created_at: '2026-07-17T01:55:00Z', updated_at: '2026-07-17T02:00:00Z',
+}
+const managedProviderResource = {
+  id: 'managed-resource-1', experiment_id: experiments[0].id, attempt_id: 'attempt-live-1',
+  provider_id: providerDeployment.uuid, name: 'live-job', state: 'active', provider_status: 'running',
+  hard_deadline_at: '2026-07-17T06:00:00Z', last_seen_at: '2026-07-17T02:00:00Z',
+  created_at: '2026-07-17T01:55:00Z', updated_at: '2026-07-17T02:00:00Z',
 }
 const activeProviderContainer = {
   uuid: 'container-live-1', deployment_uuid: providerDeployment.uuid, machine_id: 'machine-safe-id', status: 'running',
@@ -58,6 +69,23 @@ const cachedProviderContainer = {
   ...activeProviderContainer, uuid: 'container-cache-1', deployment_uuid: 'deployment-old-1', status: 'in_cache', released: true,
   started_at: '2026-07-16T10:00:00Z', stopped_at: '2026-07-16T10:30:00Z', created_at: '2026-07-16T09:59:00Z',
 }
+const runtimeStatus = {
+  scheduler_enabled: true, global_concurrency: 2, public_url_configured: true,
+  scheduler_healthy: true, watchdog_healthy: true, notification_worker_healthy: true,
+  scheduler_heartbeat: { role: 'scheduler', instance_id: 'controlplane-test', status: 'running', last_seen_at: '2026-07-17T02:00:00Z' },
+  watchdog_heartbeat: { role: 'watchdog', instance_id: 'watchdog-test', status: 'running', last_seen_at: '2026-07-17T02:00:00Z' },
+  notification_heartbeat: { role: 'notification', instance_id: 'notification-test', status: 'running', last_seen_at: '2026-07-17T02:00:00Z' },
+  generated_at: '2026-07-17T02:00:01Z',
+}
+const notificationSetting = {
+  configured: true, enabled: true, host: 'smtp.example.com', port: 587, tls_mode: 'starttls',
+  username: 'mailer@example.com', password_configured: true, from_address: 'mailer@example.com',
+  recipients: ['owner@example.com'], status: 'ready', last_tested_at: '2026-07-17T01:30:00Z', updated_at: '2026-07-17T01:30:00Z',
+}
+const notificationDeliveries = [
+  { id: 'notification-1', kind: 'watchdog_stop', severity: 'critical', subject: '[Gemcp] Watchdog enforced Provider shutdown', state: 'sent', attempts: 1, next_attempt_at: '2026-07-17T01:00:00Z', sent_at: '2026-07-17T01:00:02Z', created_at: '2026-07-17T01:00:00Z' },
+  { id: 'notification-2', kind: 'timeout_extended', severity: 'warning', subject: '[Gemcp] Experiment runtime extended', state: 'pending', attempts: 0, next_attempt_at: '2026-07-17T02:01:00Z', created_at: '2026-07-17T02:00:00Z' },
+]
 const providerResources = {
   generated_at: '2026-07-17T02:00:00Z', provider,
   gpu_stock: [{ name: 'NVIDIA GeForce RTX 3090', idle: 2, total: 9 }],
@@ -99,9 +127,19 @@ async function mockConsole(page: Page) {
     if (path === '/api/v1/version') return fulfill(route, build)
     if (path === '/api/v1/setup/status') return fulfill(route, { initialized: true })
     if (path === '/api/v1/auth/me') return fulfill(route, { user_id: 'owner-id', tenant_id: 'tenant-id', email: 'owner@example.com', role: 'owner' })
+    if (path === '/api/v1/runtime/status') return fulfill(route, runtimeStatus)
     if (path === '/api/v1/provider' && route.request().method() === 'GET') return fulfill(route, provider)
     if (path === '/api/v1/provider' && route.request().method() === 'PUT') return fulfill(route, { provider, resources: providerResources })
     if (path === '/api/v1/provider/query') return fulfill(route, providerResources)
+    if (path === '/api/v1/provider/managed-resources') return fulfill(route, [managedProviderResource])
+    if (path === `/api/v1/provider/deployments/${providerDeployment.uuid}/stop`) return fulfill(route, { ...managedProviderResource, stop_requested_at: '2026-07-17T02:01:00Z', stop_reason: 'owner_stop' }, 202)
+    if (path === '/api/v1/provider/emergency-stop') {
+      expect(route.request().postDataJSON()).toEqual({ confirmation: 'STOP' })
+      return fulfill(route, { requested: 1, at: '2026-07-17T02:01:00Z' }, 202)
+    }
+    if (path === '/api/v1/notifications/settings') return fulfill(route, notificationSetting)
+    if (path === '/api/v1/notifications') return fulfill(route, notificationDeliveries)
+    if (path === '/api/v1/notifications/test') return fulfill(route, { id: 'notification-test', kind: 'smtp_test', severity: 'info', subject: 'Gemcp SMTP test', state: 'pending', attempts: 0, next_attempt_at: '2026-07-17T02:02:00Z', created_at: '2026-07-17T02:02:00Z' }, 202)
     if (path === `/api/v1/provider/deployments/${providerDeployment.uuid}`) return fulfill(route, {
       generated_at: '2026-07-17T02:00:01Z', deployment: providerDeployment,
       active_containers: [activeProviderContainer], released_containers: [],
@@ -113,6 +151,8 @@ async function mockConsole(page: Page) {
     if (path === '/api/v1/projects') return fulfill(route, [project])
     if (path === '/api/v1/repositories') return fulfill(route, repositories)
     if (path === '/api/v1/experiments') return fulfill(route, experiments)
+    if (path === `/api/v1/experiments/${experiments[0].id}/attempts`) return fulfill(route, attemptHistory)
+    if (path === `/api/v1/experiments/${experiments[0].id}`) return fulfill(route, experiments[0])
     if (path === `/api/v1/projects/${project.id}/cost`) return fulfill(route, {
       period: '2026-07', monthly_budget_milli: 100000, reserved_milli: 15750, charged_milli: 2180,
       adjustments_milli: 0, committed_milli: 17930, available_milli: 82070,
@@ -193,6 +233,7 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await page.getByRole('button', { name: 'Experiments', exact: true }).click()
   await page.getByText('ec29dc68').click()
   await expect(page.getByRole('dialog', { name: 'Experiment details' })).toBeVisible()
+  await expect(page.getByText('epoch 3 loss=0.42')).toBeVisible()
   await expectNoPageOverflow(page)
   await page.screenshot({ path: '/tmp/gemcp-experiment-detail.png', fullPage: true })
 })
@@ -214,8 +255,17 @@ test('live Provider resources and details fit desktop and mobile', async ({ page
   await page.getByText('live-job', { exact: true }).click()
   await expect(page.getByRole('dialog', { name: 'Provider deployment details' })).toBeVisible()
   await expect(page.getByText('container-live-1').first()).toBeVisible()
+  await expect(page.getByText('Managed').last()).toBeVisible()
+  await page.getByRole('button', { name: 'Stop deployment' }).click()
+  await expect(page.getByRole('button', { name: 'Stop requested' })).toBeDisabled()
   await page.screenshot({ path: '/tmp/gemcp-provider-deployment.png', fullPage: true })
   await page.getByTitle('Close details').click()
+
+  await page.getByRole('button', { name: 'Emergency stop' }).click()
+  await expect(page.getByRole('alertdialog', { name: 'Emergency stop all managed resources' })).toBeVisible()
+  await page.getByLabel('Type STOP to confirm').fill('STOP')
+  await page.screenshot({ path: '/tmp/gemcp-provider-emergency-stop.png', fullPage: true })
+  await page.getByRole('button', { name: 'Stop all managed resources' }).click()
 
   await page.getByRole('button', { name: 'Rotate token' }).click()
   await expect(page.getByRole('dialog', { name: 'Rotate Provider token' })).toBeVisible()
@@ -232,6 +282,29 @@ test('live Provider resources and details fit desktop and mobile', async ({ page
   await page.screenshot({ path: '/tmp/gemcp-provider-mobile.png', fullPage: true })
 })
 
+test('durable notification outbox and SMTP settings fit desktop and mobile', async ({ page }) => {
+  await mockConsole(page)
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Alerts', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Notifications', exact: true })).toBeVisible()
+  await expect(page.getByText('[Gemcp] Watchdog enforced Provider shutdown')).toBeVisible()
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: '/tmp/gemcp-notifications-desktop.png', fullPage: true })
+
+  await page.getByRole('button', { name: 'Send test' }).click()
+  await expect(page.getByText('Gemcp SMTP test')).toBeVisible()
+  await page.getByRole('button', { name: 'SMTP settings' }).click()
+  await expect(page.getByRole('dialog', { name: 'SMTP notification settings' })).toBeVisible()
+  await expect(page.locator('input[type="password"]')).toHaveValue('')
+  await page.screenshot({ path: '/tmp/gemcp-smtp-settings.png', fullPage: true })
+  await page.getByTitle('Close SMTP settings').click()
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: '/tmp/gemcp-notifications-mobile.png', fullPage: true })
+})
+
 test('operations console uses bottom navigation on mobile', async ({ page }) => {
   await mockConsole(page)
   await page.setViewportSize({ width: 390, height: 844 })
@@ -243,4 +316,10 @@ test('operations console uses bottom navigation on mobile', async ({ page }) => 
   const box = await navigation.boundingBox()
   expect(box?.y ?? 0).toBeGreaterThan(780)
   await page.screenshot({ path: '/tmp/gemcp-console-mobile.png', fullPage: true })
+  await navigation.getByRole('button', { name: 'Experiments', exact: true }).click()
+  await page.getByText('ec29dc68').click()
+  await expect(page.getByRole('dialog', { name: 'Experiment details' })).toBeVisible()
+  await expect(page.getByText('epoch 3 loss=0.42')).toBeVisible()
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: '/tmp/gemcp-experiment-detail-mobile.png', fullPage: true })
 })

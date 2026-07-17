@@ -1,72 +1,58 @@
 # Roadmap
 
-## v0.1.0: Application foundation (complete)
+## Released
 
-- Go/Gin service and PostgreSQL readiness.
-- Embedded Vue operations shell.
-- Multi-stage container build and localhost-only Compose binding.
-- Versioned, testable release workflow.
+### v0.1.0 - service foundation
 
-## v0.2.0: Phase-zero AutoDL validation (complete for public read probes)
+Go/Gin service, PostgreSQL connectivity, embedded Vue console, container deployment, CI, and architecture baseline.
 
-- Typed AutoDL developer API client.
-- Read-only balance, image, inventory, deployment, container, and event probes.
-- Explicit spend-gated minimal Job probe.
-- Secret-free provider behavior report and acceptance checklist.
+### v0.2.0 - phase-zero probes
 
-## v0.3.0: Durable control foundation (complete)
+Typed AutoDL clients, bounded read-only probes, gated paid Job probe, lifecycle observation, and defensive cleanup.
 
-- Ent/PostgreSQL tenant, Owner, Provider, project, environment, profile, repository, Agent token, Session, and audit schemas.
-- AES-256-GCM credential encryption and HMAC Token digests.
-- Serializable first-run initialization and one-time Agent Token display.
-- Owner password login, revocable database Sessions, strict cookies, and CSRF validation.
-- CI PostgreSQL migration coverage.
+### v0.3.0 - identity and durable configuration
 
-## v0.4.0: Agent-facing experiment core (complete)
+Ent schema, first-run transaction, Owner Session and CSRF, Agent Token hashing, encrypted Provider credentials, and PostgreSQL migration coverage.
 
-- Per-repository encrypted Ed25519 Deploy Keys, pinned GitHub host verification, and immutable commit validation.
-- Immutable experiments and attempts, Token-scoped idempotency, serializable budget reservations, and a durable FIFO-ready queue.
-- Official MCP Go SDK Streamable HTTP endpoint with options, submit, get, list, cancel, artifacts, and cost tools.
-- Project-scoped Agent Token authentication with per-request revocation, expiration, and scope checks.
-- Owner project and repository management APIs.
+### v0.4.x - project and Agent control plane
 
-## v0.4.1: Owner operations console (complete)
+Project budgets and policy, private GitHub repository verification, immutable experiment submission, reservations, idempotency, MCP tools, Owner APIs, and the responsive Web console.
 
-- Embedded first-run setup and Owner login flows.
-- Project budget and queue overview, experiment list, filters, and immutable detail view.
-- Repository registration, Deploy public-key display, and pinned-host verification UI.
-- Tenant-scoped Owner experiment and cost APIs.
-- Desktop and mobile Playwright browser coverage.
+### v0.5.0 - live Private Cloud operations
 
-## v0.4.2: AutoDL Private Cloud phase zero (complete)
+Credential-safe Provider resource views, bounded pagination, safe DTOs, deployment details and events, and validate-before-commit Token rotation.
 
-- Separate Private Cloud API host, inventory shape, CUDA selector, and deployment request contract.
-- Private and system-image visibility without calling the unsupported public wallet endpoint.
-- Overflow-safe live-spend estimates and protected local Token/report paths.
-- Successful cold and stopped-container-reuse Jobs with stop/delete cleanup and zero residual deployments.
-- Recorded `finished_num` terminal semantics and disposable `in_cache` behavior.
+### v0.6.0 - production execution and shutdown
 
-## v0.5.0: Live Private Cloud operations (complete)
+- Opt-in PostgreSQL FIFO scheduling with project/global concurrency and dispatch-time budget checks.
+- Immutable infrastructure Attempts and deterministic managed-resource ownership.
+- Private source archives and scoped Runner callbacks without Deploy Key exposure.
+- Create uncertainty reconciliation, bounded infrastructure retry, Provider state reconciliation, and idempotent stop/delete.
+- Local Runner deadline, controlplane enforcement, and independently deployed Watchdog.
+- Reservation migration across UTC billing periods and terminal estimated-charge settlement.
+- Owner managed stop, phrase-confirmed emergency stop, and service heartbeat status.
+- Encrypted SMTP settings and a durable at-least-once critical-notification outbox.
 
-- Server-side use of the AES-GCM-encrypted real Private Cloud Developer Token.
-- Owner-only live GPU, private/system image, deployment, container, cache, and event queries.
-- Credential-presence metadata without plaintext or ciphertext disclosure.
-- Validate-before-commit Token rotation with audit records and official-host restriction.
-- Credential-free typed Provider responses that drop SSH commands and root passwords.
-- Dedicated desktop/mobile Provider console with refresh, resource views, and deployment details.
-- Explicitly enabled real-Token integration test.
+Dispatch defaults off so upgrades cannot launch historical queued work; reconciliation remains active.
 
-## v0.6.0: M0 execution and shutdown enforcement
+## Next trial
 
-- Durable FIFO scheduler and production AutoDL Private Cloud Job lifecycle.
-- Runner bootstrap, callbacks, fixed file-storage output path, and local cost estimates.
-- Independent Watchdog and critical SMTP notifications.
-- Provider lifecycle actions, emergency stop, and notification views in the existing Web console.
+The initial controlled deployment should validate what cannot be proven without the target environment or newly authorized paid resources:
 
-## Trial additions
+- Cloudflare HTTPS callback reachability from an AutoDL Job.
+- `/root/autodl-fs` output persistence after deployment deletion and cache eviction.
+- Command failure, OOM, timeout extension, cancellation, repeated cleanup, and controlplane restart recovery.
+- Watchdog enforcement while the controlplane is stopped.
+- Private Cloud permission, capacity, invalid-image, and ambiguous-create behavior.
+- Operational estimates against the Provider console, including whether `in_cache` containers are billed.
+- SMTP deliverability through the selected production relay.
 
-- Multiple projects and Agent tokens.
-- Project Secrets and dataset registry.
-- Warm-cache validation and image synchronization.
-- Approval queue and richer audit/cost reconciliation.
-- Optional off-host backup and artifact object storage.
+## Later increments
+
+- Environment and resource-profile administration beyond first-run defaults.
+- Agent Token issue, revoke, expiry, and repository-key rotation UI.
+- Project-scoped Secret registration, rotation, and low-privilege Runner injection.
+- Artifact manifests and controlled downloads where shared-storage access permits.
+- Optional off-host backups and restore drills.
+- Provider-specific billing import if AutoDL exposes a reliable Developer API.
+- More Provider backends only after the Private Cloud execution path is operationally stable.

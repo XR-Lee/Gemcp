@@ -24,7 +24,7 @@ RUN CGO_ENABLED=0 go build -tags webembed -trimpath \
     -o /out/gemcp ./cmd/gemcp
 
 FROM ${RUNTIME_IMAGE}
-RUN apk add --no-cache ca-certificates git openssh-client tzdata tzdata git openssh-client && \
+RUN apk add --no-cache ca-certificates git openssh-client tzdata && \
     addgroup -S -g 10001 gemcp && adduser -S -D -H -u 10001 -G gemcp gemcp
 WORKDIR /app
 COPY --from=backend-builder /out/gemcp /usr/local/bin/gemcp

@@ -35,12 +35,18 @@ const (
 	EdgeExperiments = "experiments"
 	// EdgeAttempts holds the string denoting the attempts edge name in mutations.
 	EdgeAttempts = "attempts"
+	// EdgeProviderResources holds the string denoting the provider_resources edge name in mutations.
+	EdgeProviderResources = "provider_resources"
 	// EdgeBudgetEntries holds the string denoting the budget_entries edge name in mutations.
 	EdgeBudgetEntries = "budget_entries"
 	// EdgeIdempotencyRecords holds the string denoting the idempotency_records edge name in mutations.
 	EdgeIdempotencyRecords = "idempotency_records"
 	// EdgeAuditEvents holds the string denoting the audit_events edge name in mutations.
 	EdgeAuditEvents = "audit_events"
+	// EdgeNotificationSettings holds the string denoting the notification_settings edge name in mutations.
+	EdgeNotificationSettings = "notification_settings"
+	// EdgeNotifications holds the string denoting the notifications edge name in mutations.
+	EdgeNotifications = "notifications"
 	// Table holds the table name of the tenant in the database.
 	Table = "tenants"
 	// UsersTable is the table that holds the users relation/edge.
@@ -78,6 +84,13 @@ const (
 	AttemptsInverseTable = "attempts"
 	// AttemptsColumn is the table column denoting the attempts relation/edge.
 	AttemptsColumn = "tenant_id"
+	// ProviderResourcesTable is the table that holds the provider_resources relation/edge.
+	ProviderResourcesTable = "provider_resources"
+	// ProviderResourcesInverseTable is the table name for the ProviderResource entity.
+	// It exists in this package in order to avoid circular dependency with the "providerresource" package.
+	ProviderResourcesInverseTable = "provider_resources"
+	// ProviderResourcesColumn is the table column denoting the provider_resources relation/edge.
+	ProviderResourcesColumn = "tenant_id"
 	// BudgetEntriesTable is the table that holds the budget_entries relation/edge.
 	BudgetEntriesTable = "budget_entries"
 	// BudgetEntriesInverseTable is the table name for the BudgetEntry entity.
@@ -99,6 +112,20 @@ const (
 	AuditEventsInverseTable = "audit_events"
 	// AuditEventsColumn is the table column denoting the audit_events relation/edge.
 	AuditEventsColumn = "tenant_id"
+	// NotificationSettingsTable is the table that holds the notification_settings relation/edge.
+	NotificationSettingsTable = "notification_settings"
+	// NotificationSettingsInverseTable is the table name for the NotificationSetting entity.
+	// It exists in this package in order to avoid circular dependency with the "notificationsetting" package.
+	NotificationSettingsInverseTable = "notification_settings"
+	// NotificationSettingsColumn is the table column denoting the notification_settings relation/edge.
+	NotificationSettingsColumn = "tenant_id"
+	// NotificationsTable is the table that holds the notifications relation/edge.
+	NotificationsTable = "notifications"
+	// NotificationsInverseTable is the table name for the Notification entity.
+	// It exists in this package in order to avoid circular dependency with the "notification" package.
+	NotificationsInverseTable = "notifications"
+	// NotificationsColumn is the table column denoting the notifications relation/edge.
+	NotificationsColumn = "tenant_id"
 )
 
 // Columns holds all SQL columns for tenant fields.
@@ -241,6 +268,20 @@ func ByAttempts(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// ByProviderResourcesCount orders the results by provider_resources count.
+func ByProviderResourcesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newProviderResourcesStep(), opts...)
+	}
+}
+
+// ByProviderResources orders the results by provider_resources terms.
+func ByProviderResources(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newProviderResourcesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByBudgetEntriesCount orders the results by budget_entries count.
 func ByBudgetEntriesCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -282,6 +323,34 @@ func ByAuditEvents(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newAuditEventsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByNotificationSettingsCount orders the results by notification_settings count.
+func ByNotificationSettingsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newNotificationSettingsStep(), opts...)
+	}
+}
+
+// ByNotificationSettings orders the results by notification_settings terms.
+func ByNotificationSettings(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newNotificationSettingsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByNotificationsCount orders the results by notifications count.
+func ByNotificationsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newNotificationsStep(), opts...)
+	}
+}
+
+// ByNotifications orders the results by notifications terms.
+func ByNotifications(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newNotificationsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newUsersStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -317,6 +386,13 @@ func newAttemptsStep() *sqlgraph.Step {
 		sqlgraph.Edge(sqlgraph.O2M, false, AttemptsTable, AttemptsColumn),
 	)
 }
+func newProviderResourcesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ProviderResourcesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ProviderResourcesTable, ProviderResourcesColumn),
+	)
+}
 func newBudgetEntriesStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -336,5 +412,19 @@ func newAuditEventsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(AuditEventsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, AuditEventsTable, AuditEventsColumn),
+	)
+}
+func newNotificationSettingsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(NotificationSettingsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, NotificationSettingsTable, NotificationSettingsColumn),
+	)
+}
+func newNotificationsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(NotificationsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, NotificationsTable, NotificationsColumn),
 	)
 }

@@ -59,6 +59,10 @@ type GitVerifier interface {
 	VerifyCommit(context.Context, string, string, []byte, string, string) error
 }
 
+type GitArchiver interface {
+	ArchiveCommit(context.Context, string, string, []byte, string, string, int64) (Archive, error)
+}
+
 type Service struct {
 	client   *ent.Client
 	box      *secrets.Box
@@ -142,6 +146,7 @@ func (s *Service) Verify(ctx context.Context, tenantID int, publicID, fingerprin
 	if err != nil {
 		return view, err
 	}
+	defer wipe(privateKey)
 	if err := s.verifier.VerifyAccess(ctx, record.SSHURL, record.SSHHost, privateKey, fingerprint); err != nil {
 		return view, fmt.Errorf("%w: %v", ErrVerificationFailed, err)
 	}
@@ -192,7 +197,37 @@ func (s *Service) VerifyCommit(ctx context.Context, repositoryID int, commitSHA 
 	if err != nil {
 		return err
 	}
+	defer wipe(privateKey)
 	return s.verifier.VerifyCommit(ctx, record.SSHURL, record.SSHHost, privateKey, record.HostKeyFingerprint, commitSHA)
+}
+
+func (s *Service) ArchiveCommit(ctx context.Context, repositoryID int, commitSHA string, maxBytes int64) (Archive, error) {
+	record, err := s.client.Repository.Get(ctx, repositoryID)
+	if ent.IsNotFound(err) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	if record.Status != "active" || record.HostKeyFingerprint == "" {
+		return nil, ErrNotActive
+	}
+	archiver, ok := s.verifier.(GitArchiver)
+	if !ok {
+		return nil, fmt.Errorf("repository archiver is unavailable")
+	}
+	privateKey, err := s.decryptKey(record)
+	if err != nil {
+		return nil, err
+	}
+	defer wipe(privateKey)
+	return archiver.ArchiveCommit(ctx, record.SSHURL, record.SSHHost, privateKey, record.HostKeyFingerprint, commitSHA, maxBytes)
+}
+
+func wipe(value []byte) {
+	for index := range value {
+		value[index] = 0
+	}
 }
 
 func (s *Service) findForTenant(ctx context.Context, tenantID int, value string) (*ent.Repository, string, error) {

@@ -26,6 +26,7 @@ func (ProviderAccount) Fields() []ent.Field {
 func (ProviderAccount) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.From("tenant", Tenant.Type).Ref("provider_accounts").Field("tenant_id").Unique().Required().Immutable(),
+		edge.To("provider_resources", ProviderResource.Type),
 	}
 }
 

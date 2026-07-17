@@ -33,6 +33,16 @@ const (
 	FieldState = "state"
 	// FieldProviderResourceID holds the string denoting the provider_resource_id field in the database.
 	FieldProviderResourceID = "provider_resource_id"
+	// FieldRunnerTokenHash holds the string denoting the runner_token_hash field in the database.
+	FieldRunnerTokenHash = "runner_token_hash"
+	// FieldRunnerTokenCiphertext holds the string denoting the runner_token_ciphertext field in the database.
+	FieldRunnerTokenCiphertext = "runner_token_ciphertext"
+	// FieldRunnerTokenExpiresAt holds the string denoting the runner_token_expires_at field in the database.
+	FieldRunnerTokenExpiresAt = "runner_token_expires_at"
+	// FieldSourceDownloads holds the string denoting the source_downloads field in the database.
+	FieldSourceDownloads = "source_downloads"
+	// FieldLastHeartbeatAt holds the string denoting the last_heartbeat_at field in the database.
+	FieldLastHeartbeatAt = "last_heartbeat_at"
 	// FieldRetryReason holds the string denoting the retry_reason field in the database.
 	FieldRetryReason = "retry_reason"
 	// FieldFailureCode holds the string denoting the failure_code field in the database.
@@ -45,12 +55,22 @@ const (
 	FieldFinishedAt = "finished_at"
 	// FieldEstimatedCostMilli holds the string denoting the estimated_cost_milli field in the database.
 	FieldEstimatedCostMilli = "estimated_cost_milli"
+	// FieldExitCode holds the string denoting the exit_code field in the database.
+	FieldExitCode = "exit_code"
+	// FieldLogTail holds the string denoting the log_tail field in the database.
+	FieldLogTail = "log_tail"
+	// FieldMetrics holds the string denoting the metrics field in the database.
+	FieldMetrics = "metrics"
+	// FieldProviderRequestIds holds the string denoting the provider_request_ids field in the database.
+	FieldProviderRequestIds = "provider_request_ids"
 	// EdgeTenant holds the string denoting the tenant edge name in mutations.
 	EdgeTenant = "tenant"
 	// EdgeProject holds the string denoting the project edge name in mutations.
 	EdgeProject = "project"
 	// EdgeExperiment holds the string denoting the experiment edge name in mutations.
 	EdgeExperiment = "experiment"
+	// EdgeOwnedResource holds the string denoting the owned_resource edge name in mutations.
+	EdgeOwnedResource = "owned_resource"
 	// Table holds the table name of the attempt in the database.
 	Table = "attempts"
 	// TenantTable is the table that holds the tenant relation/edge.
@@ -74,6 +94,13 @@ const (
 	ExperimentInverseTable = "experiments"
 	// ExperimentColumn is the table column denoting the experiment relation/edge.
 	ExperimentColumn = "experiment_id"
+	// OwnedResourceTable is the table that holds the owned_resource relation/edge.
+	OwnedResourceTable = "provider_resources"
+	// OwnedResourceInverseTable is the table name for the ProviderResource entity.
+	// It exists in this package in order to avoid circular dependency with the "providerresource" package.
+	OwnedResourceInverseTable = "provider_resources"
+	// OwnedResourceColumn is the table column denoting the owned_resource relation/edge.
+	OwnedResourceColumn = "attempt_id"
 )
 
 // Columns holds all SQL columns for attempt fields.
@@ -88,12 +115,21 @@ var Columns = []string{
 	FieldNumber,
 	FieldState,
 	FieldProviderResourceID,
+	FieldRunnerTokenHash,
+	FieldRunnerTokenCiphertext,
+	FieldRunnerTokenExpiresAt,
+	FieldSourceDownloads,
+	FieldLastHeartbeatAt,
 	FieldRetryReason,
 	FieldFailureCode,
 	FieldFailureReason,
 	FieldStartedAt,
 	FieldFinishedAt,
 	FieldEstimatedCostMilli,
+	FieldExitCode,
+	FieldLogTail,
+	FieldMetrics,
+	FieldProviderRequestIds,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -123,6 +159,10 @@ var (
 	StateValidator func(string) error
 	// ProviderResourceIDValidator is a validator for the "provider_resource_id" field. It is called by the builders before save.
 	ProviderResourceIDValidator func(string) error
+	// DefaultSourceDownloads holds the default value on creation for the "source_downloads" field.
+	DefaultSourceDownloads int
+	// SourceDownloadsValidator is a validator for the "source_downloads" field. It is called by the builders before save.
+	SourceDownloadsValidator func(int) error
 	// RetryReasonValidator is a validator for the "retry_reason" field. It is called by the builders before save.
 	RetryReasonValidator func(string) error
 	// FailureCodeValidator is a validator for the "failure_code" field. It is called by the builders before save.
@@ -131,6 +171,10 @@ var (
 	DefaultEstimatedCostMilli int64
 	// EstimatedCostMilliValidator is a validator for the "estimated_cost_milli" field. It is called by the builders before save.
 	EstimatedCostMilliValidator func(int64) error
+	// DefaultMetrics holds the default value on creation for the "metrics" field.
+	DefaultMetrics map[string]interface{}
+	// DefaultProviderRequestIds holds the default value on creation for the "provider_request_ids" field.
+	DefaultProviderRequestIds map[string]string
 )
 
 // OrderOption defines the ordering options for the Attempt queries.
@@ -186,6 +230,26 @@ func ByProviderResourceID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldProviderResourceID, opts...).ToFunc()
 }
 
+// ByRunnerTokenCiphertext orders the results by the runner_token_ciphertext field.
+func ByRunnerTokenCiphertext(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRunnerTokenCiphertext, opts...).ToFunc()
+}
+
+// ByRunnerTokenExpiresAt orders the results by the runner_token_expires_at field.
+func ByRunnerTokenExpiresAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRunnerTokenExpiresAt, opts...).ToFunc()
+}
+
+// BySourceDownloads orders the results by the source_downloads field.
+func BySourceDownloads(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSourceDownloads, opts...).ToFunc()
+}
+
+// ByLastHeartbeatAt orders the results by the last_heartbeat_at field.
+func ByLastHeartbeatAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLastHeartbeatAt, opts...).ToFunc()
+}
+
 // ByRetryReason orders the results by the retry_reason field.
 func ByRetryReason(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRetryReason, opts...).ToFunc()
@@ -216,6 +280,16 @@ func ByEstimatedCostMilli(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldEstimatedCostMilli, opts...).ToFunc()
 }
 
+// ByExitCode orders the results by the exit_code field.
+func ByExitCode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldExitCode, opts...).ToFunc()
+}
+
+// ByLogTail orders the results by the log_tail field.
+func ByLogTail(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLogTail, opts...).ToFunc()
+}
+
 // ByTenantField orders the results by tenant field.
 func ByTenantField(field string, opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -234,6 +308,13 @@ func ByProjectField(field string, opts ...sql.OrderTermOption) OrderOption {
 func ByExperimentField(field string, opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
 		sqlgraph.OrderByNeighborTerms(s, newExperimentStep(), sql.OrderByField(field, opts...))
+	}
+}
+
+// ByOwnedResourceField orders the results by owned_resource field.
+func ByOwnedResourceField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newOwnedResourceStep(), sql.OrderByField(field, opts...))
 	}
 }
 func newTenantStep() *sqlgraph.Step {
@@ -255,5 +336,12 @@ func newExperimentStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(ExperimentInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.M2O, true, ExperimentTable, ExperimentColumn),
+	)
+}
+func newOwnedResourceStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(OwnedResourceInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2O, false, OwnedResourceTable, OwnedResourceColumn),
 	)
 }

@@ -66,6 +66,24 @@ export type Experiment = {
   cancel_requested_at?: string
 }
 
+export type Attempt = {
+  id: string
+  number: number
+  state: string
+  provider_resource_id?: string
+  retry_reason?: string
+  failure_code?: string
+  failure_reason?: string
+  started_at?: string
+  finished_at?: string
+  estimated_cost_milli: number
+  exit_code?: number
+  log_tail?: string
+  metrics?: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
 export type Cost = {
   period: string
   monthly_budget_milli: number
@@ -161,6 +179,44 @@ export type ProviderResources = {
   truncated?: string[]
 }
 
+export type RuntimeHeartbeat = {
+  role: string
+  instance_id: string
+  status: string
+  last_seen_at: string
+  metadata?: Record<string, unknown>
+}
+
+export type RuntimeStatus = {
+  scheduler_enabled: boolean
+  global_concurrency: number
+  public_url_configured: boolean
+  scheduler_healthy: boolean
+  watchdog_healthy: boolean
+  notification_worker_healthy: boolean
+  scheduler_heartbeat?: RuntimeHeartbeat
+  watchdog_heartbeat?: RuntimeHeartbeat
+  notification_heartbeat?: RuntimeHeartbeat
+  generated_at: string
+}
+
+export type ManagedProviderResource = {
+  id: string
+  experiment_id: string
+  attempt_id: string
+  provider_id?: string
+  name: string
+  state: string
+  provider_status?: string
+  hard_deadline_at?: string
+  stop_requested_at?: string
+  stop_reason?: string
+  last_seen_at?: string
+  last_error?: string
+  created_at: string
+  updated_at: string
+}
+
 export type ProviderDeploymentDetails = {
   generated_at: string
   deployment: ProviderDeployment
@@ -168,6 +224,35 @@ export type ProviderDeploymentDetails = {
   released_containers: ProviderContainer[]
   events: ProviderEvent[]
   truncated?: string[]
+}
+
+export type NotificationSetting = {
+  configured: boolean
+  enabled: boolean
+  host?: string
+  port?: number
+  tls_mode?: 'starttls' | 'tls'
+  username?: string
+  password_configured: boolean
+  from_address?: string
+  recipients: string[]
+  status?: 'ready' | 'error'
+  last_tested_at?: string
+  last_error?: string
+  updated_at?: string
+}
+
+export type NotificationDelivery = {
+  id: string
+  kind: string
+  severity: 'info' | 'warning' | 'critical'
+  subject: string
+  state: 'pending' | 'sending' | 'sent' | 'failed'
+  attempts: number
+  next_attempt_at: string
+  last_error?: string
+  sent_at?: string
+  created_at: string
 }
 
 export type SetupPayload = Record<string, unknown>
@@ -278,6 +363,10 @@ export const api = {
     request<Experiment>(
       `/api/v1/experiments/${encodeURIComponent(experimentID)}?project_id=${encodeURIComponent(projectID)}`,
     ),
+  attempts: (projectID: string, experimentID: string) =>
+    request<Attempt[]>(
+      `/api/v1/experiments/${encodeURIComponent(experimentID)}/attempts?project_id=${encodeURIComponent(projectID)}`,
+    ),
   cost: (projectID: string) => request<Cost>(`/api/v1/projects/${encodeURIComponent(projectID)}/cost`),
   provider: () => request<ProviderSummary>('/api/v1/provider'),
   queryProvider: () => request<ProviderResources>('/api/v1/provider/query', { method: 'POST' }),
@@ -288,4 +377,16 @@ export const api = {
     }),
   providerDeployment: (deploymentID: string) =>
     request<ProviderDeploymentDetails>(`/api/v1/provider/deployments/${encodeURIComponent(deploymentID)}`),
+  runtimeStatus: () => request<RuntimeStatus>('/api/v1/runtime/status'),
+  managedProviderResources: () => request<ManagedProviderResource[]>('/api/v1/provider/managed-resources'),
+  stopManagedDeployment: (deploymentID: string) =>
+    request<ManagedProviderResource>(`/api/v1/provider/deployments/${encodeURIComponent(deploymentID)}/stop`, { method: 'POST' }),
+  emergencyStop: (confirmation: string) => request<{ requested: number; at: string }>('/api/v1/provider/emergency-stop', { method: 'POST', body: JSON.stringify({ confirmation }) }),
+  notificationSetting: () => request<NotificationSetting>('/api/v1/notifications/settings'),
+  configureNotifications: (payload: {
+    enabled: boolean; host: string; port: number; tls_mode: 'starttls' | 'tls'; username: string;
+    password: string; clear_password: boolean; from_address: string; recipients: string[];
+  }) => request<NotificationSetting>('/api/v1/notifications/settings', { method: 'PUT', body: JSON.stringify(payload) }),
+  testNotification: () => request<NotificationDelivery>('/api/v1/notifications/test', { method: 'POST' }),
+  notifications: () => request<NotificationDelivery[]>('/api/v1/notifications?limit=100'),
 }

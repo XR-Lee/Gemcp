@@ -10,7 +10,7 @@ function response(data: unknown, status = 200) {
   }
 }
 
-const build = { name: 'Gemcp', version: '0.5.0', commit: 'abc123', built_at: 'now' }
+const build = { name: 'Gemcp', version: '0.6.0', commit: 'abc123', built_at: 'now' }
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -48,7 +48,7 @@ describe('App', () => {
 
     expect(wrapper.text()).toContain('Owner access')
     expect(wrapper.text()).toContain('Sign in')
-    expect(wrapper.text()).toContain('0.5.0')
+    expect(wrapper.text()).toContain('0.6.0')
   })
 
   it('loads the operations console for an authenticated Owner', async () => {
@@ -63,6 +63,11 @@ describe('App', () => {
       if (path.endsWith('/api/v1/setup/status')) return response({ data: { initialized: true } })
       if (path.endsWith('/api/v1/auth/me')) return response({ data: { user_id: 'user-id', tenant_id: 'tenant-id', email: 'owner@example.com', role: 'owner' } })
       if (path.endsWith('/api/v1/projects')) return response({ data: [project] })
+      if (path.endsWith('/api/v1/runtime/status')) return response({ data: {
+        scheduler_enabled: false, global_concurrency: 1, public_url_configured: false,
+        scheduler_healthy: true, watchdog_healthy: false, notification_worker_healthy: false,
+        generated_at: '2026-07-17T00:00:00Z',
+      } })
       if (path.includes('/api/v1/repositories?')) return response({ data: [] })
       if (path.includes('/api/v1/experiments?')) return response({ data: [] })
       if (path.endsWith('/api/v1/projects/project-id/cost')) return response({ data: {

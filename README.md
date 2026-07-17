@@ -4,7 +4,9 @@ Gemcp is a private, single-organization control plane for running bounded AutoDL
 
 ## Current release
 
-`v0.5.0` uses the encrypted real AutoDL Private Cloud credential to power an Owner-only live resource console. It visualizes GPU capacity, private and system images, deployments, active containers, released caches, and deployment events, and supports validate-before-commit Token rotation. Accepted experiments remain queued until the production scheduler, Runner, and Watchdog land in `v0.6.0`.
+`v0.6.0` adds opt-in production execution for AutoDL Private Cloud: a PostgreSQL-authoritative FIFO scheduler, immutable Attempts, server-side private-source archives, scoped Runner callbacks, managed-resource ownership, local and independent hard deadlines, idempotent cleanup, and an independently deployed Watchdog. Owner operations now include managed deployment stop, confirmed emergency shutdown, service heartbeats, encrypted SMTP settings, and a durable critical-notification outbox.
+
+New dispatch remains disabled after upgrade until `GEMCP_SCHEDULER_ENABLED=true` is explicitly set with a reachable HTTPS `GEMCP_PUBLIC_URL`. Reconciliation of existing Attempts still runs while dispatch is off; historical queued experiments cannot start automatically.
 
 ## Architecture
 
@@ -51,11 +53,23 @@ GET /api/v1/version
 GET /api/v1/projects
 GET /api/v1/repositories
 GET /api/v1/experiments
+GET /api/v1/experiments/:id/attempts
 GET /api/v1/projects/:id/cost
 GET /api/v1/provider
 POST /api/v1/provider/query
 PUT /api/v1/provider
 GET /api/v1/provider/deployments/:id
+GET /api/v1/provider/managed-resources
+POST /api/v1/provider/deployments/:id/stop
+POST /api/v1/provider/emergency-stop
+GET /api/v1/runtime/status
+GET|PUT /api/v1/notifications/settings
+GET /api/v1/notifications
+POST /api/v1/notifications/test
+GET /api/v1/runner/bootstrap
+GET /api/v1/runner/spec
+GET /api/v1/runner/source
+POST /api/v1/runner/events
 POST|GET|DELETE /mcp
 ```
 
@@ -78,7 +92,7 @@ Generate both required bootstrap credentials on the deployment host:
 
 Store them only in the protected deployment `.env`. The first-run setup transaction and Session API are documented in [First-run setup](docs/setup-api.md).
 
-After initialization, validate the live credential and inspect resources through [Private Cloud Provider operations](docs/provider-operations.md). Register the private repository using the [Owner Web console](docs/web-console.md) or [Private Git repository API](docs/repositories.md), then connect an Agent using the [MCP endpoint](docs/mcp.md).
+After initialization, validate the live credential and inspect resources through [Private Cloud Provider operations](docs/provider-operations.md). Register the private repository using the [Owner Web console](docs/web-console.md) or [Private Git repository API](docs/repositories.md), then connect an Agent using the [MCP endpoint](docs/mcp.md). Before arming execution, follow [Execution and shutdown enforcement](docs/execution.md) and configure [SMTP notifications](docs/notifications.md).
 
 ## Deployment
 
@@ -90,10 +104,10 @@ cd deploy
 docker compose up -d --build
 ```
 
-Bind the origin to localhost and publish it through the configured Cloudflare Tunnel. Do not expose port 8080 directly to the public Internet.
+Bind the origin to localhost and publish it through the configured Cloudflare Tunnel. Do not expose port 8080 directly to the public Internet. Existing Compose deployments must follow the [PostgreSQL 18 volume upgrade](deploy/README.md#postgresql-18-volume-upgrade) before recreating the database container.
 
 ## Security status
 
-No real AutoDL, SMTP, Git, or experiment secret belongs in this repository. Provider credentials are encrypted at rest and configured only through the control-plane setup flow. Local phase-zero Token files and reports are Git-ignored and must be mode `0600` inside a mode `0700` directory.
+No real AutoDL, SMTP, Git, Runner, or experiment secret belongs in this repository. Provider, SMTP, and Git private credentials are encrypted at rest. Runner Tokens are Attempt-scoped, stored as HMAC digests plus recoverable ciphertext only until execution finalizes, and never passed to the user command environment. Local phase-zero Token files and reports are Git-ignored and must be mode `0600` inside a mode `0700` directory.
 
 See [Architecture](docs/architecture.md) and [Roadmap](docs/roadmap.md).

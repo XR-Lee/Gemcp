@@ -17,9 +17,12 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
+	"github.com/XR-Lee/Gemcp/ent/notification"
+	"github.com/XR-Lee/Gemcp/ent/notificationsetting"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/provideraccount"
+	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
 	"github.com/XR-Lee/Gemcp/ent/user"
 )
@@ -27,18 +30,21 @@ import (
 // TenantQuery is the builder for querying Tenant entities.
 type TenantQuery struct {
 	config
-	ctx                    *QueryContext
-	order                  []tenant.OrderOption
-	inters                 []Interceptor
-	predicates             []predicate.Tenant
-	withUsers              *UserQuery
-	withProviderAccounts   *ProviderAccountQuery
-	withProjects           *ProjectQuery
-	withExperiments        *ExperimentQuery
-	withAttempts           *AttemptQuery
-	withBudgetEntries      *BudgetEntryQuery
-	withIdempotencyRecords *IdempotencyRecordQuery
-	withAuditEvents        *AuditEventQuery
+	ctx                      *QueryContext
+	order                    []tenant.OrderOption
+	inters                   []Interceptor
+	predicates               []predicate.Tenant
+	withUsers                *UserQuery
+	withProviderAccounts     *ProviderAccountQuery
+	withProjects             *ProjectQuery
+	withExperiments          *ExperimentQuery
+	withAttempts             *AttemptQuery
+	withProviderResources    *ProviderResourceQuery
+	withBudgetEntries        *BudgetEntryQuery
+	withIdempotencyRecords   *IdempotencyRecordQuery
+	withAuditEvents          *AuditEventQuery
+	withNotificationSettings *NotificationSettingQuery
+	withNotifications        *NotificationQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -185,6 +191,28 @@ func (_q *TenantQuery) QueryAttempts() *AttemptQuery {
 	return query
 }
 
+// QueryProviderResources chains the current query on the "provider_resources" edge.
+func (_q *TenantQuery) QueryProviderResources() *ProviderResourceQuery {
+	query := (&ProviderResourceClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(providerresource.Table, providerresource.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.ProviderResourcesTable, tenant.ProviderResourcesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
 // QueryBudgetEntries chains the current query on the "budget_entries" edge.
 func (_q *TenantQuery) QueryBudgetEntries() *BudgetEntryQuery {
 	query := (&BudgetEntryClient{config: _q.config}).Query()
@@ -244,6 +272,50 @@ func (_q *TenantQuery) QueryAuditEvents() *AuditEventQuery {
 			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
 			sqlgraph.To(auditevent.Table, auditevent.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, tenant.AuditEventsTable, tenant.AuditEventsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryNotificationSettings chains the current query on the "notification_settings" edge.
+func (_q *TenantQuery) QueryNotificationSettings() *NotificationSettingQuery {
+	query := (&NotificationSettingClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(notificationsetting.Table, notificationsetting.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.NotificationSettingsTable, tenant.NotificationSettingsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryNotifications chains the current query on the "notifications" edge.
+func (_q *TenantQuery) QueryNotifications() *NotificationQuery {
+	query := (&NotificationClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(notification.Table, notification.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.NotificationsTable, tenant.NotificationsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -438,19 +510,22 @@ func (_q *TenantQuery) Clone() *TenantQuery {
 		return nil
 	}
 	return &TenantQuery{
-		config:                 _q.config,
-		ctx:                    _q.ctx.Clone(),
-		order:                  append([]tenant.OrderOption{}, _q.order...),
-		inters:                 append([]Interceptor{}, _q.inters...),
-		predicates:             append([]predicate.Tenant{}, _q.predicates...),
-		withUsers:              _q.withUsers.Clone(),
-		withProviderAccounts:   _q.withProviderAccounts.Clone(),
-		withProjects:           _q.withProjects.Clone(),
-		withExperiments:        _q.withExperiments.Clone(),
-		withAttempts:           _q.withAttempts.Clone(),
-		withBudgetEntries:      _q.withBudgetEntries.Clone(),
-		withIdempotencyRecords: _q.withIdempotencyRecords.Clone(),
-		withAuditEvents:        _q.withAuditEvents.Clone(),
+		config:                   _q.config,
+		ctx:                      _q.ctx.Clone(),
+		order:                    append([]tenant.OrderOption{}, _q.order...),
+		inters:                   append([]Interceptor{}, _q.inters...),
+		predicates:               append([]predicate.Tenant{}, _q.predicates...),
+		withUsers:                _q.withUsers.Clone(),
+		withProviderAccounts:     _q.withProviderAccounts.Clone(),
+		withProjects:             _q.withProjects.Clone(),
+		withExperiments:          _q.withExperiments.Clone(),
+		withAttempts:             _q.withAttempts.Clone(),
+		withProviderResources:    _q.withProviderResources.Clone(),
+		withBudgetEntries:        _q.withBudgetEntries.Clone(),
+		withIdempotencyRecords:   _q.withIdempotencyRecords.Clone(),
+		withAuditEvents:          _q.withAuditEvents.Clone(),
+		withNotificationSettings: _q.withNotificationSettings.Clone(),
+		withNotifications:        _q.withNotifications.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -512,6 +587,17 @@ func (_q *TenantQuery) WithAttempts(opts ...func(*AttemptQuery)) *TenantQuery {
 	return _q
 }
 
+// WithProviderResources tells the query-builder to eager-load the nodes that are connected to
+// the "provider_resources" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithProviderResources(opts ...func(*ProviderResourceQuery)) *TenantQuery {
+	query := (&ProviderResourceClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withProviderResources = query
+	return _q
+}
+
 // WithBudgetEntries tells the query-builder to eager-load the nodes that are connected to
 // the "budget_entries" edge. The optional arguments are used to configure the query builder of the edge.
 func (_q *TenantQuery) WithBudgetEntries(opts ...func(*BudgetEntryQuery)) *TenantQuery {
@@ -542,6 +628,28 @@ func (_q *TenantQuery) WithAuditEvents(opts ...func(*AuditEventQuery)) *TenantQu
 		opt(query)
 	}
 	_q.withAuditEvents = query
+	return _q
+}
+
+// WithNotificationSettings tells the query-builder to eager-load the nodes that are connected to
+// the "notification_settings" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithNotificationSettings(opts ...func(*NotificationSettingQuery)) *TenantQuery {
+	query := (&NotificationSettingClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withNotificationSettings = query
+	return _q
+}
+
+// WithNotifications tells the query-builder to eager-load the nodes that are connected to
+// the "notifications" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithNotifications(opts ...func(*NotificationQuery)) *TenantQuery {
+	query := (&NotificationClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withNotifications = query
 	return _q
 }
 
@@ -623,15 +731,18 @@ func (_q *TenantQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Tenan
 	var (
 		nodes       = []*Tenant{}
 		_spec       = _q.querySpec()
-		loadedTypes = [8]bool{
+		loadedTypes = [11]bool{
 			_q.withUsers != nil,
 			_q.withProviderAccounts != nil,
 			_q.withProjects != nil,
 			_q.withExperiments != nil,
 			_q.withAttempts != nil,
+			_q.withProviderResources != nil,
 			_q.withBudgetEntries != nil,
 			_q.withIdempotencyRecords != nil,
 			_q.withAuditEvents != nil,
+			_q.withNotificationSettings != nil,
+			_q.withNotifications != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -687,6 +798,13 @@ func (_q *TenantQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Tenan
 			return nil, err
 		}
 	}
+	if query := _q.withProviderResources; query != nil {
+		if err := _q.loadProviderResources(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.ProviderResources = []*ProviderResource{} },
+			func(n *Tenant, e *ProviderResource) { n.Edges.ProviderResources = append(n.Edges.ProviderResources, e) }); err != nil {
+			return nil, err
+		}
+	}
 	if query := _q.withBudgetEntries; query != nil {
 		if err := _q.loadBudgetEntries(ctx, query, nodes,
 			func(n *Tenant) { n.Edges.BudgetEntries = []*BudgetEntry{} },
@@ -707,6 +825,22 @@ func (_q *TenantQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Tenan
 		if err := _q.loadAuditEvents(ctx, query, nodes,
 			func(n *Tenant) { n.Edges.AuditEvents = []*AuditEvent{} },
 			func(n *Tenant, e *AuditEvent) { n.Edges.AuditEvents = append(n.Edges.AuditEvents, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withNotificationSettings; query != nil {
+		if err := _q.loadNotificationSettings(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.NotificationSettings = []*NotificationSetting{} },
+			func(n *Tenant, e *NotificationSetting) {
+				n.Edges.NotificationSettings = append(n.Edges.NotificationSettings, e)
+			}); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withNotifications; query != nil {
+		if err := _q.loadNotifications(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.Notifications = []*Notification{} },
+			func(n *Tenant, e *Notification) { n.Edges.Notifications = append(n.Edges.Notifications, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -863,6 +997,36 @@ func (_q *TenantQuery) loadAttempts(ctx context.Context, query *AttemptQuery, no
 	}
 	return nil
 }
+func (_q *TenantQuery) loadProviderResources(ctx context.Context, query *ProviderResourceQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *ProviderResource)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(providerresource.FieldTenantID)
+	}
+	query.Where(predicate.ProviderResource(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.ProviderResourcesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
 func (_q *TenantQuery) loadBudgetEntries(ctx context.Context, query *BudgetEntryQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *BudgetEntry)) error {
 	fks := make([]driver.Value, 0, len(nodes))
 	nodeids := make(map[int]*Tenant)
@@ -938,6 +1102,66 @@ func (_q *TenantQuery) loadAuditEvents(ctx context.Context, query *AuditEventQue
 	}
 	query.Where(predicate.AuditEvent(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(tenant.AuditEventsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TenantQuery) loadNotificationSettings(ctx context.Context, query *NotificationSettingQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *NotificationSetting)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(notificationsetting.FieldTenantID)
+	}
+	query.Where(predicate.NotificationSetting(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.NotificationSettingsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TenantQuery) loadNotifications(ctx context.Context, query *NotificationQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *Notification)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(notification.FieldTenantID)
+	}
+	query.Where(predicate.Notification(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.NotificationsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

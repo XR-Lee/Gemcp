@@ -12,12 +12,16 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
+	"github.com/XR-Lee/Gemcp/ent/notification"
+	"github.com/XR-Lee/Gemcp/ent/notificationsetting"
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/provideraccount"
+	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/recordmixin"
 	"github.com/XR-Lee/Gemcp/ent/repository"
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
 	"github.com/XR-Lee/Gemcp/ent/schema"
+	"github.com/XR-Lee/Gemcp/ent/serviceheartbeat"
 	"github.com/XR-Lee/Gemcp/ent/session"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
 	"github.com/XR-Lee/Gemcp/ent/user"
@@ -120,20 +124,34 @@ func init() {
 	attemptDescProviderResourceID := attemptFields[5].Descriptor()
 	// attempt.ProviderResourceIDValidator is a validator for the "provider_resource_id" field. It is called by the builders before save.
 	attempt.ProviderResourceIDValidator = attemptDescProviderResourceID.Validators[0].(func(string) error)
+	// attemptDescSourceDownloads is the schema descriptor for source_downloads field.
+	attemptDescSourceDownloads := attemptFields[9].Descriptor()
+	// attempt.DefaultSourceDownloads holds the default value on creation for the source_downloads field.
+	attempt.DefaultSourceDownloads = attemptDescSourceDownloads.Default.(int)
+	// attempt.SourceDownloadsValidator is a validator for the "source_downloads" field. It is called by the builders before save.
+	attempt.SourceDownloadsValidator = attemptDescSourceDownloads.Validators[0].(func(int) error)
 	// attemptDescRetryReason is the schema descriptor for retry_reason field.
-	attemptDescRetryReason := attemptFields[6].Descriptor()
+	attemptDescRetryReason := attemptFields[11].Descriptor()
 	// attempt.RetryReasonValidator is a validator for the "retry_reason" field. It is called by the builders before save.
 	attempt.RetryReasonValidator = attemptDescRetryReason.Validators[0].(func(string) error)
 	// attemptDescFailureCode is the schema descriptor for failure_code field.
-	attemptDescFailureCode := attemptFields[7].Descriptor()
+	attemptDescFailureCode := attemptFields[12].Descriptor()
 	// attempt.FailureCodeValidator is a validator for the "failure_code" field. It is called by the builders before save.
 	attempt.FailureCodeValidator = attemptDescFailureCode.Validators[0].(func(string) error)
 	// attemptDescEstimatedCostMilli is the schema descriptor for estimated_cost_milli field.
-	attemptDescEstimatedCostMilli := attemptFields[11].Descriptor()
+	attemptDescEstimatedCostMilli := attemptFields[16].Descriptor()
 	// attempt.DefaultEstimatedCostMilli holds the default value on creation for the estimated_cost_milli field.
 	attempt.DefaultEstimatedCostMilli = attemptDescEstimatedCostMilli.Default.(int64)
 	// attempt.EstimatedCostMilliValidator is a validator for the "estimated_cost_milli" field. It is called by the builders before save.
 	attempt.EstimatedCostMilliValidator = attemptDescEstimatedCostMilli.Validators[0].(func(int64) error)
+	// attemptDescMetrics is the schema descriptor for metrics field.
+	attemptDescMetrics := attemptFields[19].Descriptor()
+	// attempt.DefaultMetrics holds the default value on creation for the metrics field.
+	attempt.DefaultMetrics = attemptDescMetrics.Default.(map[string]interface{})
+	// attemptDescProviderRequestIds is the schema descriptor for provider_request_ids field.
+	attemptDescProviderRequestIds := attemptFields[20].Descriptor()
+	// attempt.DefaultProviderRequestIds holds the default value on creation for the provider_request_ids field.
+	attempt.DefaultProviderRequestIds = attemptDescProviderRequestIds.Default.(map[string]string)
 	auditeventMixin := schema.AuditEvent{}.Mixin()
 	auditeventMixinFields0 := auditeventMixin[0].Fields()
 	_ = auditeventMixinFields0
@@ -391,11 +409,11 @@ func init() {
 	// experiment.DefaultMetrics holds the default value on creation for the metrics field.
 	experiment.DefaultMetrics = experimentDescMetrics.Default.(map[string]interface{})
 	// experimentDescLeaseOwner is the schema descriptor for lease_owner field.
-	experimentDescLeaseOwner := experimentFields[32].Descriptor()
+	experimentDescLeaseOwner := experimentFields[34].Descriptor()
 	// experiment.LeaseOwnerValidator is a validator for the "lease_owner" field. It is called by the builders before save.
 	experiment.LeaseOwnerValidator = experimentDescLeaseOwner.Validators[0].(func(string) error)
 	// experimentDescNextAttemptAt is the schema descriptor for next_attempt_at field.
-	experimentDescNextAttemptAt := experimentFields[33].Descriptor()
+	experimentDescNextAttemptAt := experimentFields[35].Descriptor()
 	// experiment.DefaultNextAttemptAt holds the default value on creation for the next_attempt_at field.
 	experiment.DefaultNextAttemptAt = experimentDescNextAttemptAt.Default.(func() time.Time)
 	idempotencyrecordMixin := schema.IdempotencyRecord{}.Mixin()
@@ -417,6 +435,156 @@ func init() {
 	idempotencyrecord.DefaultUpdatedAt = idempotencyrecordDescUpdatedAt.Default.(func() time.Time)
 	// idempotencyrecord.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	idempotencyrecord.UpdateDefaultUpdatedAt = idempotencyrecordDescUpdatedAt.UpdateDefault.(func() time.Time)
+	notificationMixin := schema.Notification{}.Mixin()
+	notificationMixinFields0 := notificationMixin[0].Fields()
+	_ = notificationMixinFields0
+	notificationFields := schema.Notification{}.Fields()
+	_ = notificationFields
+	// notificationDescPublicID is the schema descriptor for public_id field.
+	notificationDescPublicID := notificationMixinFields0[0].Descriptor()
+	// notification.DefaultPublicID holds the default value on creation for the public_id field.
+	notification.DefaultPublicID = notificationDescPublicID.Default.(func() uuid.UUID)
+	// notificationDescCreatedAt is the schema descriptor for created_at field.
+	notificationDescCreatedAt := notificationMixinFields0[1].Descriptor()
+	// notification.DefaultCreatedAt holds the default value on creation for the created_at field.
+	notification.DefaultCreatedAt = notificationDescCreatedAt.Default.(func() time.Time)
+	// notificationDescUpdatedAt is the schema descriptor for updated_at field.
+	notificationDescUpdatedAt := notificationMixinFields0[2].Descriptor()
+	// notification.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	notification.DefaultUpdatedAt = notificationDescUpdatedAt.Default.(func() time.Time)
+	// notification.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	notification.UpdateDefaultUpdatedAt = notificationDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// notificationDescDedupKey is the schema descriptor for dedup_key field.
+	notificationDescDedupKey := notificationFields[1].Descriptor()
+	// notification.DedupKeyValidator is a validator for the "dedup_key" field. It is called by the builders before save.
+	notification.DedupKeyValidator = func() func(string) error {
+		validators := notificationDescDedupKey.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(dedup_key string) error {
+			for _, fn := range fns {
+				if err := fn(dedup_key); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// notificationDescKind is the schema descriptor for kind field.
+	notificationDescKind := notificationFields[2].Descriptor()
+	// notification.KindValidator is a validator for the "kind" field. It is called by the builders before save.
+	notification.KindValidator = func() func(string) error {
+		validators := notificationDescKind.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(kind string) error {
+			for _, fn := range fns {
+				if err := fn(kind); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// notificationDescSubject is the schema descriptor for subject field.
+	notificationDescSubject := notificationFields[4].Descriptor()
+	// notification.SubjectValidator is a validator for the "subject" field. It is called by the builders before save.
+	notification.SubjectValidator = func() func(string) error {
+		validators := notificationDescSubject.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(subject string) error {
+			for _, fn := range fns {
+				if err := fn(subject); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// notificationDescAttempts is the schema descriptor for attempts field.
+	notificationDescAttempts := notificationFields[7].Descriptor()
+	// notification.DefaultAttempts holds the default value on creation for the attempts field.
+	notification.DefaultAttempts = notificationDescAttempts.Default.(int)
+	// notification.AttemptsValidator is a validator for the "attempts" field. It is called by the builders before save.
+	notification.AttemptsValidator = notificationDescAttempts.Validators[0].(func(int) error)
+	// notificationDescNextAttemptAt is the schema descriptor for next_attempt_at field.
+	notificationDescNextAttemptAt := notificationFields[8].Descriptor()
+	// notification.DefaultNextAttemptAt holds the default value on creation for the next_attempt_at field.
+	notification.DefaultNextAttemptAt = notificationDescNextAttemptAt.Default.(func() time.Time)
+	notificationsettingMixin := schema.NotificationSetting{}.Mixin()
+	notificationsettingMixinFields0 := notificationsettingMixin[0].Fields()
+	_ = notificationsettingMixinFields0
+	notificationsettingFields := schema.NotificationSetting{}.Fields()
+	_ = notificationsettingFields
+	// notificationsettingDescPublicID is the schema descriptor for public_id field.
+	notificationsettingDescPublicID := notificationsettingMixinFields0[0].Descriptor()
+	// notificationsetting.DefaultPublicID holds the default value on creation for the public_id field.
+	notificationsetting.DefaultPublicID = notificationsettingDescPublicID.Default.(func() uuid.UUID)
+	// notificationsettingDescCreatedAt is the schema descriptor for created_at field.
+	notificationsettingDescCreatedAt := notificationsettingMixinFields0[1].Descriptor()
+	// notificationsetting.DefaultCreatedAt holds the default value on creation for the created_at field.
+	notificationsetting.DefaultCreatedAt = notificationsettingDescCreatedAt.Default.(func() time.Time)
+	// notificationsettingDescUpdatedAt is the schema descriptor for updated_at field.
+	notificationsettingDescUpdatedAt := notificationsettingMixinFields0[2].Descriptor()
+	// notificationsetting.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	notificationsetting.DefaultUpdatedAt = notificationsettingDescUpdatedAt.Default.(func() time.Time)
+	// notificationsetting.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	notificationsetting.UpdateDefaultUpdatedAt = notificationsettingDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// notificationsettingDescEnabled is the schema descriptor for enabled field.
+	notificationsettingDescEnabled := notificationsettingFields[1].Descriptor()
+	// notificationsetting.DefaultEnabled holds the default value on creation for the enabled field.
+	notificationsetting.DefaultEnabled = notificationsettingDescEnabled.Default.(bool)
+	// notificationsettingDescHost is the schema descriptor for host field.
+	notificationsettingDescHost := notificationsettingFields[2].Descriptor()
+	// notificationsetting.HostValidator is a validator for the "host" field. It is called by the builders before save.
+	notificationsetting.HostValidator = func() func(string) error {
+		validators := notificationsettingDescHost.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(host string) error {
+			for _, fn := range fns {
+				if err := fn(host); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// notificationsettingDescPort is the schema descriptor for port field.
+	notificationsettingDescPort := notificationsettingFields[3].Descriptor()
+	// notificationsetting.PortValidator is a validator for the "port" field. It is called by the builders before save.
+	notificationsetting.PortValidator = notificationsettingDescPort.Validators[0].(func(int) error)
+	// notificationsettingDescUsername is the schema descriptor for username field.
+	notificationsettingDescUsername := notificationsettingFields[5].Descriptor()
+	// notificationsetting.UsernameValidator is a validator for the "username" field. It is called by the builders before save.
+	notificationsetting.UsernameValidator = notificationsettingDescUsername.Validators[0].(func(string) error)
+	// notificationsettingDescFromAddress is the schema descriptor for from_address field.
+	notificationsettingDescFromAddress := notificationsettingFields[7].Descriptor()
+	// notificationsetting.FromAddressValidator is a validator for the "from_address" field. It is called by the builders before save.
+	notificationsetting.FromAddressValidator = func() func(string) error {
+		validators := notificationsettingDescFromAddress.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(from_address string) error {
+			for _, fn := range fns {
+				if err := fn(from_address); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
 	projectMixin := schema.Project{}.Mixin()
 	projectMixinFields0 := projectMixin[0].Fields()
 	_ = projectMixinFields0
@@ -565,6 +733,79 @@ func init() {
 			return nil
 		}
 	}()
+	providerresourceMixin := schema.ProviderResource{}.Mixin()
+	providerresourceMixinFields0 := providerresourceMixin[0].Fields()
+	_ = providerresourceMixinFields0
+	providerresourceFields := schema.ProviderResource{}.Fields()
+	_ = providerresourceFields
+	// providerresourceDescPublicID is the schema descriptor for public_id field.
+	providerresourceDescPublicID := providerresourceMixinFields0[0].Descriptor()
+	// providerresource.DefaultPublicID holds the default value on creation for the public_id field.
+	providerresource.DefaultPublicID = providerresourceDescPublicID.Default.(func() uuid.UUID)
+	// providerresourceDescCreatedAt is the schema descriptor for created_at field.
+	providerresourceDescCreatedAt := providerresourceMixinFields0[1].Descriptor()
+	// providerresource.DefaultCreatedAt holds the default value on creation for the created_at field.
+	providerresource.DefaultCreatedAt = providerresourceDescCreatedAt.Default.(func() time.Time)
+	// providerresourceDescUpdatedAt is the schema descriptor for updated_at field.
+	providerresourceDescUpdatedAt := providerresourceMixinFields0[2].Descriptor()
+	// providerresource.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	providerresource.DefaultUpdatedAt = providerresourceDescUpdatedAt.Default.(func() time.Time)
+	// providerresource.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	providerresource.UpdateDefaultUpdatedAt = providerresourceDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// providerresourceDescName is the schema descriptor for name field.
+	providerresourceDescName := providerresourceFields[6].Descriptor()
+	// providerresource.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	providerresource.NameValidator = func() func(string) error {
+		validators := providerresourceDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// providerresourceDescProviderID is the schema descriptor for provider_id field.
+	providerresourceDescProviderID := providerresourceFields[7].Descriptor()
+	// providerresource.ProviderIDValidator is a validator for the "provider_id" field. It is called by the builders before save.
+	providerresource.ProviderIDValidator = providerresourceDescProviderID.Validators[0].(func(string) error)
+	// providerresourceDescOwned is the schema descriptor for owned field.
+	providerresourceDescOwned := providerresourceFields[9].Descriptor()
+	// providerresource.DefaultOwned holds the default value on creation for the owned field.
+	providerresource.DefaultOwned = providerresourceDescOwned.Default.(bool)
+	// providerresourceDescProviderStatus is the schema descriptor for provider_status field.
+	providerresourceDescProviderStatus := providerresourceFields[10].Descriptor()
+	// providerresource.ProviderStatusValidator is a validator for the "provider_status" field. It is called by the builders before save.
+	providerresource.ProviderStatusValidator = providerresourceDescProviderStatus.Validators[0].(func(string) error)
+	// providerresourceDescCreateAttempts is the schema descriptor for create_attempts field.
+	providerresourceDescCreateAttempts := providerresourceFields[11].Descriptor()
+	// providerresource.DefaultCreateAttempts holds the default value on creation for the create_attempts field.
+	providerresource.DefaultCreateAttempts = providerresourceDescCreateAttempts.Default.(int)
+	// providerresource.CreateAttemptsValidator is a validator for the "create_attempts" field. It is called by the builders before save.
+	providerresource.CreateAttemptsValidator = providerresourceDescCreateAttempts.Validators[0].(func(int) error)
+	// providerresourceDescStopReason is the schema descriptor for stop_reason field.
+	providerresourceDescStopReason := providerresourceFields[17].Descriptor()
+	// providerresource.StopReasonValidator is a validator for the "stop_reason" field. It is called by the builders before save.
+	providerresource.StopReasonValidator = providerresourceDescStopReason.Validators[0].(func(string) error)
+	// providerresourceDescPriceMilliPerHour is the schema descriptor for price_milli_per_hour field.
+	providerresourceDescPriceMilliPerHour := providerresourceFields[21].Descriptor()
+	// providerresource.DefaultPriceMilliPerHour holds the default value on creation for the price_milli_per_hour field.
+	providerresource.DefaultPriceMilliPerHour = providerresourceDescPriceMilliPerHour.Default.(int64)
+	// providerresource.PriceMilliPerHourValidator is a validator for the "price_milli_per_hour" field. It is called by the builders before save.
+	providerresource.PriceMilliPerHourValidator = providerresourceDescPriceMilliPerHour.Validators[0].(func(int64) error)
+	// providerresourceDescRequestIds is the schema descriptor for request_ids field.
+	providerresourceDescRequestIds := providerresourceFields[23].Descriptor()
+	// providerresource.DefaultRequestIds holds the default value on creation for the request_ids field.
+	providerresource.DefaultRequestIds = providerresourceDescRequestIds.Default.(map[string]string)
+	// providerresourceDescLeaseOwner is the schema descriptor for lease_owner field.
+	providerresourceDescLeaseOwner := providerresourceFields[25].Descriptor()
+	// providerresource.LeaseOwnerValidator is a validator for the "lease_owner" field. It is called by the builders before save.
+	providerresource.LeaseOwnerValidator = providerresourceDescLeaseOwner.Validators[0].(func(string) error)
 	recordmixinFields := schema.RecordMixin{}.Fields()
 	_ = recordmixinFields
 	// recordmixinDescPublicID is the schema descriptor for public_id field.
@@ -779,6 +1020,51 @@ func init() {
 	resourceprofileDescIsDefault := resourceprofileFields[14].Descriptor()
 	// resourceprofile.DefaultIsDefault holds the default value on creation for the is_default field.
 	resourceprofile.DefaultIsDefault = resourceprofileDescIsDefault.Default.(bool)
+	serviceheartbeatMixin := schema.ServiceHeartbeat{}.Mixin()
+	serviceheartbeatMixinFields0 := serviceheartbeatMixin[0].Fields()
+	_ = serviceheartbeatMixinFields0
+	serviceheartbeatFields := schema.ServiceHeartbeat{}.Fields()
+	_ = serviceheartbeatFields
+	// serviceheartbeatDescPublicID is the schema descriptor for public_id field.
+	serviceheartbeatDescPublicID := serviceheartbeatMixinFields0[0].Descriptor()
+	// serviceheartbeat.DefaultPublicID holds the default value on creation for the public_id field.
+	serviceheartbeat.DefaultPublicID = serviceheartbeatDescPublicID.Default.(func() uuid.UUID)
+	// serviceheartbeatDescCreatedAt is the schema descriptor for created_at field.
+	serviceheartbeatDescCreatedAt := serviceheartbeatMixinFields0[1].Descriptor()
+	// serviceheartbeat.DefaultCreatedAt holds the default value on creation for the created_at field.
+	serviceheartbeat.DefaultCreatedAt = serviceheartbeatDescCreatedAt.Default.(func() time.Time)
+	// serviceheartbeatDescUpdatedAt is the schema descriptor for updated_at field.
+	serviceheartbeatDescUpdatedAt := serviceheartbeatMixinFields0[2].Descriptor()
+	// serviceheartbeat.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	serviceheartbeat.DefaultUpdatedAt = serviceheartbeatDescUpdatedAt.Default.(func() time.Time)
+	// serviceheartbeat.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	serviceheartbeat.UpdateDefaultUpdatedAt = serviceheartbeatDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// serviceheartbeatDescInstanceID is the schema descriptor for instance_id field.
+	serviceheartbeatDescInstanceID := serviceheartbeatFields[1].Descriptor()
+	// serviceheartbeat.InstanceIDValidator is a validator for the "instance_id" field. It is called by the builders before save.
+	serviceheartbeat.InstanceIDValidator = func() func(string) error {
+		validators := serviceheartbeatDescInstanceID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(instance_id string) error {
+			for _, fn := range fns {
+				if err := fn(instance_id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// serviceheartbeatDescLastSeenAt is the schema descriptor for last_seen_at field.
+	serviceheartbeatDescLastSeenAt := serviceheartbeatFields[2].Descriptor()
+	// serviceheartbeat.DefaultLastSeenAt holds the default value on creation for the last_seen_at field.
+	serviceheartbeat.DefaultLastSeenAt = serviceheartbeatDescLastSeenAt.Default.(func() time.Time)
+	// serviceheartbeatDescMetadata is the schema descriptor for metadata field.
+	serviceheartbeatDescMetadata := serviceheartbeatFields[4].Descriptor()
+	// serviceheartbeat.DefaultMetadata holds the default value on creation for the metadata field.
+	serviceheartbeat.DefaultMetadata = serviceheartbeatDescMetadata.Default.(map[string]interface{})
 	sessionMixin := schema.Session{}.Mixin()
 	sessionMixinFields0 := sessionMixin[0].Fields()
 	_ = sessionMixinFields0

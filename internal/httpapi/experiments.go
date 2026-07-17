@@ -58,6 +58,20 @@ func (h *ExperimentHandlers) Get(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": result})
 }
 
+func (h *ExperimentHandlers) Attempts(c *gin.Context) {
+	principal, ok := currentPrincipal(c)
+	if !ok {
+		writeError(c, http.StatusUnauthorized, "UNAUTHENTICATED", "authentication required")
+		return
+	}
+	result, err := h.service.OwnerAttempts(c.Request.Context(), principal.TenantID, c.Query("project_id"), c.Param("id"))
+	if err != nil {
+		h.writeError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": result})
+}
+
 func (h *ExperimentHandlers) Cost(c *gin.Context) {
 	principal, ok := currentPrincipal(c)
 	if !ok {

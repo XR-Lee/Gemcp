@@ -101,6 +101,31 @@ func ProviderResourceID(v string) predicate.Attempt {
 	return predicate.Attempt(sql.FieldEQ(FieldProviderResourceID, v))
 }
 
+// RunnerTokenHash applies equality check predicate on the "runner_token_hash" field. It's identical to RunnerTokenHashEQ.
+func RunnerTokenHash(v []byte) predicate.Attempt {
+	return predicate.Attempt(sql.FieldEQ(FieldRunnerTokenHash, v))
+}
+
+// RunnerTokenCiphertext applies equality check predicate on the "runner_token_ciphertext" field. It's identical to RunnerTokenCiphertextEQ.
+func RunnerTokenCiphertext(v string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldEQ(FieldRunnerTokenCiphertext, v))
+}
+
+// RunnerTokenExpiresAt applies equality check predicate on the "runner_token_expires_at" field. It's identical to RunnerTokenExpiresAtEQ.
+func RunnerTokenExpiresAt(v time.Time) predicate.Attempt {
+	return predicate.Attempt(sql.FieldEQ(FieldRunnerTokenExpiresAt, v))
+}
+
+// SourceDownloads applies equality check predicate on the "source_downloads" field. It's identical to SourceDownloadsEQ.
+func SourceDownloads(v int) predicate.Attempt {
+	return predicate.Attempt(sql.FieldEQ(FieldSourceDownloads, v))
+}
+
+// LastHeartbeatAt applies equality check predicate on the "last_heartbeat_at" field. It's identical to LastHeartbeatAtEQ.
+func LastHeartbeatAt(v time.Time) predicate.Attempt {
+	return predicate.Attempt(sql.FieldEQ(FieldLastHeartbeatAt, v))
+}
+
 // RetryReason applies equality check predicate on the "retry_reason" field. It's identical to RetryReasonEQ.
 func RetryReason(v string) predicate.Attempt {
 	return predicate.Attempt(sql.FieldEQ(FieldRetryReason, v))
@@ -129,6 +154,16 @@ func FinishedAt(v time.Time) predicate.Attempt {
 // EstimatedCostMilli applies equality check predicate on the "estimated_cost_milli" field. It's identical to EstimatedCostMilliEQ.
 func EstimatedCostMilli(v int64) predicate.Attempt {
 	return predicate.Attempt(sql.FieldEQ(FieldEstimatedCostMilli, v))
+}
+
+// ExitCode applies equality check predicate on the "exit_code" field. It's identical to ExitCodeEQ.
+func ExitCode(v int) predicate.Attempt {
+	return predicate.Attempt(sql.FieldEQ(FieldExitCode, v))
+}
+
+// LogTail applies equality check predicate on the "log_tail" field. It's identical to LogTailEQ.
+func LogTail(v string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldEQ(FieldLogTail, v))
 }
 
 // PublicIDEQ applies the EQ predicate on the "public_id" field.
@@ -489,6 +524,271 @@ func ProviderResourceIDEqualFold(v string) predicate.Attempt {
 // ProviderResourceIDContainsFold applies the ContainsFold predicate on the "provider_resource_id" field.
 func ProviderResourceIDContainsFold(v string) predicate.Attempt {
 	return predicate.Attempt(sql.FieldContainsFold(FieldProviderResourceID, v))
+}
+
+// RunnerTokenHashEQ applies the EQ predicate on the "runner_token_hash" field.
+func RunnerTokenHashEQ(v []byte) predicate.Attempt {
+	return predicate.Attempt(sql.FieldEQ(FieldRunnerTokenHash, v))
+}
+
+// RunnerTokenHashNEQ applies the NEQ predicate on the "runner_token_hash" field.
+func RunnerTokenHashNEQ(v []byte) predicate.Attempt {
+	return predicate.Attempt(sql.FieldNEQ(FieldRunnerTokenHash, v))
+}
+
+// RunnerTokenHashIn applies the In predicate on the "runner_token_hash" field.
+func RunnerTokenHashIn(vs ...[]byte) predicate.Attempt {
+	return predicate.Attempt(sql.FieldIn(FieldRunnerTokenHash, vs...))
+}
+
+// RunnerTokenHashNotIn applies the NotIn predicate on the "runner_token_hash" field.
+func RunnerTokenHashNotIn(vs ...[]byte) predicate.Attempt {
+	return predicate.Attempt(sql.FieldNotIn(FieldRunnerTokenHash, vs...))
+}
+
+// RunnerTokenHashGT applies the GT predicate on the "runner_token_hash" field.
+func RunnerTokenHashGT(v []byte) predicate.Attempt {
+	return predicate.Attempt(sql.FieldGT(FieldRunnerTokenHash, v))
+}
+
+// RunnerTokenHashGTE applies the GTE predicate on the "runner_token_hash" field.
+func RunnerTokenHashGTE(v []byte) predicate.Attempt {
+	return predicate.Attempt(sql.FieldGTE(FieldRunnerTokenHash, v))
+}
+
+// RunnerTokenHashLT applies the LT predicate on the "runner_token_hash" field.
+func RunnerTokenHashLT(v []byte) predicate.Attempt {
+	return predicate.Attempt(sql.FieldLT(FieldRunnerTokenHash, v))
+}
+
+// RunnerTokenHashLTE applies the LTE predicate on the "runner_token_hash" field.
+func RunnerTokenHashLTE(v []byte) predicate.Attempt {
+	return predicate.Attempt(sql.FieldLTE(FieldRunnerTokenHash, v))
+}
+
+// RunnerTokenHashIsNil applies the IsNil predicate on the "runner_token_hash" field.
+func RunnerTokenHashIsNil() predicate.Attempt {
+	return predicate.Attempt(sql.FieldIsNull(FieldRunnerTokenHash))
+}
+
+// RunnerTokenHashNotNil applies the NotNil predicate on the "runner_token_hash" field.
+func RunnerTokenHashNotNil() predicate.Attempt {
+	return predicate.Attempt(sql.FieldNotNull(FieldRunnerTokenHash))
+}
+
+// RunnerTokenCiphertextEQ applies the EQ predicate on the "runner_token_ciphertext" field.
+func RunnerTokenCiphertextEQ(v string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldEQ(FieldRunnerTokenCiphertext, v))
+}
+
+// RunnerTokenCiphertextNEQ applies the NEQ predicate on the "runner_token_ciphertext" field.
+func RunnerTokenCiphertextNEQ(v string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldNEQ(FieldRunnerTokenCiphertext, v))
+}
+
+// RunnerTokenCiphertextIn applies the In predicate on the "runner_token_ciphertext" field.
+func RunnerTokenCiphertextIn(vs ...string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldIn(FieldRunnerTokenCiphertext, vs...))
+}
+
+// RunnerTokenCiphertextNotIn applies the NotIn predicate on the "runner_token_ciphertext" field.
+func RunnerTokenCiphertextNotIn(vs ...string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldNotIn(FieldRunnerTokenCiphertext, vs...))
+}
+
+// RunnerTokenCiphertextGT applies the GT predicate on the "runner_token_ciphertext" field.
+func RunnerTokenCiphertextGT(v string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldGT(FieldRunnerTokenCiphertext, v))
+}
+
+// RunnerTokenCiphertextGTE applies the GTE predicate on the "runner_token_ciphertext" field.
+func RunnerTokenCiphertextGTE(v string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldGTE(FieldRunnerTokenCiphertext, v))
+}
+
+// RunnerTokenCiphertextLT applies the LT predicate on the "runner_token_ciphertext" field.
+func RunnerTokenCiphertextLT(v string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldLT(FieldRunnerTokenCiphertext, v))
+}
+
+// RunnerTokenCiphertextLTE applies the LTE predicate on the "runner_token_ciphertext" field.
+func RunnerTokenCiphertextLTE(v string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldLTE(FieldRunnerTokenCiphertext, v))
+}
+
+// RunnerTokenCiphertextContains applies the Contains predicate on the "runner_token_ciphertext" field.
+func RunnerTokenCiphertextContains(v string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldContains(FieldRunnerTokenCiphertext, v))
+}
+
+// RunnerTokenCiphertextHasPrefix applies the HasPrefix predicate on the "runner_token_ciphertext" field.
+func RunnerTokenCiphertextHasPrefix(v string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldHasPrefix(FieldRunnerTokenCiphertext, v))
+}
+
+// RunnerTokenCiphertextHasSuffix applies the HasSuffix predicate on the "runner_token_ciphertext" field.
+func RunnerTokenCiphertextHasSuffix(v string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldHasSuffix(FieldRunnerTokenCiphertext, v))
+}
+
+// RunnerTokenCiphertextIsNil applies the IsNil predicate on the "runner_token_ciphertext" field.
+func RunnerTokenCiphertextIsNil() predicate.Attempt {
+	return predicate.Attempt(sql.FieldIsNull(FieldRunnerTokenCiphertext))
+}
+
+// RunnerTokenCiphertextNotNil applies the NotNil predicate on the "runner_token_ciphertext" field.
+func RunnerTokenCiphertextNotNil() predicate.Attempt {
+	return predicate.Attempt(sql.FieldNotNull(FieldRunnerTokenCiphertext))
+}
+
+// RunnerTokenCiphertextEqualFold applies the EqualFold predicate on the "runner_token_ciphertext" field.
+func RunnerTokenCiphertextEqualFold(v string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldEqualFold(FieldRunnerTokenCiphertext, v))
+}
+
+// RunnerTokenCiphertextContainsFold applies the ContainsFold predicate on the "runner_token_ciphertext" field.
+func RunnerTokenCiphertextContainsFold(v string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldContainsFold(FieldRunnerTokenCiphertext, v))
+}
+
+// RunnerTokenExpiresAtEQ applies the EQ predicate on the "runner_token_expires_at" field.
+func RunnerTokenExpiresAtEQ(v time.Time) predicate.Attempt {
+	return predicate.Attempt(sql.FieldEQ(FieldRunnerTokenExpiresAt, v))
+}
+
+// RunnerTokenExpiresAtNEQ applies the NEQ predicate on the "runner_token_expires_at" field.
+func RunnerTokenExpiresAtNEQ(v time.Time) predicate.Attempt {
+	return predicate.Attempt(sql.FieldNEQ(FieldRunnerTokenExpiresAt, v))
+}
+
+// RunnerTokenExpiresAtIn applies the In predicate on the "runner_token_expires_at" field.
+func RunnerTokenExpiresAtIn(vs ...time.Time) predicate.Attempt {
+	return predicate.Attempt(sql.FieldIn(FieldRunnerTokenExpiresAt, vs...))
+}
+
+// RunnerTokenExpiresAtNotIn applies the NotIn predicate on the "runner_token_expires_at" field.
+func RunnerTokenExpiresAtNotIn(vs ...time.Time) predicate.Attempt {
+	return predicate.Attempt(sql.FieldNotIn(FieldRunnerTokenExpiresAt, vs...))
+}
+
+// RunnerTokenExpiresAtGT applies the GT predicate on the "runner_token_expires_at" field.
+func RunnerTokenExpiresAtGT(v time.Time) predicate.Attempt {
+	return predicate.Attempt(sql.FieldGT(FieldRunnerTokenExpiresAt, v))
+}
+
+// RunnerTokenExpiresAtGTE applies the GTE predicate on the "runner_token_expires_at" field.
+func RunnerTokenExpiresAtGTE(v time.Time) predicate.Attempt {
+	return predicate.Attempt(sql.FieldGTE(FieldRunnerTokenExpiresAt, v))
+}
+
+// RunnerTokenExpiresAtLT applies the LT predicate on the "runner_token_expires_at" field.
+func RunnerTokenExpiresAtLT(v time.Time) predicate.Attempt {
+	return predicate.Attempt(sql.FieldLT(FieldRunnerTokenExpiresAt, v))
+}
+
+// RunnerTokenExpiresAtLTE applies the LTE predicate on the "runner_token_expires_at" field.
+func RunnerTokenExpiresAtLTE(v time.Time) predicate.Attempt {
+	return predicate.Attempt(sql.FieldLTE(FieldRunnerTokenExpiresAt, v))
+}
+
+// RunnerTokenExpiresAtIsNil applies the IsNil predicate on the "runner_token_expires_at" field.
+func RunnerTokenExpiresAtIsNil() predicate.Attempt {
+	return predicate.Attempt(sql.FieldIsNull(FieldRunnerTokenExpiresAt))
+}
+
+// RunnerTokenExpiresAtNotNil applies the NotNil predicate on the "runner_token_expires_at" field.
+func RunnerTokenExpiresAtNotNil() predicate.Attempt {
+	return predicate.Attempt(sql.FieldNotNull(FieldRunnerTokenExpiresAt))
+}
+
+// SourceDownloadsEQ applies the EQ predicate on the "source_downloads" field.
+func SourceDownloadsEQ(v int) predicate.Attempt {
+	return predicate.Attempt(sql.FieldEQ(FieldSourceDownloads, v))
+}
+
+// SourceDownloadsNEQ applies the NEQ predicate on the "source_downloads" field.
+func SourceDownloadsNEQ(v int) predicate.Attempt {
+	return predicate.Attempt(sql.FieldNEQ(FieldSourceDownloads, v))
+}
+
+// SourceDownloadsIn applies the In predicate on the "source_downloads" field.
+func SourceDownloadsIn(vs ...int) predicate.Attempt {
+	return predicate.Attempt(sql.FieldIn(FieldSourceDownloads, vs...))
+}
+
+// SourceDownloadsNotIn applies the NotIn predicate on the "source_downloads" field.
+func SourceDownloadsNotIn(vs ...int) predicate.Attempt {
+	return predicate.Attempt(sql.FieldNotIn(FieldSourceDownloads, vs...))
+}
+
+// SourceDownloadsGT applies the GT predicate on the "source_downloads" field.
+func SourceDownloadsGT(v int) predicate.Attempt {
+	return predicate.Attempt(sql.FieldGT(FieldSourceDownloads, v))
+}
+
+// SourceDownloadsGTE applies the GTE predicate on the "source_downloads" field.
+func SourceDownloadsGTE(v int) predicate.Attempt {
+	return predicate.Attempt(sql.FieldGTE(FieldSourceDownloads, v))
+}
+
+// SourceDownloadsLT applies the LT predicate on the "source_downloads" field.
+func SourceDownloadsLT(v int) predicate.Attempt {
+	return predicate.Attempt(sql.FieldLT(FieldSourceDownloads, v))
+}
+
+// SourceDownloadsLTE applies the LTE predicate on the "source_downloads" field.
+func SourceDownloadsLTE(v int) predicate.Attempt {
+	return predicate.Attempt(sql.FieldLTE(FieldSourceDownloads, v))
+}
+
+// LastHeartbeatAtEQ applies the EQ predicate on the "last_heartbeat_at" field.
+func LastHeartbeatAtEQ(v time.Time) predicate.Attempt {
+	return predicate.Attempt(sql.FieldEQ(FieldLastHeartbeatAt, v))
+}
+
+// LastHeartbeatAtNEQ applies the NEQ predicate on the "last_heartbeat_at" field.
+func LastHeartbeatAtNEQ(v time.Time) predicate.Attempt {
+	return predicate.Attempt(sql.FieldNEQ(FieldLastHeartbeatAt, v))
+}
+
+// LastHeartbeatAtIn applies the In predicate on the "last_heartbeat_at" field.
+func LastHeartbeatAtIn(vs ...time.Time) predicate.Attempt {
+	return predicate.Attempt(sql.FieldIn(FieldLastHeartbeatAt, vs...))
+}
+
+// LastHeartbeatAtNotIn applies the NotIn predicate on the "last_heartbeat_at" field.
+func LastHeartbeatAtNotIn(vs ...time.Time) predicate.Attempt {
+	return predicate.Attempt(sql.FieldNotIn(FieldLastHeartbeatAt, vs...))
+}
+
+// LastHeartbeatAtGT applies the GT predicate on the "last_heartbeat_at" field.
+func LastHeartbeatAtGT(v time.Time) predicate.Attempt {
+	return predicate.Attempt(sql.FieldGT(FieldLastHeartbeatAt, v))
+}
+
+// LastHeartbeatAtGTE applies the GTE predicate on the "last_heartbeat_at" field.
+func LastHeartbeatAtGTE(v time.Time) predicate.Attempt {
+	return predicate.Attempt(sql.FieldGTE(FieldLastHeartbeatAt, v))
+}
+
+// LastHeartbeatAtLT applies the LT predicate on the "last_heartbeat_at" field.
+func LastHeartbeatAtLT(v time.Time) predicate.Attempt {
+	return predicate.Attempt(sql.FieldLT(FieldLastHeartbeatAt, v))
+}
+
+// LastHeartbeatAtLTE applies the LTE predicate on the "last_heartbeat_at" field.
+func LastHeartbeatAtLTE(v time.Time) predicate.Attempt {
+	return predicate.Attempt(sql.FieldLTE(FieldLastHeartbeatAt, v))
+}
+
+// LastHeartbeatAtIsNil applies the IsNil predicate on the "last_heartbeat_at" field.
+func LastHeartbeatAtIsNil() predicate.Attempt {
+	return predicate.Attempt(sql.FieldIsNull(FieldLastHeartbeatAt))
+}
+
+// LastHeartbeatAtNotNil applies the NotNil predicate on the "last_heartbeat_at" field.
+func LastHeartbeatAtNotNil() predicate.Attempt {
+	return predicate.Attempt(sql.FieldNotNull(FieldLastHeartbeatAt))
 }
 
 // RetryReasonEQ applies the EQ predicate on the "retry_reason" field.
@@ -856,6 +1156,151 @@ func EstimatedCostMilliLTE(v int64) predicate.Attempt {
 	return predicate.Attempt(sql.FieldLTE(FieldEstimatedCostMilli, v))
 }
 
+// ExitCodeEQ applies the EQ predicate on the "exit_code" field.
+func ExitCodeEQ(v int) predicate.Attempt {
+	return predicate.Attempt(sql.FieldEQ(FieldExitCode, v))
+}
+
+// ExitCodeNEQ applies the NEQ predicate on the "exit_code" field.
+func ExitCodeNEQ(v int) predicate.Attempt {
+	return predicate.Attempt(sql.FieldNEQ(FieldExitCode, v))
+}
+
+// ExitCodeIn applies the In predicate on the "exit_code" field.
+func ExitCodeIn(vs ...int) predicate.Attempt {
+	return predicate.Attempt(sql.FieldIn(FieldExitCode, vs...))
+}
+
+// ExitCodeNotIn applies the NotIn predicate on the "exit_code" field.
+func ExitCodeNotIn(vs ...int) predicate.Attempt {
+	return predicate.Attempt(sql.FieldNotIn(FieldExitCode, vs...))
+}
+
+// ExitCodeGT applies the GT predicate on the "exit_code" field.
+func ExitCodeGT(v int) predicate.Attempt {
+	return predicate.Attempt(sql.FieldGT(FieldExitCode, v))
+}
+
+// ExitCodeGTE applies the GTE predicate on the "exit_code" field.
+func ExitCodeGTE(v int) predicate.Attempt {
+	return predicate.Attempt(sql.FieldGTE(FieldExitCode, v))
+}
+
+// ExitCodeLT applies the LT predicate on the "exit_code" field.
+func ExitCodeLT(v int) predicate.Attempt {
+	return predicate.Attempt(sql.FieldLT(FieldExitCode, v))
+}
+
+// ExitCodeLTE applies the LTE predicate on the "exit_code" field.
+func ExitCodeLTE(v int) predicate.Attempt {
+	return predicate.Attempt(sql.FieldLTE(FieldExitCode, v))
+}
+
+// ExitCodeIsNil applies the IsNil predicate on the "exit_code" field.
+func ExitCodeIsNil() predicate.Attempt {
+	return predicate.Attempt(sql.FieldIsNull(FieldExitCode))
+}
+
+// ExitCodeNotNil applies the NotNil predicate on the "exit_code" field.
+func ExitCodeNotNil() predicate.Attempt {
+	return predicate.Attempt(sql.FieldNotNull(FieldExitCode))
+}
+
+// LogTailEQ applies the EQ predicate on the "log_tail" field.
+func LogTailEQ(v string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldEQ(FieldLogTail, v))
+}
+
+// LogTailNEQ applies the NEQ predicate on the "log_tail" field.
+func LogTailNEQ(v string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldNEQ(FieldLogTail, v))
+}
+
+// LogTailIn applies the In predicate on the "log_tail" field.
+func LogTailIn(vs ...string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldIn(FieldLogTail, vs...))
+}
+
+// LogTailNotIn applies the NotIn predicate on the "log_tail" field.
+func LogTailNotIn(vs ...string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldNotIn(FieldLogTail, vs...))
+}
+
+// LogTailGT applies the GT predicate on the "log_tail" field.
+func LogTailGT(v string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldGT(FieldLogTail, v))
+}
+
+// LogTailGTE applies the GTE predicate on the "log_tail" field.
+func LogTailGTE(v string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldGTE(FieldLogTail, v))
+}
+
+// LogTailLT applies the LT predicate on the "log_tail" field.
+func LogTailLT(v string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldLT(FieldLogTail, v))
+}
+
+// LogTailLTE applies the LTE predicate on the "log_tail" field.
+func LogTailLTE(v string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldLTE(FieldLogTail, v))
+}
+
+// LogTailContains applies the Contains predicate on the "log_tail" field.
+func LogTailContains(v string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldContains(FieldLogTail, v))
+}
+
+// LogTailHasPrefix applies the HasPrefix predicate on the "log_tail" field.
+func LogTailHasPrefix(v string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldHasPrefix(FieldLogTail, v))
+}
+
+// LogTailHasSuffix applies the HasSuffix predicate on the "log_tail" field.
+func LogTailHasSuffix(v string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldHasSuffix(FieldLogTail, v))
+}
+
+// LogTailIsNil applies the IsNil predicate on the "log_tail" field.
+func LogTailIsNil() predicate.Attempt {
+	return predicate.Attempt(sql.FieldIsNull(FieldLogTail))
+}
+
+// LogTailNotNil applies the NotNil predicate on the "log_tail" field.
+func LogTailNotNil() predicate.Attempt {
+	return predicate.Attempt(sql.FieldNotNull(FieldLogTail))
+}
+
+// LogTailEqualFold applies the EqualFold predicate on the "log_tail" field.
+func LogTailEqualFold(v string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldEqualFold(FieldLogTail, v))
+}
+
+// LogTailContainsFold applies the ContainsFold predicate on the "log_tail" field.
+func LogTailContainsFold(v string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldContainsFold(FieldLogTail, v))
+}
+
+// MetricsIsNil applies the IsNil predicate on the "metrics" field.
+func MetricsIsNil() predicate.Attempt {
+	return predicate.Attempt(sql.FieldIsNull(FieldMetrics))
+}
+
+// MetricsNotNil applies the NotNil predicate on the "metrics" field.
+func MetricsNotNil() predicate.Attempt {
+	return predicate.Attempt(sql.FieldNotNull(FieldMetrics))
+}
+
+// ProviderRequestIdsIsNil applies the IsNil predicate on the "provider_request_ids" field.
+func ProviderRequestIdsIsNil() predicate.Attempt {
+	return predicate.Attempt(sql.FieldIsNull(FieldProviderRequestIds))
+}
+
+// ProviderRequestIdsNotNil applies the NotNil predicate on the "provider_request_ids" field.
+func ProviderRequestIdsNotNil() predicate.Attempt {
+	return predicate.Attempt(sql.FieldNotNull(FieldProviderRequestIds))
+}
+
 // HasTenant applies the HasEdge predicate on the "tenant" edge.
 func HasTenant() predicate.Attempt {
 	return predicate.Attempt(func(s *sql.Selector) {
@@ -917,6 +1362,29 @@ func HasExperiment() predicate.Attempt {
 func HasExperimentWith(preds ...predicate.Experiment) predicate.Attempt {
 	return predicate.Attempt(func(s *sql.Selector) {
 		step := newExperimentStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasOwnedResource applies the HasEdge predicate on the "owned_resource" edge.
+func HasOwnedResource() predicate.Attempt {
+	return predicate.Attempt(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, OwnedResourceTable, OwnedResourceColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasOwnedResourceWith applies the HasEdge predicate on the "owned_resource" edge with a given conditions (other predicates).
+func HasOwnedResourceWith(preds ...predicate.ProviderResource) predicate.Attempt {
+	return predicate.Attempt(func(s *sql.Selector) {
+		step := newOwnedResourceStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

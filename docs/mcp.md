@@ -51,18 +51,22 @@ Use the environment-variable or secret interpolation syntax supported by the spe
 }
 ```
 
-`environment_id` and `resource_profile_id` may be omitted to select the approved project defaults. IDs must come from `get_project_options`.
+`environment_id` and `resource_profile_id` may be omitted to select the approved project defaults. IDs must come from `get_project_options`. The reserved `secret_names` field must be omitted in `v0.6.0`; project Secret storage and low-privilege injection are not yet implemented, so Gemcp rejects rather than silently ignoring it.
 
 The idempotency key is scoped to the Agent Token. Repeating the same key and request returns the original experiment. Reusing the key with different arguments fails and never creates another reservation.
 
 Gemcp reserves conservatively:
 
 ```text
-ceil(price_to_milli * gpu_count * (max_runtime_seconds + 600) / 3600)
+ceil(price_to_milli * gpu_count * (max_runtime_seconds + timeout_extension_seconds + termination_grace_seconds + 600 + 30) / 3600)
 ```
 
-The extra 600 seconds covers startup uncertainty. Money values are milli-CNY. Submission fails when the reservation exceeds either the per-experiment cap or remaining monthly capacity.
+The project extension and termination grace are included because the Runner may consume them. The extra 600 seconds covers provisioning uncertainty, and 30 seconds covers heartbeat/stop observation jitter. Money values are milli-CNY. Submission fails when the reservation exceeds either the per-experiment cap or remaining monthly capacity.
 
-## Current execution boundary
+## Execution boundary
 
-In `v0.4.0`, accepted experiments remain durably `queued`. No AutoDL resource is created. Provider execution, Runner callbacks, Watchdog enforcement, and charge reconciliation are enabled only after live phase-zero validation selects the Elastic or Pro backend.
+In `v0.6.0`, submission is always durable, but dispatch remains an explicit deployment choice. With `GEMCP_SCHEDULER_ENABLED=false` (the default), accepted experiments remain `queued` and no paid Provider resource is created. Existing Attempts are still reconciled and settled. Enabling the flag activates FIFO dispatch for the validated Private Cloud account.
+
+`cancel_experiment` immediately releases a queued reservation. For provisioning or active work, it durably records a stop request for the scheduler and independent Watchdog; repeated cancellation is idempotent. Agents cannot select arbitrary Provider resources, retrieve Runner credentials, or operate raw machines.
+
+Read [Execution and shutdown enforcement](execution.md) before enabling scheduling.

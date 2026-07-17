@@ -22,11 +22,15 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
+	"github.com/XR-Lee/Gemcp/ent/notification"
+	"github.com/XR-Lee/Gemcp/ent/notificationsetting"
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/provideraccount"
+	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/recordmixin"
 	"github.com/XR-Lee/Gemcp/ent/repository"
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
+	"github.com/XR-Lee/Gemcp/ent/serviceheartbeat"
 	"github.com/XR-Lee/Gemcp/ent/session"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
 	"github.com/XR-Lee/Gemcp/ent/user"
@@ -51,16 +55,24 @@ type Client struct {
 	Experiment *ExperimentClient
 	// IdempotencyRecord is the client for interacting with the IdempotencyRecord builders.
 	IdempotencyRecord *IdempotencyRecordClient
+	// Notification is the client for interacting with the Notification builders.
+	Notification *NotificationClient
+	// NotificationSetting is the client for interacting with the NotificationSetting builders.
+	NotificationSetting *NotificationSettingClient
 	// Project is the client for interacting with the Project builders.
 	Project *ProjectClient
 	// ProviderAccount is the client for interacting with the ProviderAccount builders.
 	ProviderAccount *ProviderAccountClient
+	// ProviderResource is the client for interacting with the ProviderResource builders.
+	ProviderResource *ProviderResourceClient
 	// RecordMixin is the client for interacting with the RecordMixin builders.
 	RecordMixin *RecordMixinClient
 	// Repository is the client for interacting with the Repository builders.
 	Repository *RepositoryClient
 	// ResourceProfile is the client for interacting with the ResourceProfile builders.
 	ResourceProfile *ResourceProfileClient
+	// ServiceHeartbeat is the client for interacting with the ServiceHeartbeat builders.
+	ServiceHeartbeat *ServiceHeartbeatClient
 	// Session is the client for interacting with the Session builders.
 	Session *SessionClient
 	// Tenant is the client for interacting with the Tenant builders.
@@ -85,11 +97,15 @@ func (c *Client) init() {
 	c.Environment = NewEnvironmentClient(c.config)
 	c.Experiment = NewExperimentClient(c.config)
 	c.IdempotencyRecord = NewIdempotencyRecordClient(c.config)
+	c.Notification = NewNotificationClient(c.config)
+	c.NotificationSetting = NewNotificationSettingClient(c.config)
 	c.Project = NewProjectClient(c.config)
 	c.ProviderAccount = NewProviderAccountClient(c.config)
+	c.ProviderResource = NewProviderResourceClient(c.config)
 	c.RecordMixin = NewRecordMixinClient(c.config)
 	c.Repository = NewRepositoryClient(c.config)
 	c.ResourceProfile = NewResourceProfileClient(c.config)
+	c.ServiceHeartbeat = NewServiceHeartbeatClient(c.config)
 	c.Session = NewSessionClient(c.config)
 	c.Tenant = NewTenantClient(c.config)
 	c.User = NewUserClient(c.config)
@@ -183,23 +199,27 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:               ctx,
-		config:            cfg,
-		AgentToken:        NewAgentTokenClient(cfg),
-		Attempt:           NewAttemptClient(cfg),
-		AuditEvent:        NewAuditEventClient(cfg),
-		BudgetEntry:       NewBudgetEntryClient(cfg),
-		Environment:       NewEnvironmentClient(cfg),
-		Experiment:        NewExperimentClient(cfg),
-		IdempotencyRecord: NewIdempotencyRecordClient(cfg),
-		Project:           NewProjectClient(cfg),
-		ProviderAccount:   NewProviderAccountClient(cfg),
-		RecordMixin:       NewRecordMixinClient(cfg),
-		Repository:        NewRepositoryClient(cfg),
-		ResourceProfile:   NewResourceProfileClient(cfg),
-		Session:           NewSessionClient(cfg),
-		Tenant:            NewTenantClient(cfg),
-		User:              NewUserClient(cfg),
+		ctx:                 ctx,
+		config:              cfg,
+		AgentToken:          NewAgentTokenClient(cfg),
+		Attempt:             NewAttemptClient(cfg),
+		AuditEvent:          NewAuditEventClient(cfg),
+		BudgetEntry:         NewBudgetEntryClient(cfg),
+		Environment:         NewEnvironmentClient(cfg),
+		Experiment:          NewExperimentClient(cfg),
+		IdempotencyRecord:   NewIdempotencyRecordClient(cfg),
+		Notification:        NewNotificationClient(cfg),
+		NotificationSetting: NewNotificationSettingClient(cfg),
+		Project:             NewProjectClient(cfg),
+		ProviderAccount:     NewProviderAccountClient(cfg),
+		ProviderResource:    NewProviderResourceClient(cfg),
+		RecordMixin:         NewRecordMixinClient(cfg),
+		Repository:          NewRepositoryClient(cfg),
+		ResourceProfile:     NewResourceProfileClient(cfg),
+		ServiceHeartbeat:    NewServiceHeartbeatClient(cfg),
+		Session:             NewSessionClient(cfg),
+		Tenant:              NewTenantClient(cfg),
+		User:                NewUserClient(cfg),
 	}, nil
 }
 
@@ -217,23 +237,27 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:               ctx,
-		config:            cfg,
-		AgentToken:        NewAgentTokenClient(cfg),
-		Attempt:           NewAttemptClient(cfg),
-		AuditEvent:        NewAuditEventClient(cfg),
-		BudgetEntry:       NewBudgetEntryClient(cfg),
-		Environment:       NewEnvironmentClient(cfg),
-		Experiment:        NewExperimentClient(cfg),
-		IdempotencyRecord: NewIdempotencyRecordClient(cfg),
-		Project:           NewProjectClient(cfg),
-		ProviderAccount:   NewProviderAccountClient(cfg),
-		RecordMixin:       NewRecordMixinClient(cfg),
-		Repository:        NewRepositoryClient(cfg),
-		ResourceProfile:   NewResourceProfileClient(cfg),
-		Session:           NewSessionClient(cfg),
-		Tenant:            NewTenantClient(cfg),
-		User:              NewUserClient(cfg),
+		ctx:                 ctx,
+		config:              cfg,
+		AgentToken:          NewAgentTokenClient(cfg),
+		Attempt:             NewAttemptClient(cfg),
+		AuditEvent:          NewAuditEventClient(cfg),
+		BudgetEntry:         NewBudgetEntryClient(cfg),
+		Environment:         NewEnvironmentClient(cfg),
+		Experiment:          NewExperimentClient(cfg),
+		IdempotencyRecord:   NewIdempotencyRecordClient(cfg),
+		Notification:        NewNotificationClient(cfg),
+		NotificationSetting: NewNotificationSettingClient(cfg),
+		Project:             NewProjectClient(cfg),
+		ProviderAccount:     NewProviderAccountClient(cfg),
+		ProviderResource:    NewProviderResourceClient(cfg),
+		RecordMixin:         NewRecordMixinClient(cfg),
+		Repository:          NewRepositoryClient(cfg),
+		ResourceProfile:     NewResourceProfileClient(cfg),
+		ServiceHeartbeat:    NewServiceHeartbeatClient(cfg),
+		Session:             NewSessionClient(cfg),
+		Tenant:              NewTenantClient(cfg),
+		User:                NewUserClient(cfg),
 	}, nil
 }
 
@@ -264,8 +288,9 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.AgentToken, c.Attempt, c.AuditEvent, c.BudgetEntry, c.Environment,
-		c.Experiment, c.IdempotencyRecord, c.Project, c.ProviderAccount, c.RecordMixin,
-		c.Repository, c.ResourceProfile, c.Session, c.Tenant, c.User,
+		c.Experiment, c.IdempotencyRecord, c.Notification, c.NotificationSetting,
+		c.Project, c.ProviderAccount, c.ProviderResource, c.RecordMixin, c.Repository,
+		c.ResourceProfile, c.ServiceHeartbeat, c.Session, c.Tenant, c.User,
 	} {
 		n.Use(hooks...)
 	}
@@ -276,8 +301,9 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.AgentToken, c.Attempt, c.AuditEvent, c.BudgetEntry, c.Environment,
-		c.Experiment, c.IdempotencyRecord, c.Project, c.ProviderAccount, c.RecordMixin,
-		c.Repository, c.ResourceProfile, c.Session, c.Tenant, c.User,
+		c.Experiment, c.IdempotencyRecord, c.Notification, c.NotificationSetting,
+		c.Project, c.ProviderAccount, c.ProviderResource, c.RecordMixin, c.Repository,
+		c.ResourceProfile, c.ServiceHeartbeat, c.Session, c.Tenant, c.User,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -300,16 +326,24 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Experiment.mutate(ctx, m)
 	case *IdempotencyRecordMutation:
 		return c.IdempotencyRecord.mutate(ctx, m)
+	case *NotificationMutation:
+		return c.Notification.mutate(ctx, m)
+	case *NotificationSettingMutation:
+		return c.NotificationSetting.mutate(ctx, m)
 	case *ProjectMutation:
 		return c.Project.mutate(ctx, m)
 	case *ProviderAccountMutation:
 		return c.ProviderAccount.mutate(ctx, m)
+	case *ProviderResourceMutation:
+		return c.ProviderResource.mutate(ctx, m)
 	case *RecordMixinMutation:
 		return c.RecordMixin.mutate(ctx, m)
 	case *RepositoryMutation:
 		return c.Repository.mutate(ctx, m)
 	case *ResourceProfileMutation:
 		return c.ResourceProfile.mutate(ctx, m)
+	case *ServiceHeartbeatMutation:
+		return c.ServiceHeartbeat.mutate(ctx, m)
 	case *SessionMutation:
 		return c.Session.mutate(ctx, m)
 	case *TenantMutation:
@@ -651,6 +685,22 @@ func (c *AttemptClient) QueryExperiment(_m *Attempt) *ExperimentQuery {
 			sqlgraph.From(attempt.Table, attempt.FieldID, id),
 			sqlgraph.To(experiment.Table, experiment.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, true, attempt.ExperimentTable, attempt.ExperimentColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryOwnedResource queries the owned_resource edge of a Attempt.
+func (c *AttemptClient) QueryOwnedResource(_m *Attempt) *ProviderResourceQuery {
+	query := (&ProviderResourceClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(attempt.Table, attempt.FieldID, id),
+			sqlgraph.To(providerresource.Table, providerresource.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, attempt.OwnedResourceTable, attempt.OwnedResourceColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -1398,6 +1448,22 @@ func (c *ExperimentClient) QueryAttempts(_m *Experiment) *AttemptQuery {
 	return query
 }
 
+// QueryProviderResources queries the provider_resources edge of a Experiment.
+func (c *ExperimentClient) QueryProviderResources(_m *Experiment) *ProviderResourceQuery {
+	query := (&ProviderResourceClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(experiment.Table, experiment.FieldID, id),
+			sqlgraph.To(providerresource.Table, providerresource.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, experiment.ProviderResourcesTable, experiment.ProviderResourcesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryBudgetEntries queries the budget_entries edge of a Experiment.
 func (c *ExperimentClient) QueryBudgetEntries(_m *Experiment) *BudgetEntryQuery {
 	query := (&BudgetEntryClient{config: c.config}).Query()
@@ -1636,6 +1702,304 @@ func (c *IdempotencyRecordClient) mutate(ctx context.Context, m *IdempotencyReco
 	}
 }
 
+// NotificationClient is a client for the Notification schema.
+type NotificationClient struct {
+	config
+}
+
+// NewNotificationClient returns a client for the Notification from the given config.
+func NewNotificationClient(c config) *NotificationClient {
+	return &NotificationClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `notification.Hooks(f(g(h())))`.
+func (c *NotificationClient) Use(hooks ...Hook) {
+	c.hooks.Notification = append(c.hooks.Notification, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `notification.Intercept(f(g(h())))`.
+func (c *NotificationClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Notification = append(c.inters.Notification, interceptors...)
+}
+
+// Create returns a builder for creating a Notification entity.
+func (c *NotificationClient) Create() *NotificationCreate {
+	mutation := newNotificationMutation(c.config, OpCreate)
+	return &NotificationCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Notification entities.
+func (c *NotificationClient) CreateBulk(builders ...*NotificationCreate) *NotificationCreateBulk {
+	return &NotificationCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *NotificationClient) MapCreateBulk(slice any, setFunc func(*NotificationCreate, int)) *NotificationCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &NotificationCreateBulk{err: fmt.Errorf("calling to NotificationClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*NotificationCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &NotificationCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Notification.
+func (c *NotificationClient) Update() *NotificationUpdate {
+	mutation := newNotificationMutation(c.config, OpUpdate)
+	return &NotificationUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *NotificationClient) UpdateOne(_m *Notification) *NotificationUpdateOne {
+	mutation := newNotificationMutation(c.config, OpUpdateOne, withNotification(_m))
+	return &NotificationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *NotificationClient) UpdateOneID(id int) *NotificationUpdateOne {
+	mutation := newNotificationMutation(c.config, OpUpdateOne, withNotificationID(id))
+	return &NotificationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Notification.
+func (c *NotificationClient) Delete() *NotificationDelete {
+	mutation := newNotificationMutation(c.config, OpDelete)
+	return &NotificationDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *NotificationClient) DeleteOne(_m *Notification) *NotificationDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *NotificationClient) DeleteOneID(id int) *NotificationDeleteOne {
+	builder := c.Delete().Where(notification.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &NotificationDeleteOne{builder}
+}
+
+// Query returns a query builder for Notification.
+func (c *NotificationClient) Query() *NotificationQuery {
+	return &NotificationQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeNotification},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Notification entity by its id.
+func (c *NotificationClient) Get(ctx context.Context, id int) (*Notification, error) {
+	return c.Query().Where(notification.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *NotificationClient) GetX(ctx context.Context, id int) *Notification {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTenant queries the tenant edge of a Notification.
+func (c *NotificationClient) QueryTenant(_m *Notification) *TenantQuery {
+	query := (&TenantClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(notification.Table, notification.FieldID, id),
+			sqlgraph.To(tenant.Table, tenant.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, notification.TenantTable, notification.TenantColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *NotificationClient) Hooks() []Hook {
+	return c.hooks.Notification
+}
+
+// Interceptors returns the client interceptors.
+func (c *NotificationClient) Interceptors() []Interceptor {
+	return c.inters.Notification
+}
+
+func (c *NotificationClient) mutate(ctx context.Context, m *NotificationMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&NotificationCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&NotificationUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&NotificationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&NotificationDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Notification mutation op: %q", m.Op())
+	}
+}
+
+// NotificationSettingClient is a client for the NotificationSetting schema.
+type NotificationSettingClient struct {
+	config
+}
+
+// NewNotificationSettingClient returns a client for the NotificationSetting from the given config.
+func NewNotificationSettingClient(c config) *NotificationSettingClient {
+	return &NotificationSettingClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `notificationsetting.Hooks(f(g(h())))`.
+func (c *NotificationSettingClient) Use(hooks ...Hook) {
+	c.hooks.NotificationSetting = append(c.hooks.NotificationSetting, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `notificationsetting.Intercept(f(g(h())))`.
+func (c *NotificationSettingClient) Intercept(interceptors ...Interceptor) {
+	c.inters.NotificationSetting = append(c.inters.NotificationSetting, interceptors...)
+}
+
+// Create returns a builder for creating a NotificationSetting entity.
+func (c *NotificationSettingClient) Create() *NotificationSettingCreate {
+	mutation := newNotificationSettingMutation(c.config, OpCreate)
+	return &NotificationSettingCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of NotificationSetting entities.
+func (c *NotificationSettingClient) CreateBulk(builders ...*NotificationSettingCreate) *NotificationSettingCreateBulk {
+	return &NotificationSettingCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *NotificationSettingClient) MapCreateBulk(slice any, setFunc func(*NotificationSettingCreate, int)) *NotificationSettingCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &NotificationSettingCreateBulk{err: fmt.Errorf("calling to NotificationSettingClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*NotificationSettingCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &NotificationSettingCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for NotificationSetting.
+func (c *NotificationSettingClient) Update() *NotificationSettingUpdate {
+	mutation := newNotificationSettingMutation(c.config, OpUpdate)
+	return &NotificationSettingUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *NotificationSettingClient) UpdateOne(_m *NotificationSetting) *NotificationSettingUpdateOne {
+	mutation := newNotificationSettingMutation(c.config, OpUpdateOne, withNotificationSetting(_m))
+	return &NotificationSettingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *NotificationSettingClient) UpdateOneID(id int) *NotificationSettingUpdateOne {
+	mutation := newNotificationSettingMutation(c.config, OpUpdateOne, withNotificationSettingID(id))
+	return &NotificationSettingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for NotificationSetting.
+func (c *NotificationSettingClient) Delete() *NotificationSettingDelete {
+	mutation := newNotificationSettingMutation(c.config, OpDelete)
+	return &NotificationSettingDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *NotificationSettingClient) DeleteOne(_m *NotificationSetting) *NotificationSettingDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *NotificationSettingClient) DeleteOneID(id int) *NotificationSettingDeleteOne {
+	builder := c.Delete().Where(notificationsetting.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &NotificationSettingDeleteOne{builder}
+}
+
+// Query returns a query builder for NotificationSetting.
+func (c *NotificationSettingClient) Query() *NotificationSettingQuery {
+	return &NotificationSettingQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeNotificationSetting},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a NotificationSetting entity by its id.
+func (c *NotificationSettingClient) Get(ctx context.Context, id int) (*NotificationSetting, error) {
+	return c.Query().Where(notificationsetting.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *NotificationSettingClient) GetX(ctx context.Context, id int) *NotificationSetting {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTenant queries the tenant edge of a NotificationSetting.
+func (c *NotificationSettingClient) QueryTenant(_m *NotificationSetting) *TenantQuery {
+	query := (&TenantClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(notificationsetting.Table, notificationsetting.FieldID, id),
+			sqlgraph.To(tenant.Table, tenant.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, notificationsetting.TenantTable, notificationsetting.TenantColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *NotificationSettingClient) Hooks() []Hook {
+	return c.hooks.NotificationSetting
+}
+
+// Interceptors returns the client interceptors.
+func (c *NotificationSettingClient) Interceptors() []Interceptor {
+	return c.inters.NotificationSetting
+}
+
+func (c *NotificationSettingClient) mutate(ctx context.Context, m *NotificationSettingMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&NotificationSettingCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&NotificationSettingUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&NotificationSettingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&NotificationSettingDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown NotificationSetting mutation op: %q", m.Op())
+	}
+}
+
 // ProjectClient is a client for the Project schema.
 type ProjectClient struct {
 	config
@@ -1856,6 +2220,22 @@ func (c *ProjectClient) QueryAttempts(_m *Project) *AttemptQuery {
 	return query
 }
 
+// QueryProviderResources queries the provider_resources edge of a Project.
+func (c *ProjectClient) QueryProviderResources(_m *Project) *ProviderResourceQuery {
+	query := (&ProviderResourceClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, id),
+			sqlgraph.To(providerresource.Table, providerresource.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.ProviderResourcesTable, project.ProviderResourcesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryBudgetEntries queries the budget_entries edge of a Project.
 func (c *ProjectClient) QueryBudgetEntries(_m *Project) *BudgetEntryQuery {
 	query := (&BudgetEntryClient{config: c.config}).Query()
@@ -2021,6 +2401,22 @@ func (c *ProviderAccountClient) QueryTenant(_m *ProviderAccount) *TenantQuery {
 	return query
 }
 
+// QueryProviderResources queries the provider_resources edge of a ProviderAccount.
+func (c *ProviderAccountClient) QueryProviderResources(_m *ProviderAccount) *ProviderResourceQuery {
+	query := (&ProviderResourceClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(provideraccount.Table, provideraccount.FieldID, id),
+			sqlgraph.To(providerresource.Table, providerresource.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, provideraccount.ProviderResourcesTable, provideraccount.ProviderResourcesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *ProviderAccountClient) Hooks() []Hook {
 	return c.hooks.ProviderAccount
@@ -2043,6 +2439,219 @@ func (c *ProviderAccountClient) mutate(ctx context.Context, m *ProviderAccountMu
 		return (&ProviderAccountDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown ProviderAccount mutation op: %q", m.Op())
+	}
+}
+
+// ProviderResourceClient is a client for the ProviderResource schema.
+type ProviderResourceClient struct {
+	config
+}
+
+// NewProviderResourceClient returns a client for the ProviderResource from the given config.
+func NewProviderResourceClient(c config) *ProviderResourceClient {
+	return &ProviderResourceClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `providerresource.Hooks(f(g(h())))`.
+func (c *ProviderResourceClient) Use(hooks ...Hook) {
+	c.hooks.ProviderResource = append(c.hooks.ProviderResource, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `providerresource.Intercept(f(g(h())))`.
+func (c *ProviderResourceClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ProviderResource = append(c.inters.ProviderResource, interceptors...)
+}
+
+// Create returns a builder for creating a ProviderResource entity.
+func (c *ProviderResourceClient) Create() *ProviderResourceCreate {
+	mutation := newProviderResourceMutation(c.config, OpCreate)
+	return &ProviderResourceCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ProviderResource entities.
+func (c *ProviderResourceClient) CreateBulk(builders ...*ProviderResourceCreate) *ProviderResourceCreateBulk {
+	return &ProviderResourceCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ProviderResourceClient) MapCreateBulk(slice any, setFunc func(*ProviderResourceCreate, int)) *ProviderResourceCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ProviderResourceCreateBulk{err: fmt.Errorf("calling to ProviderResourceClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ProviderResourceCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ProviderResourceCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ProviderResource.
+func (c *ProviderResourceClient) Update() *ProviderResourceUpdate {
+	mutation := newProviderResourceMutation(c.config, OpUpdate)
+	return &ProviderResourceUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ProviderResourceClient) UpdateOne(_m *ProviderResource) *ProviderResourceUpdateOne {
+	mutation := newProviderResourceMutation(c.config, OpUpdateOne, withProviderResource(_m))
+	return &ProviderResourceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ProviderResourceClient) UpdateOneID(id int) *ProviderResourceUpdateOne {
+	mutation := newProviderResourceMutation(c.config, OpUpdateOne, withProviderResourceID(id))
+	return &ProviderResourceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ProviderResource.
+func (c *ProviderResourceClient) Delete() *ProviderResourceDelete {
+	mutation := newProviderResourceMutation(c.config, OpDelete)
+	return &ProviderResourceDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ProviderResourceClient) DeleteOne(_m *ProviderResource) *ProviderResourceDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ProviderResourceClient) DeleteOneID(id int) *ProviderResourceDeleteOne {
+	builder := c.Delete().Where(providerresource.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ProviderResourceDeleteOne{builder}
+}
+
+// Query returns a query builder for ProviderResource.
+func (c *ProviderResourceClient) Query() *ProviderResourceQuery {
+	return &ProviderResourceQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeProviderResource},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ProviderResource entity by its id.
+func (c *ProviderResourceClient) Get(ctx context.Context, id int) (*ProviderResource, error) {
+	return c.Query().Where(providerresource.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ProviderResourceClient) GetX(ctx context.Context, id int) *ProviderResource {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTenant queries the tenant edge of a ProviderResource.
+func (c *ProviderResourceClient) QueryTenant(_m *ProviderResource) *TenantQuery {
+	query := (&TenantClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(providerresource.Table, providerresource.FieldID, id),
+			sqlgraph.To(tenant.Table, tenant.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, providerresource.TenantTable, providerresource.TenantColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryProject queries the project edge of a ProviderResource.
+func (c *ProviderResourceClient) QueryProject(_m *ProviderResource) *ProjectQuery {
+	query := (&ProjectClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(providerresource.Table, providerresource.FieldID, id),
+			sqlgraph.To(project.Table, project.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, providerresource.ProjectTable, providerresource.ProjectColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryExperiment queries the experiment edge of a ProviderResource.
+func (c *ProviderResourceClient) QueryExperiment(_m *ProviderResource) *ExperimentQuery {
+	query := (&ExperimentClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(providerresource.Table, providerresource.FieldID, id),
+			sqlgraph.To(experiment.Table, experiment.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, providerresource.ExperimentTable, providerresource.ExperimentColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryAttempt queries the attempt edge of a ProviderResource.
+func (c *ProviderResourceClient) QueryAttempt(_m *ProviderResource) *AttemptQuery {
+	query := (&AttemptClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(providerresource.Table, providerresource.FieldID, id),
+			sqlgraph.To(attempt.Table, attempt.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, true, providerresource.AttemptTable, providerresource.AttemptColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryProviderAccount queries the provider_account edge of a ProviderResource.
+func (c *ProviderResourceClient) QueryProviderAccount(_m *ProviderResource) *ProviderAccountQuery {
+	query := (&ProviderAccountClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(providerresource.Table, providerresource.FieldID, id),
+			sqlgraph.To(provideraccount.Table, provideraccount.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, providerresource.ProviderAccountTable, providerresource.ProviderAccountColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *ProviderResourceClient) Hooks() []Hook {
+	return c.hooks.ProviderResource
+}
+
+// Interceptors returns the client interceptors.
+func (c *ProviderResourceClient) Interceptors() []Interceptor {
+	return c.inters.ProviderResource
+}
+
+func (c *ProviderResourceClient) mutate(ctx context.Context, m *ProviderResourceMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ProviderResourceCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ProviderResourceUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ProviderResourceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ProviderResourceDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ProviderResource mutation op: %q", m.Op())
 	}
 }
 
@@ -2509,6 +3118,139 @@ func (c *ResourceProfileClient) mutate(ctx context.Context, m *ResourceProfileMu
 	}
 }
 
+// ServiceHeartbeatClient is a client for the ServiceHeartbeat schema.
+type ServiceHeartbeatClient struct {
+	config
+}
+
+// NewServiceHeartbeatClient returns a client for the ServiceHeartbeat from the given config.
+func NewServiceHeartbeatClient(c config) *ServiceHeartbeatClient {
+	return &ServiceHeartbeatClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `serviceheartbeat.Hooks(f(g(h())))`.
+func (c *ServiceHeartbeatClient) Use(hooks ...Hook) {
+	c.hooks.ServiceHeartbeat = append(c.hooks.ServiceHeartbeat, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `serviceheartbeat.Intercept(f(g(h())))`.
+func (c *ServiceHeartbeatClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ServiceHeartbeat = append(c.inters.ServiceHeartbeat, interceptors...)
+}
+
+// Create returns a builder for creating a ServiceHeartbeat entity.
+func (c *ServiceHeartbeatClient) Create() *ServiceHeartbeatCreate {
+	mutation := newServiceHeartbeatMutation(c.config, OpCreate)
+	return &ServiceHeartbeatCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ServiceHeartbeat entities.
+func (c *ServiceHeartbeatClient) CreateBulk(builders ...*ServiceHeartbeatCreate) *ServiceHeartbeatCreateBulk {
+	return &ServiceHeartbeatCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ServiceHeartbeatClient) MapCreateBulk(slice any, setFunc func(*ServiceHeartbeatCreate, int)) *ServiceHeartbeatCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ServiceHeartbeatCreateBulk{err: fmt.Errorf("calling to ServiceHeartbeatClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ServiceHeartbeatCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ServiceHeartbeatCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ServiceHeartbeat.
+func (c *ServiceHeartbeatClient) Update() *ServiceHeartbeatUpdate {
+	mutation := newServiceHeartbeatMutation(c.config, OpUpdate)
+	return &ServiceHeartbeatUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ServiceHeartbeatClient) UpdateOne(_m *ServiceHeartbeat) *ServiceHeartbeatUpdateOne {
+	mutation := newServiceHeartbeatMutation(c.config, OpUpdateOne, withServiceHeartbeat(_m))
+	return &ServiceHeartbeatUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ServiceHeartbeatClient) UpdateOneID(id int) *ServiceHeartbeatUpdateOne {
+	mutation := newServiceHeartbeatMutation(c.config, OpUpdateOne, withServiceHeartbeatID(id))
+	return &ServiceHeartbeatUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ServiceHeartbeat.
+func (c *ServiceHeartbeatClient) Delete() *ServiceHeartbeatDelete {
+	mutation := newServiceHeartbeatMutation(c.config, OpDelete)
+	return &ServiceHeartbeatDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ServiceHeartbeatClient) DeleteOne(_m *ServiceHeartbeat) *ServiceHeartbeatDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ServiceHeartbeatClient) DeleteOneID(id int) *ServiceHeartbeatDeleteOne {
+	builder := c.Delete().Where(serviceheartbeat.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ServiceHeartbeatDeleteOne{builder}
+}
+
+// Query returns a query builder for ServiceHeartbeat.
+func (c *ServiceHeartbeatClient) Query() *ServiceHeartbeatQuery {
+	return &ServiceHeartbeatQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeServiceHeartbeat},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ServiceHeartbeat entity by its id.
+func (c *ServiceHeartbeatClient) Get(ctx context.Context, id int) (*ServiceHeartbeat, error) {
+	return c.Query().Where(serviceheartbeat.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ServiceHeartbeatClient) GetX(ctx context.Context, id int) *ServiceHeartbeat {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ServiceHeartbeatClient) Hooks() []Hook {
+	return c.hooks.ServiceHeartbeat
+}
+
+// Interceptors returns the client interceptors.
+func (c *ServiceHeartbeatClient) Interceptors() []Interceptor {
+	return c.inters.ServiceHeartbeat
+}
+
+func (c *ServiceHeartbeatClient) mutate(ctx context.Context, m *ServiceHeartbeatMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ServiceHeartbeatCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ServiceHeartbeatUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ServiceHeartbeatUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ServiceHeartbeatDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ServiceHeartbeat mutation op: %q", m.Op())
+	}
+}
+
 // SessionClient is a client for the Session schema.
 type SessionClient struct {
 	config
@@ -2846,6 +3588,22 @@ func (c *TenantClient) QueryAttempts(_m *Tenant) *AttemptQuery {
 	return query
 }
 
+// QueryProviderResources queries the provider_resources edge of a Tenant.
+func (c *TenantClient) QueryProviderResources(_m *Tenant) *ProviderResourceQuery {
+	query := (&ProviderResourceClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, id),
+			sqlgraph.To(providerresource.Table, providerresource.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.ProviderResourcesTable, tenant.ProviderResourcesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryBudgetEntries queries the budget_entries edge of a Tenant.
 func (c *TenantClient) QueryBudgetEntries(_m *Tenant) *BudgetEntryQuery {
 	query := (&BudgetEntryClient{config: c.config}).Query()
@@ -2887,6 +3645,38 @@ func (c *TenantClient) QueryAuditEvents(_m *Tenant) *AuditEventQuery {
 			sqlgraph.From(tenant.Table, tenant.FieldID, id),
 			sqlgraph.To(auditevent.Table, auditevent.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, tenant.AuditEventsTable, tenant.AuditEventsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryNotificationSettings queries the notification_settings edge of a Tenant.
+func (c *TenantClient) QueryNotificationSettings(_m *Tenant) *NotificationSettingQuery {
+	query := (&NotificationSettingClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, id),
+			sqlgraph.To(notificationsetting.Table, notificationsetting.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.NotificationSettingsTable, tenant.NotificationSettingsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryNotifications queries the notifications edge of a Tenant.
+func (c *TenantClient) QueryNotifications(_m *Tenant) *NotificationQuery {
+	query := (&NotificationClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, id),
+			sqlgraph.To(notification.Table, notification.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.NotificationsTable, tenant.NotificationsColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -3088,12 +3878,14 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 type (
 	hooks struct {
 		AgentToken, Attempt, AuditEvent, BudgetEntry, Environment, Experiment,
-		IdempotencyRecord, Project, ProviderAccount, RecordMixin, Repository,
-		ResourceProfile, Session, Tenant, User []ent.Hook
+		IdempotencyRecord, Notification, NotificationSetting, Project, ProviderAccount,
+		ProviderResource, RecordMixin, Repository, ResourceProfile, ServiceHeartbeat,
+		Session, Tenant, User []ent.Hook
 	}
 	inters struct {
 		AgentToken, Attempt, AuditEvent, BudgetEntry, Environment, Experiment,
-		IdempotencyRecord, Project, ProviderAccount, RecordMixin, Repository,
-		ResourceProfile, Session, Tenant, User []ent.Interceptor
+		IdempotencyRecord, Notification, NotificationSetting, Project, ProviderAccount,
+		ProviderResource, RecordMixin, Repository, ResourceProfile, ServiceHeartbeat,
+		Session, Tenant, User []ent.Interceptor
 	}
 )

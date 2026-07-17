@@ -446,6 +446,29 @@ func HasAttemptsWith(preds ...predicate.Attempt) predicate.Tenant {
 	})
 }
 
+// HasProviderResources applies the HasEdge predicate on the "provider_resources" edge.
+func HasProviderResources() predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ProviderResourcesTable, ProviderResourcesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasProviderResourcesWith applies the HasEdge predicate on the "provider_resources" edge with a given conditions (other predicates).
+func HasProviderResourcesWith(preds ...predicate.ProviderResource) predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := newProviderResourcesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasBudgetEntries applies the HasEdge predicate on the "budget_entries" edge.
 func HasBudgetEntries() predicate.Tenant {
 	return predicate.Tenant(func(s *sql.Selector) {
@@ -507,6 +530,52 @@ func HasAuditEvents() predicate.Tenant {
 func HasAuditEventsWith(preds ...predicate.AuditEvent) predicate.Tenant {
 	return predicate.Tenant(func(s *sql.Selector) {
 		step := newAuditEventsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasNotificationSettings applies the HasEdge predicate on the "notification_settings" edge.
+func HasNotificationSettings() predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, NotificationSettingsTable, NotificationSettingsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasNotificationSettingsWith applies the HasEdge predicate on the "notification_settings" edge with a given conditions (other predicates).
+func HasNotificationSettingsWith(preds ...predicate.NotificationSetting) predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := newNotificationSettingsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasNotifications applies the HasEdge predicate on the "notifications" edge.
+func HasNotifications() predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, NotificationsTable, NotificationsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasNotificationsWith applies the HasEdge predicate on the "notifications" edge with a given conditions (other predicates).
+func HasNotificationsWith(preds ...predicate.Notification) predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := newNotificationsStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

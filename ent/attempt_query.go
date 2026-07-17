@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"database/sql/driver"
 	"fmt"
 	"math"
 
@@ -15,19 +16,21 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 	"github.com/XR-Lee/Gemcp/ent/project"
+	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
 )
 
 // AttemptQuery is the builder for querying Attempt entities.
 type AttemptQuery struct {
 	config
-	ctx            *QueryContext
-	order          []attempt.OrderOption
-	inters         []Interceptor
-	predicates     []predicate.Attempt
-	withTenant     *TenantQuery
-	withProject    *ProjectQuery
-	withExperiment *ExperimentQuery
+	ctx               *QueryContext
+	order             []attempt.OrderOption
+	inters            []Interceptor
+	predicates        []predicate.Attempt
+	withTenant        *TenantQuery
+	withProject       *ProjectQuery
+	withExperiment    *ExperimentQuery
+	withOwnedResource *ProviderResourceQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -123,6 +126,28 @@ func (_q *AttemptQuery) QueryExperiment() *ExperimentQuery {
 			sqlgraph.From(attempt.Table, attempt.FieldID, selector),
 			sqlgraph.To(experiment.Table, experiment.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, true, attempt.ExperimentTable, attempt.ExperimentColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryOwnedResource chains the current query on the "owned_resource" edge.
+func (_q *AttemptQuery) QueryOwnedResource() *ProviderResourceQuery {
+	query := (&ProviderResourceClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(attempt.Table, attempt.FieldID, selector),
+			sqlgraph.To(providerresource.Table, providerresource.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, attempt.OwnedResourceTable, attempt.OwnedResourceColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -317,14 +342,15 @@ func (_q *AttemptQuery) Clone() *AttemptQuery {
 		return nil
 	}
 	return &AttemptQuery{
-		config:         _q.config,
-		ctx:            _q.ctx.Clone(),
-		order:          append([]attempt.OrderOption{}, _q.order...),
-		inters:         append([]Interceptor{}, _q.inters...),
-		predicates:     append([]predicate.Attempt{}, _q.predicates...),
-		withTenant:     _q.withTenant.Clone(),
-		withProject:    _q.withProject.Clone(),
-		withExperiment: _q.withExperiment.Clone(),
+		config:            _q.config,
+		ctx:               _q.ctx.Clone(),
+		order:             append([]attempt.OrderOption{}, _q.order...),
+		inters:            append([]Interceptor{}, _q.inters...),
+		predicates:        append([]predicate.Attempt{}, _q.predicates...),
+		withTenant:        _q.withTenant.Clone(),
+		withProject:       _q.withProject.Clone(),
+		withExperiment:    _q.withExperiment.Clone(),
+		withOwnedResource: _q.withOwnedResource.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -361,6 +387,17 @@ func (_q *AttemptQuery) WithExperiment(opts ...func(*ExperimentQuery)) *AttemptQ
 		opt(query)
 	}
 	_q.withExperiment = query
+	return _q
+}
+
+// WithOwnedResource tells the query-builder to eager-load the nodes that are connected to
+// the "owned_resource" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *AttemptQuery) WithOwnedResource(opts ...func(*ProviderResourceQuery)) *AttemptQuery {
+	query := (&ProviderResourceClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withOwnedResource = query
 	return _q
 }
 
@@ -442,10 +479,11 @@ func (_q *AttemptQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Atte
 	var (
 		nodes       = []*Attempt{}
 		_spec       = _q.querySpec()
-		loadedTypes = [3]bool{
+		loadedTypes = [4]bool{
 			_q.withTenant != nil,
 			_q.withProject != nil,
 			_q.withExperiment != nil,
+			_q.withOwnedResource != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -481,6 +519,12 @@ func (_q *AttemptQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Atte
 	if query := _q.withExperiment; query != nil {
 		if err := _q.loadExperiment(ctx, query, nodes, nil,
 			func(n *Attempt, e *Experiment) { n.Edges.Experiment = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withOwnedResource; query != nil {
+		if err := _q.loadOwnedResource(ctx, query, nodes, nil,
+			func(n *Attempt, e *ProviderResource) { n.Edges.OwnedResource = e }); err != nil {
 			return nil, err
 		}
 	}
@@ -571,6 +615,33 @@ func (_q *AttemptQuery) loadExperiment(ctx context.Context, query *ExperimentQue
 		for i := range nodes {
 			assign(nodes[i], n)
 		}
+	}
+	return nil
+}
+func (_q *AttemptQuery) loadOwnedResource(ctx context.Context, query *ProviderResourceQuery, nodes []*Attempt, init func(*Attempt), assign func(*Attempt, *ProviderResource)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Attempt)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(providerresource.FieldAttemptID)
+	}
+	query.Where(predicate.ProviderResource(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(attempt.OwnedResourceColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.AttemptID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "attempt_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
 	}
 	return nil
 }

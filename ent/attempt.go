@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/project"
+	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
 	"github.com/google/uuid"
 )
@@ -39,6 +41,16 @@ type Attempt struct {
 	State string `json:"state,omitempty"`
 	// ProviderResourceID holds the value of the "provider_resource_id" field.
 	ProviderResourceID *string `json:"provider_resource_id,omitempty"`
+	// RunnerTokenHash holds the value of the "runner_token_hash" field.
+	RunnerTokenHash []byte `json:"-"`
+	// RunnerTokenCiphertext holds the value of the "runner_token_ciphertext" field.
+	RunnerTokenCiphertext string `json:"-"`
+	// RunnerTokenExpiresAt holds the value of the "runner_token_expires_at" field.
+	RunnerTokenExpiresAt *time.Time `json:"runner_token_expires_at,omitempty"`
+	// SourceDownloads holds the value of the "source_downloads" field.
+	SourceDownloads int `json:"source_downloads,omitempty"`
+	// LastHeartbeatAt holds the value of the "last_heartbeat_at" field.
+	LastHeartbeatAt *time.Time `json:"last_heartbeat_at,omitempty"`
 	// RetryReason holds the value of the "retry_reason" field.
 	RetryReason *string `json:"retry_reason,omitempty"`
 	// FailureCode holds the value of the "failure_code" field.
@@ -51,6 +63,14 @@ type Attempt struct {
 	FinishedAt *time.Time `json:"finished_at,omitempty"`
 	// EstimatedCostMilli holds the value of the "estimated_cost_milli" field.
 	EstimatedCostMilli int64 `json:"estimated_cost_milli,omitempty"`
+	// ExitCode holds the value of the "exit_code" field.
+	ExitCode *int `json:"exit_code,omitempty"`
+	// LogTail holds the value of the "log_tail" field.
+	LogTail *string `json:"log_tail,omitempty"`
+	// Metrics holds the value of the "metrics" field.
+	Metrics map[string]interface{} `json:"metrics,omitempty"`
+	// ProviderRequestIds holds the value of the "provider_request_ids" field.
+	ProviderRequestIds map[string]string `json:"provider_request_ids,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the AttemptQuery when eager-loading is set.
 	Edges        AttemptEdges `json:"edges"`
@@ -65,9 +85,11 @@ type AttemptEdges struct {
 	Project *Project `json:"project,omitempty"`
 	// Experiment holds the value of the experiment edge.
 	Experiment *Experiment `json:"experiment,omitempty"`
+	// OwnedResource holds the value of the owned_resource edge.
+	OwnedResource *ProviderResource `json:"owned_resource,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [3]bool
+	loadedTypes [4]bool
 }
 
 // TenantOrErr returns the Tenant value or an error if the edge
@@ -103,16 +125,29 @@ func (e AttemptEdges) ExperimentOrErr() (*Experiment, error) {
 	return nil, &NotLoadedError{edge: "experiment"}
 }
 
+// OwnedResourceOrErr returns the OwnedResource value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e AttemptEdges) OwnedResourceOrErr() (*ProviderResource, error) {
+	if e.OwnedResource != nil {
+		return e.OwnedResource, nil
+	} else if e.loadedTypes[3] {
+		return nil, &NotFoundError{label: providerresource.Label}
+	}
+	return nil, &NotLoadedError{edge: "owned_resource"}
+}
+
 // scanValues returns the types for scanning values from sql.Rows.
 func (*Attempt) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case attempt.FieldID, attempt.FieldTenantID, attempt.FieldProjectID, attempt.FieldExperimentID, attempt.FieldNumber, attempt.FieldEstimatedCostMilli:
+		case attempt.FieldRunnerTokenHash, attempt.FieldMetrics, attempt.FieldProviderRequestIds:
+			values[i] = new([]byte)
+		case attempt.FieldID, attempt.FieldTenantID, attempt.FieldProjectID, attempt.FieldExperimentID, attempt.FieldNumber, attempt.FieldSourceDownloads, attempt.FieldEstimatedCostMilli, attempt.FieldExitCode:
 			values[i] = new(sql.NullInt64)
-		case attempt.FieldState, attempt.FieldProviderResourceID, attempt.FieldRetryReason, attempt.FieldFailureCode, attempt.FieldFailureReason:
+		case attempt.FieldState, attempt.FieldProviderResourceID, attempt.FieldRunnerTokenCiphertext, attempt.FieldRetryReason, attempt.FieldFailureCode, attempt.FieldFailureReason, attempt.FieldLogTail:
 			values[i] = new(sql.NullString)
-		case attempt.FieldCreatedAt, attempt.FieldUpdatedAt, attempt.FieldStartedAt, attempt.FieldFinishedAt:
+		case attempt.FieldCreatedAt, attempt.FieldUpdatedAt, attempt.FieldRunnerTokenExpiresAt, attempt.FieldLastHeartbeatAt, attempt.FieldStartedAt, attempt.FieldFinishedAt:
 			values[i] = new(sql.NullTime)
 		case attempt.FieldPublicID:
 			values[i] = new(uuid.UUID)
@@ -192,6 +227,38 @@ func (_m *Attempt) assignValues(columns []string, values []any) error {
 				_m.ProviderResourceID = new(string)
 				*_m.ProviderResourceID = value.String
 			}
+		case attempt.FieldRunnerTokenHash:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field runner_token_hash", values[i])
+			} else if value != nil {
+				_m.RunnerTokenHash = *value
+			}
+		case attempt.FieldRunnerTokenCiphertext:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field runner_token_ciphertext", values[i])
+			} else if value.Valid {
+				_m.RunnerTokenCiphertext = value.String
+			}
+		case attempt.FieldRunnerTokenExpiresAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field runner_token_expires_at", values[i])
+			} else if value.Valid {
+				_m.RunnerTokenExpiresAt = new(time.Time)
+				*_m.RunnerTokenExpiresAt = value.Time
+			}
+		case attempt.FieldSourceDownloads:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field source_downloads", values[i])
+			} else if value.Valid {
+				_m.SourceDownloads = int(value.Int64)
+			}
+		case attempt.FieldLastHeartbeatAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field last_heartbeat_at", values[i])
+			} else if value.Valid {
+				_m.LastHeartbeatAt = new(time.Time)
+				*_m.LastHeartbeatAt = value.Time
+			}
 		case attempt.FieldRetryReason:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field retry_reason", values[i])
@@ -233,6 +300,36 @@ func (_m *Attempt) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.EstimatedCostMilli = value.Int64
 			}
+		case attempt.FieldExitCode:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field exit_code", values[i])
+			} else if value.Valid {
+				_m.ExitCode = new(int)
+				*_m.ExitCode = int(value.Int64)
+			}
+		case attempt.FieldLogTail:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field log_tail", values[i])
+			} else if value.Valid {
+				_m.LogTail = new(string)
+				*_m.LogTail = value.String
+			}
+		case attempt.FieldMetrics:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field metrics", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Metrics); err != nil {
+					return fmt.Errorf("unmarshal field metrics: %w", err)
+				}
+			}
+		case attempt.FieldProviderRequestIds:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field provider_request_ids", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.ProviderRequestIds); err != nil {
+					return fmt.Errorf("unmarshal field provider_request_ids: %w", err)
+				}
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -259,6 +356,11 @@ func (_m *Attempt) QueryProject() *ProjectQuery {
 // QueryExperiment queries the "experiment" edge of the Attempt entity.
 func (_m *Attempt) QueryExperiment() *ExperimentQuery {
 	return NewAttemptClient(_m.config).QueryExperiment(_m)
+}
+
+// QueryOwnedResource queries the "owned_resource" edge of the Attempt entity.
+func (_m *Attempt) QueryOwnedResource() *ProviderResourceQuery {
+	return NewAttemptClient(_m.config).QueryOwnedResource(_m)
 }
 
 // Update returns a builder for updating this Attempt.
@@ -313,6 +415,23 @@ func (_m *Attempt) String() string {
 		builder.WriteString(*v)
 	}
 	builder.WriteString(", ")
+	builder.WriteString("runner_token_hash=<sensitive>")
+	builder.WriteString(", ")
+	builder.WriteString("runner_token_ciphertext=<sensitive>")
+	builder.WriteString(", ")
+	if v := _m.RunnerTokenExpiresAt; v != nil {
+		builder.WriteString("runner_token_expires_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("source_downloads=")
+	builder.WriteString(fmt.Sprintf("%v", _m.SourceDownloads))
+	builder.WriteString(", ")
+	if v := _m.LastHeartbeatAt; v != nil {
+		builder.WriteString("last_heartbeat_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
 	if v := _m.RetryReason; v != nil {
 		builder.WriteString("retry_reason=")
 		builder.WriteString(*v)
@@ -340,6 +459,22 @@ func (_m *Attempt) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("estimated_cost_milli=")
 	builder.WriteString(fmt.Sprintf("%v", _m.EstimatedCostMilli))
+	builder.WriteString(", ")
+	if v := _m.ExitCode; v != nil {
+		builder.WriteString("exit_code=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.LogTail; v != nil {
+		builder.WriteString("log_tail=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	builder.WriteString("metrics=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Metrics))
+	builder.WriteString(", ")
+	builder.WriteString("provider_request_ids=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ProviderRequestIds))
 	builder.WriteByte(')')
 	return builder.String()
 }

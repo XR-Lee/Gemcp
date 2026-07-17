@@ -544,6 +544,29 @@ func HasTenantWith(preds ...predicate.Tenant) predicate.ProviderAccount {
 	})
 }
 
+// HasProviderResources applies the HasEdge predicate on the "provider_resources" edge.
+func HasProviderResources() predicate.ProviderAccount {
+	return predicate.ProviderAccount(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ProviderResourcesTable, ProviderResourcesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasProviderResourcesWith applies the HasEdge predicate on the "provider_resources" edge with a given conditions (other predicates).
+func HasProviderResourcesWith(preds ...predicate.ProviderResource) predicate.ProviderAccount {
+	return predicate.ProviderAccount(func(s *sql.Selector) {
+		step := newProviderResourcesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.ProviderAccount) predicate.ProviderAccount {
 	return predicate.ProviderAccount(sql.AndPredicates(predicates...))

@@ -48,6 +48,25 @@ describe('API security headers', () => {
     expect(JSON.parse(String(options.body)).token).toBe('private-provider-secret')
   })
 
+  it('sends emergency stop through a CSRF-protected Owner endpoint', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 202,
+      json: async () => ({ data: { requested: 1, at: '2026-07-17T00:00:00Z' } }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    setCSRFToken('csrf-emergency-token')
+
+    await api.emergencyStop('STOP')
+
+    const [path, options] = fetchMock.mock.calls[0]
+    const headers = options.headers as Headers
+    expect(path).toBe('/api/v1/provider/emergency-stop')
+    expect(options.method).toBe('POST')
+    expect(headers.get('X-CSRF-Token')).toBe('csrf-emergency-token')
+    expect(JSON.parse(String(options.body))).toEqual({ confirmation: 'STOP' })
+  })
+
   it('adds the current CSRF token to state-changing Owner requests', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

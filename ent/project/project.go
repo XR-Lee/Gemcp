@@ -58,6 +58,8 @@ const (
 	EdgeExperiments = "experiments"
 	// EdgeAttempts holds the string denoting the attempts edge name in mutations.
 	EdgeAttempts = "attempts"
+	// EdgeProviderResources holds the string denoting the provider_resources edge name in mutations.
+	EdgeProviderResources = "provider_resources"
 	// EdgeBudgetEntries holds the string denoting the budget_entries edge name in mutations.
 	EdgeBudgetEntries = "budget_entries"
 	// Table holds the table name of the project in the database.
@@ -111,6 +113,13 @@ const (
 	AttemptsInverseTable = "attempts"
 	// AttemptsColumn is the table column denoting the attempts relation/edge.
 	AttemptsColumn = "project_id"
+	// ProviderResourcesTable is the table that holds the provider_resources relation/edge.
+	ProviderResourcesTable = "provider_resources"
+	// ProviderResourcesInverseTable is the table name for the ProviderResource entity.
+	// It exists in this package in order to avoid circular dependency with the "providerresource" package.
+	ProviderResourcesInverseTable = "provider_resources"
+	// ProviderResourcesColumn is the table column denoting the provider_resources relation/edge.
+	ProviderResourcesColumn = "project_id"
 	// BudgetEntriesTable is the table that holds the budget_entries relation/edge.
 	BudgetEntriesTable = "budget_entries"
 	// BudgetEntriesInverseTable is the table name for the BudgetEntry entity.
@@ -384,6 +393,20 @@ func ByAttempts(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// ByProviderResourcesCount orders the results by provider_resources count.
+func ByProviderResourcesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newProviderResourcesStep(), opts...)
+	}
+}
+
+// ByProviderResources orders the results by provider_resources terms.
+func ByProviderResources(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newProviderResourcesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByBudgetEntriesCount orders the results by budget_entries count.
 func ByBudgetEntriesCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -444,6 +467,13 @@ func newAttemptsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(AttemptsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, AttemptsTable, AttemptsColumn),
+	)
+}
+func newProviderResourcesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ProviderResourcesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ProviderResourcesTable, ProviderResourcesColumn),
 	)
 }
 func newBudgetEntriesStep() *sqlgraph.Step {

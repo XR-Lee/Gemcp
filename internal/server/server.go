@@ -11,11 +11,14 @@ import (
 	"github.com/XR-Lee/Gemcp/internal/auth"
 	"github.com/XR-Lee/Gemcp/internal/buildinfo"
 	"github.com/XR-Lee/Gemcp/internal/config"
+	"github.com/XR-Lee/Gemcp/internal/execution"
 	"github.com/XR-Lee/Gemcp/internal/experiment"
 	"github.com/XR-Lee/Gemcp/internal/httpapi"
 	"github.com/XR-Lee/Gemcp/internal/mcpserver"
+	"github.com/XR-Lee/Gemcp/internal/notification"
 	providerservice "github.com/XR-Lee/Gemcp/internal/provider"
 	gitrepository "github.com/XR-Lee/Gemcp/internal/repository"
+	runnerservice "github.com/XR-Lee/Gemcp/internal/runner"
 	"github.com/XR-Lee/Gemcp/internal/secrets"
 	setupservice "github.com/XR-Lee/Gemcp/internal/setup"
 	"github.com/XR-Lee/Gemcp/internal/web"
@@ -58,6 +61,16 @@ func New(deps Dependencies) *http.Server {
 	api.GET("/setup/status", setupHandlers.Status)
 	api.POST("/setup", setupHandlers.Initialize)
 	api.POST("/auth/login", authHandlers.Login)
+
+	repositoryService := gitrepository.NewService(deps.Ent, deps.Secrets, nil)
+	runnerHandlers := httpapi.NewRunnerHandlers(runnerservice.NewService(
+		deps.Ent, deps.Secrets, repositoryService, runnerservice.WithSourceMaxBytes(deps.Config.RunnerSourceMaxBytes),
+	))
+	api.GET("/runner/bootstrap", runnerHandlers.Bootstrap)
+	api.GET("/runner/spec", runnerHandlers.Spec)
+	api.GET("/runner/source", runnerHandlers.Source)
+	api.POST("/runner/events", runnerHandlers.Event)
+
 	protected := api.Group("")
 	protected.Use(authHandlers.RequireSession())
 	protected.GET("/auth/me", authHandlers.Me)
@@ -71,8 +84,20 @@ func New(deps Dependencies) *http.Server {
 	protected.POST("/provider/query", providerHandlers.Query)
 	protected.PUT("/provider", providerHandlers.Configure)
 	protected.GET("/provider/deployments/:id", providerHandlers.Deployment)
+	runtimeHandlers := httpapi.NewRuntimeHandlers(execution.NewOperations(
+		deps.Ent, execution.WithRuntimeConfiguration(deps.Config.SchedulerEnabled, deps.Config.GlobalConcurrency, deps.Config.PublicURL != ""),
+	))
+	protected.GET("/runtime/status", runtimeHandlers.Status)
+	protected.GET("/provider/managed-resources", runtimeHandlers.List)
+	protected.POST("/provider/deployments/:id/stop", runtimeHandlers.Stop)
+	protected.POST("/provider/emergency-stop", runtimeHandlers.EmergencyStop)
 
-	repositoryService := gitrepository.NewService(deps.Ent, deps.Secrets, nil)
+	notificationHandlers := httpapi.NewNotificationHandlers(notification.NewService(deps.Ent, deps.Secrets))
+	protected.GET("/notifications/settings", notificationHandlers.Setting)
+	protected.PUT("/notifications/settings", notificationHandlers.Configure)
+	protected.POST("/notifications/test", notificationHandlers.Test)
+	protected.GET("/notifications", notificationHandlers.List)
+
 	repositoryHandlers := httpapi.NewRepositoryHandlers(repositoryService)
 	protected.GET("/repositories", repositoryHandlers.List)
 	protected.POST("/repositories", repositoryHandlers.Create)
@@ -82,6 +107,7 @@ func New(deps Dependencies) *http.Server {
 	experimentHandlers := httpapi.NewExperimentHandlers(experimentService)
 	protected.GET("/experiments", experimentHandlers.List)
 	protected.GET("/experiments/:id", experimentHandlers.Get)
+	protected.GET("/experiments/:id/attempts", experimentHandlers.Attempts)
 	protected.GET("/projects/:id/cost", experimentHandlers.Cost)
 
 	agentAuthService := agentauth.NewService(deps.Ent, deps.Secrets)

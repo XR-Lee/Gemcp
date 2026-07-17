@@ -1,0 +1,330 @@
+package runner
+
+import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"entgo.io/ent/dialect"
+	"github.com/XR-Lee/Gemcp/ent"
+	"github.com/XR-Lee/Gemcp/ent/enttest"
+	"github.com/XR-Lee/Gemcp/internal/repository"
+	"github.com/XR-Lee/Gemcp/internal/secrets"
+	_ "github.com/mattn/go-sqlite3"
+)
+
+type memoryArchive struct {
+	data   []byte
+	closed bool
+}
+
+func (a *memoryArchive) Open() (io.ReadCloser, error) {
+	return io.NopCloser(bytes.NewReader(a.data)), nil
+}
+func (a *memoryArchive) Close() error     { a.closed = true; return nil }
+func (a *memoryArchive) SizeBytes() int64 { return int64(len(a.data)) }
+
+type fakeArchiver struct {
+	calls        int
+	repositoryID int
+	sha          string
+	maxBytes     int64
+	archive      *memoryArchive
+	err          error
+}
+
+func (a *fakeArchiver) ArchiveCommit(_ context.Context, repositoryID int, sha string, maxBytes int64) (repository.Archive, error) {
+	a.calls++
+	if a.err != nil {
+		return nil, a.err
+	}
+	a.repositoryID = repositoryID
+	a.sha = sha
+	a.maxBytes = maxBytes
+	a.archive = &memoryArchive{data: []byte("archive")}
+	return a.archive, nil
+}
+
+type runnerFixture struct {
+	client     *ent.Client
+	box        *secrets.Box
+	service    *Service
+	archiver   *fakeArchiver
+	experiment *ent.Experiment
+	attempt    *ent.Attempt
+	resource   *ent.ProviderResource
+	token      string
+	now        time.Time
+}
+
+func newRunnerFixture(t *testing.T) *runnerFixture {
+	t.Helper()
+	client := enttest.Open(t, dialect.SQLite, "file:"+t.Name()+"?mode=memory&cache=shared&_fk=1")
+	t.Cleanup(func() { _ = client.Close() })
+	ctx := context.Background()
+	key, _ := secrets.GenerateMasterKey()
+	box, _ := secrets.New(key)
+	tenant, _ := client.Tenant.Create().SetName("tenant").Save(ctx)
+	project, _ := client.Project.Create().SetTenantID(tenant.ID).SetName("project").SetSlug("project").
+		SetMonthlyBudgetMilli(10000).SetMaxExperimentMilli(1000).Save(ctx)
+	repositoryRecord, _ := client.Repository.Create().SetProjectID(project.ID).SetName("repository").
+		SetSSHURL("git@github.com:owner/repository.git").SetSSHHost("github.com").SetDefaultBranch("main").Save(ctx)
+	environment, _ := client.Environment.Create().SetProjectID(project.ID).SetName("environment").SetImageUUID("image").Save(ctx)
+	profile, _ := client.ResourceProfile.Create().SetProjectID(project.ID).SetName("profile").SetRegion("private").
+		SetGpuNames([]string{"RTX 3090"}).SetCudaFrom(118).SetCudaTo(118).SetCPUFrom(1).SetCPUTo(2).
+		SetMemoryFromGB(1).SetMemoryToGB(2).SetPriceFromMilli(1).SetPriceToMilli(1000).Save(ctx)
+	agentToken, _ := client.AgentToken.Create().SetProjectID(project.ID).SetLabel("agent").SetPrefix("gmc_test").SetTokenHash([]byte("hash")).Save(ctx)
+	providerAccount, _ := client.ProviderAccount.Create().SetTenantID(tenant.ID).SetName("provider").SetBaseURL("https://private.autodl.com").
+		SetBackend("private").SetStatus("active").SetCredentialCiphertext("ciphertext").Save(ctx)
+	experimentRecord, _ := client.Experiment.Create().SetTenantID(tenant.ID).SetProjectID(project.ID).SetAgentTokenID(agentToken.ID).
+		SetRepositoryID(repositoryRecord.ID).SetEnvironmentID(environment.ID).SetResourceProfileID(profile.ID).
+		SetState("provisioning").SetCommitSha("0123456789012345678901234567890123456789").SetCommand("python train.py").
+		SetMaxRuntimeSeconds(60).SetTimeoutExtensionSeconds(30).SetTerminationGraceSeconds(5).
+		SetRepositorySnapshot(map[string]any{}).SetEnvironmentSnapshot(map[string]any{}).SetResourceSnapshot(map[string]any{}).
+		SetOutputPath("/root/autodl-fs/projects/p/experiments/e/").SetReservedCostMilli(1000).Save(ctx)
+	token, _, _ := secrets.RandomToken("gmr", 32)
+	attemptPublic := experimentRecord.PublicID
+	ciphertext, _ := box.Encrypt([]byte(token), TokenAADPrefix+attemptPublic.String())
+	now := time.Now().UTC().Truncate(time.Second)
+	attemptRecord, _ := client.Attempt.Create().SetPublicID(attemptPublic).SetTenantID(tenant.ID).SetProjectID(project.ID).
+		SetExperimentID(experimentRecord.ID).SetNumber(1).SetRunnerTokenHash(box.Digest(TokenDigestDomain, token)).
+		SetRunnerTokenCiphertext(ciphertext).SetRunnerTokenExpiresAt(now.Add(time.Hour)).Save(ctx)
+	resourceRecord, _ := client.ProviderResource.Create().SetTenantID(tenant.ID).SetProjectID(project.ID).SetExperimentID(experimentRecord.ID).
+		SetAttemptID(attemptRecord.ID).SetProviderAccountID(providerAccount.ID).SetName("gemcp-attempt").SetProviderID("deployment-1").Save(ctx)
+	archiver := &fakeArchiver{}
+	fixture := &runnerFixture{client: client, box: box, archiver: archiver, experiment: experimentRecord, attempt: attemptRecord, resource: resourceRecord, token: token, now: now}
+	fixture.service = NewService(client, box, archiver, WithSourceMaxBytes(1024), WithClock(func() time.Time { return fixture.now }))
+	return fixture
+}
+
+func TestSpecAndSourceAreScopedToRunnerToken(t *testing.T) {
+	f := newRunnerFixture(t)
+	ctx := context.Background()
+	spec, err := f.service.Spec(ctx, f.token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if spec.Command != "python train.py" || spec.SourceMaxBytes != sourceTransferLimit(1024) || spec.ExperimentID != f.experiment.PublicID.String() {
+		t.Fatalf("spec = %+v", spec)
+	}
+	archive, err := f.service.Source(ctx, f.token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reader, _ := archive.Open()
+	payload, _ := io.ReadAll(reader)
+	_ = reader.Close()
+	_ = archive.Close()
+	if string(payload) != "archive" || f.archiver.repositoryID != f.experiment.RepositoryID || f.archiver.sha != f.experiment.CommitSha {
+		t.Fatalf("archive payload=%q archiver=%+v", payload, f.archiver)
+	}
+	for index := 1; index < MaxSourceDownloads; index++ {
+		archive, err := f.service.Source(ctx, f.token)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = archive.Close()
+	}
+	if _, err := f.service.Source(ctx, f.token); err != ErrSourceLimit {
+		t.Fatalf("fourth Source() error = %v", err)
+	}
+	if _, err := f.service.Spec(ctx, "wrong-token-that-is-still-long-enough-0000"); err != ErrUnauthenticated {
+		t.Fatalf("wrong token error = %v", err)
+	}
+}
+
+func TestSourceFailureReleasesDownloadReservation(t *testing.T) {
+	f := newRunnerFixture(t)
+	f.archiver.err = errors.New("temporary Git failure")
+	if _, err := f.service.Source(context.Background(), f.token); err == nil {
+		t.Fatal("Source() accepted archive failure")
+	}
+	record, err := f.client.Attempt.Get(context.Background(), f.attempt.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if record.SourceDownloads != 0 {
+		t.Fatalf("source downloads = %d, want 0", record.SourceDownloads)
+	}
+	f.archiver.err = nil
+	if archive, err := f.service.Source(context.Background(), f.token); err != nil {
+		t.Fatal(err)
+	} else {
+		_ = archive.Close()
+	}
+}
+
+func TestRunnerEventsStartExtendAndStopAtDeadline(t *testing.T) {
+	f := newRunnerFixture(t)
+	ctx := context.Background()
+	control, err := f.service.Event(ctx, f.token, EventInput{Type: "started"})
+	if err != nil || control.StopRequested {
+		t.Fatalf("started control=%+v err=%v", control, err)
+	}
+	experimentRecord, _ := f.client.Experiment.Get(ctx, f.experiment.ID)
+	if experimentRecord.State != "running" || experimentRecord.DeadlineAt == nil {
+		t.Fatalf("started experiment = %+v", experimentRecord)
+	}
+	initialDeadline := *experimentRecord.DeadlineAt
+	f.now = initialDeadline
+	control, err = f.service.Event(ctx, f.token, EventInput{Type: "heartbeat"})
+	if err != nil || control.StopRequested || control.DeadlineAt == nil || !control.DeadlineAt.Equal(initialDeadline.Add(30*time.Second)) {
+		t.Fatalf("extension control=%+v err=%v", control, err)
+	}
+	f.now = initialDeadline.Add(31 * time.Second)
+	control, err = f.service.Event(ctx, f.token, EventInput{Type: "heartbeat"})
+	if err != nil || !control.StopRequested || control.StopReason != "timeout" {
+		t.Fatalf("timeout control=%+v err=%v", control, err)
+	}
+	resourceRecord, _ := f.client.ProviderResource.Get(ctx, f.resource.ID)
+	if resourceRecord.StopReason == nil || *resourceRecord.StopReason != "timeout" {
+		t.Fatalf("resource = %+v", resourceRecord)
+	}
+}
+
+func TestFinishedEventStoresBoundedResultAndRequestsCleanup(t *testing.T) {
+	f := newRunnerFixture(t)
+	ctx := context.Background()
+	if _, err := f.service.Event(ctx, f.token, EventInput{Type: "started"}); err != nil {
+		t.Fatal(err)
+	}
+	exitCode := 3
+	control, err := f.service.Event(ctx, f.token, EventInput{
+		Type: "finished", ExitCode: &exitCode, Reason: "completed", LogTail: "failed\n", Metrics: map[string]any{"loss": 1.5},
+	})
+	if err != nil || !control.StopRequested || control.StopReason != "completed" {
+		t.Fatalf("finished control=%+v err=%v", control, err)
+	}
+	experimentRecord, _ := f.client.Experiment.Get(ctx, f.experiment.ID)
+	attemptRecord, _ := f.client.Attempt.Get(ctx, f.attempt.ID)
+	if experimentRecord.State != "collecting" || experimentRecord.ExitCode == nil || *experimentRecord.ExitCode != 3 || experimentRecord.LogTail == nil || *experimentRecord.LogTail != "failed\n" {
+		t.Fatalf("experiment = %+v", experimentRecord)
+	}
+	if attemptRecord.State != "collecting" || attemptRecord.Metrics["loss"] != 1.5 {
+		t.Fatalf("attempt = %+v", attemptRecord)
+	}
+	if _, err := f.service.Spec(ctx, f.token); err != ErrTerminal {
+		t.Fatalf("finished Spec() error = %v", err)
+	}
+	oversized := strings.Repeat("x", MaxLogTailBytes+1)
+	if _, err := f.service.Event(ctx, f.token, EventInput{Type: "finished", ExitCode: &exitCode, Reason: "completed", LogTail: oversized}); err != ErrInvalidEvent {
+		t.Fatalf("oversized event error = %v", err)
+	}
+}
+
+func TestExpiredRunnerTokenIsRejected(t *testing.T) {
+	f := newRunnerFixture(t)
+	f.now = f.now.Add(2 * time.Hour)
+	if _, err := f.service.Spec(context.Background(), f.token); err != ErrExpired {
+		t.Fatalf("expired token error = %v", err)
+	}
+}
+
+func TestBootstrapNormalizesOwnerStopBeforeCompletionCallback(t *testing.T) {
+	python, err := exec.LookPath("python3")
+	if err != nil {
+		t.Skip("python3 is unavailable")
+	}
+	var archive bytes.Buffer
+	gzipWriter := gzip.NewWriter(&archive)
+	tarWriter := tar.NewWriter(gzipWriter)
+	if err := tarWriter.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := gzipWriter.Close(); err != nil {
+		t.Fatal(err)
+	}
+	outputPath := t.TempDir()
+	finishedEvents := make(chan EventInput, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		if request.Header.Get("Authorization") != "Bearer "+strings.Repeat("t", 40) {
+			http.Error(response, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		switch request.URL.Path {
+		case "/api/v1/runner/spec":
+			_ = json.NewEncoder(response).Encode(map[string]any{"data": Spec{
+				ExperimentID: "experiment", AttemptID: "attempt", Command: "true", OutputPath: outputPath,
+				MaxRuntimeSeconds: 60, TimeoutExtensionSeconds: 30, TerminationGraceSeconds: 1,
+				HeartbeatIntervalSeconds: 5, SourceMaxBytes: 1 << 20, TokenExpiresAt: time.Now().Add(time.Hour),
+			}})
+		case "/api/v1/runner/source":
+			response.Header().Set("Content-Length", fmt.Sprint(archive.Len()))
+			_, _ = response.Write(archive.Bytes())
+		case "/api/v1/runner/events":
+			var event EventInput
+			if err := json.NewDecoder(request.Body).Decode(&event); err != nil {
+				http.Error(response, "bad event", http.StatusBadRequest)
+				return
+			}
+			control := Control{}
+			if event.Type == "started" {
+				control = Control{StopRequested: true, StopReason: "owner_stop"}
+			}
+			if event.Type == "finished" {
+				finishedEvents <- event
+			}
+			_ = json.NewEncoder(response).Encode(map[string]any{"data": control})
+		default:
+			http.NotFound(response, request)
+		}
+	}))
+	defer server.Close()
+
+	path := filepath.Join(t.TempDir(), "bootstrap.py")
+	if err := os.WriteFile(path, []byte(BootstrapScript()), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	command := exec.Command(python, path)
+	command.Env = append(os.Environ(), "GEMCP_RUNNER_URL="+server.URL, "GEMCP_RUNNER_TOKEN="+strings.Repeat("t", 40))
+	if output, err := command.CombinedOutput(); err == nil {
+		t.Fatalf("bootstrap exit succeeded, want 143: %s", output)
+	} else if exit, ok := err.(*exec.ExitError); !ok || exit.ExitCode() != 143 {
+		t.Fatalf("bootstrap exit = %v: %s", err, output)
+	}
+	select {
+	case finished := <-finishedEvents:
+		if finished.Type != "finished" || finished.Reason != "cancelled" || finished.ExitCode == nil || *finished.ExitCode != 143 {
+			t.Fatalf("finished callback = %+v", finished)
+		}
+	default:
+		t.Fatal("bootstrap sent no completion callback")
+	}
+}
+
+func TestBootstrapScriptParsesAndLaunchCommandRequiresHTTPSOrigin(t *testing.T) {
+	if _, err := LaunchCommand("http://gemcp.example.com", strings.Repeat("x", 40)); err == nil {
+		t.Fatal("LaunchCommand accepted HTTP")
+	}
+	command, err := LaunchCommand("https://gemcp.example.com", strings.Repeat("x", 40))
+	if err != nil || !strings.Contains(command, "GEMCP_RUNNER_TOKEN") || strings.Contains(command, "python train.py") {
+		t.Fatalf("command=%q err=%v", command, err)
+	}
+	if !strings.Contains(BootstrapScript(), "normalized_stop_reason") || !strings.Contains(BootstrapScript(), `value[-maximum:].decode("utf-8", errors="ignore")`) {
+		t.Fatal("bootstrap is missing bounded completion normalization")
+	}
+	python, err := exec.LookPath("python3")
+	if err != nil {
+		t.Skip("python3 is unavailable")
+	}
+	path := filepath.Join(t.TempDir(), "bootstrap.py")
+	if err := os.WriteFile(path, []byte(BootstrapScript()), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if output, err := exec.Command(python, "-m", "py_compile", path).CombinedOutput(); err != nil {
+		t.Fatalf("bootstrap syntax: %v: %s", err, output)
+	}
+}

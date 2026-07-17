@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/XR-Lee/Gemcp/ent/provideraccount"
+	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
 	"github.com/google/uuid"
 )
@@ -133,6 +134,21 @@ func (_c *ProviderAccountCreate) SetNillableLastValidatedAt(v *time.Time) *Provi
 // SetTenant sets the "tenant" edge to the Tenant entity.
 func (_c *ProviderAccountCreate) SetTenant(v *Tenant) *ProviderAccountCreate {
 	return _c.SetTenantID(v.ID)
+}
+
+// AddProviderResourceIDs adds the "provider_resources" edge to the ProviderResource entity by IDs.
+func (_c *ProviderAccountCreate) AddProviderResourceIDs(ids ...int) *ProviderAccountCreate {
+	_c.mutation.AddProviderResourceIDs(ids...)
+	return _c
+}
+
+// AddProviderResources adds the "provider_resources" edges to the ProviderResource entity.
+func (_c *ProviderAccountCreate) AddProviderResources(v ...*ProviderResource) *ProviderAccountCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddProviderResourceIDs(ids...)
 }
 
 // Mutation returns the ProviderAccountMutation object of the builder.
@@ -321,6 +337,22 @@ func (_c *ProviderAccountCreate) createSpec() (*ProviderAccount, *sqlgraph.Creat
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_node.TenantID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ProviderResourcesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   provideraccount.ProviderResourcesTable,
+			Columns: []string{provideraccount.ProviderResourcesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(providerresource.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec

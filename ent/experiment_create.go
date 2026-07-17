@@ -17,6 +17,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
 	"github.com/XR-Lee/Gemcp/ent/project"
+	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/repository"
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
@@ -362,6 +363,34 @@ func (_c *ExperimentCreate) SetNillableCancelRequestedAt(v *time.Time) *Experime
 	return _c
 }
 
+// SetTimeoutExtendedAt sets the "timeout_extended_at" field.
+func (_c *ExperimentCreate) SetTimeoutExtendedAt(v time.Time) *ExperimentCreate {
+	_c.mutation.SetTimeoutExtendedAt(v)
+	return _c
+}
+
+// SetNillableTimeoutExtendedAt sets the "timeout_extended_at" field if the given value is not nil.
+func (_c *ExperimentCreate) SetNillableTimeoutExtendedAt(v *time.Time) *ExperimentCreate {
+	if v != nil {
+		_c.SetTimeoutExtendedAt(*v)
+	}
+	return _c
+}
+
+// SetBudgetFinalizedAt sets the "budget_finalized_at" field.
+func (_c *ExperimentCreate) SetBudgetFinalizedAt(v time.Time) *ExperimentCreate {
+	_c.mutation.SetBudgetFinalizedAt(v)
+	return _c
+}
+
+// SetNillableBudgetFinalizedAt sets the "budget_finalized_at" field if the given value is not nil.
+func (_c *ExperimentCreate) SetNillableBudgetFinalizedAt(v *time.Time) *ExperimentCreate {
+	if v != nil {
+		_c.SetBudgetFinalizedAt(*v)
+	}
+	return _c
+}
+
 // SetLeaseExpiresAt sets the "lease_expires_at" field.
 func (_c *ExperimentCreate) SetLeaseExpiresAt(v time.Time) *ExperimentCreate {
 	_c.mutation.SetLeaseExpiresAt(v)
@@ -447,6 +476,21 @@ func (_c *ExperimentCreate) AddAttempts(v ...*Attempt) *ExperimentCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddAttemptIDs(ids...)
+}
+
+// AddProviderResourceIDs adds the "provider_resources" edge to the ProviderResource entity by IDs.
+func (_c *ExperimentCreate) AddProviderResourceIDs(ids ...int) *ExperimentCreate {
+	_c.mutation.AddProviderResourceIDs(ids...)
+	return _c
+}
+
+// AddProviderResources adds the "provider_resources" edges to the ProviderResource entity.
+func (_c *ExperimentCreate) AddProviderResources(v ...*ProviderResource) *ExperimentCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddProviderResourceIDs(ids...)
 }
 
 // AddBudgetEntryIDs adds the "budget_entries" edge to the BudgetEntry entity by IDs.
@@ -850,6 +894,14 @@ func (_c *ExperimentCreate) createSpec() (*Experiment, *sqlgraph.CreateSpec) {
 		_spec.SetField(experiment.FieldCancelRequestedAt, field.TypeTime, value)
 		_node.CancelRequestedAt = &value
 	}
+	if value, ok := _c.mutation.TimeoutExtendedAt(); ok {
+		_spec.SetField(experiment.FieldTimeoutExtendedAt, field.TypeTime, value)
+		_node.TimeoutExtendedAt = &value
+	}
+	if value, ok := _c.mutation.BudgetFinalizedAt(); ok {
+		_spec.SetField(experiment.FieldBudgetFinalizedAt, field.TypeTime, value)
+		_node.BudgetFinalizedAt = &value
+	}
 	if value, ok := _c.mutation.LeaseExpiresAt(); ok {
 		_spec.SetField(experiment.FieldLeaseExpiresAt, field.TypeTime, value)
 		_node.LeaseExpiresAt = &value
@@ -973,6 +1025,22 @@ func (_c *ExperimentCreate) createSpec() (*Experiment, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(attempt.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ProviderResourcesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   experiment.ProviderResourcesTable,
+			Columns: []string{experiment.ProviderResourcesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(providerresource.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

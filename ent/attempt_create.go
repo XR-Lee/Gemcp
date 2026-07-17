@@ -13,6 +13,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/project"
+	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
 	"github.com/google/uuid"
 )
@@ -118,6 +119,68 @@ func (_c *AttemptCreate) SetNillableProviderResourceID(v *string) *AttemptCreate
 	return _c
 }
 
+// SetRunnerTokenHash sets the "runner_token_hash" field.
+func (_c *AttemptCreate) SetRunnerTokenHash(v []byte) *AttemptCreate {
+	_c.mutation.SetRunnerTokenHash(v)
+	return _c
+}
+
+// SetRunnerTokenCiphertext sets the "runner_token_ciphertext" field.
+func (_c *AttemptCreate) SetRunnerTokenCiphertext(v string) *AttemptCreate {
+	_c.mutation.SetRunnerTokenCiphertext(v)
+	return _c
+}
+
+// SetNillableRunnerTokenCiphertext sets the "runner_token_ciphertext" field if the given value is not nil.
+func (_c *AttemptCreate) SetNillableRunnerTokenCiphertext(v *string) *AttemptCreate {
+	if v != nil {
+		_c.SetRunnerTokenCiphertext(*v)
+	}
+	return _c
+}
+
+// SetRunnerTokenExpiresAt sets the "runner_token_expires_at" field.
+func (_c *AttemptCreate) SetRunnerTokenExpiresAt(v time.Time) *AttemptCreate {
+	_c.mutation.SetRunnerTokenExpiresAt(v)
+	return _c
+}
+
+// SetNillableRunnerTokenExpiresAt sets the "runner_token_expires_at" field if the given value is not nil.
+func (_c *AttemptCreate) SetNillableRunnerTokenExpiresAt(v *time.Time) *AttemptCreate {
+	if v != nil {
+		_c.SetRunnerTokenExpiresAt(*v)
+	}
+	return _c
+}
+
+// SetSourceDownloads sets the "source_downloads" field.
+func (_c *AttemptCreate) SetSourceDownloads(v int) *AttemptCreate {
+	_c.mutation.SetSourceDownloads(v)
+	return _c
+}
+
+// SetNillableSourceDownloads sets the "source_downloads" field if the given value is not nil.
+func (_c *AttemptCreate) SetNillableSourceDownloads(v *int) *AttemptCreate {
+	if v != nil {
+		_c.SetSourceDownloads(*v)
+	}
+	return _c
+}
+
+// SetLastHeartbeatAt sets the "last_heartbeat_at" field.
+func (_c *AttemptCreate) SetLastHeartbeatAt(v time.Time) *AttemptCreate {
+	_c.mutation.SetLastHeartbeatAt(v)
+	return _c
+}
+
+// SetNillableLastHeartbeatAt sets the "last_heartbeat_at" field if the given value is not nil.
+func (_c *AttemptCreate) SetNillableLastHeartbeatAt(v *time.Time) *AttemptCreate {
+	if v != nil {
+		_c.SetLastHeartbeatAt(*v)
+	}
+	return _c
+}
+
 // SetRetryReason sets the "retry_reason" field.
 func (_c *AttemptCreate) SetRetryReason(v string) *AttemptCreate {
 	_c.mutation.SetRetryReason(v)
@@ -202,6 +265,46 @@ func (_c *AttemptCreate) SetNillableEstimatedCostMilli(v *int64) *AttemptCreate 
 	return _c
 }
 
+// SetExitCode sets the "exit_code" field.
+func (_c *AttemptCreate) SetExitCode(v int) *AttemptCreate {
+	_c.mutation.SetExitCode(v)
+	return _c
+}
+
+// SetNillableExitCode sets the "exit_code" field if the given value is not nil.
+func (_c *AttemptCreate) SetNillableExitCode(v *int) *AttemptCreate {
+	if v != nil {
+		_c.SetExitCode(*v)
+	}
+	return _c
+}
+
+// SetLogTail sets the "log_tail" field.
+func (_c *AttemptCreate) SetLogTail(v string) *AttemptCreate {
+	_c.mutation.SetLogTail(v)
+	return _c
+}
+
+// SetNillableLogTail sets the "log_tail" field if the given value is not nil.
+func (_c *AttemptCreate) SetNillableLogTail(v *string) *AttemptCreate {
+	if v != nil {
+		_c.SetLogTail(*v)
+	}
+	return _c
+}
+
+// SetMetrics sets the "metrics" field.
+func (_c *AttemptCreate) SetMetrics(v map[string]interface{}) *AttemptCreate {
+	_c.mutation.SetMetrics(v)
+	return _c
+}
+
+// SetProviderRequestIds sets the "provider_request_ids" field.
+func (_c *AttemptCreate) SetProviderRequestIds(v map[string]string) *AttemptCreate {
+	_c.mutation.SetProviderRequestIds(v)
+	return _c
+}
+
 // SetTenant sets the "tenant" edge to the Tenant entity.
 func (_c *AttemptCreate) SetTenant(v *Tenant) *AttemptCreate {
 	return _c.SetTenantID(v.ID)
@@ -215,6 +318,25 @@ func (_c *AttemptCreate) SetProject(v *Project) *AttemptCreate {
 // SetExperiment sets the "experiment" edge to the Experiment entity.
 func (_c *AttemptCreate) SetExperiment(v *Experiment) *AttemptCreate {
 	return _c.SetExperimentID(v.ID)
+}
+
+// SetOwnedResourceID sets the "owned_resource" edge to the ProviderResource entity by ID.
+func (_c *AttemptCreate) SetOwnedResourceID(id int) *AttemptCreate {
+	_c.mutation.SetOwnedResourceID(id)
+	return _c
+}
+
+// SetNillableOwnedResourceID sets the "owned_resource" edge to the ProviderResource entity by ID if the given value is not nil.
+func (_c *AttemptCreate) SetNillableOwnedResourceID(id *int) *AttemptCreate {
+	if id != nil {
+		_c = _c.SetOwnedResourceID(*id)
+	}
+	return _c
+}
+
+// SetOwnedResource sets the "owned_resource" edge to the ProviderResource entity.
+func (_c *AttemptCreate) SetOwnedResource(v *ProviderResource) *AttemptCreate {
+	return _c.SetOwnedResourceID(v.ID)
 }
 
 // Mutation returns the AttemptMutation object of the builder.
@@ -268,9 +390,21 @@ func (_c *AttemptCreate) defaults() {
 		v := attempt.DefaultState
 		_c.mutation.SetState(v)
 	}
+	if _, ok := _c.mutation.SourceDownloads(); !ok {
+		v := attempt.DefaultSourceDownloads
+		_c.mutation.SetSourceDownloads(v)
+	}
 	if _, ok := _c.mutation.EstimatedCostMilli(); !ok {
 		v := attempt.DefaultEstimatedCostMilli
 		_c.mutation.SetEstimatedCostMilli(v)
+	}
+	if _, ok := _c.mutation.Metrics(); !ok {
+		v := attempt.DefaultMetrics
+		_c.mutation.SetMetrics(v)
+	}
+	if _, ok := _c.mutation.ProviderRequestIds(); !ok {
+		v := attempt.DefaultProviderRequestIds
+		_c.mutation.SetProviderRequestIds(v)
 	}
 }
 
@@ -313,6 +447,14 @@ func (_c *AttemptCreate) check() error {
 	if v, ok := _c.mutation.ProviderResourceID(); ok {
 		if err := attempt.ProviderResourceIDValidator(v); err != nil {
 			return &ValidationError{Name: "provider_resource_id", err: fmt.Errorf(`ent: validator failed for field "Attempt.provider_resource_id": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.SourceDownloads(); !ok {
+		return &ValidationError{Name: "source_downloads", err: errors.New(`ent: missing required field "Attempt.source_downloads"`)}
+	}
+	if v, ok := _c.mutation.SourceDownloads(); ok {
+		if err := attempt.SourceDownloadsValidator(v); err != nil {
+			return &ValidationError{Name: "source_downloads", err: fmt.Errorf(`ent: validator failed for field "Attempt.source_downloads": %w`, err)}
 		}
 	}
 	if v, ok := _c.mutation.RetryReason(); ok {
@@ -392,6 +534,26 @@ func (_c *AttemptCreate) createSpec() (*Attempt, *sqlgraph.CreateSpec) {
 		_spec.SetField(attempt.FieldProviderResourceID, field.TypeString, value)
 		_node.ProviderResourceID = &value
 	}
+	if value, ok := _c.mutation.RunnerTokenHash(); ok {
+		_spec.SetField(attempt.FieldRunnerTokenHash, field.TypeBytes, value)
+		_node.RunnerTokenHash = value
+	}
+	if value, ok := _c.mutation.RunnerTokenCiphertext(); ok {
+		_spec.SetField(attempt.FieldRunnerTokenCiphertext, field.TypeString, value)
+		_node.RunnerTokenCiphertext = value
+	}
+	if value, ok := _c.mutation.RunnerTokenExpiresAt(); ok {
+		_spec.SetField(attempt.FieldRunnerTokenExpiresAt, field.TypeTime, value)
+		_node.RunnerTokenExpiresAt = &value
+	}
+	if value, ok := _c.mutation.SourceDownloads(); ok {
+		_spec.SetField(attempt.FieldSourceDownloads, field.TypeInt, value)
+		_node.SourceDownloads = value
+	}
+	if value, ok := _c.mutation.LastHeartbeatAt(); ok {
+		_spec.SetField(attempt.FieldLastHeartbeatAt, field.TypeTime, value)
+		_node.LastHeartbeatAt = &value
+	}
 	if value, ok := _c.mutation.RetryReason(); ok {
 		_spec.SetField(attempt.FieldRetryReason, field.TypeString, value)
 		_node.RetryReason = &value
@@ -415,6 +577,22 @@ func (_c *AttemptCreate) createSpec() (*Attempt, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.EstimatedCostMilli(); ok {
 		_spec.SetField(attempt.FieldEstimatedCostMilli, field.TypeInt64, value)
 		_node.EstimatedCostMilli = value
+	}
+	if value, ok := _c.mutation.ExitCode(); ok {
+		_spec.SetField(attempt.FieldExitCode, field.TypeInt, value)
+		_node.ExitCode = &value
+	}
+	if value, ok := _c.mutation.LogTail(); ok {
+		_spec.SetField(attempt.FieldLogTail, field.TypeString, value)
+		_node.LogTail = &value
+	}
+	if value, ok := _c.mutation.Metrics(); ok {
+		_spec.SetField(attempt.FieldMetrics, field.TypeJSON, value)
+		_node.Metrics = value
+	}
+	if value, ok := _c.mutation.ProviderRequestIds(); ok {
+		_spec.SetField(attempt.FieldProviderRequestIds, field.TypeJSON, value)
+		_node.ProviderRequestIds = value
 	}
 	if nodes := _c.mutation.TenantIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -465,6 +643,22 @@ func (_c *AttemptCreate) createSpec() (*Attempt, *sqlgraph.CreateSpec) {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_node.ExperimentID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.OwnedResourceIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   attempt.OwnedResourceTable,
+			Columns: []string{attempt.OwnedResourceColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(providerresource.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec

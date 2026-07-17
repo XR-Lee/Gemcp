@@ -24,8 +24,11 @@ func (Tenant) Edges() []ent.Edge {
 		edge.To("projects", Project.Type),
 		edge.To("experiments", Experiment.Type),
 		edge.To("attempts", Attempt.Type),
+		edge.To("provider_resources", ProviderResource.Type),
 		edge.To("budget_entries", BudgetEntry.Type),
 		edge.To("idempotency_records", IdempotencyRecord.Type),
 		edge.To("audit_events", AuditEvent.Type),
+		edge.To("notification_settings", NotificationSetting.Type),
+		edge.To("notifications", Notification.Type),
 	}
 }

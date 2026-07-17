@@ -53,6 +53,17 @@ func TestVersion(t *testing.T) {
 	}
 }
 
+func TestRunnerEndpointsRequireBearerAndDisableCaching(t *testing.T) {
+	response := httptest.NewRecorder()
+	testServer(fakeDatabase{}).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/runner/spec", nil))
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
+	}
+	if got := response.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("Cache-Control = %q, want no-store", got)
+	}
+}
+
 func containsAll(value string, parts ...string) bool {
 	for _, part := range parts {
 		found := false

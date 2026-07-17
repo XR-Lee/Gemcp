@@ -47,6 +47,8 @@ func (Experiment) Fields() []ent.Field {
 		field.Text("log_tail").Optional().Nillable(),
 		field.JSON("metrics", map[string]any{}).Default(map[string]any{}),
 		field.Time("cancel_requested_at").Optional().Nillable(),
+		field.Time("timeout_extended_at").Optional().Nillable(),
+		field.Time("budget_finalized_at").Optional().Nillable(),
 		field.Time("lease_expires_at").Optional().Nillable(),
 		field.String("lease_owner").Optional().Nillable().MaxLen(255),
 		field.Time("next_attempt_at").Default(time.Now),
@@ -62,6 +64,7 @@ func (Experiment) Edges() []ent.Edge {
 		edge.From("environment", Environment.Type).Ref("experiments").Field("environment_id").Unique().Required().Immutable(),
 		edge.From("resource_profile", ResourceProfile.Type).Ref("experiments").Field("resource_profile_id").Unique().Required().Immutable(),
 		edge.To("attempts", Attempt.Type),
+		edge.To("provider_resources", ProviderResource.Type),
 		edge.To("budget_entries", BudgetEntry.Type),
 		edge.To("idempotency_records", IdempotencyRecord.Type),
 	}

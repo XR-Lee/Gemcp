@@ -12,6 +12,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	entexperiment "github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/repository"
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
@@ -117,13 +118,26 @@ func (s *Service) cancelOnce(ctx context.Context, principal agentauth.Principal,
 		return makeView(record), nil
 	}
 	if record.DesiredState == "cancelled" {
+		now := s.now().UTC()
+		if _, err := tx.ProviderResource.Update().Where(
+			providerresource.ExperimentIDEQ(record.ID), providerresource.OwnedEQ(true),
+			providerresource.StateIn(
+				providerresource.StateCreating, providerresource.StateActive, providerresource.StateStopping,
+				providerresource.StateStopped, providerresource.StateDeleting,
+			), providerresource.StopRequestedAtIsNil(),
+		).SetStopRequestedAt(now).SetStopReason("cancelled").Save(ctx); err != nil {
+			return view, err
+		}
+		if err := tx.Commit(); err != nil {
+			return view, err
+		}
 		return makeView(record), nil
 	}
 	now := s.now().UTC()
 	if record.State == "queued" {
 		updated, err := tx.Experiment.Update().Where(
 			entexperiment.IDEQ(record.ID), entexperiment.StateEQ("queued"),
-		).SetState("cancelled").SetDesiredState("cancelled").SetCancelRequestedAt(now).SetFinishedAt(now).Save(ctx)
+		).SetState("cancelled").SetDesiredState("cancelled").SetCancelRequestedAt(now).SetFinishedAt(now).SetBudgetFinalizedAt(now).Save(ctx)
 		if err != nil {
 			return view, err
 		}
@@ -132,7 +146,7 @@ func (s *Service) cancelOnce(ctx context.Context, principal agentauth.Principal,
 		}
 		reservation, err := tx.BudgetEntry.Query().Where(
 			budgetentry.ExperimentIDEQ(record.ID), budgetentry.KindEQ("reservation"),
-		).Only(ctx)
+		).Order(ent.Desc(budgetentry.FieldID)).First(ctx)
 		if err != nil {
 			return view, err
 		}
@@ -156,6 +170,15 @@ func (s *Service) cancelOnce(ctx context.Context, principal agentauth.Principal,
 		}
 		if updated != 1 {
 			return view, errStateChanged
+		}
+		if _, err := tx.ProviderResource.Update().Where(
+			providerresource.ExperimentIDEQ(record.ID), providerresource.OwnedEQ(true),
+			providerresource.StateIn(
+				providerresource.StateCreating, providerresource.StateActive, providerresource.StateStopping,
+				providerresource.StateStopped, providerresource.StateDeleting,
+			), providerresource.StopRequestedAtIsNil(),
+		).SetStopRequestedAt(now).SetStopReason("cancelled").Save(ctx); err != nil {
+			return view, err
 		}
 	}
 	if _, err := tx.AuditEvent.Create().
@@ -311,7 +334,17 @@ func (s *Service) Artifacts(ctx context.Context, principal agentauth.Principal, 
 	if err != nil {
 		return result, err
 	}
-	return ArtifactView{ExperimentID: record.PublicID.String(), OutputPath: record.OutputPath, Artifacts: []string{}}, nil
+	artifacts := []string{}
+	if record.StartedAt != nil || record.LogTail != nil {
+		artifacts = append(artifacts, "run.log")
+	}
+	if record.ExitCode != nil {
+		artifacts = append(artifacts, "gemcp-result.json")
+	}
+	if len(record.Metrics) > 0 {
+		artifacts = append(artifacts, "metrics.json")
+	}
+	return ArtifactView{ExperimentID: record.PublicID.String(), OutputPath: record.OutputPath, Artifacts: artifacts}, nil
 }
 
 func (s *Service) getRecord(ctx context.Context, projectID int, value string) (*ent.Experiment, error) {

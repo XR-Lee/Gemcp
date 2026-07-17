@@ -9,7 +9,7 @@ type SubmitInput struct {
 	CommitSHA         string   `json:"commit_sha" jsonschema:"full 40- or 64-character Git commit SHA"`
 	Command           string   `json:"command" jsonschema:"shell command to execute in the approved image"`
 	MaxRuntimeSeconds int      `json:"max_runtime_seconds,omitempty" jsonschema:"hard runtime limit; omit to use the project maximum"`
-	SecretNames       []string `json:"secret_names,omitempty" jsonschema:"registered project secret names requested by this experiment"`
+	SecretNames       []string `json:"secret_names,omitempty" jsonschema:"reserved for a later release; must be omitted"`
 	IdempotencyKey    string   `json:"idempotency_key" jsonschema:"unique retry key, 8 to 128 characters"`
 }
 
@@ -39,6 +39,24 @@ type View struct {
 	DeadlineAt         *time.Time     `json:"deadline_at,omitempty"`
 	FinishedAt         *time.Time     `json:"finished_at,omitempty"`
 	CancelRequestedAt  *time.Time     `json:"cancel_requested_at,omitempty"`
+}
+
+type AttemptView struct {
+	ID                 string         `json:"id"`
+	Number             int            `json:"number"`
+	State              string         `json:"state"`
+	ProviderResourceID *string        `json:"provider_resource_id,omitempty"`
+	RetryReason        *string        `json:"retry_reason,omitempty"`
+	FailureCode        *string        `json:"failure_code,omitempty"`
+	FailureReason      *string        `json:"failure_reason,omitempty"`
+	StartedAt          *time.Time     `json:"started_at,omitempty"`
+	FinishedAt         *time.Time     `json:"finished_at,omitempty"`
+	EstimatedCostMilli int64          `json:"estimated_cost_milli"`
+	ExitCode           *int           `json:"exit_code,omitempty"`
+	LogTail            *string        `json:"log_tail,omitempty"`
+	Metrics            map[string]any `json:"metrics,omitempty"`
+	CreatedAt          time.Time      `json:"created_at"`
+	UpdatedAt          time.Time      `json:"updated_at"`
 }
 
 type SubmitResult struct {

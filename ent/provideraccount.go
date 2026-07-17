@@ -49,9 +49,11 @@ type ProviderAccount struct {
 type ProviderAccountEdges struct {
 	// Tenant holds the value of the tenant edge.
 	Tenant *Tenant `json:"tenant,omitempty"`
+	// ProviderResources holds the value of the provider_resources edge.
+	ProviderResources []*ProviderResource `json:"provider_resources,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [1]bool
+	loadedTypes [2]bool
 }
 
 // TenantOrErr returns the Tenant value or an error if the edge
@@ -63,6 +65,15 @@ func (e ProviderAccountEdges) TenantOrErr() (*Tenant, error) {
 		return nil, &NotFoundError{label: tenant.Label}
 	}
 	return nil, &NotLoadedError{edge: "tenant"}
+}
+
+// ProviderResourcesOrErr returns the ProviderResources value or an error if the edge
+// was not loaded in eager-loading.
+func (e ProviderAccountEdges) ProviderResourcesOrErr() ([]*ProviderResource, error) {
+	if e.loadedTypes[1] {
+		return e.ProviderResources, nil
+	}
+	return nil, &NotLoadedError{edge: "provider_resources"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -176,6 +187,11 @@ func (_m *ProviderAccount) Value(name string) (ent.Value, error) {
 // QueryTenant queries the "tenant" edge of the ProviderAccount entity.
 func (_m *ProviderAccount) QueryTenant() *TenantQuery {
 	return NewProviderAccountClient(_m.config).QueryTenant(_m)
+}
+
+// QueryProviderResources queries the "provider_resources" edge of the ProviderAccount entity.
+func (_m *ProviderAccount) QueryProviderResources() *ProviderResourceQuery {
+	return NewProviderAccountClient(_m.config).QueryProviderResources(_m)
 }
 
 // Update returns a builder for updating this ProviderAccount.

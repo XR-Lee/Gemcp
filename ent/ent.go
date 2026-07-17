@@ -19,11 +19,15 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
+	"github.com/XR-Lee/Gemcp/ent/notification"
+	"github.com/XR-Lee/Gemcp/ent/notificationsetting"
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/provideraccount"
+	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/recordmixin"
 	"github.com/XR-Lee/Gemcp/ent/repository"
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
+	"github.com/XR-Lee/Gemcp/ent/serviceheartbeat"
 	"github.com/XR-Lee/Gemcp/ent/session"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
 	"github.com/XR-Lee/Gemcp/ent/user"
@@ -87,21 +91,25 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			agenttoken.Table:        agenttoken.ValidColumn,
-			attempt.Table:           attempt.ValidColumn,
-			auditevent.Table:        auditevent.ValidColumn,
-			budgetentry.Table:       budgetentry.ValidColumn,
-			environment.Table:       environment.ValidColumn,
-			experiment.Table:        experiment.ValidColumn,
-			idempotencyrecord.Table: idempotencyrecord.ValidColumn,
-			project.Table:           project.ValidColumn,
-			provideraccount.Table:   provideraccount.ValidColumn,
-			recordmixin.Table:       recordmixin.ValidColumn,
-			repository.Table:        repository.ValidColumn,
-			resourceprofile.Table:   resourceprofile.ValidColumn,
-			session.Table:           session.ValidColumn,
-			tenant.Table:            tenant.ValidColumn,
-			user.Table:              user.ValidColumn,
+			agenttoken.Table:          agenttoken.ValidColumn,
+			attempt.Table:             attempt.ValidColumn,
+			auditevent.Table:          auditevent.ValidColumn,
+			budgetentry.Table:         budgetentry.ValidColumn,
+			environment.Table:         environment.ValidColumn,
+			experiment.Table:          experiment.ValidColumn,
+			idempotencyrecord.Table:   idempotencyrecord.ValidColumn,
+			notification.Table:        notification.ValidColumn,
+			notificationsetting.Table: notificationsetting.ValidColumn,
+			project.Table:             project.ValidColumn,
+			provideraccount.Table:     provideraccount.ValidColumn,
+			providerresource.Table:    providerresource.ValidColumn,
+			recordmixin.Table:         recordmixin.ValidColumn,
+			repository.Table:          repository.ValidColumn,
+			resourceprofile.Table:     resourceprofile.ValidColumn,
+			serviceheartbeat.Table:    serviceheartbeat.ValidColumn,
+			session.Table:             session.ValidColumn,
+			tenant.Table:              tenant.ValidColumn,
+			user.Table:                user.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

@@ -286,6 +286,10 @@ func validateInput(input Input) error {
 	if input.Project.MaxConcurrency <= 0 || input.Project.MaxRuntimeSeconds <= 0 || input.Project.TimeoutExtensionSeconds < 0 || input.Project.TerminationGraceSeconds < 0 {
 		return invalid("project concurrency and runtime limits are invalid")
 	}
+	totalRuntime := int64(input.Project.MaxRuntimeSeconds) + int64(input.Project.TimeoutExtensionSeconds) + int64(input.Project.TerminationGraceSeconds)
+	if totalRuntime > int64((30*24*time.Hour)/time.Second) || input.Project.TerminationGraceSeconds > 3600 {
+		return invalid("project runtime, extension, and grace must fit within 30 days and grace must not exceed one hour")
+	}
 	if strings.TrimSpace(input.Environment.Name) == "" || strings.TrimSpace(input.Environment.ImageUUID) == "" {
 		return invalid("default environment name and image UUID are required")
 	}

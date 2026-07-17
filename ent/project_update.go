@@ -18,6 +18,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 	"github.com/XR-Lee/Gemcp/ent/project"
+	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/repository"
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
 )
@@ -313,6 +314,21 @@ func (_u *ProjectUpdate) AddAttempts(v ...*Attempt) *ProjectUpdate {
 	return _u.AddAttemptIDs(ids...)
 }
 
+// AddProviderResourceIDs adds the "provider_resources" edge to the ProviderResource entity by IDs.
+func (_u *ProjectUpdate) AddProviderResourceIDs(ids ...int) *ProjectUpdate {
+	_u.mutation.AddProviderResourceIDs(ids...)
+	return _u
+}
+
+// AddProviderResources adds the "provider_resources" edges to the ProviderResource entity.
+func (_u *ProjectUpdate) AddProviderResources(v ...*ProviderResource) *ProjectUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddProviderResourceIDs(ids...)
+}
+
 // AddBudgetEntryIDs adds the "budget_entries" edge to the BudgetEntry entity by IDs.
 func (_u *ProjectUpdate) AddBudgetEntryIDs(ids ...int) *ProjectUpdate {
 	_u.mutation.AddBudgetEntryIDs(ids...)
@@ -457,6 +473,27 @@ func (_u *ProjectUpdate) RemoveAttempts(v ...*Attempt) *ProjectUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveAttemptIDs(ids...)
+}
+
+// ClearProviderResources clears all "provider_resources" edges to the ProviderResource entity.
+func (_u *ProjectUpdate) ClearProviderResources() *ProjectUpdate {
+	_u.mutation.ClearProviderResources()
+	return _u
+}
+
+// RemoveProviderResourceIDs removes the "provider_resources" edge to ProviderResource entities by IDs.
+func (_u *ProjectUpdate) RemoveProviderResourceIDs(ids ...int) *ProjectUpdate {
+	_u.mutation.RemoveProviderResourceIDs(ids...)
+	return _u
+}
+
+// RemoveProviderResources removes "provider_resources" edges to ProviderResource entities.
+func (_u *ProjectUpdate) RemoveProviderResources(v ...*ProviderResource) *ProjectUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveProviderResourceIDs(ids...)
 }
 
 // ClearBudgetEntries clears all "budget_entries" edges to the BudgetEntry entity.
@@ -907,6 +944,51 @@ func (_u *ProjectUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.ProviderResourcesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.ProviderResourcesTable,
+			Columns: []string{project.ProviderResourcesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(providerresource.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedProviderResourcesIDs(); len(nodes) > 0 && !_u.mutation.ProviderResourcesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.ProviderResourcesTable,
+			Columns: []string{project.ProviderResourcesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(providerresource.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ProviderResourcesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.ProviderResourcesTable,
+			Columns: []string{project.ProviderResourcesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(providerresource.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _u.mutation.BudgetEntriesCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -1250,6 +1332,21 @@ func (_u *ProjectUpdateOne) AddAttempts(v ...*Attempt) *ProjectUpdateOne {
 	return _u.AddAttemptIDs(ids...)
 }
 
+// AddProviderResourceIDs adds the "provider_resources" edge to the ProviderResource entity by IDs.
+func (_u *ProjectUpdateOne) AddProviderResourceIDs(ids ...int) *ProjectUpdateOne {
+	_u.mutation.AddProviderResourceIDs(ids...)
+	return _u
+}
+
+// AddProviderResources adds the "provider_resources" edges to the ProviderResource entity.
+func (_u *ProjectUpdateOne) AddProviderResources(v ...*ProviderResource) *ProjectUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddProviderResourceIDs(ids...)
+}
+
 // AddBudgetEntryIDs adds the "budget_entries" edge to the BudgetEntry entity by IDs.
 func (_u *ProjectUpdateOne) AddBudgetEntryIDs(ids ...int) *ProjectUpdateOne {
 	_u.mutation.AddBudgetEntryIDs(ids...)
@@ -1394,6 +1491,27 @@ func (_u *ProjectUpdateOne) RemoveAttempts(v ...*Attempt) *ProjectUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveAttemptIDs(ids...)
+}
+
+// ClearProviderResources clears all "provider_resources" edges to the ProviderResource entity.
+func (_u *ProjectUpdateOne) ClearProviderResources() *ProjectUpdateOne {
+	_u.mutation.ClearProviderResources()
+	return _u
+}
+
+// RemoveProviderResourceIDs removes the "provider_resources" edge to ProviderResource entities by IDs.
+func (_u *ProjectUpdateOne) RemoveProviderResourceIDs(ids ...int) *ProjectUpdateOne {
+	_u.mutation.RemoveProviderResourceIDs(ids...)
+	return _u
+}
+
+// RemoveProviderResources removes "provider_resources" edges to ProviderResource entities.
+func (_u *ProjectUpdateOne) RemoveProviderResources(v ...*ProviderResource) *ProjectUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveProviderResourceIDs(ids...)
 }
 
 // ClearBudgetEntries clears all "budget_entries" edges to the BudgetEntry entity.
@@ -1867,6 +1985,51 @@ func (_u *ProjectUpdateOne) sqlSave(ctx context.Context) (_node *Project, err er
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(attempt.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ProviderResourcesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.ProviderResourcesTable,
+			Columns: []string{project.ProviderResourcesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(providerresource.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedProviderResourcesIDs(); len(nodes) > 0 && !_u.mutation.ProviderResourcesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.ProviderResourcesTable,
+			Columns: []string{project.ProviderResourcesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(providerresource.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ProviderResourcesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.ProviderResourcesTable,
+			Columns: []string{project.ProviderResourcesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(providerresource.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
