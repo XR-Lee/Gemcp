@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import {
   Boxes,
   CheckCircle2,
@@ -51,6 +51,9 @@ const emergencyBusy = ref(false)
 const emergencyConfirmation = ref('')
 const operationError = ref('')
 const credentialForm = reactive({ name: 'AutoDL Private Cloud', token: '' })
+const lastSuccessfulRefreshAt = ref(0)
+const autoRefreshSeconds = 60
+let autoRefreshTimer: number | undefined
 
 const images = computed(() => [...(resources.value?.private_images ?? []), ...(resources.value?.system_images ?? [])])
 const idleGPU = computed(() => (resources.value?.gpu_stock ?? []).reduce((total, item) => total + item.idle, 0))
@@ -72,6 +75,30 @@ function handleError(caught: unknown, fallback: string) {
   error.value = caught instanceof APIError ? caught.message : fallback
 }
 
+function markRefreshSuccessful() {
+  lastSuccessfulRefreshAt.value = Date.now()
+}
+
+function stopAutoRefresh() {
+  if (autoRefreshTimer !== undefined) {
+    window.clearTimeout(autoRefreshTimer)
+    autoRefreshTimer = undefined
+  }
+}
+
+function scheduleAutoRefresh() {
+  stopAutoRefresh()
+  if (!props.active) return
+  autoRefreshTimer = window.setTimeout(async () => {
+    autoRefreshTimer = undefined
+    if (props.active && document.visibilityState === 'visible') {
+      if (!initialized.value) await loadProvider()
+      else if (summary.value?.credential_configured) await refreshProvider()
+    }
+    scheduleAutoRefresh()
+  }, autoRefreshSeconds * 1000)
+}
+
 async function loadProvider() {
   if (loading.value) return
   loading.value = true
@@ -88,6 +115,7 @@ async function loadProvider() {
       managedResources.value = await managedPromise
     }
     initialized.value = true
+    markRefreshSuccessful()
   } catch (caught) {
     handleError(caught, 'Could not load Private Cloud resources.')
   } finally {
@@ -95,8 +123,8 @@ async function loadProvider() {
   }
 }
 
-async function refreshLive() {
-  if (loading.value) return
+async function refreshProvider() {
+  if (loading.value || !summary.value?.credential_configured) return
   loading.value = true
   error.value = ''
   try {
@@ -105,11 +133,18 @@ async function refreshLive() {
     summary.value = snapshot.provider
     managedResources.value = managed
     initialized.value = true
+    markRefreshSuccessful()
   } catch (caught) {
     handleError(caught, 'Private Cloud refresh failed.')
   } finally {
     loading.value = false
   }
+}
+
+async function refreshLive() {
+  if (initialized.value) await refreshProvider()
+  else await loadProvider()
+  scheduleAutoRefresh()
 }
 
 function openCredentialDialog() {
@@ -145,6 +180,8 @@ async function configureProvider() {
     credentialForm.token = ''
     credentialDialog.value = false
     initialized.value = true
+    markRefreshSuccessful()
+    scheduleAutoRefresh()
   } catch (caught) {
     if (caught instanceof APIError && caught.status === 401) {
       emit('unauthorized')
@@ -241,13 +278,43 @@ function containerCount(deploymentID: string) {
   return active + cached
 }
 
+function refreshIfStale() {
+  if (!props.active || document.visibilityState !== 'visible') return
+  if (!initialized.value) {
+    void loadProvider()
+  } else if (summary.value?.credential_configured && Date.now() - lastSuccessfulRefreshAt.value >= autoRefreshSeconds * 1000) {
+    void refreshProvider()
+  }
+}
+
+function handleVisibilityChange() {
+  if (!props.active) return
+  if (document.visibilityState === 'visible') {
+    refreshIfStale()
+    scheduleAutoRefresh()
+  } else {
+    stopAutoRefresh()
+  }
+}
+
 watch(
   () => props.active,
   (active) => {
-    if (active && !initialized.value) void loadProvider()
+    if (active) {
+      refreshIfStale()
+      scheduleAutoRefresh()
+    } else {
+      stopAutoRefresh()
+    }
   },
   { immediate: true },
 )
+
+onMounted(() => document.addEventListener('visibilitychange', handleVisibilityChange))
+onBeforeUnmount(() => {
+  stopAutoRefresh()
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
+})
 </script>
 
 <template>
@@ -264,7 +331,7 @@ watch(
         <span class="state-badge" :data-state="summary?.status ?? 'pending_validation'"><span />{{ stateLabel(summary?.status ?? 'not connected') }}</span>
         <button class="danger-button" type="button" :disabled="managedActiveCount === 0" @click="openEmergencyDialog"><ShieldAlert :size="16" />Emergency stop</button>
         <button class="secondary-button" type="button" @click="openCredentialDialog"><KeyRound :size="16" />Rotate token</button>
-        <button class="primary-button" type="button" :disabled="loading || !summary?.credential_configured" @click="refreshLive"><RefreshCw :size="16" :class="{ spinning: loading }" />Refresh live</button>
+        <button class="primary-button" type="button" :disabled="loading || (initialized && !summary?.credential_configured)" @click="refreshLive"><RefreshCw :size="16" :class="{ spinning: loading }" />Refresh live</button>
       </div>
     </header>
 
@@ -282,7 +349,7 @@ watch(
         <div><span>Backend</span><strong>{{ summary?.backend }}</strong></div>
         <div><span>Credential</span><strong>{{ summary?.credential_configured ? 'Configured' : 'Missing' }}</strong></div>
         <div><span>Last validated</span><strong>{{ dateTime(summary?.last_validated_at) }}</strong></div>
-        <div><span>Snapshot</span><strong>{{ dateTime(resources.generated_at) }}</strong></div>
+        <div><span>Snapshot / auto {{ autoRefreshSeconds }}s</span><strong>{{ dateTime(resources.generated_at) }}</strong></div>
       </section>
 
       <div v-if="resources.truncated?.length" class="provider-truncation" role="status">Showing the first 1,000 records for: {{ resources.truncated.join(', ') }}</div>

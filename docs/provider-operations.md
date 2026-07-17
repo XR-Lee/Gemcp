@@ -80,6 +80,10 @@ Only the official Private Cloud host is accepted. Gemcp first queries images, sy
 
 ## Web console
 
+The Provider view keeps the most recent normalized snapshot in Vue memory for the current authenticated console session. Switching views immediately reuses a snapshot younger than 60 seconds. While the Provider view is active and the document is visible, it refreshes every 60 seconds; leaving the view or hiding the document pauses polling. Manual refresh resets the interval. Failed background refreshes preserve the prior snapshot and surface an error.
+
+This is not HTTP or persistent browser caching: API responses remain `no-store`, and the snapshot is discarded on logout or page reload. No Provider Token, ciphertext, container access field, or other excluded credential enters the cache.
+
 The `Provider` navigation view contains:
 
 - Connection state and last validation time.

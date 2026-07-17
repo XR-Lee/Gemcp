@@ -324,8 +324,8 @@ onMounted(refreshAll)
       </section>
 
       <AgentView v-if="activeView === 'agents'" :active="true" :project="selectedProject" @unauthorized="emit('signedOut')" />
-      <ProviderView v-else-if="activeView === 'provider'" :active="true" @unauthorized="emit('signedOut')" />
-      <NotificationView v-else-if="activeView === 'notifications'" :active="true" @unauthorized="emit('signedOut')" />
+      <div v-show="activeView === 'provider'" class="persistent-view"><ProviderView :active="activeView === 'provider'" @unauthorized="emit('signedOut')" /></div>
+      <NotificationView v-if="activeView === 'notifications'" :active="true" @unauthorized="emit('signedOut')" />
 
       <footer class="console-footer"><span>{{ props.build?.name ?? 'Gemcp' }} {{ props.build?.version ?? 'dev' }}</span><span>Commit {{ props.build?.commit ?? 'unknown' }}</span><span>Operational estimates only</span></footer>
     </main>

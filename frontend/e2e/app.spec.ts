@@ -157,7 +157,7 @@ async function mockLogin(page: Page) {
   })
 }
 
-async function mockConsole(page: Page) {
+async function mockConsole(page: Page, counters?: { providerQueries: number }) {
   await page.route('**/api/v1/**', async (route) => {
     const url = new URL(route.request().url())
     const path = url.pathname
@@ -167,7 +167,10 @@ async function mockConsole(page: Page) {
     if (path === '/api/v1/runtime/status') return fulfill(route, runtimeStatus)
     if (path === '/api/v1/provider' && route.request().method() === 'GET') return fulfill(route, provider)
     if (path === '/api/v1/provider' && route.request().method() === 'PUT') return fulfill(route, { provider, resources: providerResources })
-    if (path === '/api/v1/provider/query') return fulfill(route, providerResources)
+    if (path === '/api/v1/provider/query') {
+      if (counters) counters.providerQueries += 1
+      return fulfill(route, providerResources)
+    }
     if (path === '/api/v1/provider/managed-resources') return fulfill(route, [managedProviderResource])
     if (path === `/api/v1/provider/deployments/${providerDeployment.uuid}/stop`) return fulfill(route, { ...managedProviderResource, stop_requested_at: '2026-07-17T02:01:00Z', stop_reason: 'owner_stop' }, 202)
     if (path === '/api/v1/provider/emergency-stop') {
@@ -338,15 +341,22 @@ test('Agent token issuance, MCP JSON export and revocation fit desktop and mobil
 })
 
 test('live Provider resources and details fit desktop and mobile', async ({ page }) => {
-  await mockConsole(page)
+  const counters = { providerQueries: 0 }
+  await mockConsole(page, counters)
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.goto('/')
   await page.getByRole('button', { name: 'Provider', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Private Cloud resources' })).toBeVisible()
   await expect(page.getByText('2 / 9')).toBeVisible()
   await expect(page.getByText('NVIDIA GeForce RTX 3090')).toBeVisible()
+  await expect.poll(() => counters.providerQueries).toBe(1)
   await expectNoPageOverflow(page)
   await page.screenshot({ path: '/tmp/gemcp-provider-desktop.png', fullPage: true })
+
+  await page.getByRole('button', { name: 'Overview', exact: true }).click()
+  await page.getByRole('button', { name: 'Provider', exact: true }).click()
+  await expect(page.getByText('NVIDIA GeForce RTX 3090')).toBeVisible()
+  expect(counters.providerQueries).toBe(1)
 
   await page.getByRole('button', { name: 'images', exact: true }).click()
   await expect(page.getByText('torch:cuda11.8-cudnn8-devel-ubuntu22.04-py310-torch2.1.2')).toBeVisible()

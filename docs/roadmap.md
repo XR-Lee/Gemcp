@@ -41,7 +41,7 @@ PostgreSQL 18 bind-root hardening, real Private Cloud Runner diagnostics, Provid
 
 ### v0.7.0 - third-party Agent access
 
-Owner-managed project Agent Token issuance, bounded scopes, optional expiry, effective-status and last-use views, immediate revocation, one-time MCP JSON export, audit events, and client-specific Claude Code, Cursor, VS Code, and Codex documentation.
+Owner-managed project Agent Token issuance, bounded scopes, optional expiry, effective-status and last-use views, immediate revocation, one-time MCP JSON export, audit events, client-specific Claude Code, Cursor, VS Code, and Codex documentation, plus session-cached Provider snapshots with visible-page background refresh.
 
 ## Further validation
 

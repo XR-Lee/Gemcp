@@ -311,6 +311,7 @@ label small { color: #858e88; font-size: 10px; font-weight: 500; }
 .sidebar-user span { color: #dce3df; font-size: 11px; }
 .sidebar-user small { margin-top: 2px; color: #7f8b84; font-size: 10px; text-transform: capitalize; }
 .console-main { min-width: 0; display: flex; flex-direction: column; }
+.persistent-view { min-width: 0; }
 .topbar {
   min-height: 78px;
   padding: 14px 28px;
