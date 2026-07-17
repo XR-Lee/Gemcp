@@ -77,7 +77,7 @@ The response is public so the embedded Web application can choose between setup 
 
 Money fields use milli-CNY. For the selected Private Cloud backend, `region` is the sentinel `private`, and the existing profile range stores the one validated `cuda_v` selector as equal `cuda_from` and `cuda_to` values. Public Elastic deployments continue to use a real region and CUDA range.
 
-The Provider Token is AES-256-GCM encrypted before insertion. Agent and Session Tokens are stored as HMAC-SHA-256 digests.
+The Provider Token is AES-256-GCM encrypted before insertion. It is never returned by setup or later Provider APIs; the Owner console can only validate and replace it. Agent and Session Tokens are stored as HMAC-SHA-256 digests.
 
 ## Login
 

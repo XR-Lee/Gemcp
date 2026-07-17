@@ -76,6 +76,100 @@ export type Cost = {
   available_milli: number
 }
 
+export type ProviderSummary = {
+  id: string
+  name: string
+  base_url: string
+  backend: string
+  status: string
+  credential_configured: boolean
+  last_validated_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export type ProviderGPUStock = {
+  name: string
+  idle: number
+  total: number
+}
+
+export type ProviderImage = {
+  uuid: string
+  name: string
+  status?: string
+  size_bytes?: number
+  cuda_version?: string
+  chip_corp?: string
+  cpu_arch?: string
+  source: 'private' | 'system'
+}
+
+export type ProviderDeployment = {
+  uuid: string
+  name: string
+  type: string
+  status: string
+  replica_num: number
+  parallelism_num: number
+  starting_num: number
+  running_num: number
+  finished_num: number
+  failed_num: number
+  image_uuid?: string
+  reuse_container: boolean
+  price_estimate_milli: number
+  created_at?: string
+  updated_at?: string
+  stopped_at?: string
+}
+
+export type ProviderContainer = {
+  uuid: string
+  deployment_uuid: string
+  machine_id?: string
+  data_center?: string
+  status: string
+  gpu_name: string
+  gpu_num: number
+  cpu_num: number
+  memory_bytes: number
+  image_uuid: string
+  price_milli_per_hour: number
+  released: boolean
+  started_at?: string
+  stopped_at?: string
+  created_at?: string
+  updated_at?: string
+}
+
+export type ProviderEvent = {
+  container_uuid: string
+  status: string
+  created_at: string
+}
+
+export type ProviderResources = {
+  generated_at: string
+  provider: ProviderSummary
+  gpu_stock: ProviderGPUStock[]
+  private_images: ProviderImage[]
+  system_images: ProviderImage[]
+  deployments: ProviderDeployment[]
+  active_containers: ProviderContainer[]
+  cached_containers: ProviderContainer[]
+  truncated?: string[]
+}
+
+export type ProviderDeploymentDetails = {
+  generated_at: string
+  deployment: ProviderDeployment
+  active_containers: ProviderContainer[]
+  released_containers: ProviderContainer[]
+  events: ProviderEvent[]
+  truncated?: string[]
+}
+
 export type SetupPayload = Record<string, unknown>
 
 export type SetupResult = {
@@ -185,4 +279,13 @@ export const api = {
       `/api/v1/experiments/${encodeURIComponent(experimentID)}?project_id=${encodeURIComponent(projectID)}`,
     ),
   cost: (projectID: string) => request<Cost>(`/api/v1/projects/${encodeURIComponent(projectID)}/cost`),
+  provider: () => request<ProviderSummary>('/api/v1/provider'),
+  queryProvider: () => request<ProviderResources>('/api/v1/provider/query', { method: 'POST' }),
+  configureProvider: (payload: { name: string; base_url: string; token: string }) =>
+    request<{ provider: ProviderSummary; resources: ProviderResources }>('/api/v1/provider', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+  providerDeployment: (deploymentID: string) =>
+    request<ProviderDeploymentDetails>(`/api/v1/provider/deployments/${encodeURIComponent(deploymentID)}`),
 }

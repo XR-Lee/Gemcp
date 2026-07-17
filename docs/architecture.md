@@ -40,7 +40,9 @@ The production AutoDL adapter uses documented Developer APIs; browser automation
 
 Private Cloud differs materially from public Elastic: it has a separate API host, no Developer wallet endpoint, a non-regional GPU inventory, one `cuda_v` selector, and Provider statuses where `finished_num=1` may coexist with `status=running`. The official console's read-only system-image endpoint is used only to enumerate valid base-image UUIDs during phase zero.
 
-The adapter is idempotent at the control-plane boundary and records every Provider request ID available in responses. The validated Private Cloud installation did not return request IDs, so ownership records, immutable local attempt IDs, and reconciliation queries remain mandatory.
+The `v0.5.0` observer decrypts the Provider credential only inside the server process and exposes normalized Owner-only GPU, image, deployment, container, cache, and event views. Token rotation validates the candidate against all required read endpoints before an atomic encrypted update and audit event. Container access fields are intentionally absent from the decoded model.
+
+The future execution adapter is idempotent at the control-plane boundary and records every Provider request ID available in responses. The validated Private Cloud installation did not return request IDs, so ownership records, immutable local attempt IDs, and reconciliation queries remain mandatory.
 
 ## Storage boundary
 
@@ -52,6 +54,6 @@ Stopped-container reuse is an opportunistic cache. Correctness cannot depend on 
 
 Agent Bearer Tokens identify project-scoped principals and are stored as keyed hashes. AutoDL, Git deploy-key, SMTP, and project Secret values are encrypted with a master key that is not stored in PostgreSQL. GitHub host keys are pinned by trusted SHA256 fingerprint before a repository can become active.
 
-Owner Sessions use Secure, HttpOnly, SameSite=Strict cookies plus CSRF validation for state-changing requests. API and MCP responses are marked `no-store`, including the one-time setup response containing the first Agent Token.
+Owner Sessions use Secure, HttpOnly, SameSite=Strict cookies plus CSRF validation for state-changing requests. API and MCP responses are marked `no-store`, including the one-time setup response containing the first Agent Token. Provider responses expose only a credential-presence boolean; neither plaintext Token nor ciphertext has an API representation.
 
 Experiments may access the public Internet. Any injected Secret must therefore be project-scoped, low privilege, and readily rotatable. Gemcp does not claim to sandbox arbitrary experiment code.

@@ -14,6 +14,7 @@ import (
 	"github.com/XR-Lee/Gemcp/internal/experiment"
 	"github.com/XR-Lee/Gemcp/internal/httpapi"
 	"github.com/XR-Lee/Gemcp/internal/mcpserver"
+	providerservice "github.com/XR-Lee/Gemcp/internal/provider"
 	gitrepository "github.com/XR-Lee/Gemcp/internal/repository"
 	"github.com/XR-Lee/Gemcp/internal/secrets"
 	setupservice "github.com/XR-Lee/Gemcp/internal/setup"
@@ -63,6 +64,13 @@ func New(deps Dependencies) *http.Server {
 	protected.POST("/auth/logout", authHandlers.Logout)
 	projectHandlers := httpapi.NewProjectHandlers(deps.Ent)
 	protected.GET("/projects", projectHandlers.List)
+
+	providerService := providerservice.NewService(deps.Ent, deps.Secrets, deps.Build.Version)
+	providerHandlers := httpapi.NewProviderHandlers(providerService)
+	protected.GET("/provider", providerHandlers.Summary)
+	protected.POST("/provider/query", providerHandlers.Query)
+	protected.PUT("/provider", providerHandlers.Configure)
+	protected.GET("/provider/deployments/:id", providerHandlers.Deployment)
 
 	repositoryService := gitrepository.NewService(deps.Ent, deps.Secrets, nil)
 	repositoryHandlers := httpapi.NewRepositoryHandlers(repositoryService)

@@ -23,6 +23,31 @@ describe('API security headers', () => {
     expect(String(options.body)).not.toContain('bootstrap-secret-value')
   })
 
+  it('sends Provider rotation only in a CSRF-protected same-origin body', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ data: { provider: { id: 'provider-id' }, resources: {} } }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    setCSRFToken('csrf-provider-token')
+
+    await api.configureProvider({
+      name: 'AutoDL Private Cloud',
+      base_url: 'https://private.autodl.com',
+      token: 'private-provider-secret',
+    })
+
+    const [path, options] = fetchMock.mock.calls[0]
+    const headers = options.headers as Headers
+    expect(path).toBe('/api/v1/provider')
+    expect(options.method).toBe('PUT')
+    expect(headers.get('X-CSRF-Token')).toBe('csrf-provider-token')
+    expect(headers.get('Authorization')).toBeNull()
+    expect(String(path)).not.toContain('private-provider-secret')
+    expect(JSON.parse(String(options.body)).token).toBe('private-provider-secret')
+  })
+
   it('adds the current CSRF token to state-changing Owner requests', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

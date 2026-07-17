@@ -46,12 +46,22 @@
 - Successful cold and stopped-container-reuse Jobs with stop/delete cleanup and zero residual deployments.
 - Recorded `finished_num` terminal semantics and disposable `in_cache` behavior.
 
-## v0.5.0: M0 execution and operations
+## v0.5.0: Live Private Cloud operations (complete)
 
-- Production AutoDL Private Cloud Job Provider selected by live phase zero.
-- Runner callbacks, fixed AutoDL file-storage output path, and local cost estimates.
-- Independent watchdog and critical SMTP notifications.
-- Provider lifecycle, live status, emergency-stop, and notification views in the existing Web console.
+- Server-side use of the AES-GCM-encrypted real Private Cloud Developer Token.
+- Owner-only live GPU, private/system image, deployment, container, cache, and event queries.
+- Credential-presence metadata without plaintext or ciphertext disclosure.
+- Validate-before-commit Token rotation with audit records and official-host restriction.
+- Credential-free typed Provider responses that drop SSH commands and root passwords.
+- Dedicated desktop/mobile Provider console with refresh, resource views, and deployment details.
+- Explicitly enabled real-Token integration test.
+
+## v0.6.0: M0 execution and shutdown enforcement
+
+- Durable FIFO scheduler and production AutoDL Private Cloud Job lifecycle.
+- Runner bootstrap, callbacks, fixed file-storage output path, and local cost estimates.
+- Independent Watchdog and critical SMTP notifications.
+- Provider lifecycle actions, emergency stop, and notification views in the existing Web console.
 
 ## Trial additions
 

@@ -4,7 +4,7 @@ Gemcp is a private, single-organization control plane for running bounded AutoDL
 
 ## Current release
 
-`v0.4.2` adds an explicitly separate AutoDL Private Cloud contract and records successful cold and stopped-container-reuse phase-zero Jobs. Private Cloud is now the selected M0 Provider; accepted experiments remain queued until the production scheduler, runner, and watchdog land in `v0.5.0`.
+`v0.5.0` uses the encrypted real AutoDL Private Cloud credential to power an Owner-only live resource console. It visualizes GPU capacity, private and system images, deployments, active containers, released caches, and deployment events, and supports validate-before-commit Token rotation. Accepted experiments remain queued until the production scheduler, Runner, and Watchdog land in `v0.6.0`.
 
 ## Architecture
 
@@ -52,6 +52,10 @@ GET /api/v1/projects
 GET /api/v1/repositories
 GET /api/v1/experiments
 GET /api/v1/projects/:id/cost
+GET /api/v1/provider
+POST /api/v1/provider/query
+PUT /api/v1/provider
+GET /api/v1/provider/deployments/:id
 POST|GET|DELETE /mcp
 ```
 
@@ -74,7 +78,7 @@ Generate both required bootstrap credentials on the deployment host:
 
 Store them only in the protected deployment `.env`. The first-run setup transaction and Session API are documented in [First-run setup](docs/setup-api.md).
 
-After initialization, register the private repository using the [Owner Web console](docs/web-console.md) or [Private Git repository API](docs/repositories.md), then connect an Agent using the [MCP endpoint](docs/mcp.md).
+After initialization, validate the live credential and inspect resources through [Private Cloud Provider operations](docs/provider-operations.md). Register the private repository using the [Owner Web console](docs/web-console.md) or [Private Git repository API](docs/repositories.md), then connect an Agent using the [MCP endpoint](docs/mcp.md).
 
 ## Deployment
 

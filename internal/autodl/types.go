@@ -63,15 +63,22 @@ type GPUStockEntry struct {
 type GPUStock map[string]GPUStockEntry
 
 type Deployment struct {
-	UUID           string `json:"uuid"`
-	Name           string `json:"name"`
-	Type           string `json:"deployment_type"`
-	Status         string `json:"status"`
-	ReplicaNum     int    `json:"replica_num"`
-	StartingNum    int    `json:"starting_num"`
-	RunningNum     int    `json:"running_num"`
-	FinishedNum    int    `json:"finished_num"`
-	PriceEstimates int64  `json:"price_estimates"`
+	UUID           string     `json:"uuid"`
+	Name           string     `json:"name"`
+	Type           string     `json:"deployment_type"`
+	Status         string     `json:"status"`
+	ReplicaNum     int        `json:"replica_num"`
+	ParallelismNum int        `json:"parallelism_num"`
+	StartingNum    int        `json:"starting_num"`
+	RunningNum     int        `json:"running_num"`
+	FinishedNum    int        `json:"finished_num"`
+	FailedNum      int        `json:"failed_num"`
+	ImageUUID      string     `json:"image_uuid"`
+	ReuseContainer bool       `json:"reuse_container"`
+	PriceEstimates int64      `json:"price_estimates"`
+	CreatedAt      *time.Time `json:"created_at,omitempty"`
+	UpdatedAt      *time.Time `json:"updated_at,omitempty"`
+	StoppedAt      *time.Time `json:"stopped_at,omitempty"`
 }
 
 type DeploymentCreateResult struct {
@@ -81,6 +88,7 @@ type DeploymentCreateResult struct {
 type Container struct {
 	UUID           string     `json:"uuid"`
 	DeploymentUUID string     `json:"deployment_uuid"`
+	MachineID      string     `json:"machine_id"`
 	DataCenter     string     `json:"data_center"`
 	Status         string     `json:"status"`
 	GPUName        string     `json:"gpu_name"`
@@ -92,6 +100,7 @@ type Container struct {
 	StartedAt      *time.Time `json:"started_at,omitempty"`
 	StoppedAt      *time.Time `json:"stopped_at,omitempty"`
 	CreatedAt      *time.Time `json:"created_at,omitempty"`
+	UpdatedAt      *time.Time `json:"updated_at,omitempty"`
 }
 
 type ContainerEvent struct {

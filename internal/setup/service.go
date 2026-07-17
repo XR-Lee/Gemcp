@@ -14,10 +14,11 @@ import (
 	"github.com/XR-Lee/Gemcp/ent"
 	"github.com/XR-Lee/Gemcp/internal/auth"
 	"github.com/XR-Lee/Gemcp/internal/autodl"
+	providerservice "github.com/XR-Lee/Gemcp/internal/provider"
 	"github.com/XR-Lee/Gemcp/internal/secrets"
 )
 
-const providerTokenAAD = "gemcp:provider-token:v1"
+const providerTokenAAD = providerservice.CredentialAAD
 
 var slugPattern = regexp.MustCompile(`^[a-z][a-z0-9-]{1,62}[a-z0-9]$`)
 
@@ -123,7 +124,7 @@ func (s *Service) Initialize(ctx context.Context, input Input) (Result, error) {
 	if err != nil {
 		return result, err
 	}
-	encryptedToken, err := s.box.Encrypt([]byte(strings.TrimSpace(input.Provider.Token)), providerTokenAAD)
+	encryptedToken, err := providerservice.EncryptCredential(s.box, input.Provider.Token)
 	if err != nil {
 		return result, err
 	}

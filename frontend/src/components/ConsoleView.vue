@@ -20,11 +20,12 @@ import {
 } from '@lucide/vue'
 import { APIError, api, type BuildInfo, type Cost, type Experiment, type Project, type Repository, type User } from '../api'
 import ExperimentTable from './ExperimentTable.vue'
+import ProviderView from './ProviderView.vue'
 
 const props = defineProps<{ build: BuildInfo | null; user: User }>()
 const emit = defineEmits<{ signedOut: [] }>()
 
-type ViewName = 'overview' | 'experiments' | 'projects'
+type ViewName = 'overview' | 'experiments' | 'projects' | 'provider'
 const activeView = ref<ViewName>('overview')
 const projects = ref<Project[]>([])
 const selectedProjectID = ref('')
@@ -48,6 +49,12 @@ const runningCount = computed(() => experiments.value.filter((item) => ['provisi
 const queuedCount = computed(() => experiments.value.filter((item) => item.state === 'queued').length)
 const filteredExperiments = computed(() => stateFilter.value === 'all' ? experiments.value : experiments.value.filter((item) => item.state === stateFilter.value))
 const recentExperiments = computed(() => experiments.value.slice(0, 8))
+const viewTitle = computed(() => ({
+  overview: 'Overview',
+  experiments: 'Experiments',
+  projects: 'Project configuration',
+  provider: 'Private Cloud resources',
+})[activeView.value])
 
 function handleError(caught: unknown, fallback: string) {
   if (caught instanceof APIError && caught.status === 401) {
@@ -203,6 +210,7 @@ onMounted(refreshAll)
         <button class="nav-item" :class="{ active: activeView === 'overview' }" type="button" @click="activeView = 'overview'"><Activity :size="17" /><span>Overview</span></button>
         <button class="nav-item" :class="{ active: activeView === 'experiments' }" type="button" @click="activeView = 'experiments'"><FlaskConical :size="17" /><span>Experiments</span></button>
         <button class="nav-item" :class="{ active: activeView === 'projects' }" type="button" @click="activeView = 'projects'"><Boxes :size="17" /><span>Project</span></button>
+        <button class="nav-item" :class="{ active: activeView === 'provider' }" type="button" @click="activeView = 'provider'"><Server :size="17" /><span>Provider</span></button>
         <button class="nav-item nav-bottom" type="button" :disabled="signingOut" @click="signOut"><LogOut :size="17" /><span>Sign out</span></button>
       </nav>
       <div class="sidebar-user"><span>{{ props.user.email }}</span><small>{{ props.user.role }}</small></div>
@@ -212,12 +220,12 @@ onMounted(refreshAll)
       <header class="topbar">
         <div>
           <p class="eyebrow">Operations</p>
-          <h1>{{ activeView === 'projects' ? 'Project configuration' : activeView[0].toUpperCase() + activeView.slice(1) }}</h1>
+          <h1>{{ viewTitle }}</h1>
         </div>
         <div class="topbar-actions">
-          <label class="project-select"><span>Project</span><select v-model="selectedProjectID" @change="refreshProject()"><option v-for="project in projects" :key="project.id" :value="project.id">{{ project.name }}</option></select></label>
+          <label v-if="activeView !== 'provider'" class="project-select"><span>Project</span><select v-model="selectedProjectID" @change="refreshProject()"><option v-for="project in projects" :key="project.id" :value="project.id">{{ project.name }}</option></select></label>
           <span class="status online"><span class="status-dot" />Online</span>
-          <button class="icon-button" type="button" title="Refresh project" :disabled="loading" @click="refreshAll"><RefreshCw :size="17" :class="{ spinning: loading }" /></button>
+          <button v-if="activeView !== 'provider'" class="icon-button" type="button" title="Refresh project" :disabled="loading" @click="refreshAll"><RefreshCw :size="17" :class="{ spinning: loading }" /></button>
         </div>
       </header>
 
@@ -237,7 +245,7 @@ onMounted(refreshAll)
           <ExperimentTable :experiments="recentExperiments" compact @select="selectedExperiment = $event" />
         </section>
         <section class="status-band">
-          <div><Server :size="18" /><span><strong>Execution backend</strong><small>Phase-zero validation required</small></span></div>
+          <div><Server :size="18" /><span><strong>AutoDL Private Cloud</strong><small>Live phase-zero validated</small></span></div>
           <div><GitBranch :size="18" /><span><strong>{{ repositories.filter((item) => item.status === 'active').length }} active repositories</strong><small>{{ repositories.length }} registered</small></span></div>
           <div><CircleDollarSign :size="18" /><span><strong>{{ money(cost?.monthly_budget_milli) }}</strong><small>Monthly hard budget</small></span></div>
         </section>
@@ -248,7 +256,7 @@ onMounted(refreshAll)
         <ExperimentTable :experiments="filteredExperiments" @select="selectedExperiment = $event" />
       </section>
 
-      <section v-else class="page-workspace project-workspace">
+      <section v-else-if="activeView === 'projects'" class="page-workspace project-workspace">
         <div class="section-heading page-section-heading"><div><h2>{{ selectedProject?.name ?? 'Project' }}</h2><p>{{ selectedProject?.slug }} / {{ selectedProject?.status }}</p></div><span class="version-chip">{{ selectedProject?.timezone }}</span></div>
         <div v-if="selectedProject" class="policy-grid">
           <div><span>Monthly budget</span><strong>{{ money(selectedProject.monthly_budget_milli) }}</strong></div>
@@ -265,6 +273,8 @@ onMounted(refreshAll)
         </div>
         <div v-else class="empty-state compact-empty"><span class="empty-icon"><GitBranch :size="21" /></span><h3>No repositories registered</h3><p>Register the private GitHub repository used by the first experiment.</p></div>
       </section>
+
+      <ProviderView v-show="activeView === 'provider'" :active="activeView === 'provider'" @unauthorized="emit('signedOut')" />
 
       <footer class="console-footer"><span>{{ props.build?.name ?? 'Gemcp' }} {{ props.build?.version ?? 'dev' }}</span><span>Commit {{ props.build?.commit ?? 'unknown' }}</span><span>Operational estimates only</span></footer>
     </main>
