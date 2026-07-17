@@ -12,7 +12,10 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/XR-Lee/Gemcp/ent/agenttoken"
+	"github.com/XR-Lee/Gemcp/ent/attempt"
+	"github.com/XR-Lee/Gemcp/ent/budgetentry"
 	"github.com/XR-Lee/Gemcp/ent/environment"
+	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/repository"
@@ -280,6 +283,51 @@ func (_u *ProjectUpdate) AddAgentTokens(v ...*AgentToken) *ProjectUpdate {
 	return _u.AddAgentTokenIDs(ids...)
 }
 
+// AddExperimentIDs adds the "experiments" edge to the Experiment entity by IDs.
+func (_u *ProjectUpdate) AddExperimentIDs(ids ...int) *ProjectUpdate {
+	_u.mutation.AddExperimentIDs(ids...)
+	return _u
+}
+
+// AddExperiments adds the "experiments" edges to the Experiment entity.
+func (_u *ProjectUpdate) AddExperiments(v ...*Experiment) *ProjectUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddExperimentIDs(ids...)
+}
+
+// AddAttemptIDs adds the "attempts" edge to the Attempt entity by IDs.
+func (_u *ProjectUpdate) AddAttemptIDs(ids ...int) *ProjectUpdate {
+	_u.mutation.AddAttemptIDs(ids...)
+	return _u
+}
+
+// AddAttempts adds the "attempts" edges to the Attempt entity.
+func (_u *ProjectUpdate) AddAttempts(v ...*Attempt) *ProjectUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddAttemptIDs(ids...)
+}
+
+// AddBudgetEntryIDs adds the "budget_entries" edge to the BudgetEntry entity by IDs.
+func (_u *ProjectUpdate) AddBudgetEntryIDs(ids ...int) *ProjectUpdate {
+	_u.mutation.AddBudgetEntryIDs(ids...)
+	return _u
+}
+
+// AddBudgetEntries adds the "budget_entries" edges to the BudgetEntry entity.
+func (_u *ProjectUpdate) AddBudgetEntries(v ...*BudgetEntry) *ProjectUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddBudgetEntryIDs(ids...)
+}
+
 // Mutation returns the ProjectMutation object of the builder.
 func (_u *ProjectUpdate) Mutation() *ProjectMutation {
 	return _u.mutation
@@ -367,6 +415,69 @@ func (_u *ProjectUpdate) RemoveAgentTokens(v ...*AgentToken) *ProjectUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveAgentTokenIDs(ids...)
+}
+
+// ClearExperiments clears all "experiments" edges to the Experiment entity.
+func (_u *ProjectUpdate) ClearExperiments() *ProjectUpdate {
+	_u.mutation.ClearExperiments()
+	return _u
+}
+
+// RemoveExperimentIDs removes the "experiments" edge to Experiment entities by IDs.
+func (_u *ProjectUpdate) RemoveExperimentIDs(ids ...int) *ProjectUpdate {
+	_u.mutation.RemoveExperimentIDs(ids...)
+	return _u
+}
+
+// RemoveExperiments removes "experiments" edges to Experiment entities.
+func (_u *ProjectUpdate) RemoveExperiments(v ...*Experiment) *ProjectUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveExperimentIDs(ids...)
+}
+
+// ClearAttempts clears all "attempts" edges to the Attempt entity.
+func (_u *ProjectUpdate) ClearAttempts() *ProjectUpdate {
+	_u.mutation.ClearAttempts()
+	return _u
+}
+
+// RemoveAttemptIDs removes the "attempts" edge to Attempt entities by IDs.
+func (_u *ProjectUpdate) RemoveAttemptIDs(ids ...int) *ProjectUpdate {
+	_u.mutation.RemoveAttemptIDs(ids...)
+	return _u
+}
+
+// RemoveAttempts removes "attempts" edges to Attempt entities.
+func (_u *ProjectUpdate) RemoveAttempts(v ...*Attempt) *ProjectUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveAttemptIDs(ids...)
+}
+
+// ClearBudgetEntries clears all "budget_entries" edges to the BudgetEntry entity.
+func (_u *ProjectUpdate) ClearBudgetEntries() *ProjectUpdate {
+	_u.mutation.ClearBudgetEntries()
+	return _u
+}
+
+// RemoveBudgetEntryIDs removes the "budget_entries" edge to BudgetEntry entities by IDs.
+func (_u *ProjectUpdate) RemoveBudgetEntryIDs(ids ...int) *ProjectUpdate {
+	_u.mutation.RemoveBudgetEntryIDs(ids...)
+	return _u
+}
+
+// RemoveBudgetEntries removes "budget_entries" edges to BudgetEntry entities.
+func (_u *ProjectUpdate) RemoveBudgetEntries(v ...*BudgetEntry) *ProjectUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveBudgetEntryIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -706,6 +817,141 @@ func (_u *ProjectUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.ExperimentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.ExperimentsTable,
+			Columns: []string{project.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedExperimentsIDs(); len(nodes) > 0 && !_u.mutation.ExperimentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.ExperimentsTable,
+			Columns: []string{project.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ExperimentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.ExperimentsTable,
+			Columns: []string{project.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.AttemptsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.AttemptsTable,
+			Columns: []string{project.AttemptsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(attempt.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedAttemptsIDs(); len(nodes) > 0 && !_u.mutation.AttemptsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.AttemptsTable,
+			Columns: []string{project.AttemptsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(attempt.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.AttemptsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.AttemptsTable,
+			Columns: []string{project.AttemptsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(attempt.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.BudgetEntriesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.BudgetEntriesTable,
+			Columns: []string{project.BudgetEntriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(budgetentry.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedBudgetEntriesIDs(); len(nodes) > 0 && !_u.mutation.BudgetEntriesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.BudgetEntriesTable,
+			Columns: []string{project.BudgetEntriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(budgetentry.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.BudgetEntriesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.BudgetEntriesTable,
+			Columns: []string{project.BudgetEntriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(budgetentry.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{project.Label}
@@ -974,6 +1220,51 @@ func (_u *ProjectUpdateOne) AddAgentTokens(v ...*AgentToken) *ProjectUpdateOne {
 	return _u.AddAgentTokenIDs(ids...)
 }
 
+// AddExperimentIDs adds the "experiments" edge to the Experiment entity by IDs.
+func (_u *ProjectUpdateOne) AddExperimentIDs(ids ...int) *ProjectUpdateOne {
+	_u.mutation.AddExperimentIDs(ids...)
+	return _u
+}
+
+// AddExperiments adds the "experiments" edges to the Experiment entity.
+func (_u *ProjectUpdateOne) AddExperiments(v ...*Experiment) *ProjectUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddExperimentIDs(ids...)
+}
+
+// AddAttemptIDs adds the "attempts" edge to the Attempt entity by IDs.
+func (_u *ProjectUpdateOne) AddAttemptIDs(ids ...int) *ProjectUpdateOne {
+	_u.mutation.AddAttemptIDs(ids...)
+	return _u
+}
+
+// AddAttempts adds the "attempts" edges to the Attempt entity.
+func (_u *ProjectUpdateOne) AddAttempts(v ...*Attempt) *ProjectUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddAttemptIDs(ids...)
+}
+
+// AddBudgetEntryIDs adds the "budget_entries" edge to the BudgetEntry entity by IDs.
+func (_u *ProjectUpdateOne) AddBudgetEntryIDs(ids ...int) *ProjectUpdateOne {
+	_u.mutation.AddBudgetEntryIDs(ids...)
+	return _u
+}
+
+// AddBudgetEntries adds the "budget_entries" edges to the BudgetEntry entity.
+func (_u *ProjectUpdateOne) AddBudgetEntries(v ...*BudgetEntry) *ProjectUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddBudgetEntryIDs(ids...)
+}
+
 // Mutation returns the ProjectMutation object of the builder.
 func (_u *ProjectUpdateOne) Mutation() *ProjectMutation {
 	return _u.mutation
@@ -1061,6 +1352,69 @@ func (_u *ProjectUpdateOne) RemoveAgentTokens(v ...*AgentToken) *ProjectUpdateOn
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveAgentTokenIDs(ids...)
+}
+
+// ClearExperiments clears all "experiments" edges to the Experiment entity.
+func (_u *ProjectUpdateOne) ClearExperiments() *ProjectUpdateOne {
+	_u.mutation.ClearExperiments()
+	return _u
+}
+
+// RemoveExperimentIDs removes the "experiments" edge to Experiment entities by IDs.
+func (_u *ProjectUpdateOne) RemoveExperimentIDs(ids ...int) *ProjectUpdateOne {
+	_u.mutation.RemoveExperimentIDs(ids...)
+	return _u
+}
+
+// RemoveExperiments removes "experiments" edges to Experiment entities.
+func (_u *ProjectUpdateOne) RemoveExperiments(v ...*Experiment) *ProjectUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveExperimentIDs(ids...)
+}
+
+// ClearAttempts clears all "attempts" edges to the Attempt entity.
+func (_u *ProjectUpdateOne) ClearAttempts() *ProjectUpdateOne {
+	_u.mutation.ClearAttempts()
+	return _u
+}
+
+// RemoveAttemptIDs removes the "attempts" edge to Attempt entities by IDs.
+func (_u *ProjectUpdateOne) RemoveAttemptIDs(ids ...int) *ProjectUpdateOne {
+	_u.mutation.RemoveAttemptIDs(ids...)
+	return _u
+}
+
+// RemoveAttempts removes "attempts" edges to Attempt entities.
+func (_u *ProjectUpdateOne) RemoveAttempts(v ...*Attempt) *ProjectUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveAttemptIDs(ids...)
+}
+
+// ClearBudgetEntries clears all "budget_entries" edges to the BudgetEntry entity.
+func (_u *ProjectUpdateOne) ClearBudgetEntries() *ProjectUpdateOne {
+	_u.mutation.ClearBudgetEntries()
+	return _u
+}
+
+// RemoveBudgetEntryIDs removes the "budget_entries" edge to BudgetEntry entities by IDs.
+func (_u *ProjectUpdateOne) RemoveBudgetEntryIDs(ids ...int) *ProjectUpdateOne {
+	_u.mutation.RemoveBudgetEntryIDs(ids...)
+	return _u
+}
+
+// RemoveBudgetEntries removes "budget_entries" edges to BudgetEntry entities.
+func (_u *ProjectUpdateOne) RemoveBudgetEntries(v ...*BudgetEntry) *ProjectUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveBudgetEntryIDs(ids...)
 }
 
 // Where appends a list predicates to the ProjectUpdate builder.
@@ -1423,6 +1777,141 @@ func (_u *ProjectUpdateOne) sqlSave(ctx context.Context) (_node *Project, err er
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(agenttoken.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ExperimentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.ExperimentsTable,
+			Columns: []string{project.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedExperimentsIDs(); len(nodes) > 0 && !_u.mutation.ExperimentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.ExperimentsTable,
+			Columns: []string{project.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ExperimentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.ExperimentsTable,
+			Columns: []string{project.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.AttemptsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.AttemptsTable,
+			Columns: []string{project.AttemptsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(attempt.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedAttemptsIDs(); len(nodes) > 0 && !_u.mutation.AttemptsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.AttemptsTable,
+			Columns: []string{project.AttemptsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(attempt.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.AttemptsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.AttemptsTable,
+			Columns: []string{project.AttemptsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(attempt.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.BudgetEntriesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.BudgetEntriesTable,
+			Columns: []string{project.BudgetEntriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(budgetentry.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedBudgetEntriesIDs(); len(nodes) > 0 && !_u.mutation.BudgetEntriesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.BudgetEntriesTable,
+			Columns: []string{project.BudgetEntriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(budgetentry.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.BudgetEntriesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.BudgetEntriesTable,
+			Columns: []string{project.BudgetEntriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(budgetentry.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

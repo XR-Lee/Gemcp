@@ -10,7 +10,11 @@ import (
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/auditevent"
+	"github.com/XR-Lee/Gemcp/ent/budgetentry"
+	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/provideraccount"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
@@ -130,6 +134,66 @@ func (_c *TenantCreate) AddProjects(v ...*Project) *TenantCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddProjectIDs(ids...)
+}
+
+// AddExperimentIDs adds the "experiments" edge to the Experiment entity by IDs.
+func (_c *TenantCreate) AddExperimentIDs(ids ...int) *TenantCreate {
+	_c.mutation.AddExperimentIDs(ids...)
+	return _c
+}
+
+// AddExperiments adds the "experiments" edges to the Experiment entity.
+func (_c *TenantCreate) AddExperiments(v ...*Experiment) *TenantCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddExperimentIDs(ids...)
+}
+
+// AddAttemptIDs adds the "attempts" edge to the Attempt entity by IDs.
+func (_c *TenantCreate) AddAttemptIDs(ids ...int) *TenantCreate {
+	_c.mutation.AddAttemptIDs(ids...)
+	return _c
+}
+
+// AddAttempts adds the "attempts" edges to the Attempt entity.
+func (_c *TenantCreate) AddAttempts(v ...*Attempt) *TenantCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddAttemptIDs(ids...)
+}
+
+// AddBudgetEntryIDs adds the "budget_entries" edge to the BudgetEntry entity by IDs.
+func (_c *TenantCreate) AddBudgetEntryIDs(ids ...int) *TenantCreate {
+	_c.mutation.AddBudgetEntryIDs(ids...)
+	return _c
+}
+
+// AddBudgetEntries adds the "budget_entries" edges to the BudgetEntry entity.
+func (_c *TenantCreate) AddBudgetEntries(v ...*BudgetEntry) *TenantCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddBudgetEntryIDs(ids...)
+}
+
+// AddIdempotencyRecordIDs adds the "idempotency_records" edge to the IdempotencyRecord entity by IDs.
+func (_c *TenantCreate) AddIdempotencyRecordIDs(ids ...int) *TenantCreate {
+	_c.mutation.AddIdempotencyRecordIDs(ids...)
+	return _c
+}
+
+// AddIdempotencyRecords adds the "idempotency_records" edges to the IdempotencyRecord entity.
+func (_c *TenantCreate) AddIdempotencyRecords(v ...*IdempotencyRecord) *TenantCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddIdempotencyRecordIDs(ids...)
 }
 
 // AddAuditEventIDs adds the "audit_events" edge to the AuditEvent entity by IDs.
@@ -314,6 +378,70 @@ func (_c *TenantCreate) createSpec() (*Tenant, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(project.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ExperimentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ExperimentsTable,
+			Columns: []string{tenant.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.AttemptsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.AttemptsTable,
+			Columns: []string{tenant.AttemptsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(attempt.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.BudgetEntriesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.BudgetEntriesTable,
+			Columns: []string{tenant.BudgetEntriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(budgetentry.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.IdempotencyRecordsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.IdempotencyRecordsTable,
+			Columns: []string{tenant.IdempotencyRecordsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(idempotencyrecord.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

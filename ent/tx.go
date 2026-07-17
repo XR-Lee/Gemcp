@@ -14,10 +14,18 @@ type Tx struct {
 	config
 	// AgentToken is the client for interacting with the AgentToken builders.
 	AgentToken *AgentTokenClient
+	// Attempt is the client for interacting with the Attempt builders.
+	Attempt *AttemptClient
 	// AuditEvent is the client for interacting with the AuditEvent builders.
 	AuditEvent *AuditEventClient
+	// BudgetEntry is the client for interacting with the BudgetEntry builders.
+	BudgetEntry *BudgetEntryClient
 	// Environment is the client for interacting with the Environment builders.
 	Environment *EnvironmentClient
+	// Experiment is the client for interacting with the Experiment builders.
+	Experiment *ExperimentClient
+	// IdempotencyRecord is the client for interacting with the IdempotencyRecord builders.
+	IdempotencyRecord *IdempotencyRecordClient
 	// Project is the client for interacting with the Project builders.
 	Project *ProjectClient
 	// ProviderAccount is the client for interacting with the ProviderAccount builders.
@@ -166,8 +174,12 @@ func (tx *Tx) Client() *Client {
 
 func (tx *Tx) init() {
 	tx.AgentToken = NewAgentTokenClient(tx.config)
+	tx.Attempt = NewAttemptClient(tx.config)
 	tx.AuditEvent = NewAuditEventClient(tx.config)
+	tx.BudgetEntry = NewBudgetEntryClient(tx.config)
 	tx.Environment = NewEnvironmentClient(tx.config)
+	tx.Experiment = NewExperimentClient(tx.config)
+	tx.IdempotencyRecord = NewIdempotencyRecordClient(tx.config)
 	tx.Project = NewProjectClient(tx.config)
 	tx.ProviderAccount = NewProviderAccountClient(tx.config)
 	tx.RecordMixin = NewRecordMixinClient(tx.config)

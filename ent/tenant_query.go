@@ -12,7 +12,11 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/auditevent"
+	"github.com/XR-Lee/Gemcp/ent/budgetentry"
+	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/provideraccount"
@@ -23,14 +27,18 @@ import (
 // TenantQuery is the builder for querying Tenant entities.
 type TenantQuery struct {
 	config
-	ctx                  *QueryContext
-	order                []tenant.OrderOption
-	inters               []Interceptor
-	predicates           []predicate.Tenant
-	withUsers            *UserQuery
-	withProviderAccounts *ProviderAccountQuery
-	withProjects         *ProjectQuery
-	withAuditEvents      *AuditEventQuery
+	ctx                    *QueryContext
+	order                  []tenant.OrderOption
+	inters                 []Interceptor
+	predicates             []predicate.Tenant
+	withUsers              *UserQuery
+	withProviderAccounts   *ProviderAccountQuery
+	withProjects           *ProjectQuery
+	withExperiments        *ExperimentQuery
+	withAttempts           *AttemptQuery
+	withBudgetEntries      *BudgetEntryQuery
+	withIdempotencyRecords *IdempotencyRecordQuery
+	withAuditEvents        *AuditEventQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -126,6 +134,94 @@ func (_q *TenantQuery) QueryProjects() *ProjectQuery {
 			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
 			sqlgraph.To(project.Table, project.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, tenant.ProjectsTable, tenant.ProjectsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryExperiments chains the current query on the "experiments" edge.
+func (_q *TenantQuery) QueryExperiments() *ExperimentQuery {
+	query := (&ExperimentClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(experiment.Table, experiment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.ExperimentsTable, tenant.ExperimentsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryAttempts chains the current query on the "attempts" edge.
+func (_q *TenantQuery) QueryAttempts() *AttemptQuery {
+	query := (&AttemptClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(attempt.Table, attempt.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.AttemptsTable, tenant.AttemptsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryBudgetEntries chains the current query on the "budget_entries" edge.
+func (_q *TenantQuery) QueryBudgetEntries() *BudgetEntryQuery {
+	query := (&BudgetEntryClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(budgetentry.Table, budgetentry.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.BudgetEntriesTable, tenant.BudgetEntriesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryIdempotencyRecords chains the current query on the "idempotency_records" edge.
+func (_q *TenantQuery) QueryIdempotencyRecords() *IdempotencyRecordQuery {
+	query := (&IdempotencyRecordClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(idempotencyrecord.Table, idempotencyrecord.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.IdempotencyRecordsTable, tenant.IdempotencyRecordsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -342,15 +438,19 @@ func (_q *TenantQuery) Clone() *TenantQuery {
 		return nil
 	}
 	return &TenantQuery{
-		config:               _q.config,
-		ctx:                  _q.ctx.Clone(),
-		order:                append([]tenant.OrderOption{}, _q.order...),
-		inters:               append([]Interceptor{}, _q.inters...),
-		predicates:           append([]predicate.Tenant{}, _q.predicates...),
-		withUsers:            _q.withUsers.Clone(),
-		withProviderAccounts: _q.withProviderAccounts.Clone(),
-		withProjects:         _q.withProjects.Clone(),
-		withAuditEvents:      _q.withAuditEvents.Clone(),
+		config:                 _q.config,
+		ctx:                    _q.ctx.Clone(),
+		order:                  append([]tenant.OrderOption{}, _q.order...),
+		inters:                 append([]Interceptor{}, _q.inters...),
+		predicates:             append([]predicate.Tenant{}, _q.predicates...),
+		withUsers:              _q.withUsers.Clone(),
+		withProviderAccounts:   _q.withProviderAccounts.Clone(),
+		withProjects:           _q.withProjects.Clone(),
+		withExperiments:        _q.withExperiments.Clone(),
+		withAttempts:           _q.withAttempts.Clone(),
+		withBudgetEntries:      _q.withBudgetEntries.Clone(),
+		withIdempotencyRecords: _q.withIdempotencyRecords.Clone(),
+		withAuditEvents:        _q.withAuditEvents.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -387,6 +487,50 @@ func (_q *TenantQuery) WithProjects(opts ...func(*ProjectQuery)) *TenantQuery {
 		opt(query)
 	}
 	_q.withProjects = query
+	return _q
+}
+
+// WithExperiments tells the query-builder to eager-load the nodes that are connected to
+// the "experiments" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithExperiments(opts ...func(*ExperimentQuery)) *TenantQuery {
+	query := (&ExperimentClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withExperiments = query
+	return _q
+}
+
+// WithAttempts tells the query-builder to eager-load the nodes that are connected to
+// the "attempts" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithAttempts(opts ...func(*AttemptQuery)) *TenantQuery {
+	query := (&AttemptClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withAttempts = query
+	return _q
+}
+
+// WithBudgetEntries tells the query-builder to eager-load the nodes that are connected to
+// the "budget_entries" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithBudgetEntries(opts ...func(*BudgetEntryQuery)) *TenantQuery {
+	query := (&BudgetEntryClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withBudgetEntries = query
+	return _q
+}
+
+// WithIdempotencyRecords tells the query-builder to eager-load the nodes that are connected to
+// the "idempotency_records" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithIdempotencyRecords(opts ...func(*IdempotencyRecordQuery)) *TenantQuery {
+	query := (&IdempotencyRecordClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withIdempotencyRecords = query
 	return _q
 }
 
@@ -479,10 +623,14 @@ func (_q *TenantQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Tenan
 	var (
 		nodes       = []*Tenant{}
 		_spec       = _q.querySpec()
-		loadedTypes = [4]bool{
+		loadedTypes = [8]bool{
 			_q.withUsers != nil,
 			_q.withProviderAccounts != nil,
 			_q.withProjects != nil,
+			_q.withExperiments != nil,
+			_q.withAttempts != nil,
+			_q.withBudgetEntries != nil,
+			_q.withIdempotencyRecords != nil,
 			_q.withAuditEvents != nil,
 		}
 	)
@@ -522,6 +670,36 @@ func (_q *TenantQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Tenan
 		if err := _q.loadProjects(ctx, query, nodes,
 			func(n *Tenant) { n.Edges.Projects = []*Project{} },
 			func(n *Tenant, e *Project) { n.Edges.Projects = append(n.Edges.Projects, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withExperiments; query != nil {
+		if err := _q.loadExperiments(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.Experiments = []*Experiment{} },
+			func(n *Tenant, e *Experiment) { n.Edges.Experiments = append(n.Edges.Experiments, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withAttempts; query != nil {
+		if err := _q.loadAttempts(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.Attempts = []*Attempt{} },
+			func(n *Tenant, e *Attempt) { n.Edges.Attempts = append(n.Edges.Attempts, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withBudgetEntries; query != nil {
+		if err := _q.loadBudgetEntries(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.BudgetEntries = []*BudgetEntry{} },
+			func(n *Tenant, e *BudgetEntry) { n.Edges.BudgetEntries = append(n.Edges.BudgetEntries, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withIdempotencyRecords; query != nil {
+		if err := _q.loadIdempotencyRecords(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.IdempotencyRecords = []*IdempotencyRecord{} },
+			func(n *Tenant, e *IdempotencyRecord) {
+				n.Edges.IdempotencyRecords = append(n.Edges.IdempotencyRecords, e)
+			}); err != nil {
 			return nil, err
 		}
 	}
@@ -610,6 +788,126 @@ func (_q *TenantQuery) loadProjects(ctx context.Context, query *ProjectQuery, no
 	}
 	query.Where(predicate.Project(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(tenant.ProjectsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TenantQuery) loadExperiments(ctx context.Context, query *ExperimentQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *Experiment)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(experiment.FieldTenantID)
+	}
+	query.Where(predicate.Experiment(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.ExperimentsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TenantQuery) loadAttempts(ctx context.Context, query *AttemptQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *Attempt)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(attempt.FieldTenantID)
+	}
+	query.Where(predicate.Attempt(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.AttemptsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TenantQuery) loadBudgetEntries(ctx context.Context, query *BudgetEntryQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *BudgetEntry)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(budgetentry.FieldTenantID)
+	}
+	query.Where(predicate.BudgetEntry(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.BudgetEntriesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TenantQuery) loadIdempotencyRecords(ctx context.Context, query *IdempotencyRecordQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *IdempotencyRecord)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(idempotencyrecord.FieldTenantID)
+	}
+	query.Where(predicate.IdempotencyRecord(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.IdempotencyRecordsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

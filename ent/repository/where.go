@@ -91,6 +91,11 @@ func SSHHost(v string) predicate.Repository {
 	return predicate.Repository(sql.FieldEQ(FieldSSHHost, v))
 }
 
+// DefaultBranch applies equality check predicate on the "default_branch" field. It's identical to DefaultBranchEQ.
+func DefaultBranch(v string) predicate.Repository {
+	return predicate.Repository(sql.FieldEQ(FieldDefaultBranch, v))
+}
+
 // HostKeyFingerprint applies equality check predicate on the "host_key_fingerprint" field. It's identical to HostKeyFingerprintEQ.
 func HostKeyFingerprint(v string) predicate.Repository {
 	return predicate.Repository(sql.FieldEQ(FieldHostKeyFingerprint, v))
@@ -446,6 +451,71 @@ func SSHHostContainsFold(v string) predicate.Repository {
 	return predicate.Repository(sql.FieldContainsFold(FieldSSHHost, v))
 }
 
+// DefaultBranchEQ applies the EQ predicate on the "default_branch" field.
+func DefaultBranchEQ(v string) predicate.Repository {
+	return predicate.Repository(sql.FieldEQ(FieldDefaultBranch, v))
+}
+
+// DefaultBranchNEQ applies the NEQ predicate on the "default_branch" field.
+func DefaultBranchNEQ(v string) predicate.Repository {
+	return predicate.Repository(sql.FieldNEQ(FieldDefaultBranch, v))
+}
+
+// DefaultBranchIn applies the In predicate on the "default_branch" field.
+func DefaultBranchIn(vs ...string) predicate.Repository {
+	return predicate.Repository(sql.FieldIn(FieldDefaultBranch, vs...))
+}
+
+// DefaultBranchNotIn applies the NotIn predicate on the "default_branch" field.
+func DefaultBranchNotIn(vs ...string) predicate.Repository {
+	return predicate.Repository(sql.FieldNotIn(FieldDefaultBranch, vs...))
+}
+
+// DefaultBranchGT applies the GT predicate on the "default_branch" field.
+func DefaultBranchGT(v string) predicate.Repository {
+	return predicate.Repository(sql.FieldGT(FieldDefaultBranch, v))
+}
+
+// DefaultBranchGTE applies the GTE predicate on the "default_branch" field.
+func DefaultBranchGTE(v string) predicate.Repository {
+	return predicate.Repository(sql.FieldGTE(FieldDefaultBranch, v))
+}
+
+// DefaultBranchLT applies the LT predicate on the "default_branch" field.
+func DefaultBranchLT(v string) predicate.Repository {
+	return predicate.Repository(sql.FieldLT(FieldDefaultBranch, v))
+}
+
+// DefaultBranchLTE applies the LTE predicate on the "default_branch" field.
+func DefaultBranchLTE(v string) predicate.Repository {
+	return predicate.Repository(sql.FieldLTE(FieldDefaultBranch, v))
+}
+
+// DefaultBranchContains applies the Contains predicate on the "default_branch" field.
+func DefaultBranchContains(v string) predicate.Repository {
+	return predicate.Repository(sql.FieldContains(FieldDefaultBranch, v))
+}
+
+// DefaultBranchHasPrefix applies the HasPrefix predicate on the "default_branch" field.
+func DefaultBranchHasPrefix(v string) predicate.Repository {
+	return predicate.Repository(sql.FieldHasPrefix(FieldDefaultBranch, v))
+}
+
+// DefaultBranchHasSuffix applies the HasSuffix predicate on the "default_branch" field.
+func DefaultBranchHasSuffix(v string) predicate.Repository {
+	return predicate.Repository(sql.FieldHasSuffix(FieldDefaultBranch, v))
+}
+
+// DefaultBranchEqualFold applies the EqualFold predicate on the "default_branch" field.
+func DefaultBranchEqualFold(v string) predicate.Repository {
+	return predicate.Repository(sql.FieldEqualFold(FieldDefaultBranch, v))
+}
+
+// DefaultBranchContainsFold applies the ContainsFold predicate on the "default_branch" field.
+func DefaultBranchContainsFold(v string) predicate.Repository {
+	return predicate.Repository(sql.FieldContainsFold(FieldDefaultBranch, v))
+}
+
 // HostKeyFingerprintEQ applies the EQ predicate on the "host_key_fingerprint" field.
 func HostKeyFingerprintEQ(v string) predicate.Repository {
 	return predicate.Repository(sql.FieldEQ(FieldHostKeyFingerprint, v))
@@ -756,6 +826,29 @@ func HasProject() predicate.Repository {
 func HasProjectWith(preds ...predicate.Project) predicate.Repository {
 	return predicate.Repository(func(s *sql.Selector) {
 		step := newProjectStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasExperiments applies the HasEdge predicate on the "experiments" edge.
+func HasExperiments() predicate.Repository {
+	return predicate.Repository(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ExperimentsTable, ExperimentsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasExperimentsWith applies the HasEdge predicate on the "experiments" edge with a given conditions (other predicates).
+func HasExperimentsWith(preds ...predicate.Experiment) predicate.Repository {
+	return predicate.Repository(func(s *sql.Selector) {
+		step := newExperimentsStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

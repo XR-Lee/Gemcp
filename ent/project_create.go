@@ -11,7 +11,10 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/XR-Lee/Gemcp/ent/agenttoken"
+	"github.com/XR-Lee/Gemcp/ent/attempt"
+	"github.com/XR-Lee/Gemcp/ent/budgetentry"
 	"github.com/XR-Lee/Gemcp/ent/environment"
+	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/repository"
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
@@ -245,6 +248,51 @@ func (_c *ProjectCreate) AddAgentTokens(v ...*AgentToken) *ProjectCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddAgentTokenIDs(ids...)
+}
+
+// AddExperimentIDs adds the "experiments" edge to the Experiment entity by IDs.
+func (_c *ProjectCreate) AddExperimentIDs(ids ...int) *ProjectCreate {
+	_c.mutation.AddExperimentIDs(ids...)
+	return _c
+}
+
+// AddExperiments adds the "experiments" edges to the Experiment entity.
+func (_c *ProjectCreate) AddExperiments(v ...*Experiment) *ProjectCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddExperimentIDs(ids...)
+}
+
+// AddAttemptIDs adds the "attempts" edge to the Attempt entity by IDs.
+func (_c *ProjectCreate) AddAttemptIDs(ids ...int) *ProjectCreate {
+	_c.mutation.AddAttemptIDs(ids...)
+	return _c
+}
+
+// AddAttempts adds the "attempts" edges to the Attempt entity.
+func (_c *ProjectCreate) AddAttempts(v ...*Attempt) *ProjectCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddAttemptIDs(ids...)
+}
+
+// AddBudgetEntryIDs adds the "budget_entries" edge to the BudgetEntry entity by IDs.
+func (_c *ProjectCreate) AddBudgetEntryIDs(ids ...int) *ProjectCreate {
+	_c.mutation.AddBudgetEntryIDs(ids...)
+	return _c
+}
+
+// AddBudgetEntries adds the "budget_entries" edges to the BudgetEntry entity.
+func (_c *ProjectCreate) AddBudgetEntries(v ...*BudgetEntry) *ProjectCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddBudgetEntryIDs(ids...)
 }
 
 // Mutation returns the ProjectMutation object of the builder.
@@ -569,6 +617,54 @@ func (_c *ProjectCreate) createSpec() (*Project, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(agenttoken.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ExperimentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.ExperimentsTable,
+			Columns: []string{project.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.AttemptsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.AttemptsTable,
+			Columns: []string{project.AttemptsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(attempt.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.BudgetEntriesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.BudgetEntriesTable,
+			Columns: []string{project.BudgetEntriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(budgetentry.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

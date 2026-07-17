@@ -9,11 +9,23 @@ import (
 // AgentToken is the predicate function for agenttoken builders.
 type AgentToken func(*sql.Selector)
 
+// Attempt is the predicate function for attempt builders.
+type Attempt func(*sql.Selector)
+
 // AuditEvent is the predicate function for auditevent builders.
 type AuditEvent func(*sql.Selector)
 
+// BudgetEntry is the predicate function for budgetentry builders.
+type BudgetEntry func(*sql.Selector)
+
 // Environment is the predicate function for environment builders.
 type Environment func(*sql.Selector)
+
+// Experiment is the predicate function for experiment builders.
+type Experiment func(*sql.Selector)
+
+// IdempotencyRecord is the predicate function for idempotencyrecord builders.
+type IdempotencyRecord func(*sql.Selector)
 
 // Project is the predicate function for project builders.
 type Project func(*sql.Selector)

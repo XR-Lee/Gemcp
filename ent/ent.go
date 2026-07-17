@@ -13,8 +13,12 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/XR-Lee/Gemcp/ent/agenttoken"
+	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/auditevent"
+	"github.com/XR-Lee/Gemcp/ent/budgetentry"
 	"github.com/XR-Lee/Gemcp/ent/environment"
+	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/provideraccount"
 	"github.com/XR-Lee/Gemcp/ent/recordmixin"
@@ -83,17 +87,21 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			agenttoken.Table:      agenttoken.ValidColumn,
-			auditevent.Table:      auditevent.ValidColumn,
-			environment.Table:     environment.ValidColumn,
-			project.Table:         project.ValidColumn,
-			provideraccount.Table: provideraccount.ValidColumn,
-			recordmixin.Table:     recordmixin.ValidColumn,
-			repository.Table:      repository.ValidColumn,
-			resourceprofile.Table: resourceprofile.ValidColumn,
-			session.Table:         session.ValidColumn,
-			tenant.Table:          tenant.ValidColumn,
-			user.Table:            user.ValidColumn,
+			agenttoken.Table:        agenttoken.ValidColumn,
+			attempt.Table:           attempt.ValidColumn,
+			auditevent.Table:        auditevent.ValidColumn,
+			budgetentry.Table:       budgetentry.ValidColumn,
+			environment.Table:       environment.ValidColumn,
+			experiment.Table:        experiment.ValidColumn,
+			idempotencyrecord.Table: idempotencyrecord.ValidColumn,
+			project.Table:           project.ValidColumn,
+			provideraccount.Table:   provideraccount.ValidColumn,
+			recordmixin.Table:       recordmixin.ValidColumn,
+			repository.Table:        repository.ValidColumn,
+			resourceprofile.Table:   resourceprofile.ValidColumn,
+			session.Table:           session.ValidColumn,
+			tenant.Table:            tenant.ValidColumn,
+			user.Table:              user.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

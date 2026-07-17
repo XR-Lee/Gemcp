@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/XR-Lee/Gemcp/ent/environment"
+	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 )
 
@@ -110,9 +111,45 @@ func (_u *EnvironmentUpdate) SetNillableIsDefault(v *bool) *EnvironmentUpdate {
 	return _u
 }
 
+// AddExperimentIDs adds the "experiments" edge to the Experiment entity by IDs.
+func (_u *EnvironmentUpdate) AddExperimentIDs(ids ...int) *EnvironmentUpdate {
+	_u.mutation.AddExperimentIDs(ids...)
+	return _u
+}
+
+// AddExperiments adds the "experiments" edges to the Experiment entity.
+func (_u *EnvironmentUpdate) AddExperiments(v ...*Experiment) *EnvironmentUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddExperimentIDs(ids...)
+}
+
 // Mutation returns the EnvironmentMutation object of the builder.
 func (_u *EnvironmentUpdate) Mutation() *EnvironmentMutation {
 	return _u.mutation
+}
+
+// ClearExperiments clears all "experiments" edges to the Experiment entity.
+func (_u *EnvironmentUpdate) ClearExperiments() *EnvironmentUpdate {
+	_u.mutation.ClearExperiments()
+	return _u
+}
+
+// RemoveExperimentIDs removes the "experiments" edge to Experiment entities by IDs.
+func (_u *EnvironmentUpdate) RemoveExperimentIDs(ids ...int) *EnvironmentUpdate {
+	_u.mutation.RemoveExperimentIDs(ids...)
+	return _u
+}
+
+// RemoveExperiments removes "experiments" edges to Experiment entities.
+func (_u *EnvironmentUpdate) RemoveExperiments(v ...*Experiment) *EnvironmentUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveExperimentIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -211,6 +248,51 @@ func (_u *EnvironmentUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	}
 	if value, ok := _u.mutation.IsDefault(); ok {
 		_spec.SetField(environment.FieldIsDefault, field.TypeBool, value)
+	}
+	if _u.mutation.ExperimentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   environment.ExperimentsTable,
+			Columns: []string{environment.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedExperimentsIDs(); len(nodes) > 0 && !_u.mutation.ExperimentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   environment.ExperimentsTable,
+			Columns: []string{environment.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ExperimentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   environment.ExperimentsTable,
+			Columns: []string{environment.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -314,9 +396,45 @@ func (_u *EnvironmentUpdateOne) SetNillableIsDefault(v *bool) *EnvironmentUpdate
 	return _u
 }
 
+// AddExperimentIDs adds the "experiments" edge to the Experiment entity by IDs.
+func (_u *EnvironmentUpdateOne) AddExperimentIDs(ids ...int) *EnvironmentUpdateOne {
+	_u.mutation.AddExperimentIDs(ids...)
+	return _u
+}
+
+// AddExperiments adds the "experiments" edges to the Experiment entity.
+func (_u *EnvironmentUpdateOne) AddExperiments(v ...*Experiment) *EnvironmentUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddExperimentIDs(ids...)
+}
+
 // Mutation returns the EnvironmentMutation object of the builder.
 func (_u *EnvironmentUpdateOne) Mutation() *EnvironmentMutation {
 	return _u.mutation
+}
+
+// ClearExperiments clears all "experiments" edges to the Experiment entity.
+func (_u *EnvironmentUpdateOne) ClearExperiments() *EnvironmentUpdateOne {
+	_u.mutation.ClearExperiments()
+	return _u
+}
+
+// RemoveExperimentIDs removes the "experiments" edge to Experiment entities by IDs.
+func (_u *EnvironmentUpdateOne) RemoveExperimentIDs(ids ...int) *EnvironmentUpdateOne {
+	_u.mutation.RemoveExperimentIDs(ids...)
+	return _u
+}
+
+// RemoveExperiments removes "experiments" edges to Experiment entities.
+func (_u *EnvironmentUpdateOne) RemoveExperiments(v ...*Experiment) *EnvironmentUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveExperimentIDs(ids...)
 }
 
 // Where appends a list predicates to the EnvironmentUpdate builder.
@@ -445,6 +563,51 @@ func (_u *EnvironmentUpdateOne) sqlSave(ctx context.Context) (_node *Environment
 	}
 	if value, ok := _u.mutation.IsDefault(); ok {
 		_spec.SetField(environment.FieldIsDefault, field.TypeBool, value)
+	}
+	if _u.mutation.ExperimentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   environment.ExperimentsTable,
+			Columns: []string{environment.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedExperimentsIDs(); len(nodes) > 0 && !_u.mutation.ExperimentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   environment.ExperimentsTable,
+			Columns: []string{environment.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ExperimentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   environment.ExperimentsTable,
+			Columns: []string{environment.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &Environment{config: _u.config}
 	_spec.Assign = _node.assignValues

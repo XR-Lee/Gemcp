@@ -1,0 +1,229 @@
+package experiment
+
+import (
+	"context"
+	"errors"
+	"testing"
+
+	"entgo.io/ent/dialect"
+	"github.com/XR-Lee/Gemcp/ent"
+	"github.com/XR-Lee/Gemcp/ent/enttest"
+	"github.com/XR-Lee/Gemcp/internal/agentauth"
+	"github.com/XR-Lee/Gemcp/internal/secrets"
+	_ "github.com/mattn/go-sqlite3"
+)
+
+type fakeCommitVerifier struct {
+	calls int
+	err   error
+	sha   string
+}
+
+func (f *fakeCommitVerifier) VerifyCommit(_ context.Context, _ int, sha string) error {
+	f.calls++
+	f.sha = sha
+	return f.err
+}
+
+type fixture struct {
+	client      *ent.Client
+	service     *Service
+	principal   agentauth.Principal
+	project     *ent.Project
+	repository  *ent.Repository
+	environment *ent.Environment
+	profile     *ent.ResourceProfile
+	verifier    *fakeCommitVerifier
+}
+
+func newFixture(t *testing.T, monthlyBudget, experimentCap int64) fixture {
+	t.Helper()
+	client := enttest.Open(t, dialect.SQLite, "file:"+t.Name()+"?mode=memory&cache=shared&_fk=1")
+	t.Cleanup(func() { client.Close() })
+	ctx := context.Background()
+	tenant, err := client.Tenant.Create().SetName("Test").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	project, err := client.Project.Create().
+		SetTenantID(tenant.ID).SetName("Project").SetSlug("project").
+		SetMonthlyBudgetMilli(monthlyBudget).SetMaxExperimentMilli(experimentCap).
+		SetMaxRuntimeSeconds(3600).SetTimeoutExtensionSeconds(3600).SetTerminationGraceSeconds(60).
+		Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	repository, err := client.Repository.Create().
+		SetProjectID(project.ID).SetName("main").SetSSHURL("git@github.com:XR-Lee/Gemcp.git").
+		SetSSHHost("github.com").SetDefaultBranch("main").SetHostKeyFingerprint("SHA256:test").SetStatus("active").
+		Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	environment, err := client.Environment.Create().
+		SetProjectID(project.ID).SetName("default").SetImageUUID("image-uuid").SetIsDefault(true).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	profile, err := client.ResourceProfile.Create().
+		SetProjectID(project.ID).SetName("default").SetRegion("west").SetGpuNames([]string{"RTX 4090"}).SetGpuNum(1).
+		SetCudaFrom(118).SetCudaTo(128).SetCPUFrom(1).SetCPUTo(128).SetMemoryFromGB(1).SetMemoryToGB(512).
+		SetPriceFromMilli(10).SetPriceToMilli(3000).SetIsDefault(true).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, raw, err := createAgentToken(ctx, client, project.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = raw
+	key, _ := secrets.GenerateMasterKey()
+	box, _ := secrets.New(key)
+	verifier := &fakeCommitVerifier{}
+	return fixture{
+		client: client, service: NewService(client, box, verifier), project: project, repository: repository,
+		environment: environment, profile: profile, verifier: verifier,
+		principal: agentauth.Principal{
+			TenantID: tenant.ID, TenantPublicID: tenant.PublicID.String(), ProjectID: project.ID,
+			ProjectPublicID: project.PublicID.String(), TokenID: token.ID, TokenPublicID: token.PublicID.String(),
+			TokenLabel: token.Label, Scopes: []string{"submit", "read", "cancel"},
+		},
+	}
+}
+
+func createAgentToken(ctx context.Context, client *ent.Client, projectID int) (*ent.AgentToken, string, error) {
+	raw, prefix, err := secrets.RandomToken("gmc", 32)
+	if err != nil {
+		return nil, "", err
+	}
+	record, err := client.AgentToken.Create().
+		SetProjectID(projectID).SetLabel("test").SetPrefix(prefix).SetTokenHash([]byte(raw)).Save(ctx)
+	return record, raw, err
+}
+
+func validSubmit(f fixture, key string) SubmitInput {
+	return SubmitInput{
+		RepositoryID: f.repository.PublicID.String(), CommitSHA: "0123456789012345678901234567890123456789",
+		Command: "python train.py", MaxRuntimeSeconds: 3600, IdempotencyKey: key,
+	}
+}
+
+func TestSubmitIsAtomicAndIdempotent(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	ctx := context.Background()
+	first, err := f.service.Submit(ctx, f.principal, validSubmit(f, "request-0001"))
+	if err != nil {
+		t.Fatalf("Submit() error = %v", err)
+	}
+	if first.Idempotent || first.Experiment.State != "queued" || first.Experiment.ReservedCostMilli != 3500 {
+		t.Fatalf("unexpected first result: %+v", first)
+	}
+	if first.Experiment.ProjectID != f.project.PublicID.String() || first.Experiment.EnvironmentID != f.environment.PublicID.String() {
+		t.Fatalf("missing snapshot IDs: %+v", first.Experiment)
+	}
+	second, err := f.service.Submit(ctx, f.principal, validSubmit(f, "request-0001"))
+	if err != nil {
+		t.Fatalf("idempotent Submit() error = %v", err)
+	}
+	if !second.Idempotent || second.Experiment.ID != first.Experiment.ID || f.verifier.calls != 1 {
+		t.Fatalf("unexpected idempotent result: %+v, verifier calls=%d", second, f.verifier.calls)
+	}
+	if count, _ := f.client.Experiment.Query().Count(ctx); count != 1 {
+		t.Fatalf("experiment count = %d", count)
+	}
+	if count, _ := f.client.BudgetEntry.Query().Count(ctx); count != 1 {
+		t.Fatalf("budget entry count = %d", count)
+	}
+
+	conflict := validSubmit(f, "request-0001")
+	conflict.Command = "python other.py"
+	if _, err := f.service.Submit(ctx, f.principal, conflict); !errors.Is(err, ErrIdempotencyConflict) {
+		t.Fatalf("conflicting Submit() error = %v", err)
+	}
+}
+
+func TestSubmitEnforcesHardBudget(t *testing.T) {
+	f := newFixture(t, 5000, 5000)
+	ctx := context.Background()
+	if _, err := f.service.Submit(ctx, f.principal, validSubmit(f, "request-0001")); err != nil {
+		t.Fatalf("first Submit() error = %v", err)
+	}
+	if _, err := f.service.Submit(ctx, f.principal, validSubmit(f, "request-0002")); !errors.Is(err, ErrBudgetExceeded) {
+		t.Fatalf("second Submit() error = %v", err)
+	}
+	if count, _ := f.client.Experiment.Query().Count(ctx); count != 1 {
+		t.Fatalf("experiment count = %d", count)
+	}
+}
+
+func TestQueuedCancellationReleasesBudgetOnce(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	ctx := context.Background()
+	submitted, err := f.service.Submit(ctx, f.principal, validSubmit(f, "request-0001"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cancelled, err := f.service.Cancel(ctx, f.principal, submitted.Experiment.ID)
+	if err != nil {
+		t.Fatalf("Cancel() error = %v", err)
+	}
+	if cancelled.State != "cancelled" || cancelled.FinishedAt == nil {
+		t.Fatalf("unexpected cancelled experiment: %+v", cancelled)
+	}
+	if _, err := f.service.Cancel(ctx, f.principal, submitted.Experiment.ID); err != nil {
+		t.Fatalf("second Cancel() error = %v", err)
+	}
+	if count, _ := f.client.BudgetEntry.Query().Count(ctx); count != 2 {
+		t.Fatalf("budget entry count = %d, want 2", count)
+	}
+	cost, err := f.service.Cost(ctx, f.principal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cost.ReservedMilli != 0 || cost.AvailableMilli != f.project.MonthlyBudgetMilli {
+		t.Fatalf("unexpected cost: %+v", cost)
+	}
+}
+
+func TestProjectBoundaryAndCommitFailure(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	other := newFixture(t, 100000, 20000)
+	input := validSubmit(f, "request-0001")
+	input.RepositoryID = other.repository.PublicID.String()
+	if _, err := f.service.Submit(context.Background(), f.principal, input); !errors.Is(err, ErrOptionNotFound) {
+		t.Fatalf("cross-project Submit() error = %v", err)
+	}
+	f.verifier.err = errors.New("not reachable")
+	if _, err := f.service.Submit(context.Background(), f.principal, validSubmit(f, "request-0002")); !errors.Is(err, ErrCommitVerification) {
+		t.Fatalf("commit failure error = %v", err)
+	}
+}
+
+func TestReserveCostRoundsWithoutOverflow(t *testing.T) {
+	cost, err := reserveCost(1, 1, 1)
+	if err != nil || cost != 1 {
+		t.Fatalf("reserveCost(1,1,1) = %d, %v", cost, err)
+	}
+	if _, err := reserveCost(int64(^uint64(0)>>1), 1, int(^uint(0)>>1)); err == nil {
+		t.Fatal("reserveCost() accepted overflowing values")
+	}
+}
+
+func TestOptionsAndList(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	ctx := context.Background()
+	options, err := f.service.Options(ctx, f.principal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(options.Repositories) != 1 || len(options.Environments) != 1 || len(options.ResourceProfiles) != 1 {
+		t.Fatalf("unexpected options: %+v", options)
+	}
+	if _, err := f.service.Submit(ctx, f.principal, validSubmit(f, "request-0001")); err != nil {
+		t.Fatal(err)
+	}
+	listed, err := f.service.List(ctx, f.principal, ListInput{States: []string{"queued"}})
+	if err != nil || len(listed.Experiments) != 1 {
+		t.Fatalf("List() = %+v, %v", listed, err)
+	}
+}

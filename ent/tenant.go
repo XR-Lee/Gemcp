@@ -42,11 +42,19 @@ type TenantEdges struct {
 	ProviderAccounts []*ProviderAccount `json:"provider_accounts,omitempty"`
 	// Projects holds the value of the projects edge.
 	Projects []*Project `json:"projects,omitempty"`
+	// Experiments holds the value of the experiments edge.
+	Experiments []*Experiment `json:"experiments,omitempty"`
+	// Attempts holds the value of the attempts edge.
+	Attempts []*Attempt `json:"attempts,omitempty"`
+	// BudgetEntries holds the value of the budget_entries edge.
+	BudgetEntries []*BudgetEntry `json:"budget_entries,omitempty"`
+	// IdempotencyRecords holds the value of the idempotency_records edge.
+	IdempotencyRecords []*IdempotencyRecord `json:"idempotency_records,omitempty"`
 	// AuditEvents holds the value of the audit_events edge.
 	AuditEvents []*AuditEvent `json:"audit_events,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [4]bool
+	loadedTypes [8]bool
 }
 
 // UsersOrErr returns the Users value or an error if the edge
@@ -76,10 +84,46 @@ func (e TenantEdges) ProjectsOrErr() ([]*Project, error) {
 	return nil, &NotLoadedError{edge: "projects"}
 }
 
+// ExperimentsOrErr returns the Experiments value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) ExperimentsOrErr() ([]*Experiment, error) {
+	if e.loadedTypes[3] {
+		return e.Experiments, nil
+	}
+	return nil, &NotLoadedError{edge: "experiments"}
+}
+
+// AttemptsOrErr returns the Attempts value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) AttemptsOrErr() ([]*Attempt, error) {
+	if e.loadedTypes[4] {
+		return e.Attempts, nil
+	}
+	return nil, &NotLoadedError{edge: "attempts"}
+}
+
+// BudgetEntriesOrErr returns the BudgetEntries value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) BudgetEntriesOrErr() ([]*BudgetEntry, error) {
+	if e.loadedTypes[5] {
+		return e.BudgetEntries, nil
+	}
+	return nil, &NotLoadedError{edge: "budget_entries"}
+}
+
+// IdempotencyRecordsOrErr returns the IdempotencyRecords value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) IdempotencyRecordsOrErr() ([]*IdempotencyRecord, error) {
+	if e.loadedTypes[6] {
+		return e.IdempotencyRecords, nil
+	}
+	return nil, &NotLoadedError{edge: "idempotency_records"}
+}
+
 // AuditEventsOrErr returns the AuditEvents value or an error if the edge
 // was not loaded in eager-loading.
 func (e TenantEdges) AuditEventsOrErr() ([]*AuditEvent, error) {
-	if e.loadedTypes[3] {
+	if e.loadedTypes[7] {
 		return e.AuditEvents, nil
 	}
 	return nil, &NotLoadedError{edge: "audit_events"}
@@ -175,6 +219,26 @@ func (_m *Tenant) QueryProviderAccounts() *ProviderAccountQuery {
 // QueryProjects queries the "projects" edge of the Tenant entity.
 func (_m *Tenant) QueryProjects() *ProjectQuery {
 	return NewTenantClient(_m.config).QueryProjects(_m)
+}
+
+// QueryExperiments queries the "experiments" edge of the Tenant entity.
+func (_m *Tenant) QueryExperiments() *ExperimentQuery {
+	return NewTenantClient(_m.config).QueryExperiments(_m)
+}
+
+// QueryAttempts queries the "attempts" edge of the Tenant entity.
+func (_m *Tenant) QueryAttempts() *AttemptQuery {
+	return NewTenantClient(_m.config).QueryAttempts(_m)
+}
+
+// QueryBudgetEntries queries the "budget_entries" edge of the Tenant entity.
+func (_m *Tenant) QueryBudgetEntries() *BudgetEntryQuery {
+	return NewTenantClient(_m.config).QueryBudgetEntries(_m)
+}
+
+// QueryIdempotencyRecords queries the "idempotency_records" edge of the Tenant entity.
+func (_m *Tenant) QueryIdempotencyRecords() *IdempotencyRecordQuery {
+	return NewTenantClient(_m.config).QueryIdempotencyRecords(_m)
 }
 
 // QueryAuditEvents queries the "audit_events" edge of the Tenant entity.

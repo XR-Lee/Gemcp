@@ -10,4 +10,4 @@
 
 The Compose file binds Gemcp only to loopback. PostgreSQL has no published host port.
 
-Automated off-host backup is intentionally outside the single-user trial. Preserve `postgres_data` and the future Gemcp master-key file during manual server backup.
+Automated off-host backup is intentionally outside the single-user trial. Preserve `postgres_data` and the protected deployment `.env` containing the Gemcp master key during manual server backup. Store the backup with access controls appropriate for production credentials.

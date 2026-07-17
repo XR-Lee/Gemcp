@@ -11,7 +11,11 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/auditevent"
+	"github.com/XR-Lee/Gemcp/ent/budgetentry"
+	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/provideraccount"
@@ -111,6 +115,66 @@ func (_u *TenantUpdate) AddProjects(v ...*Project) *TenantUpdate {
 	return _u.AddProjectIDs(ids...)
 }
 
+// AddExperimentIDs adds the "experiments" edge to the Experiment entity by IDs.
+func (_u *TenantUpdate) AddExperimentIDs(ids ...int) *TenantUpdate {
+	_u.mutation.AddExperimentIDs(ids...)
+	return _u
+}
+
+// AddExperiments adds the "experiments" edges to the Experiment entity.
+func (_u *TenantUpdate) AddExperiments(v ...*Experiment) *TenantUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddExperimentIDs(ids...)
+}
+
+// AddAttemptIDs adds the "attempts" edge to the Attempt entity by IDs.
+func (_u *TenantUpdate) AddAttemptIDs(ids ...int) *TenantUpdate {
+	_u.mutation.AddAttemptIDs(ids...)
+	return _u
+}
+
+// AddAttempts adds the "attempts" edges to the Attempt entity.
+func (_u *TenantUpdate) AddAttempts(v ...*Attempt) *TenantUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddAttemptIDs(ids...)
+}
+
+// AddBudgetEntryIDs adds the "budget_entries" edge to the BudgetEntry entity by IDs.
+func (_u *TenantUpdate) AddBudgetEntryIDs(ids ...int) *TenantUpdate {
+	_u.mutation.AddBudgetEntryIDs(ids...)
+	return _u
+}
+
+// AddBudgetEntries adds the "budget_entries" edges to the BudgetEntry entity.
+func (_u *TenantUpdate) AddBudgetEntries(v ...*BudgetEntry) *TenantUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddBudgetEntryIDs(ids...)
+}
+
+// AddIdempotencyRecordIDs adds the "idempotency_records" edge to the IdempotencyRecord entity by IDs.
+func (_u *TenantUpdate) AddIdempotencyRecordIDs(ids ...int) *TenantUpdate {
+	_u.mutation.AddIdempotencyRecordIDs(ids...)
+	return _u
+}
+
+// AddIdempotencyRecords adds the "idempotency_records" edges to the IdempotencyRecord entity.
+func (_u *TenantUpdate) AddIdempotencyRecords(v ...*IdempotencyRecord) *TenantUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddIdempotencyRecordIDs(ids...)
+}
+
 // AddAuditEventIDs adds the "audit_events" edge to the AuditEvent entity by IDs.
 func (_u *TenantUpdate) AddAuditEventIDs(ids ...int) *TenantUpdate {
 	_u.mutation.AddAuditEventIDs(ids...)
@@ -192,6 +256,90 @@ func (_u *TenantUpdate) RemoveProjects(v ...*Project) *TenantUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveProjectIDs(ids...)
+}
+
+// ClearExperiments clears all "experiments" edges to the Experiment entity.
+func (_u *TenantUpdate) ClearExperiments() *TenantUpdate {
+	_u.mutation.ClearExperiments()
+	return _u
+}
+
+// RemoveExperimentIDs removes the "experiments" edge to Experiment entities by IDs.
+func (_u *TenantUpdate) RemoveExperimentIDs(ids ...int) *TenantUpdate {
+	_u.mutation.RemoveExperimentIDs(ids...)
+	return _u
+}
+
+// RemoveExperiments removes "experiments" edges to Experiment entities.
+func (_u *TenantUpdate) RemoveExperiments(v ...*Experiment) *TenantUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveExperimentIDs(ids...)
+}
+
+// ClearAttempts clears all "attempts" edges to the Attempt entity.
+func (_u *TenantUpdate) ClearAttempts() *TenantUpdate {
+	_u.mutation.ClearAttempts()
+	return _u
+}
+
+// RemoveAttemptIDs removes the "attempts" edge to Attempt entities by IDs.
+func (_u *TenantUpdate) RemoveAttemptIDs(ids ...int) *TenantUpdate {
+	_u.mutation.RemoveAttemptIDs(ids...)
+	return _u
+}
+
+// RemoveAttempts removes "attempts" edges to Attempt entities.
+func (_u *TenantUpdate) RemoveAttempts(v ...*Attempt) *TenantUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveAttemptIDs(ids...)
+}
+
+// ClearBudgetEntries clears all "budget_entries" edges to the BudgetEntry entity.
+func (_u *TenantUpdate) ClearBudgetEntries() *TenantUpdate {
+	_u.mutation.ClearBudgetEntries()
+	return _u
+}
+
+// RemoveBudgetEntryIDs removes the "budget_entries" edge to BudgetEntry entities by IDs.
+func (_u *TenantUpdate) RemoveBudgetEntryIDs(ids ...int) *TenantUpdate {
+	_u.mutation.RemoveBudgetEntryIDs(ids...)
+	return _u
+}
+
+// RemoveBudgetEntries removes "budget_entries" edges to BudgetEntry entities.
+func (_u *TenantUpdate) RemoveBudgetEntries(v ...*BudgetEntry) *TenantUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveBudgetEntryIDs(ids...)
+}
+
+// ClearIdempotencyRecords clears all "idempotency_records" edges to the IdempotencyRecord entity.
+func (_u *TenantUpdate) ClearIdempotencyRecords() *TenantUpdate {
+	_u.mutation.ClearIdempotencyRecords()
+	return _u
+}
+
+// RemoveIdempotencyRecordIDs removes the "idempotency_records" edge to IdempotencyRecord entities by IDs.
+func (_u *TenantUpdate) RemoveIdempotencyRecordIDs(ids ...int) *TenantUpdate {
+	_u.mutation.RemoveIdempotencyRecordIDs(ids...)
+	return _u
+}
+
+// RemoveIdempotencyRecords removes "idempotency_records" edges to IdempotencyRecord entities.
+func (_u *TenantUpdate) RemoveIdempotencyRecords(v ...*IdempotencyRecord) *TenantUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveIdempotencyRecordIDs(ids...)
 }
 
 // ClearAuditEvents clears all "audit_events" edges to the AuditEvent entity.
@@ -422,6 +570,186 @@ func (_u *TenantUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.ExperimentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ExperimentsTable,
+			Columns: []string{tenant.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedExperimentsIDs(); len(nodes) > 0 && !_u.mutation.ExperimentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ExperimentsTable,
+			Columns: []string{tenant.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ExperimentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ExperimentsTable,
+			Columns: []string{tenant.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.AttemptsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.AttemptsTable,
+			Columns: []string{tenant.AttemptsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(attempt.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedAttemptsIDs(); len(nodes) > 0 && !_u.mutation.AttemptsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.AttemptsTable,
+			Columns: []string{tenant.AttemptsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(attempt.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.AttemptsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.AttemptsTable,
+			Columns: []string{tenant.AttemptsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(attempt.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.BudgetEntriesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.BudgetEntriesTable,
+			Columns: []string{tenant.BudgetEntriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(budgetentry.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedBudgetEntriesIDs(); len(nodes) > 0 && !_u.mutation.BudgetEntriesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.BudgetEntriesTable,
+			Columns: []string{tenant.BudgetEntriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(budgetentry.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.BudgetEntriesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.BudgetEntriesTable,
+			Columns: []string{tenant.BudgetEntriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(budgetentry.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.IdempotencyRecordsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.IdempotencyRecordsTable,
+			Columns: []string{tenant.IdempotencyRecordsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(idempotencyrecord.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedIdempotencyRecordsIDs(); len(nodes) > 0 && !_u.mutation.IdempotencyRecordsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.IdempotencyRecordsTable,
+			Columns: []string{tenant.IdempotencyRecordsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(idempotencyrecord.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.IdempotencyRecordsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.IdempotencyRecordsTable,
+			Columns: []string{tenant.IdempotencyRecordsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(idempotencyrecord.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _u.mutation.AuditEventsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -566,6 +894,66 @@ func (_u *TenantUpdateOne) AddProjects(v ...*Project) *TenantUpdateOne {
 	return _u.AddProjectIDs(ids...)
 }
 
+// AddExperimentIDs adds the "experiments" edge to the Experiment entity by IDs.
+func (_u *TenantUpdateOne) AddExperimentIDs(ids ...int) *TenantUpdateOne {
+	_u.mutation.AddExperimentIDs(ids...)
+	return _u
+}
+
+// AddExperiments adds the "experiments" edges to the Experiment entity.
+func (_u *TenantUpdateOne) AddExperiments(v ...*Experiment) *TenantUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddExperimentIDs(ids...)
+}
+
+// AddAttemptIDs adds the "attempts" edge to the Attempt entity by IDs.
+func (_u *TenantUpdateOne) AddAttemptIDs(ids ...int) *TenantUpdateOne {
+	_u.mutation.AddAttemptIDs(ids...)
+	return _u
+}
+
+// AddAttempts adds the "attempts" edges to the Attempt entity.
+func (_u *TenantUpdateOne) AddAttempts(v ...*Attempt) *TenantUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddAttemptIDs(ids...)
+}
+
+// AddBudgetEntryIDs adds the "budget_entries" edge to the BudgetEntry entity by IDs.
+func (_u *TenantUpdateOne) AddBudgetEntryIDs(ids ...int) *TenantUpdateOne {
+	_u.mutation.AddBudgetEntryIDs(ids...)
+	return _u
+}
+
+// AddBudgetEntries adds the "budget_entries" edges to the BudgetEntry entity.
+func (_u *TenantUpdateOne) AddBudgetEntries(v ...*BudgetEntry) *TenantUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddBudgetEntryIDs(ids...)
+}
+
+// AddIdempotencyRecordIDs adds the "idempotency_records" edge to the IdempotencyRecord entity by IDs.
+func (_u *TenantUpdateOne) AddIdempotencyRecordIDs(ids ...int) *TenantUpdateOne {
+	_u.mutation.AddIdempotencyRecordIDs(ids...)
+	return _u
+}
+
+// AddIdempotencyRecords adds the "idempotency_records" edges to the IdempotencyRecord entity.
+func (_u *TenantUpdateOne) AddIdempotencyRecords(v ...*IdempotencyRecord) *TenantUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddIdempotencyRecordIDs(ids...)
+}
+
 // AddAuditEventIDs adds the "audit_events" edge to the AuditEvent entity by IDs.
 func (_u *TenantUpdateOne) AddAuditEventIDs(ids ...int) *TenantUpdateOne {
 	_u.mutation.AddAuditEventIDs(ids...)
@@ -647,6 +1035,90 @@ func (_u *TenantUpdateOne) RemoveProjects(v ...*Project) *TenantUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveProjectIDs(ids...)
+}
+
+// ClearExperiments clears all "experiments" edges to the Experiment entity.
+func (_u *TenantUpdateOne) ClearExperiments() *TenantUpdateOne {
+	_u.mutation.ClearExperiments()
+	return _u
+}
+
+// RemoveExperimentIDs removes the "experiments" edge to Experiment entities by IDs.
+func (_u *TenantUpdateOne) RemoveExperimentIDs(ids ...int) *TenantUpdateOne {
+	_u.mutation.RemoveExperimentIDs(ids...)
+	return _u
+}
+
+// RemoveExperiments removes "experiments" edges to Experiment entities.
+func (_u *TenantUpdateOne) RemoveExperiments(v ...*Experiment) *TenantUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveExperimentIDs(ids...)
+}
+
+// ClearAttempts clears all "attempts" edges to the Attempt entity.
+func (_u *TenantUpdateOne) ClearAttempts() *TenantUpdateOne {
+	_u.mutation.ClearAttempts()
+	return _u
+}
+
+// RemoveAttemptIDs removes the "attempts" edge to Attempt entities by IDs.
+func (_u *TenantUpdateOne) RemoveAttemptIDs(ids ...int) *TenantUpdateOne {
+	_u.mutation.RemoveAttemptIDs(ids...)
+	return _u
+}
+
+// RemoveAttempts removes "attempts" edges to Attempt entities.
+func (_u *TenantUpdateOne) RemoveAttempts(v ...*Attempt) *TenantUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveAttemptIDs(ids...)
+}
+
+// ClearBudgetEntries clears all "budget_entries" edges to the BudgetEntry entity.
+func (_u *TenantUpdateOne) ClearBudgetEntries() *TenantUpdateOne {
+	_u.mutation.ClearBudgetEntries()
+	return _u
+}
+
+// RemoveBudgetEntryIDs removes the "budget_entries" edge to BudgetEntry entities by IDs.
+func (_u *TenantUpdateOne) RemoveBudgetEntryIDs(ids ...int) *TenantUpdateOne {
+	_u.mutation.RemoveBudgetEntryIDs(ids...)
+	return _u
+}
+
+// RemoveBudgetEntries removes "budget_entries" edges to BudgetEntry entities.
+func (_u *TenantUpdateOne) RemoveBudgetEntries(v ...*BudgetEntry) *TenantUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveBudgetEntryIDs(ids...)
+}
+
+// ClearIdempotencyRecords clears all "idempotency_records" edges to the IdempotencyRecord entity.
+func (_u *TenantUpdateOne) ClearIdempotencyRecords() *TenantUpdateOne {
+	_u.mutation.ClearIdempotencyRecords()
+	return _u
+}
+
+// RemoveIdempotencyRecordIDs removes the "idempotency_records" edge to IdempotencyRecord entities by IDs.
+func (_u *TenantUpdateOne) RemoveIdempotencyRecordIDs(ids ...int) *TenantUpdateOne {
+	_u.mutation.RemoveIdempotencyRecordIDs(ids...)
+	return _u
+}
+
+// RemoveIdempotencyRecords removes "idempotency_records" edges to IdempotencyRecord entities.
+func (_u *TenantUpdateOne) RemoveIdempotencyRecords(v ...*IdempotencyRecord) *TenantUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveIdempotencyRecordIDs(ids...)
 }
 
 // ClearAuditEvents clears all "audit_events" edges to the AuditEvent entity.
@@ -900,6 +1372,186 @@ func (_u *TenantUpdateOne) sqlSave(ctx context.Context) (_node *Tenant, err erro
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(project.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ExperimentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ExperimentsTable,
+			Columns: []string{tenant.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedExperimentsIDs(); len(nodes) > 0 && !_u.mutation.ExperimentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ExperimentsTable,
+			Columns: []string{tenant.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ExperimentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ExperimentsTable,
+			Columns: []string{tenant.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.AttemptsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.AttemptsTable,
+			Columns: []string{tenant.AttemptsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(attempt.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedAttemptsIDs(); len(nodes) > 0 && !_u.mutation.AttemptsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.AttemptsTable,
+			Columns: []string{tenant.AttemptsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(attempt.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.AttemptsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.AttemptsTable,
+			Columns: []string{tenant.AttemptsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(attempt.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.BudgetEntriesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.BudgetEntriesTable,
+			Columns: []string{tenant.BudgetEntriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(budgetentry.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedBudgetEntriesIDs(); len(nodes) > 0 && !_u.mutation.BudgetEntriesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.BudgetEntriesTable,
+			Columns: []string{tenant.BudgetEntriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(budgetentry.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.BudgetEntriesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.BudgetEntriesTable,
+			Columns: []string{tenant.BudgetEntriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(budgetentry.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.IdempotencyRecordsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.IdempotencyRecordsTable,
+			Columns: []string{tenant.IdempotencyRecordsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(idempotencyrecord.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedIdempotencyRecordsIDs(); len(nodes) > 0 && !_u.mutation.IdempotencyRecordsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.IdempotencyRecordsTable,
+			Columns: []string{tenant.IdempotencyRecordsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(idempotencyrecord.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.IdempotencyRecordsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.IdempotencyRecordsTable,
+			Columns: []string{tenant.IdempotencyRecordsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(idempotencyrecord.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

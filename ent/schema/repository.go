@@ -17,6 +17,7 @@ func (Repository) Fields() []ent.Field {
 		field.String("name").NotEmpty().MaxLen(120),
 		field.String("ssh_url").NotEmpty().MaxLen(512),
 		field.String("ssh_host").NotEmpty().MaxLen(255),
+		field.String("default_branch").Default("main").NotEmpty().MaxLen(255),
 		field.String("host_key_fingerprint").Optional().MaxLen(255),
 		field.String("deploy_public_key").Optional().Sensitive(),
 		field.String("deploy_private_key_ciphertext").Optional().Sensitive(),
@@ -28,6 +29,7 @@ func (Repository) Fields() []ent.Field {
 func (Repository) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.From("project", Project.Type).Ref("repositories").Field("project_id").Unique().Required().Immutable(),
+		edge.To("experiments", Experiment.Type),
 	}
 }
 

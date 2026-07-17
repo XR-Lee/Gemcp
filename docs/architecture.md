@@ -30,7 +30,9 @@ M0 may run the scheduler in the controlplane process. The watchdog remains a sep
 
 PostgreSQL is authoritative for identity, configuration, experiments, attempts, reservations, provider resources, idempotency records, audit events, and leases. In-memory queues may wake workers but never own job state.
 
-A submitted experiment is immutable. Infrastructure retries create attempts under the same experiment. A manual rerun creates a new experiment linked to its parent.
+A submitted experiment is immutable. Submission verifies a full Git commit SHA before a serializable transaction creates the experiment, budget reservation, Token-scoped idempotency record, and audit event. Infrastructure retries create attempts under the same experiment. A manual rerun creates a new experiment.
+
+The remote MCP endpoint uses the official Go SDK's Streamable HTTP transport. Agent Bearer Tokens are checked against PostgreSQL for each request, and MCP sessions are bound to the authenticated Token identity.
 
 ## Provider boundary
 
@@ -49,6 +51,6 @@ Stopped-container reuse is an opportunistic cache. Correctness cannot depend on 
 
 ## Security boundary
 
-Agent Bearer Tokens identify principals and are stored as hashes. AutoDL, Git deploy-key, SMTP, and project Secret values are encrypted with a master key that is not stored in PostgreSQL.
+Agent Bearer Tokens identify project-scoped principals and are stored as keyed hashes. AutoDL, Git deploy-key, SMTP, and project Secret values are encrypted with a master key that is not stored in PostgreSQL. GitHub host keys are pinned by trusted SHA256 fingerprint before a repository can become active.
 
 Experiments may access the public Internet. Any injected Secret must therefore be project-scoped, low privilege, and readily rotatable. Gemcp does not claim to sandbox arbitrary experiment code.

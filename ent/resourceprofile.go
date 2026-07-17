@@ -68,9 +68,11 @@ type ResourceProfile struct {
 type ResourceProfileEdges struct {
 	// Project holds the value of the project edge.
 	Project *Project `json:"project,omitempty"`
+	// Experiments holds the value of the experiments edge.
+	Experiments []*Experiment `json:"experiments,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [1]bool
+	loadedTypes [2]bool
 }
 
 // ProjectOrErr returns the Project value or an error if the edge
@@ -82,6 +84,15 @@ func (e ResourceProfileEdges) ProjectOrErr() (*Project, error) {
 		return nil, &NotFoundError{label: project.Label}
 	}
 	return nil, &NotLoadedError{edge: "project"}
+}
+
+// ExperimentsOrErr returns the Experiments value or an error if the edge
+// was not loaded in eager-loading.
+func (e ResourceProfileEdges) ExperimentsOrErr() ([]*Experiment, error) {
+	if e.loadedTypes[1] {
+		return e.Experiments, nil
+	}
+	return nil, &NotLoadedError{edge: "experiments"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -254,6 +265,11 @@ func (_m *ResourceProfile) Value(name string) (ent.Value, error) {
 // QueryProject queries the "project" edge of the ResourceProfile entity.
 func (_m *ResourceProfile) QueryProject() *ProjectQuery {
 	return NewResourceProfileClient(_m.config).QueryProject(_m)
+}
+
+// QueryExperiments queries the "experiments" edge of the ResourceProfile entity.
+func (_m *ResourceProfile) QueryExperiments() *ExperimentQuery {
+	return NewResourceProfileClient(_m.config).QueryExperiments(_m)
 }
 
 // Update returns a builder for updating this ResourceProfile.

@@ -50,6 +50,63 @@ var (
 			},
 		},
 	}
+	// AttemptsColumns holds the columns for the "attempts" table.
+	AttemptsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "public_id", Type: field.TypeUUID, Unique: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "number", Type: field.TypeInt},
+		{Name: "state", Type: field.TypeString, Default: "starting"},
+		{Name: "provider_resource_id", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "retry_reason", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "failure_code", Type: field.TypeString, Nullable: true, Size: 100},
+		{Name: "failure_reason", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "started_at", Type: field.TypeTime, Nullable: true},
+		{Name: "finished_at", Type: field.TypeTime, Nullable: true},
+		{Name: "estimated_cost_milli", Type: field.TypeInt64, Default: 0},
+		{Name: "experiment_id", Type: field.TypeInt},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "tenant_id", Type: field.TypeInt},
+	}
+	// AttemptsTable holds the schema information for the "attempts" table.
+	AttemptsTable = &schema.Table{
+		Name:       "attempts",
+		Columns:    AttemptsColumns,
+		PrimaryKey: []*schema.Column{AttemptsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "attempts_experiments_attempts",
+				Columns:    []*schema.Column{AttemptsColumns[13]},
+				RefColumns: []*schema.Column{ExperimentsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "attempts_projects_attempts",
+				Columns:    []*schema.Column{AttemptsColumns[14]},
+				RefColumns: []*schema.Column{ProjectsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "attempts_tenants_attempts",
+				Columns:    []*schema.Column{AttemptsColumns[15]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "attempt_experiment_id_number",
+				Unique:  true,
+				Columns: []*schema.Column{AttemptsColumns[13], AttemptsColumns[4]},
+			},
+			{
+				Name:    "attempt_project_id_state_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{AttemptsColumns[14], AttemptsColumns[5], AttemptsColumns[2]},
+			},
+		},
+	}
 	// AuditEventsColumns holds the columns for the "audit_events" table.
 	AuditEventsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -91,6 +148,58 @@ var (
 			},
 		},
 	}
+	// BudgetEntriesColumns holds the columns for the "budget_entries" table.
+	BudgetEntriesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "public_id", Type: field.TypeUUID, Unique: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "period", Type: field.TypeString, Size: 7},
+		{Name: "kind", Type: field.TypeString},
+		{Name: "amount_milli", Type: field.TypeInt64},
+		{Name: "description", Type: field.TypeString, Size: 255},
+		{Name: "experiment_id", Type: field.TypeInt},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "tenant_id", Type: field.TypeInt},
+	}
+	// BudgetEntriesTable holds the schema information for the "budget_entries" table.
+	BudgetEntriesTable = &schema.Table{
+		Name:       "budget_entries",
+		Columns:    BudgetEntriesColumns,
+		PrimaryKey: []*schema.Column{BudgetEntriesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "budget_entries_experiments_budget_entries",
+				Columns:    []*schema.Column{BudgetEntriesColumns[8]},
+				RefColumns: []*schema.Column{ExperimentsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "budget_entries_projects_budget_entries",
+				Columns:    []*schema.Column{BudgetEntriesColumns[9]},
+				RefColumns: []*schema.Column{ProjectsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "budget_entries_tenants_budget_entries",
+				Columns:    []*schema.Column{BudgetEntriesColumns[10]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "budgetentry_project_id_period_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{BudgetEntriesColumns[9], BudgetEntriesColumns[4], BudgetEntriesColumns[2]},
+			},
+			{
+				Name:    "budgetentry_experiment_id_kind",
+				Unique:  false,
+				Columns: []*schema.Column{BudgetEntriesColumns[8], BudgetEntriesColumns[5]},
+			},
+		},
+	}
 	// EnvironmentsColumns holds the columns for the "environments" table.
 	EnvironmentsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -127,6 +236,159 @@ var (
 				Name:    "environment_project_id_image_uuid",
 				Unique:  false,
 				Columns: []*schema.Column{EnvironmentsColumns[9], EnvironmentsColumns[5]},
+			},
+		},
+	}
+	// ExperimentsColumns holds the columns for the "experiments" table.
+	ExperimentsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "public_id", Type: field.TypeUUID, Unique: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "state", Type: field.TypeString, Default: "queued"},
+		{Name: "desired_state", Type: field.TypeString, Default: "running"},
+		{Name: "commit_sha", Type: field.TypeString, Size: 64},
+		{Name: "command", Type: field.TypeString, Size: 2147483647},
+		{Name: "max_runtime_seconds", Type: field.TypeInt},
+		{Name: "timeout_extension_seconds", Type: field.TypeInt},
+		{Name: "termination_grace_seconds", Type: field.TypeInt},
+		{Name: "repository_snapshot", Type: field.TypeJSON},
+		{Name: "environment_snapshot", Type: field.TypeJSON},
+		{Name: "resource_snapshot", Type: field.TypeJSON},
+		{Name: "secret_names", Type: field.TypeJSON},
+		{Name: "output_path", Type: field.TypeString},
+		{Name: "reserved_cost_milli", Type: field.TypeInt64},
+		{Name: "estimated_cost_milli", Type: field.TypeInt64, Default: 0},
+		{Name: "provider_resource_id", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "provider_status", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "started_at", Type: field.TypeTime, Nullable: true},
+		{Name: "deadline_at", Type: field.TypeTime, Nullable: true},
+		{Name: "finished_at", Type: field.TypeTime, Nullable: true},
+		{Name: "exit_code", Type: field.TypeInt, Nullable: true},
+		{Name: "failure_code", Type: field.TypeString, Nullable: true, Size: 100},
+		{Name: "failure_reason", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "log_tail", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "metrics", Type: field.TypeJSON},
+		{Name: "cancel_requested_at", Type: field.TypeTime, Nullable: true},
+		{Name: "lease_expires_at", Type: field.TypeTime, Nullable: true},
+		{Name: "lease_owner", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "next_attempt_at", Type: field.TypeTime},
+		{Name: "agent_token_id", Type: field.TypeInt},
+		{Name: "environment_id", Type: field.TypeInt},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "repository_id", Type: field.TypeInt},
+		{Name: "resource_profile_id", Type: field.TypeInt},
+		{Name: "tenant_id", Type: field.TypeInt},
+	}
+	// ExperimentsTable holds the schema information for the "experiments" table.
+	ExperimentsTable = &schema.Table{
+		Name:       "experiments",
+		Columns:    ExperimentsColumns,
+		PrimaryKey: []*schema.Column{ExperimentsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "experiments_agent_tokens_experiments",
+				Columns:    []*schema.Column{ExperimentsColumns[32]},
+				RefColumns: []*schema.Column{AgentTokensColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "experiments_environments_experiments",
+				Columns:    []*schema.Column{ExperimentsColumns[33]},
+				RefColumns: []*schema.Column{EnvironmentsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "experiments_projects_experiments",
+				Columns:    []*schema.Column{ExperimentsColumns[34]},
+				RefColumns: []*schema.Column{ProjectsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "experiments_repositories_experiments",
+				Columns:    []*schema.Column{ExperimentsColumns[35]},
+				RefColumns: []*schema.Column{RepositoriesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "experiments_resource_profiles_experiments",
+				Columns:    []*schema.Column{ExperimentsColumns[36]},
+				RefColumns: []*schema.Column{ResourceProfilesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "experiments_tenants_experiments",
+				Columns:    []*schema.Column{ExperimentsColumns[37]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "experiment_project_id_state_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{ExperimentsColumns[34], ExperimentsColumns[4], ExperimentsColumns[2]},
+			},
+			{
+				Name:    "experiment_state_next_attempt_at_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{ExperimentsColumns[4], ExperimentsColumns[31], ExperimentsColumns[2]},
+			},
+			{
+				Name:    "experiment_provider_resource_id",
+				Unique:  true,
+				Columns: []*schema.Column{ExperimentsColumns[18]},
+			},
+		},
+	}
+	// IdempotencyRecordsColumns holds the columns for the "idempotency_records" table.
+	IdempotencyRecordsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "public_id", Type: field.TypeUUID, Unique: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "key_hash", Type: field.TypeBytes},
+		{Name: "request_fingerprint", Type: field.TypeBytes},
+		{Name: "expires_at", Type: field.TypeTime},
+		{Name: "agent_token_id", Type: field.TypeInt},
+		{Name: "experiment_id", Type: field.TypeInt},
+		{Name: "tenant_id", Type: field.TypeInt},
+	}
+	// IdempotencyRecordsTable holds the schema information for the "idempotency_records" table.
+	IdempotencyRecordsTable = &schema.Table{
+		Name:       "idempotency_records",
+		Columns:    IdempotencyRecordsColumns,
+		PrimaryKey: []*schema.Column{IdempotencyRecordsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "idempotency_records_agent_tokens_idempotency_records",
+				Columns:    []*schema.Column{IdempotencyRecordsColumns[7]},
+				RefColumns: []*schema.Column{AgentTokensColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "idempotency_records_experiments_idempotency_records",
+				Columns:    []*schema.Column{IdempotencyRecordsColumns[8]},
+				RefColumns: []*schema.Column{ExperimentsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "idempotency_records_tenants_idempotency_records",
+				Columns:    []*schema.Column{IdempotencyRecordsColumns[9]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "idempotencyrecord_agent_token_id_key_hash",
+				Unique:  true,
+				Columns: []*schema.Column{IdempotencyRecordsColumns[7], IdempotencyRecordsColumns[4]},
+			},
+			{
+				Name:    "idempotencyrecord_expires_at",
+				Unique:  false,
+				Columns: []*schema.Column{IdempotencyRecordsColumns[6]},
 			},
 		},
 	}
@@ -226,6 +488,7 @@ var (
 		{Name: "name", Type: field.TypeString, Size: 120},
 		{Name: "ssh_url", Type: field.TypeString, Size: 512},
 		{Name: "ssh_host", Type: field.TypeString, Size: 255},
+		{Name: "default_branch", Type: field.TypeString, Size: 255, Default: "main"},
 		{Name: "host_key_fingerprint", Type: field.TypeString, Nullable: true, Size: 255},
 		{Name: "deploy_public_key", Type: field.TypeString, Nullable: true},
 		{Name: "deploy_private_key_ciphertext", Type: field.TypeString, Nullable: true},
@@ -241,7 +504,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "repositories_projects_repositories",
-				Columns:    []*schema.Column{RepositoriesColumns[12]},
+				Columns:    []*schema.Column{RepositoriesColumns[13]},
 				RefColumns: []*schema.Column{ProjectsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -250,7 +513,7 @@ var (
 			{
 				Name:    "repository_project_id_name",
 				Unique:  true,
-				Columns: []*schema.Column{RepositoriesColumns[12], RepositoriesColumns[4]},
+				Columns: []*schema.Column{RepositoriesColumns[13], RepositoriesColumns[4]},
 			},
 		},
 	}
@@ -388,8 +651,12 @@ var (
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		AgentTokensTable,
+		AttemptsTable,
 		AuditEventsTable,
+		BudgetEntriesTable,
 		EnvironmentsTable,
+		ExperimentsTable,
+		IdempotencyRecordsTable,
 		ProjectsTable,
 		ProviderAccountsTable,
 		RecordMixinsTable,
@@ -403,8 +670,23 @@ var (
 
 func init() {
 	AgentTokensTable.ForeignKeys[0].RefTable = ProjectsTable
+	AttemptsTable.ForeignKeys[0].RefTable = ExperimentsTable
+	AttemptsTable.ForeignKeys[1].RefTable = ProjectsTable
+	AttemptsTable.ForeignKeys[2].RefTable = TenantsTable
 	AuditEventsTable.ForeignKeys[0].RefTable = TenantsTable
+	BudgetEntriesTable.ForeignKeys[0].RefTable = ExperimentsTable
+	BudgetEntriesTable.ForeignKeys[1].RefTable = ProjectsTable
+	BudgetEntriesTable.ForeignKeys[2].RefTable = TenantsTable
 	EnvironmentsTable.ForeignKeys[0].RefTable = ProjectsTable
+	ExperimentsTable.ForeignKeys[0].RefTable = AgentTokensTable
+	ExperimentsTable.ForeignKeys[1].RefTable = EnvironmentsTable
+	ExperimentsTable.ForeignKeys[2].RefTable = ProjectsTable
+	ExperimentsTable.ForeignKeys[3].RefTable = RepositoriesTable
+	ExperimentsTable.ForeignKeys[4].RefTable = ResourceProfilesTable
+	ExperimentsTable.ForeignKeys[5].RefTable = TenantsTable
+	IdempotencyRecordsTable.ForeignKeys[0].RefTable = AgentTokensTable
+	IdempotencyRecordsTable.ForeignKeys[1].RefTable = ExperimentsTable
+	IdempotencyRecordsTable.ForeignKeys[2].RefTable = TenantsTable
 	ProjectsTable.ForeignKeys[0].RefTable = TenantsTable
 	ProviderAccountsTable.ForeignKeys[0].RefTable = TenantsTable
 	RepositoriesTable.ForeignKeys[0].RefTable = ProjectsTable

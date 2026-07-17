@@ -65,9 +65,15 @@ type ProjectEdges struct {
 	Repositories []*Repository `json:"repositories,omitempty"`
 	// AgentTokens holds the value of the agent_tokens edge.
 	AgentTokens []*AgentToken `json:"agent_tokens,omitempty"`
+	// Experiments holds the value of the experiments edge.
+	Experiments []*Experiment `json:"experiments,omitempty"`
+	// Attempts holds the value of the attempts edge.
+	Attempts []*Attempt `json:"attempts,omitempty"`
+	// BudgetEntries holds the value of the budget_entries edge.
+	BudgetEntries []*BudgetEntry `json:"budget_entries,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [5]bool
+	loadedTypes [8]bool
 }
 
 // TenantOrErr returns the Tenant value or an error if the edge
@@ -115,6 +121,33 @@ func (e ProjectEdges) AgentTokensOrErr() ([]*AgentToken, error) {
 		return e.AgentTokens, nil
 	}
 	return nil, &NotLoadedError{edge: "agent_tokens"}
+}
+
+// ExperimentsOrErr returns the Experiments value or an error if the edge
+// was not loaded in eager-loading.
+func (e ProjectEdges) ExperimentsOrErr() ([]*Experiment, error) {
+	if e.loadedTypes[5] {
+		return e.Experiments, nil
+	}
+	return nil, &NotLoadedError{edge: "experiments"}
+}
+
+// AttemptsOrErr returns the Attempts value or an error if the edge
+// was not loaded in eager-loading.
+func (e ProjectEdges) AttemptsOrErr() ([]*Attempt, error) {
+	if e.loadedTypes[6] {
+		return e.Attempts, nil
+	}
+	return nil, &NotLoadedError{edge: "attempts"}
+}
+
+// BudgetEntriesOrErr returns the BudgetEntries value or an error if the edge
+// was not loaded in eager-loading.
+func (e ProjectEdges) BudgetEntriesOrErr() ([]*BudgetEntry, error) {
+	if e.loadedTypes[7] {
+		return e.BudgetEntries, nil
+	}
+	return nil, &NotLoadedError{edge: "budget_entries"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -271,6 +304,21 @@ func (_m *Project) QueryRepositories() *RepositoryQuery {
 // QueryAgentTokens queries the "agent_tokens" edge of the Project entity.
 func (_m *Project) QueryAgentTokens() *AgentTokenQuery {
 	return NewProjectClient(_m.config).QueryAgentTokens(_m)
+}
+
+// QueryExperiments queries the "experiments" edge of the Project entity.
+func (_m *Project) QueryExperiments() *ExperimentQuery {
+	return NewProjectClient(_m.config).QueryExperiments(_m)
+}
+
+// QueryAttempts queries the "attempts" edge of the Project entity.
+func (_m *Project) QueryAttempts() *AttemptQuery {
+	return NewProjectClient(_m.config).QueryAttempts(_m)
+}
+
+// QueryBudgetEntries queries the "budget_entries" edge of the Project entity.
+func (_m *Project) QueryBudgetEntries() *BudgetEntryQuery {
+	return NewProjectClient(_m.config).QueryBudgetEntries(_m)
 }
 
 // Update returns a builder for updating this Project.

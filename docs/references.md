@@ -8,4 +8,6 @@ Gemcp is an independent implementation. These projects inform specific design ch
 - Hanyuyuan6/remote-gpu-trainer: runner, checkpoint, cache, and teardown operating practices.
 - kyuwon-shim-ARL/runpod-mcp: independent provider watchdog pattern and its durability limitations.
 
+- modelcontextprotocol/go-sdk `v1.6.1`: official MCP Streamable HTTP server, typed tool schemas, Bearer middleware, and authenticated session binding.
+
 Production behavior is validated against current official AutoDL documentation and live phase-zero probes.

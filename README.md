@@ -4,7 +4,7 @@ Gemcp is a private, single-organization control plane for running bounded AutoDL
 
 ## Current release
 
-`v0.3.0` adds the durable Ent/PostgreSQL control model, AES-GCM credential storage, one-time initialization, Owner password login, revocable database Sessions, and CSRF protection. Production scheduling remains disabled until live phase-zero behavior is recorded and accepted.
+`v0.4.0` adds encrypted per-repository GitHub Deploy Keys, pinned SSH host verification, immutable experiments, serializable hard-budget reservations, Token-scoped idempotency, and seven authenticated MCP tools over Streamable HTTP. Accepted experiments remain queued until live phase-zero validation selects the production AutoDL backend.
 
 ## Architecture
 
@@ -44,6 +44,9 @@ Health endpoints:
 GET /healthz
 GET /readyz
 GET /api/v1/version
+GET /api/v1/projects
+GET /api/v1/repositories
+POST|GET|DELETE /mcp
 ```
 
 Phase-zero commands:
@@ -63,6 +66,8 @@ Generate both required bootstrap credentials on the deployment host:
 ```
 
 Store them only in the protected deployment `.env`. The first-run setup transaction and Session API are documented in [First-run setup](docs/setup-api.md).
+
+After initialization, register the private repository using [Private Git repositories](docs/repositories.md), then connect an Agent using the [MCP endpoint](docs/mcp.md).
 
 ## Deployment
 

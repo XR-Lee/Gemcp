@@ -10,6 +10,7 @@ import (
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/repository"
 	"github.com/google/uuid"
@@ -88,6 +89,20 @@ func (_c *RepositoryCreate) SetSSHHost(v string) *RepositoryCreate {
 	return _c
 }
 
+// SetDefaultBranch sets the "default_branch" field.
+func (_c *RepositoryCreate) SetDefaultBranch(v string) *RepositoryCreate {
+	_c.mutation.SetDefaultBranch(v)
+	return _c
+}
+
+// SetNillableDefaultBranch sets the "default_branch" field if the given value is not nil.
+func (_c *RepositoryCreate) SetNillableDefaultBranch(v *string) *RepositoryCreate {
+	if v != nil {
+		_c.SetDefaultBranch(*v)
+	}
+	return _c
+}
+
 // SetHostKeyFingerprint sets the "host_key_fingerprint" field.
 func (_c *RepositoryCreate) SetHostKeyFingerprint(v string) *RepositoryCreate {
 	_c.mutation.SetHostKeyFingerprint(v)
@@ -163,6 +178,21 @@ func (_c *RepositoryCreate) SetProject(v *Project) *RepositoryCreate {
 	return _c.SetProjectID(v.ID)
 }
 
+// AddExperimentIDs adds the "experiments" edge to the Experiment entity by IDs.
+func (_c *RepositoryCreate) AddExperimentIDs(ids ...int) *RepositoryCreate {
+	_c.mutation.AddExperimentIDs(ids...)
+	return _c
+}
+
+// AddExperiments adds the "experiments" edges to the Experiment entity.
+func (_c *RepositoryCreate) AddExperiments(v ...*Experiment) *RepositoryCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddExperimentIDs(ids...)
+}
+
 // Mutation returns the RepositoryMutation object of the builder.
 func (_c *RepositoryCreate) Mutation() *RepositoryMutation {
 	return _c.mutation
@@ -210,6 +240,10 @@ func (_c *RepositoryCreate) defaults() {
 		v := repository.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
+	if _, ok := _c.mutation.DefaultBranch(); !ok {
+		v := repository.DefaultDefaultBranch
+		_c.mutation.SetDefaultBranch(v)
+	}
 	if _, ok := _c.mutation.Status(); !ok {
 		v := repository.DefaultStatus
 		_c.mutation.SetStatus(v)
@@ -252,6 +286,14 @@ func (_c *RepositoryCreate) check() error {
 	if v, ok := _c.mutation.SSHHost(); ok {
 		if err := repository.SSHHostValidator(v); err != nil {
 			return &ValidationError{Name: "ssh_host", err: fmt.Errorf(`ent: validator failed for field "Repository.ssh_host": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.DefaultBranch(); !ok {
+		return &ValidationError{Name: "default_branch", err: errors.New(`ent: missing required field "Repository.default_branch"`)}
+	}
+	if v, ok := _c.mutation.DefaultBranch(); ok {
+		if err := repository.DefaultBranchValidator(v); err != nil {
+			return &ValidationError{Name: "default_branch", err: fmt.Errorf(`ent: validator failed for field "Repository.default_branch": %w`, err)}
 		}
 	}
 	if v, ok := _c.mutation.HostKeyFingerprint(); ok {
@@ -320,6 +362,10 @@ func (_c *RepositoryCreate) createSpec() (*Repository, *sqlgraph.CreateSpec) {
 		_spec.SetField(repository.FieldSSHHost, field.TypeString, value)
 		_node.SSHHost = value
 	}
+	if value, ok := _c.mutation.DefaultBranch(); ok {
+		_spec.SetField(repository.FieldDefaultBranch, field.TypeString, value)
+		_node.DefaultBranch = value
+	}
 	if value, ok := _c.mutation.HostKeyFingerprint(); ok {
 		_spec.SetField(repository.FieldHostKeyFingerprint, field.TypeString, value)
 		_node.HostKeyFingerprint = value
@@ -355,6 +401,22 @@ func (_c *RepositoryCreate) createSpec() (*Repository, *sqlgraph.CreateSpec) {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_node.ProjectID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ExperimentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   repository.ExperimentsTable,
+			Columns: []string{repository.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec

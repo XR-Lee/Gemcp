@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
+	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
 )
@@ -306,9 +307,45 @@ func (_u *ResourceProfileUpdate) SetNillableStatus(v *resourceprofile.Status) *R
 	return _u
 }
 
+// AddExperimentIDs adds the "experiments" edge to the Experiment entity by IDs.
+func (_u *ResourceProfileUpdate) AddExperimentIDs(ids ...int) *ResourceProfileUpdate {
+	_u.mutation.AddExperimentIDs(ids...)
+	return _u
+}
+
+// AddExperiments adds the "experiments" edges to the Experiment entity.
+func (_u *ResourceProfileUpdate) AddExperiments(v ...*Experiment) *ResourceProfileUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddExperimentIDs(ids...)
+}
+
 // Mutation returns the ResourceProfileMutation object of the builder.
 func (_u *ResourceProfileUpdate) Mutation() *ResourceProfileMutation {
 	return _u.mutation
+}
+
+// ClearExperiments clears all "experiments" edges to the Experiment entity.
+func (_u *ResourceProfileUpdate) ClearExperiments() *ResourceProfileUpdate {
+	_u.mutation.ClearExperiments()
+	return _u
+}
+
+// RemoveExperimentIDs removes the "experiments" edge to Experiment entities by IDs.
+func (_u *ResourceProfileUpdate) RemoveExperimentIDs(ids ...int) *ResourceProfileUpdate {
+	_u.mutation.RemoveExperimentIDs(ids...)
+	return _u
+}
+
+// RemoveExperiments removes "experiments" edges to Experiment entities.
+func (_u *ResourceProfileUpdate) RemoveExperiments(v ...*Experiment) *ResourceProfileUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveExperimentIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -506,6 +543,51 @@ func (_u *ResourceProfileUpdate) sqlSave(ctx context.Context) (_node int, err er
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(resourceprofile.FieldStatus, field.TypeEnum, value)
+	}
+	if _u.mutation.ExperimentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   resourceprofile.ExperimentsTable,
+			Columns: []string{resourceprofile.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedExperimentsIDs(); len(nodes) > 0 && !_u.mutation.ExperimentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   resourceprofile.ExperimentsTable,
+			Columns: []string{resourceprofile.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ExperimentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   resourceprofile.ExperimentsTable,
+			Columns: []string{resourceprofile.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -804,9 +886,45 @@ func (_u *ResourceProfileUpdateOne) SetNillableStatus(v *resourceprofile.Status)
 	return _u
 }
 
+// AddExperimentIDs adds the "experiments" edge to the Experiment entity by IDs.
+func (_u *ResourceProfileUpdateOne) AddExperimentIDs(ids ...int) *ResourceProfileUpdateOne {
+	_u.mutation.AddExperimentIDs(ids...)
+	return _u
+}
+
+// AddExperiments adds the "experiments" edges to the Experiment entity.
+func (_u *ResourceProfileUpdateOne) AddExperiments(v ...*Experiment) *ResourceProfileUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddExperimentIDs(ids...)
+}
+
 // Mutation returns the ResourceProfileMutation object of the builder.
 func (_u *ResourceProfileUpdateOne) Mutation() *ResourceProfileMutation {
 	return _u.mutation
+}
+
+// ClearExperiments clears all "experiments" edges to the Experiment entity.
+func (_u *ResourceProfileUpdateOne) ClearExperiments() *ResourceProfileUpdateOne {
+	_u.mutation.ClearExperiments()
+	return _u
+}
+
+// RemoveExperimentIDs removes the "experiments" edge to Experiment entities by IDs.
+func (_u *ResourceProfileUpdateOne) RemoveExperimentIDs(ids ...int) *ResourceProfileUpdateOne {
+	_u.mutation.RemoveExperimentIDs(ids...)
+	return _u
+}
+
+// RemoveExperiments removes "experiments" edges to Experiment entities.
+func (_u *ResourceProfileUpdateOne) RemoveExperiments(v ...*Experiment) *ResourceProfileUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveExperimentIDs(ids...)
 }
 
 // Where appends a list predicates to the ResourceProfileUpdate builder.
@@ -1034,6 +1152,51 @@ func (_u *ResourceProfileUpdateOne) sqlSave(ctx context.Context) (_node *Resourc
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(resourceprofile.FieldStatus, field.TypeEnum, value)
+	}
+	if _u.mutation.ExperimentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   resourceprofile.ExperimentsTable,
+			Columns: []string{resourceprofile.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedExperimentsIDs(); len(nodes) > 0 && !_u.mutation.ExperimentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   resourceprofile.ExperimentsTable,
+			Columns: []string{resourceprofile.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ExperimentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   resourceprofile.ExperimentsTable,
+			Columns: []string{resourceprofile.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &ResourceProfile{config: _u.config}
 	_spec.Assign = _node.assignValues

@@ -42,6 +42,10 @@ const (
 	FieldLastUsedAt = "last_used_at"
 	// EdgeProject holds the string denoting the project edge name in mutations.
 	EdgeProject = "project"
+	// EdgeExperiments holds the string denoting the experiments edge name in mutations.
+	EdgeExperiments = "experiments"
+	// EdgeIdempotencyRecords holds the string denoting the idempotency_records edge name in mutations.
+	EdgeIdempotencyRecords = "idempotency_records"
 	// Table holds the table name of the agenttoken in the database.
 	Table = "agent_tokens"
 	// ProjectTable is the table that holds the project relation/edge.
@@ -51,6 +55,20 @@ const (
 	ProjectInverseTable = "projects"
 	// ProjectColumn is the table column denoting the project relation/edge.
 	ProjectColumn = "project_id"
+	// ExperimentsTable is the table that holds the experiments relation/edge.
+	ExperimentsTable = "experiments"
+	// ExperimentsInverseTable is the table name for the Experiment entity.
+	// It exists in this package in order to avoid circular dependency with the "experiment" package.
+	ExperimentsInverseTable = "experiments"
+	// ExperimentsColumn is the table column denoting the experiments relation/edge.
+	ExperimentsColumn = "agent_token_id"
+	// IdempotencyRecordsTable is the table that holds the idempotency_records relation/edge.
+	IdempotencyRecordsTable = "idempotency_records"
+	// IdempotencyRecordsInverseTable is the table name for the IdempotencyRecord entity.
+	// It exists in this package in order to avoid circular dependency with the "idempotencyrecord" package.
+	IdempotencyRecordsInverseTable = "idempotency_records"
+	// IdempotencyRecordsColumn is the table column denoting the idempotency_records relation/edge.
+	IdempotencyRecordsColumn = "agent_token_id"
 )
 
 // Columns holds all SQL columns for agenttoken fields.
@@ -213,10 +231,52 @@ func ByProjectField(field string, opts ...sql.OrderTermOption) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newProjectStep(), sql.OrderByField(field, opts...))
 	}
 }
+
+// ByExperimentsCount orders the results by experiments count.
+func ByExperimentsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newExperimentsStep(), opts...)
+	}
+}
+
+// ByExperiments orders the results by experiments terms.
+func ByExperiments(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newExperimentsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByIdempotencyRecordsCount orders the results by idempotency_records count.
+func ByIdempotencyRecordsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newIdempotencyRecordsStep(), opts...)
+	}
+}
+
+// ByIdempotencyRecords orders the results by idempotency_records terms.
+func ByIdempotencyRecords(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newIdempotencyRecordsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newProjectStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(ProjectInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.M2O, true, ProjectTable, ProjectColumn),
+	)
+}
+func newExperimentsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ExperimentsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ExperimentsTable, ExperimentsColumn),
+	)
+}
+func newIdempotencyRecordsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(IdempotencyRecordsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, IdempotencyRecordsTable, IdempotencyRecordsColumn),
 	)
 }

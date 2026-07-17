@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 	"github.com/XR-Lee/Gemcp/ent/repository"
 )
@@ -72,6 +73,20 @@ func (_u *RepositoryUpdate) SetSSHHost(v string) *RepositoryUpdate {
 func (_u *RepositoryUpdate) SetNillableSSHHost(v *string) *RepositoryUpdate {
 	if v != nil {
 		_u.SetSSHHost(*v)
+	}
+	return _u
+}
+
+// SetDefaultBranch sets the "default_branch" field.
+func (_u *RepositoryUpdate) SetDefaultBranch(v string) *RepositoryUpdate {
+	_u.mutation.SetDefaultBranch(v)
+	return _u
+}
+
+// SetNillableDefaultBranch sets the "default_branch" field if the given value is not nil.
+func (_u *RepositoryUpdate) SetNillableDefaultBranch(v *string) *RepositoryUpdate {
+	if v != nil {
+		_u.SetDefaultBranch(*v)
 	}
 	return _u
 }
@@ -170,9 +185,45 @@ func (_u *RepositoryUpdate) ClearLastVerifiedAt() *RepositoryUpdate {
 	return _u
 }
 
+// AddExperimentIDs adds the "experiments" edge to the Experiment entity by IDs.
+func (_u *RepositoryUpdate) AddExperimentIDs(ids ...int) *RepositoryUpdate {
+	_u.mutation.AddExperimentIDs(ids...)
+	return _u
+}
+
+// AddExperiments adds the "experiments" edges to the Experiment entity.
+func (_u *RepositoryUpdate) AddExperiments(v ...*Experiment) *RepositoryUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddExperimentIDs(ids...)
+}
+
 // Mutation returns the RepositoryMutation object of the builder.
 func (_u *RepositoryUpdate) Mutation() *RepositoryMutation {
 	return _u.mutation
+}
+
+// ClearExperiments clears all "experiments" edges to the Experiment entity.
+func (_u *RepositoryUpdate) ClearExperiments() *RepositoryUpdate {
+	_u.mutation.ClearExperiments()
+	return _u
+}
+
+// RemoveExperimentIDs removes the "experiments" edge to Experiment entities by IDs.
+func (_u *RepositoryUpdate) RemoveExperimentIDs(ids ...int) *RepositoryUpdate {
+	_u.mutation.RemoveExperimentIDs(ids...)
+	return _u
+}
+
+// RemoveExperiments removes "experiments" edges to Experiment entities.
+func (_u *RepositoryUpdate) RemoveExperiments(v ...*Experiment) *RepositoryUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveExperimentIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -228,6 +279,11 @@ func (_u *RepositoryUpdate) check() error {
 			return &ValidationError{Name: "ssh_host", err: fmt.Errorf(`ent: validator failed for field "Repository.ssh_host": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.DefaultBranch(); ok {
+		if err := repository.DefaultBranchValidator(v); err != nil {
+			return &ValidationError{Name: "default_branch", err: fmt.Errorf(`ent: validator failed for field "Repository.default_branch": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.HostKeyFingerprint(); ok {
 		if err := repository.HostKeyFingerprintValidator(v); err != nil {
 			return &ValidationError{Name: "host_key_fingerprint", err: fmt.Errorf(`ent: validator failed for field "Repository.host_key_fingerprint": %w`, err)}
@@ -268,6 +324,9 @@ func (_u *RepositoryUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	if value, ok := _u.mutation.SSHHost(); ok {
 		_spec.SetField(repository.FieldSSHHost, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.DefaultBranch(); ok {
+		_spec.SetField(repository.FieldDefaultBranch, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.HostKeyFingerprint(); ok {
 		_spec.SetField(repository.FieldHostKeyFingerprint, field.TypeString, value)
 	}
@@ -294,6 +353,51 @@ func (_u *RepositoryUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	}
 	if _u.mutation.LastVerifiedAtCleared() {
 		_spec.ClearField(repository.FieldLastVerifiedAt, field.TypeTime)
+	}
+	if _u.mutation.ExperimentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   repository.ExperimentsTable,
+			Columns: []string{repository.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedExperimentsIDs(); len(nodes) > 0 && !_u.mutation.ExperimentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   repository.ExperimentsTable,
+			Columns: []string{repository.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ExperimentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   repository.ExperimentsTable,
+			Columns: []string{repository.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -359,6 +463,20 @@ func (_u *RepositoryUpdateOne) SetSSHHost(v string) *RepositoryUpdateOne {
 func (_u *RepositoryUpdateOne) SetNillableSSHHost(v *string) *RepositoryUpdateOne {
 	if v != nil {
 		_u.SetSSHHost(*v)
+	}
+	return _u
+}
+
+// SetDefaultBranch sets the "default_branch" field.
+func (_u *RepositoryUpdateOne) SetDefaultBranch(v string) *RepositoryUpdateOne {
+	_u.mutation.SetDefaultBranch(v)
+	return _u
+}
+
+// SetNillableDefaultBranch sets the "default_branch" field if the given value is not nil.
+func (_u *RepositoryUpdateOne) SetNillableDefaultBranch(v *string) *RepositoryUpdateOne {
+	if v != nil {
+		_u.SetDefaultBranch(*v)
 	}
 	return _u
 }
@@ -457,9 +575,45 @@ func (_u *RepositoryUpdateOne) ClearLastVerifiedAt() *RepositoryUpdateOne {
 	return _u
 }
 
+// AddExperimentIDs adds the "experiments" edge to the Experiment entity by IDs.
+func (_u *RepositoryUpdateOne) AddExperimentIDs(ids ...int) *RepositoryUpdateOne {
+	_u.mutation.AddExperimentIDs(ids...)
+	return _u
+}
+
+// AddExperiments adds the "experiments" edges to the Experiment entity.
+func (_u *RepositoryUpdateOne) AddExperiments(v ...*Experiment) *RepositoryUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddExperimentIDs(ids...)
+}
+
 // Mutation returns the RepositoryMutation object of the builder.
 func (_u *RepositoryUpdateOne) Mutation() *RepositoryMutation {
 	return _u.mutation
+}
+
+// ClearExperiments clears all "experiments" edges to the Experiment entity.
+func (_u *RepositoryUpdateOne) ClearExperiments() *RepositoryUpdateOne {
+	_u.mutation.ClearExperiments()
+	return _u
+}
+
+// RemoveExperimentIDs removes the "experiments" edge to Experiment entities by IDs.
+func (_u *RepositoryUpdateOne) RemoveExperimentIDs(ids ...int) *RepositoryUpdateOne {
+	_u.mutation.RemoveExperimentIDs(ids...)
+	return _u
+}
+
+// RemoveExperiments removes "experiments" edges to Experiment entities.
+func (_u *RepositoryUpdateOne) RemoveExperiments(v ...*Experiment) *RepositoryUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveExperimentIDs(ids...)
 }
 
 // Where appends a list predicates to the RepositoryUpdate builder.
@@ -528,6 +682,11 @@ func (_u *RepositoryUpdateOne) check() error {
 			return &ValidationError{Name: "ssh_host", err: fmt.Errorf(`ent: validator failed for field "Repository.ssh_host": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.DefaultBranch(); ok {
+		if err := repository.DefaultBranchValidator(v); err != nil {
+			return &ValidationError{Name: "default_branch", err: fmt.Errorf(`ent: validator failed for field "Repository.default_branch": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.HostKeyFingerprint(); ok {
 		if err := repository.HostKeyFingerprintValidator(v); err != nil {
 			return &ValidationError{Name: "host_key_fingerprint", err: fmt.Errorf(`ent: validator failed for field "Repository.host_key_fingerprint": %w`, err)}
@@ -585,6 +744,9 @@ func (_u *RepositoryUpdateOne) sqlSave(ctx context.Context) (_node *Repository, 
 	if value, ok := _u.mutation.SSHHost(); ok {
 		_spec.SetField(repository.FieldSSHHost, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.DefaultBranch(); ok {
+		_spec.SetField(repository.FieldDefaultBranch, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.HostKeyFingerprint(); ok {
 		_spec.SetField(repository.FieldHostKeyFingerprint, field.TypeString, value)
 	}
@@ -611,6 +773,51 @@ func (_u *RepositoryUpdateOne) sqlSave(ctx context.Context) (_node *Repository, 
 	}
 	if _u.mutation.LastVerifiedAtCleared() {
 		_spec.ClearField(repository.FieldLastVerifiedAt, field.TypeTime)
+	}
+	if _u.mutation.ExperimentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   repository.ExperimentsTable,
+			Columns: []string{repository.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedExperimentsIDs(); len(nodes) > 0 && !_u.mutation.ExperimentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   repository.ExperimentsTable,
+			Columns: []string{repository.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ExperimentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   repository.ExperimentsTable,
+			Columns: []string{repository.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &Repository{config: _u.config}
 	_spec.Assign = _node.assignValues

@@ -47,9 +47,11 @@ type Environment struct {
 type EnvironmentEdges struct {
 	// Project holds the value of the project edge.
 	Project *Project `json:"project,omitempty"`
+	// Experiments holds the value of the experiments edge.
+	Experiments []*Experiment `json:"experiments,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [1]bool
+	loadedTypes [2]bool
 }
 
 // ProjectOrErr returns the Project value or an error if the edge
@@ -61,6 +63,15 @@ func (e EnvironmentEdges) ProjectOrErr() (*Project, error) {
 		return nil, &NotFoundError{label: project.Label}
 	}
 	return nil, &NotLoadedError{edge: "project"}
+}
+
+// ExperimentsOrErr returns the Experiments value or an error if the edge
+// was not loaded in eager-loading.
+func (e EnvironmentEdges) ExperimentsOrErr() ([]*Experiment, error) {
+	if e.loadedTypes[1] {
+		return e.Experiments, nil
+	}
+	return nil, &NotLoadedError{edge: "experiments"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -169,6 +180,11 @@ func (_m *Environment) Value(name string) (ent.Value, error) {
 // QueryProject queries the "project" edge of the Environment entity.
 func (_m *Environment) QueryProject() *ProjectQuery {
 	return NewEnvironmentClient(_m.config).QueryProject(_m)
+}
+
+// QueryExperiments queries the "experiments" edge of the Environment entity.
+func (_m *Environment) QueryExperiments() *ExperimentQuery {
+	return NewEnvironmentClient(_m.config).QueryExperiments(_m)
 }
 
 // Update returns a builder for updating this Environment.

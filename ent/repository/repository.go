@@ -30,6 +30,8 @@ const (
 	FieldSSHURL = "ssh_url"
 	// FieldSSHHost holds the string denoting the ssh_host field in the database.
 	FieldSSHHost = "ssh_host"
+	// FieldDefaultBranch holds the string denoting the default_branch field in the database.
+	FieldDefaultBranch = "default_branch"
 	// FieldHostKeyFingerprint holds the string denoting the host_key_fingerprint field in the database.
 	FieldHostKeyFingerprint = "host_key_fingerprint"
 	// FieldDeployPublicKey holds the string denoting the deploy_public_key field in the database.
@@ -42,6 +44,8 @@ const (
 	FieldLastVerifiedAt = "last_verified_at"
 	// EdgeProject holds the string denoting the project edge name in mutations.
 	EdgeProject = "project"
+	// EdgeExperiments holds the string denoting the experiments edge name in mutations.
+	EdgeExperiments = "experiments"
 	// Table holds the table name of the repository in the database.
 	Table = "repositories"
 	// ProjectTable is the table that holds the project relation/edge.
@@ -51,6 +55,13 @@ const (
 	ProjectInverseTable = "projects"
 	// ProjectColumn is the table column denoting the project relation/edge.
 	ProjectColumn = "project_id"
+	// ExperimentsTable is the table that holds the experiments relation/edge.
+	ExperimentsTable = "experiments"
+	// ExperimentsInverseTable is the table name for the Experiment entity.
+	// It exists in this package in order to avoid circular dependency with the "experiment" package.
+	ExperimentsInverseTable = "experiments"
+	// ExperimentsColumn is the table column denoting the experiments relation/edge.
+	ExperimentsColumn = "repository_id"
 )
 
 // Columns holds all SQL columns for repository fields.
@@ -63,6 +74,7 @@ var Columns = []string{
 	FieldName,
 	FieldSSHURL,
 	FieldSSHHost,
+	FieldDefaultBranch,
 	FieldHostKeyFingerprint,
 	FieldDeployPublicKey,
 	FieldDeployPrivateKeyCiphertext,
@@ -95,6 +107,10 @@ var (
 	SSHURLValidator func(string) error
 	// SSHHostValidator is a validator for the "ssh_host" field. It is called by the builders before save.
 	SSHHostValidator func(string) error
+	// DefaultDefaultBranch holds the default value on creation for the "default_branch" field.
+	DefaultDefaultBranch string
+	// DefaultBranchValidator is a validator for the "default_branch" field. It is called by the builders before save.
+	DefaultBranchValidator func(string) error
 	// HostKeyFingerprintValidator is a validator for the "host_key_fingerprint" field. It is called by the builders before save.
 	HostKeyFingerprintValidator func(string) error
 )
@@ -170,6 +186,11 @@ func BySSHHost(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSSHHost, opts...).ToFunc()
 }
 
+// ByDefaultBranch orders the results by the default_branch field.
+func ByDefaultBranch(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDefaultBranch, opts...).ToFunc()
+}
+
 // ByHostKeyFingerprint orders the results by the host_key_fingerprint field.
 func ByHostKeyFingerprint(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldHostKeyFingerprint, opts...).ToFunc()
@@ -201,10 +222,31 @@ func ByProjectField(field string, opts ...sql.OrderTermOption) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newProjectStep(), sql.OrderByField(field, opts...))
 	}
 }
+
+// ByExperimentsCount orders the results by experiments count.
+func ByExperimentsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newExperimentsStep(), opts...)
+	}
+}
+
+// ByExperiments orders the results by experiments terms.
+func ByExperiments(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newExperimentsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newProjectStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(ProjectInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.M2O, true, ProjectTable, ProjectColumn),
+	)
+}
+func newExperimentsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ExperimentsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ExperimentsTable, ExperimentsColumn),
 	)
 }

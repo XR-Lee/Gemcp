@@ -831,6 +831,75 @@ func HasAgentTokensWith(preds ...predicate.AgentToken) predicate.Project {
 	})
 }
 
+// HasExperiments applies the HasEdge predicate on the "experiments" edge.
+func HasExperiments() predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ExperimentsTable, ExperimentsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasExperimentsWith applies the HasEdge predicate on the "experiments" edge with a given conditions (other predicates).
+func HasExperimentsWith(preds ...predicate.Experiment) predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := newExperimentsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasAttempts applies the HasEdge predicate on the "attempts" edge.
+func HasAttempts() predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, AttemptsTable, AttemptsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasAttemptsWith applies the HasEdge predicate on the "attempts" edge with a given conditions (other predicates).
+func HasAttemptsWith(preds ...predicate.Attempt) predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := newAttemptsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasBudgetEntries applies the HasEdge predicate on the "budget_entries" edge.
+func HasBudgetEntries() predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, BudgetEntriesTable, BudgetEntriesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasBudgetEntriesWith applies the HasEdge predicate on the "budget_entries" edge with a given conditions (other predicates).
+func HasBudgetEntriesWith(preds ...predicate.BudgetEntry) predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := newBudgetEntriesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.Project) predicate.Project {
 	return predicate.Project(sql.AndPredicates(predicates...))

@@ -54,9 +54,13 @@ type AgentToken struct {
 type AgentTokenEdges struct {
 	// Project holds the value of the project edge.
 	Project *Project `json:"project,omitempty"`
+	// Experiments holds the value of the experiments edge.
+	Experiments []*Experiment `json:"experiments,omitempty"`
+	// IdempotencyRecords holds the value of the idempotency_records edge.
+	IdempotencyRecords []*IdempotencyRecord `json:"idempotency_records,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [1]bool
+	loadedTypes [3]bool
 }
 
 // ProjectOrErr returns the Project value or an error if the edge
@@ -68,6 +72,24 @@ func (e AgentTokenEdges) ProjectOrErr() (*Project, error) {
 		return nil, &NotFoundError{label: project.Label}
 	}
 	return nil, &NotLoadedError{edge: "project"}
+}
+
+// ExperimentsOrErr returns the Experiments value or an error if the edge
+// was not loaded in eager-loading.
+func (e AgentTokenEdges) ExperimentsOrErr() ([]*Experiment, error) {
+	if e.loadedTypes[1] {
+		return e.Experiments, nil
+	}
+	return nil, &NotLoadedError{edge: "experiments"}
+}
+
+// IdempotencyRecordsOrErr returns the IdempotencyRecords value or an error if the edge
+// was not loaded in eager-loading.
+func (e AgentTokenEdges) IdempotencyRecordsOrErr() ([]*IdempotencyRecord, error) {
+	if e.loadedTypes[2] {
+		return e.IdempotencyRecords, nil
+	}
+	return nil, &NotLoadedError{edge: "idempotency_records"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -198,6 +220,16 @@ func (_m *AgentToken) Value(name string) (ent.Value, error) {
 // QueryProject queries the "project" edge of the AgentToken entity.
 func (_m *AgentToken) QueryProject() *ProjectQuery {
 	return NewAgentTokenClient(_m.config).QueryProject(_m)
+}
+
+// QueryExperiments queries the "experiments" edge of the AgentToken entity.
+func (_m *AgentToken) QueryExperiments() *ExperimentQuery {
+	return NewAgentTokenClient(_m.config).QueryExperiments(_m)
+}
+
+// QueryIdempotencyRecords queries the "idempotency_records" edge of the AgentToken entity.
+func (_m *AgentToken) QueryIdempotencyRecords() *IdempotencyRecordQuery {
+	return NewAgentTokenClient(_m.config).QueryIdempotencyRecords(_m)
 }
 
 // Update returns a builder for updating this AgentToken.

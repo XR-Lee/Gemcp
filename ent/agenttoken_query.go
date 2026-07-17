@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"database/sql/driver"
 	"fmt"
 	"math"
 
@@ -12,6 +13,8 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/XR-Lee/Gemcp/ent/agenttoken"
+	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 	"github.com/XR-Lee/Gemcp/ent/project"
 )
@@ -19,11 +22,13 @@ import (
 // AgentTokenQuery is the builder for querying AgentToken entities.
 type AgentTokenQuery struct {
 	config
-	ctx         *QueryContext
-	order       []agenttoken.OrderOption
-	inters      []Interceptor
-	predicates  []predicate.AgentToken
-	withProject *ProjectQuery
+	ctx                    *QueryContext
+	order                  []agenttoken.OrderOption
+	inters                 []Interceptor
+	predicates             []predicate.AgentToken
+	withProject            *ProjectQuery
+	withExperiments        *ExperimentQuery
+	withIdempotencyRecords *IdempotencyRecordQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -75,6 +80,50 @@ func (_q *AgentTokenQuery) QueryProject() *ProjectQuery {
 			sqlgraph.From(agenttoken.Table, agenttoken.FieldID, selector),
 			sqlgraph.To(project.Table, project.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, true, agenttoken.ProjectTable, agenttoken.ProjectColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryExperiments chains the current query on the "experiments" edge.
+func (_q *AgentTokenQuery) QueryExperiments() *ExperimentQuery {
+	query := (&ExperimentClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(agenttoken.Table, agenttoken.FieldID, selector),
+			sqlgraph.To(experiment.Table, experiment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, agenttoken.ExperimentsTable, agenttoken.ExperimentsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryIdempotencyRecords chains the current query on the "idempotency_records" edge.
+func (_q *AgentTokenQuery) QueryIdempotencyRecords() *IdempotencyRecordQuery {
+	query := (&IdempotencyRecordClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(agenttoken.Table, agenttoken.FieldID, selector),
+			sqlgraph.To(idempotencyrecord.Table, idempotencyrecord.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, agenttoken.IdempotencyRecordsTable, agenttoken.IdempotencyRecordsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -269,12 +318,14 @@ func (_q *AgentTokenQuery) Clone() *AgentTokenQuery {
 		return nil
 	}
 	return &AgentTokenQuery{
-		config:      _q.config,
-		ctx:         _q.ctx.Clone(),
-		order:       append([]agenttoken.OrderOption{}, _q.order...),
-		inters:      append([]Interceptor{}, _q.inters...),
-		predicates:  append([]predicate.AgentToken{}, _q.predicates...),
-		withProject: _q.withProject.Clone(),
+		config:                 _q.config,
+		ctx:                    _q.ctx.Clone(),
+		order:                  append([]agenttoken.OrderOption{}, _q.order...),
+		inters:                 append([]Interceptor{}, _q.inters...),
+		predicates:             append([]predicate.AgentToken{}, _q.predicates...),
+		withProject:            _q.withProject.Clone(),
+		withExperiments:        _q.withExperiments.Clone(),
+		withIdempotencyRecords: _q.withIdempotencyRecords.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -289,6 +340,28 @@ func (_q *AgentTokenQuery) WithProject(opts ...func(*ProjectQuery)) *AgentTokenQ
 		opt(query)
 	}
 	_q.withProject = query
+	return _q
+}
+
+// WithExperiments tells the query-builder to eager-load the nodes that are connected to
+// the "experiments" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *AgentTokenQuery) WithExperiments(opts ...func(*ExperimentQuery)) *AgentTokenQuery {
+	query := (&ExperimentClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withExperiments = query
+	return _q
+}
+
+// WithIdempotencyRecords tells the query-builder to eager-load the nodes that are connected to
+// the "idempotency_records" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *AgentTokenQuery) WithIdempotencyRecords(opts ...func(*IdempotencyRecordQuery)) *AgentTokenQuery {
+	query := (&IdempotencyRecordClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withIdempotencyRecords = query
 	return _q
 }
 
@@ -370,8 +443,10 @@ func (_q *AgentTokenQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*A
 	var (
 		nodes       = []*AgentToken{}
 		_spec       = _q.querySpec()
-		loadedTypes = [1]bool{
+		loadedTypes = [3]bool{
 			_q.withProject != nil,
+			_q.withExperiments != nil,
+			_q.withIdempotencyRecords != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -395,6 +470,22 @@ func (_q *AgentTokenQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*A
 	if query := _q.withProject; query != nil {
 		if err := _q.loadProject(ctx, query, nodes, nil,
 			func(n *AgentToken, e *Project) { n.Edges.Project = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withExperiments; query != nil {
+		if err := _q.loadExperiments(ctx, query, nodes,
+			func(n *AgentToken) { n.Edges.Experiments = []*Experiment{} },
+			func(n *AgentToken, e *Experiment) { n.Edges.Experiments = append(n.Edges.Experiments, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withIdempotencyRecords; query != nil {
+		if err := _q.loadIdempotencyRecords(ctx, query, nodes,
+			func(n *AgentToken) { n.Edges.IdempotencyRecords = []*IdempotencyRecord{} },
+			func(n *AgentToken, e *IdempotencyRecord) {
+				n.Edges.IdempotencyRecords = append(n.Edges.IdempotencyRecords, e)
+			}); err != nil {
 			return nil, err
 		}
 	}
@@ -427,6 +518,66 @@ func (_q *AgentTokenQuery) loadProject(ctx context.Context, query *ProjectQuery,
 		for i := range nodes {
 			assign(nodes[i], n)
 		}
+	}
+	return nil
+}
+func (_q *AgentTokenQuery) loadExperiments(ctx context.Context, query *ExperimentQuery, nodes []*AgentToken, init func(*AgentToken), assign func(*AgentToken, *Experiment)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*AgentToken)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(experiment.FieldAgentTokenID)
+	}
+	query.Where(predicate.Experiment(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(agenttoken.ExperimentsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.AgentTokenID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "agent_token_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *AgentTokenQuery) loadIdempotencyRecords(ctx context.Context, query *IdempotencyRecordQuery, nodes []*AgentToken, init func(*AgentToken), assign func(*AgentToken, *IdempotencyRecord)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*AgentToken)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(idempotencyrecord.FieldAgentTokenID)
+	}
+	query.Where(predicate.IdempotencyRecord(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(agenttoken.IdempotencyRecordsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.AgentTokenID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "agent_token_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
 	}
 	return nil
 }

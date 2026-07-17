@@ -22,11 +22,13 @@
 - Owner password login, revocable database Sessions, strict cookies, and CSRF validation.
 - CI PostgreSQL migration coverage.
 
-## v0.4.0: Agent-facing experiment core
+## v0.4.0: Agent-facing experiment core (complete)
 
-- Private Git deploy-key registration and commit validation.
-- Immutable experiments, attempts, idempotency, budget reservations, and FIFO admission.
-- Async MCP submit/get/list/cancel/cost tools.
+- Per-repository encrypted Ed25519 Deploy Keys, pinned GitHub host verification, and immutable commit validation.
+- Immutable experiments and attempts, Token-scoped idempotency, serializable budget reservations, and a durable FIFO-ready queue.
+- Official MCP Go SDK Streamable HTTP endpoint with options, submit, get, list, cancel, artifacts, and cost tools.
+- Project-scoped Agent Token authentication with per-request revocation, expiration, and scope checks.
+- Owner project and repository management APIs.
 
 ## v0.5.0: M0 execution and operations
 

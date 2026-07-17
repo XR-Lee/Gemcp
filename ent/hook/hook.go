@@ -21,6 +21,18 @@ func (f AgentTokenFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, 
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AgentTokenMutation", m)
 }
 
+// The AttemptFunc type is an adapter to allow the use of ordinary
+// function as Attempt mutator.
+type AttemptFunc func(context.Context, *ent.AttemptMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f AttemptFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.AttemptMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AttemptMutation", m)
+}
+
 // The AuditEventFunc type is an adapter to allow the use of ordinary
 // function as AuditEvent mutator.
 type AuditEventFunc func(context.Context, *ent.AuditEventMutation) (ent.Value, error)
@@ -33,6 +45,18 @@ func (f AuditEventFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, 
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AuditEventMutation", m)
 }
 
+// The BudgetEntryFunc type is an adapter to allow the use of ordinary
+// function as BudgetEntry mutator.
+type BudgetEntryFunc func(context.Context, *ent.BudgetEntryMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f BudgetEntryFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.BudgetEntryMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BudgetEntryMutation", m)
+}
+
 // The EnvironmentFunc type is an adapter to allow the use of ordinary
 // function as Environment mutator.
 type EnvironmentFunc func(context.Context, *ent.EnvironmentMutation) (ent.Value, error)
@@ -43,6 +67,30 @@ func (f EnvironmentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value,
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EnvironmentMutation", m)
+}
+
+// The ExperimentFunc type is an adapter to allow the use of ordinary
+// function as Experiment mutator.
+type ExperimentFunc func(context.Context, *ent.ExperimentMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ExperimentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ExperimentMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ExperimentMutation", m)
+}
+
+// The IdempotencyRecordFunc type is an adapter to allow the use of ordinary
+// function as IdempotencyRecord mutator.
+type IdempotencyRecordFunc func(context.Context, *ent.IdempotencyRecordMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f IdempotencyRecordFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.IdempotencyRecordMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.IdempotencyRecordMutation", m)
 }
 
 // The ProjectFunc type is an adapter to allow the use of ordinary

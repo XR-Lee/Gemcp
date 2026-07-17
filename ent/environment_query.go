@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"database/sql/driver"
 	"fmt"
 	"math"
 
@@ -12,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/XR-Lee/Gemcp/ent/environment"
+	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 	"github.com/XR-Lee/Gemcp/ent/project"
 )
@@ -19,11 +21,12 @@ import (
 // EnvironmentQuery is the builder for querying Environment entities.
 type EnvironmentQuery struct {
 	config
-	ctx         *QueryContext
-	order       []environment.OrderOption
-	inters      []Interceptor
-	predicates  []predicate.Environment
-	withProject *ProjectQuery
+	ctx             *QueryContext
+	order           []environment.OrderOption
+	inters          []Interceptor
+	predicates      []predicate.Environment
+	withProject     *ProjectQuery
+	withExperiments *ExperimentQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -75,6 +78,28 @@ func (_q *EnvironmentQuery) QueryProject() *ProjectQuery {
 			sqlgraph.From(environment.Table, environment.FieldID, selector),
 			sqlgraph.To(project.Table, project.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, true, environment.ProjectTable, environment.ProjectColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryExperiments chains the current query on the "experiments" edge.
+func (_q *EnvironmentQuery) QueryExperiments() *ExperimentQuery {
+	query := (&ExperimentClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(environment.Table, environment.FieldID, selector),
+			sqlgraph.To(experiment.Table, experiment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, environment.ExperimentsTable, environment.ExperimentsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -269,12 +294,13 @@ func (_q *EnvironmentQuery) Clone() *EnvironmentQuery {
 		return nil
 	}
 	return &EnvironmentQuery{
-		config:      _q.config,
-		ctx:         _q.ctx.Clone(),
-		order:       append([]environment.OrderOption{}, _q.order...),
-		inters:      append([]Interceptor{}, _q.inters...),
-		predicates:  append([]predicate.Environment{}, _q.predicates...),
-		withProject: _q.withProject.Clone(),
+		config:          _q.config,
+		ctx:             _q.ctx.Clone(),
+		order:           append([]environment.OrderOption{}, _q.order...),
+		inters:          append([]Interceptor{}, _q.inters...),
+		predicates:      append([]predicate.Environment{}, _q.predicates...),
+		withProject:     _q.withProject.Clone(),
+		withExperiments: _q.withExperiments.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -289,6 +315,17 @@ func (_q *EnvironmentQuery) WithProject(opts ...func(*ProjectQuery)) *Environmen
 		opt(query)
 	}
 	_q.withProject = query
+	return _q
+}
+
+// WithExperiments tells the query-builder to eager-load the nodes that are connected to
+// the "experiments" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *EnvironmentQuery) WithExperiments(opts ...func(*ExperimentQuery)) *EnvironmentQuery {
+	query := (&ExperimentClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withExperiments = query
 	return _q
 }
 
@@ -370,8 +407,9 @@ func (_q *EnvironmentQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*
 	var (
 		nodes       = []*Environment{}
 		_spec       = _q.querySpec()
-		loadedTypes = [1]bool{
+		loadedTypes = [2]bool{
 			_q.withProject != nil,
+			_q.withExperiments != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -395,6 +433,13 @@ func (_q *EnvironmentQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*
 	if query := _q.withProject; query != nil {
 		if err := _q.loadProject(ctx, query, nodes, nil,
 			func(n *Environment, e *Project) { n.Edges.Project = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withExperiments; query != nil {
+		if err := _q.loadExperiments(ctx, query, nodes,
+			func(n *Environment) { n.Edges.Experiments = []*Experiment{} },
+			func(n *Environment, e *Experiment) { n.Edges.Experiments = append(n.Edges.Experiments, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -427,6 +472,36 @@ func (_q *EnvironmentQuery) loadProject(ctx context.Context, query *ProjectQuery
 		for i := range nodes {
 			assign(nodes[i], n)
 		}
+	}
+	return nil
+}
+func (_q *EnvironmentQuery) loadExperiments(ctx context.Context, query *ExperimentQuery, nodes []*Environment, init func(*Environment), assign func(*Environment, *Experiment)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Environment)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(experiment.FieldEnvironmentID)
+	}
+	query.Where(predicate.Experiment(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(environment.ExperimentsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.EnvironmentID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "environment_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
 	}
 	return nil
 }

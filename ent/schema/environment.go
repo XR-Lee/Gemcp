@@ -25,6 +25,7 @@ func (Environment) Fields() []ent.Field {
 func (Environment) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.From("project", Project.Type).Ref("environments").Field("project_id").Unique().Required().Immutable(),
+		edge.To("experiments", Experiment.Type),
 	}
 }
 

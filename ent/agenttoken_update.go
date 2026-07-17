@@ -13,6 +13,8 @@ import (
 	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"github.com/XR-Lee/Gemcp/ent/agenttoken"
+	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 )
 
@@ -149,9 +151,81 @@ func (_u *AgentTokenUpdate) ClearLastUsedAt() *AgentTokenUpdate {
 	return _u
 }
 
+// AddExperimentIDs adds the "experiments" edge to the Experiment entity by IDs.
+func (_u *AgentTokenUpdate) AddExperimentIDs(ids ...int) *AgentTokenUpdate {
+	_u.mutation.AddExperimentIDs(ids...)
+	return _u
+}
+
+// AddExperiments adds the "experiments" edges to the Experiment entity.
+func (_u *AgentTokenUpdate) AddExperiments(v ...*Experiment) *AgentTokenUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddExperimentIDs(ids...)
+}
+
+// AddIdempotencyRecordIDs adds the "idempotency_records" edge to the IdempotencyRecord entity by IDs.
+func (_u *AgentTokenUpdate) AddIdempotencyRecordIDs(ids ...int) *AgentTokenUpdate {
+	_u.mutation.AddIdempotencyRecordIDs(ids...)
+	return _u
+}
+
+// AddIdempotencyRecords adds the "idempotency_records" edges to the IdempotencyRecord entity.
+func (_u *AgentTokenUpdate) AddIdempotencyRecords(v ...*IdempotencyRecord) *AgentTokenUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddIdempotencyRecordIDs(ids...)
+}
+
 // Mutation returns the AgentTokenMutation object of the builder.
 func (_u *AgentTokenUpdate) Mutation() *AgentTokenMutation {
 	return _u.mutation
+}
+
+// ClearExperiments clears all "experiments" edges to the Experiment entity.
+func (_u *AgentTokenUpdate) ClearExperiments() *AgentTokenUpdate {
+	_u.mutation.ClearExperiments()
+	return _u
+}
+
+// RemoveExperimentIDs removes the "experiments" edge to Experiment entities by IDs.
+func (_u *AgentTokenUpdate) RemoveExperimentIDs(ids ...int) *AgentTokenUpdate {
+	_u.mutation.RemoveExperimentIDs(ids...)
+	return _u
+}
+
+// RemoveExperiments removes "experiments" edges to Experiment entities.
+func (_u *AgentTokenUpdate) RemoveExperiments(v ...*Experiment) *AgentTokenUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveExperimentIDs(ids...)
+}
+
+// ClearIdempotencyRecords clears all "idempotency_records" edges to the IdempotencyRecord entity.
+func (_u *AgentTokenUpdate) ClearIdempotencyRecords() *AgentTokenUpdate {
+	_u.mutation.ClearIdempotencyRecords()
+	return _u
+}
+
+// RemoveIdempotencyRecordIDs removes the "idempotency_records" edge to IdempotencyRecord entities by IDs.
+func (_u *AgentTokenUpdate) RemoveIdempotencyRecordIDs(ids ...int) *AgentTokenUpdate {
+	_u.mutation.RemoveIdempotencyRecordIDs(ids...)
+	return _u
+}
+
+// RemoveIdempotencyRecords removes "idempotency_records" edges to IdempotencyRecord entities.
+func (_u *AgentTokenUpdate) RemoveIdempotencyRecords(v ...*IdempotencyRecord) *AgentTokenUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveIdempotencyRecordIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -267,6 +341,96 @@ func (_u *AgentTokenUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	}
 	if _u.mutation.LastUsedAtCleared() {
 		_spec.ClearField(agenttoken.FieldLastUsedAt, field.TypeTime)
+	}
+	if _u.mutation.ExperimentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.ExperimentsTable,
+			Columns: []string{agenttoken.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedExperimentsIDs(); len(nodes) > 0 && !_u.mutation.ExperimentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.ExperimentsTable,
+			Columns: []string{agenttoken.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ExperimentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.ExperimentsTable,
+			Columns: []string{agenttoken.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.IdempotencyRecordsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.IdempotencyRecordsTable,
+			Columns: []string{agenttoken.IdempotencyRecordsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(idempotencyrecord.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedIdempotencyRecordsIDs(); len(nodes) > 0 && !_u.mutation.IdempotencyRecordsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.IdempotencyRecordsTable,
+			Columns: []string{agenttoken.IdempotencyRecordsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(idempotencyrecord.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.IdempotencyRecordsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.IdempotencyRecordsTable,
+			Columns: []string{agenttoken.IdempotencyRecordsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(idempotencyrecord.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -408,9 +572,81 @@ func (_u *AgentTokenUpdateOne) ClearLastUsedAt() *AgentTokenUpdateOne {
 	return _u
 }
 
+// AddExperimentIDs adds the "experiments" edge to the Experiment entity by IDs.
+func (_u *AgentTokenUpdateOne) AddExperimentIDs(ids ...int) *AgentTokenUpdateOne {
+	_u.mutation.AddExperimentIDs(ids...)
+	return _u
+}
+
+// AddExperiments adds the "experiments" edges to the Experiment entity.
+func (_u *AgentTokenUpdateOne) AddExperiments(v ...*Experiment) *AgentTokenUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddExperimentIDs(ids...)
+}
+
+// AddIdempotencyRecordIDs adds the "idempotency_records" edge to the IdempotencyRecord entity by IDs.
+func (_u *AgentTokenUpdateOne) AddIdempotencyRecordIDs(ids ...int) *AgentTokenUpdateOne {
+	_u.mutation.AddIdempotencyRecordIDs(ids...)
+	return _u
+}
+
+// AddIdempotencyRecords adds the "idempotency_records" edges to the IdempotencyRecord entity.
+func (_u *AgentTokenUpdateOne) AddIdempotencyRecords(v ...*IdempotencyRecord) *AgentTokenUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddIdempotencyRecordIDs(ids...)
+}
+
 // Mutation returns the AgentTokenMutation object of the builder.
 func (_u *AgentTokenUpdateOne) Mutation() *AgentTokenMutation {
 	return _u.mutation
+}
+
+// ClearExperiments clears all "experiments" edges to the Experiment entity.
+func (_u *AgentTokenUpdateOne) ClearExperiments() *AgentTokenUpdateOne {
+	_u.mutation.ClearExperiments()
+	return _u
+}
+
+// RemoveExperimentIDs removes the "experiments" edge to Experiment entities by IDs.
+func (_u *AgentTokenUpdateOne) RemoveExperimentIDs(ids ...int) *AgentTokenUpdateOne {
+	_u.mutation.RemoveExperimentIDs(ids...)
+	return _u
+}
+
+// RemoveExperiments removes "experiments" edges to Experiment entities.
+func (_u *AgentTokenUpdateOne) RemoveExperiments(v ...*Experiment) *AgentTokenUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveExperimentIDs(ids...)
+}
+
+// ClearIdempotencyRecords clears all "idempotency_records" edges to the IdempotencyRecord entity.
+func (_u *AgentTokenUpdateOne) ClearIdempotencyRecords() *AgentTokenUpdateOne {
+	_u.mutation.ClearIdempotencyRecords()
+	return _u
+}
+
+// RemoveIdempotencyRecordIDs removes the "idempotency_records" edge to IdempotencyRecord entities by IDs.
+func (_u *AgentTokenUpdateOne) RemoveIdempotencyRecordIDs(ids ...int) *AgentTokenUpdateOne {
+	_u.mutation.RemoveIdempotencyRecordIDs(ids...)
+	return _u
+}
+
+// RemoveIdempotencyRecords removes "idempotency_records" edges to IdempotencyRecord entities.
+func (_u *AgentTokenUpdateOne) RemoveIdempotencyRecords(v ...*IdempotencyRecord) *AgentTokenUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveIdempotencyRecordIDs(ids...)
 }
 
 // Where appends a list predicates to the AgentTokenUpdate builder.
@@ -556,6 +792,96 @@ func (_u *AgentTokenUpdateOne) sqlSave(ctx context.Context) (_node *AgentToken, 
 	}
 	if _u.mutation.LastUsedAtCleared() {
 		_spec.ClearField(agenttoken.FieldLastUsedAt, field.TypeTime)
+	}
+	if _u.mutation.ExperimentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.ExperimentsTable,
+			Columns: []string{agenttoken.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedExperimentsIDs(); len(nodes) > 0 && !_u.mutation.ExperimentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.ExperimentsTable,
+			Columns: []string{agenttoken.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ExperimentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.ExperimentsTable,
+			Columns: []string{agenttoken.ExperimentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.IdempotencyRecordsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.IdempotencyRecordsTable,
+			Columns: []string{agenttoken.IdempotencyRecordsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(idempotencyrecord.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedIdempotencyRecordsIDs(); len(nodes) > 0 && !_u.mutation.IdempotencyRecordsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.IdempotencyRecordsTable,
+			Columns: []string{agenttoken.IdempotencyRecordsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(idempotencyrecord.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.IdempotencyRecordsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.IdempotencyRecordsTable,
+			Columns: []string{agenttoken.IdempotencyRecordsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(idempotencyrecord.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &AgentToken{config: _u.config}
 	_spec.Assign = _node.assignValues

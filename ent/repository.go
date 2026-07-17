@@ -33,6 +33,8 @@ type Repository struct {
 	SSHURL string `json:"ssh_url,omitempty"`
 	// SSHHost holds the value of the "ssh_host" field.
 	SSHHost string `json:"ssh_host,omitempty"`
+	// DefaultBranch holds the value of the "default_branch" field.
+	DefaultBranch string `json:"default_branch,omitempty"`
 	// HostKeyFingerprint holds the value of the "host_key_fingerprint" field.
 	HostKeyFingerprint string `json:"host_key_fingerprint,omitempty"`
 	// DeployPublicKey holds the value of the "deploy_public_key" field.
@@ -53,9 +55,11 @@ type Repository struct {
 type RepositoryEdges struct {
 	// Project holds the value of the project edge.
 	Project *Project `json:"project,omitempty"`
+	// Experiments holds the value of the experiments edge.
+	Experiments []*Experiment `json:"experiments,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [1]bool
+	loadedTypes [2]bool
 }
 
 // ProjectOrErr returns the Project value or an error if the edge
@@ -69,6 +73,15 @@ func (e RepositoryEdges) ProjectOrErr() (*Project, error) {
 	return nil, &NotLoadedError{edge: "project"}
 }
 
+// ExperimentsOrErr returns the Experiments value or an error if the edge
+// was not loaded in eager-loading.
+func (e RepositoryEdges) ExperimentsOrErr() ([]*Experiment, error) {
+	if e.loadedTypes[1] {
+		return e.Experiments, nil
+	}
+	return nil, &NotLoadedError{edge: "experiments"}
+}
+
 // scanValues returns the types for scanning values from sql.Rows.
 func (*Repository) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
@@ -76,7 +89,7 @@ func (*Repository) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case repository.FieldID, repository.FieldProjectID:
 			values[i] = new(sql.NullInt64)
-		case repository.FieldName, repository.FieldSSHURL, repository.FieldSSHHost, repository.FieldHostKeyFingerprint, repository.FieldDeployPublicKey, repository.FieldDeployPrivateKeyCiphertext, repository.FieldStatus:
+		case repository.FieldName, repository.FieldSSHURL, repository.FieldSSHHost, repository.FieldDefaultBranch, repository.FieldHostKeyFingerprint, repository.FieldDeployPublicKey, repository.FieldDeployPrivateKeyCiphertext, repository.FieldStatus:
 			values[i] = new(sql.NullString)
 		case repository.FieldCreatedAt, repository.FieldUpdatedAt, repository.FieldLastVerifiedAt:
 			values[i] = new(sql.NullTime)
@@ -145,6 +158,12 @@ func (_m *Repository) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.SSHHost = value.String
 			}
+		case repository.FieldDefaultBranch:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field default_branch", values[i])
+			} else if value.Valid {
+				_m.DefaultBranch = value.String
+			}
 		case repository.FieldHostKeyFingerprint:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field host_key_fingerprint", values[i])
@@ -194,6 +213,11 @@ func (_m *Repository) QueryProject() *ProjectQuery {
 	return NewRepositoryClient(_m.config).QueryProject(_m)
 }
 
+// QueryExperiments queries the "experiments" edge of the Repository entity.
+func (_m *Repository) QueryExperiments() *ExperimentQuery {
+	return NewRepositoryClient(_m.config).QueryExperiments(_m)
+}
+
 // Update returns a builder for updating this Repository.
 // Note that you need to call Repository.Unwrap() before calling this method if this Repository
 // was returned from a transaction, and the transaction was committed or rolled back.
@@ -237,6 +261,9 @@ func (_m *Repository) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("ssh_host=")
 	builder.WriteString(_m.SSHHost)
+	builder.WriteString(", ")
+	builder.WriteString("default_branch=")
+	builder.WriteString(_m.DefaultBranch)
 	builder.WriteString(", ")
 	builder.WriteString("host_key_fingerprint=")
 	builder.WriteString(_m.HostKeyFingerprint)

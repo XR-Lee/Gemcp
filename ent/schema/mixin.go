@@ -1,6 +1,7 @@
 package schema
 
 import (
+	"fmt"
 	"time"
 
 	"entgo.io/ent"
@@ -9,6 +10,19 @@ import (
 )
 
 type RecordMixin struct{ ent.Schema }
+
+func enum(values ...string) func(string) error {
+	allowed := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		allowed[value] = struct{}{}
+	}
+	return func(value string) error {
+		if _, ok := allowed[value]; !ok {
+			return fmt.Errorf("unsupported value %q", value)
+		}
+		return nil
+	}
+}
 
 func (RecordMixin) Fields() []ent.Field {
 	return []ent.Field{

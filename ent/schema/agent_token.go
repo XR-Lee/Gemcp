@@ -28,6 +28,8 @@ func (AgentToken) Fields() []ent.Field {
 func (AgentToken) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.From("project", Project.Type).Ref("agent_tokens").Field("project_id").Unique().Required().Immutable(),
+		edge.To("experiments", Experiment.Type),
+		edge.To("idempotency_records", IdempotencyRecord.Type),
 	}
 }
 

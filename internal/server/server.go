@@ -7,10 +7,14 @@ import (
 	"time"
 
 	"github.com/XR-Lee/Gemcp/ent"
+	"github.com/XR-Lee/Gemcp/internal/agentauth"
 	"github.com/XR-Lee/Gemcp/internal/auth"
 	"github.com/XR-Lee/Gemcp/internal/buildinfo"
 	"github.com/XR-Lee/Gemcp/internal/config"
+	"github.com/XR-Lee/Gemcp/internal/experiment"
 	"github.com/XR-Lee/Gemcp/internal/httpapi"
+	"github.com/XR-Lee/Gemcp/internal/mcpserver"
+	gitrepository "github.com/XR-Lee/Gemcp/internal/repository"
 	"github.com/XR-Lee/Gemcp/internal/secrets"
 	setupservice "github.com/XR-Lee/Gemcp/internal/setup"
 	"github.com/XR-Lee/Gemcp/internal/web"
@@ -57,6 +61,19 @@ func New(deps Dependencies) *http.Server {
 	protected.Use(authHandlers.RequireSession())
 	protected.GET("/auth/me", authHandlers.Me)
 	protected.POST("/auth/logout", authHandlers.Logout)
+	projectHandlers := httpapi.NewProjectHandlers(deps.Ent)
+	protected.GET("/projects", projectHandlers.List)
+
+	repositoryService := gitrepository.NewService(deps.Ent, deps.Secrets, nil)
+	repositoryHandlers := httpapi.NewRepositoryHandlers(repositoryService)
+	protected.GET("/repositories", repositoryHandlers.List)
+	protected.POST("/repositories", repositoryHandlers.Create)
+	protected.POST("/repositories/:id/verify", repositoryHandlers.Verify)
+
+	experimentService := experiment.NewService(deps.Ent, deps.Secrets, repositoryService)
+	agentAuthService := agentauth.NewService(deps.Ent, deps.Secrets)
+	mcpHandler := mcpserver.New(agentAuthService, experimentService, deps.Build.Version, nil).Handler()
+	router.Any("/mcp", gin.WrapH(mcpHandler))
 
 	frontend := web.Handler()
 	router.NoRoute(func(c *gin.Context) {
@@ -82,13 +99,14 @@ func New(deps Dependencies) *http.Server {
 		Addr:              deps.Config.Address,
 		Handler:           router,
 		ReadHeaderTimeout: 10 * time.Second,
-		IdleTimeout:       90 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 }
 
 func securityHeaders() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Header("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'")
+		c.Header("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'")
 		c.Header("Referrer-Policy", "no-referrer")
 		c.Header("X-Content-Type-Options", "nosniff")
 		c.Header("X-Frame-Options", "DENY")

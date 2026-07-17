@@ -54,6 +54,12 @@ const (
 	EdgeRepositories = "repositories"
 	// EdgeAgentTokens holds the string denoting the agent_tokens edge name in mutations.
 	EdgeAgentTokens = "agent_tokens"
+	// EdgeExperiments holds the string denoting the experiments edge name in mutations.
+	EdgeExperiments = "experiments"
+	// EdgeAttempts holds the string denoting the attempts edge name in mutations.
+	EdgeAttempts = "attempts"
+	// EdgeBudgetEntries holds the string denoting the budget_entries edge name in mutations.
+	EdgeBudgetEntries = "budget_entries"
 	// Table holds the table name of the project in the database.
 	Table = "projects"
 	// TenantTable is the table that holds the tenant relation/edge.
@@ -91,6 +97,27 @@ const (
 	AgentTokensInverseTable = "agent_tokens"
 	// AgentTokensColumn is the table column denoting the agent_tokens relation/edge.
 	AgentTokensColumn = "project_id"
+	// ExperimentsTable is the table that holds the experiments relation/edge.
+	ExperimentsTable = "experiments"
+	// ExperimentsInverseTable is the table name for the Experiment entity.
+	// It exists in this package in order to avoid circular dependency with the "experiment" package.
+	ExperimentsInverseTable = "experiments"
+	// ExperimentsColumn is the table column denoting the experiments relation/edge.
+	ExperimentsColumn = "project_id"
+	// AttemptsTable is the table that holds the attempts relation/edge.
+	AttemptsTable = "attempts"
+	// AttemptsInverseTable is the table name for the Attempt entity.
+	// It exists in this package in order to avoid circular dependency with the "attempt" package.
+	AttemptsInverseTable = "attempts"
+	// AttemptsColumn is the table column denoting the attempts relation/edge.
+	AttemptsColumn = "project_id"
+	// BudgetEntriesTable is the table that holds the budget_entries relation/edge.
+	BudgetEntriesTable = "budget_entries"
+	// BudgetEntriesInverseTable is the table name for the BudgetEntry entity.
+	// It exists in this package in order to avoid circular dependency with the "budgetentry" package.
+	BudgetEntriesInverseTable = "budget_entries"
+	// BudgetEntriesColumn is the table column denoting the budget_entries relation/edge.
+	BudgetEntriesColumn = "project_id"
 )
 
 // Columns holds all SQL columns for project fields.
@@ -328,6 +355,48 @@ func ByAgentTokens(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newAgentTokensStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByExperimentsCount orders the results by experiments count.
+func ByExperimentsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newExperimentsStep(), opts...)
+	}
+}
+
+// ByExperiments orders the results by experiments terms.
+func ByExperiments(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newExperimentsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByAttemptsCount orders the results by attempts count.
+func ByAttemptsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newAttemptsStep(), opts...)
+	}
+}
+
+// ByAttempts orders the results by attempts terms.
+func ByAttempts(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newAttemptsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByBudgetEntriesCount orders the results by budget_entries count.
+func ByBudgetEntriesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newBudgetEntriesStep(), opts...)
+	}
+}
+
+// ByBudgetEntries orders the results by budget_entries terms.
+func ByBudgetEntries(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newBudgetEntriesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newTenantStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -361,5 +430,26 @@ func newAgentTokensStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(AgentTokensInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, AgentTokensTable, AgentTokensColumn),
+	)
+}
+func newExperimentsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ExperimentsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ExperimentsTable, ExperimentsColumn),
+	)
+}
+func newAttemptsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(AttemptsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, AttemptsTable, AttemptsColumn),
+	)
+}
+func newBudgetEntriesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(BudgetEntriesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, BudgetEntriesTable, BudgetEntriesColumn),
 	)
 }

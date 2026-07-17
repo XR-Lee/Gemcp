@@ -6,8 +6,12 @@ import (
 	"time"
 
 	"github.com/XR-Lee/Gemcp/ent/agenttoken"
+	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/auditevent"
+	"github.com/XR-Lee/Gemcp/ent/budgetentry"
 	"github.com/XR-Lee/Gemcp/ent/environment"
+	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/provideraccount"
 	"github.com/XR-Lee/Gemcp/ent/recordmixin"
@@ -83,6 +87,53 @@ func init() {
 	agenttokenDescScopes := agenttokenFields[5].Descriptor()
 	// agenttoken.DefaultScopes holds the default value on creation for the scopes field.
 	agenttoken.DefaultScopes = agenttokenDescScopes.Default.([]string)
+	attemptMixin := schema.Attempt{}.Mixin()
+	attemptMixinFields0 := attemptMixin[0].Fields()
+	_ = attemptMixinFields0
+	attemptFields := schema.Attempt{}.Fields()
+	_ = attemptFields
+	// attemptDescPublicID is the schema descriptor for public_id field.
+	attemptDescPublicID := attemptMixinFields0[0].Descriptor()
+	// attempt.DefaultPublicID holds the default value on creation for the public_id field.
+	attempt.DefaultPublicID = attemptDescPublicID.Default.(func() uuid.UUID)
+	// attemptDescCreatedAt is the schema descriptor for created_at field.
+	attemptDescCreatedAt := attemptMixinFields0[1].Descriptor()
+	// attempt.DefaultCreatedAt holds the default value on creation for the created_at field.
+	attempt.DefaultCreatedAt = attemptDescCreatedAt.Default.(func() time.Time)
+	// attemptDescUpdatedAt is the schema descriptor for updated_at field.
+	attemptDescUpdatedAt := attemptMixinFields0[2].Descriptor()
+	// attempt.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	attempt.DefaultUpdatedAt = attemptDescUpdatedAt.Default.(func() time.Time)
+	// attempt.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	attempt.UpdateDefaultUpdatedAt = attemptDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// attemptDescNumber is the schema descriptor for number field.
+	attemptDescNumber := attemptFields[3].Descriptor()
+	// attempt.NumberValidator is a validator for the "number" field. It is called by the builders before save.
+	attempt.NumberValidator = attemptDescNumber.Validators[0].(func(int) error)
+	// attemptDescState is the schema descriptor for state field.
+	attemptDescState := attemptFields[4].Descriptor()
+	// attempt.DefaultState holds the default value on creation for the state field.
+	attempt.DefaultState = attemptDescState.Default.(string)
+	// attempt.StateValidator is a validator for the "state" field. It is called by the builders before save.
+	attempt.StateValidator = attemptDescState.Validators[0].(func(string) error)
+	// attemptDescProviderResourceID is the schema descriptor for provider_resource_id field.
+	attemptDescProviderResourceID := attemptFields[5].Descriptor()
+	// attempt.ProviderResourceIDValidator is a validator for the "provider_resource_id" field. It is called by the builders before save.
+	attempt.ProviderResourceIDValidator = attemptDescProviderResourceID.Validators[0].(func(string) error)
+	// attemptDescRetryReason is the schema descriptor for retry_reason field.
+	attemptDescRetryReason := attemptFields[6].Descriptor()
+	// attempt.RetryReasonValidator is a validator for the "retry_reason" field. It is called by the builders before save.
+	attempt.RetryReasonValidator = attemptDescRetryReason.Validators[0].(func(string) error)
+	// attemptDescFailureCode is the schema descriptor for failure_code field.
+	attemptDescFailureCode := attemptFields[7].Descriptor()
+	// attempt.FailureCodeValidator is a validator for the "failure_code" field. It is called by the builders before save.
+	attempt.FailureCodeValidator = attemptDescFailureCode.Validators[0].(func(string) error)
+	// attemptDescEstimatedCostMilli is the schema descriptor for estimated_cost_milli field.
+	attemptDescEstimatedCostMilli := attemptFields[11].Descriptor()
+	// attempt.DefaultEstimatedCostMilli holds the default value on creation for the estimated_cost_milli field.
+	attempt.DefaultEstimatedCostMilli = attemptDescEstimatedCostMilli.Default.(int64)
+	// attempt.EstimatedCostMilliValidator is a validator for the "estimated_cost_milli" field. It is called by the builders before save.
+	attempt.EstimatedCostMilliValidator = attemptDescEstimatedCostMilli.Validators[0].(func(int64) error)
 	auditeventMixin := schema.AuditEvent{}.Mixin()
 	auditeventMixinFields0 := auditeventMixin[0].Fields()
 	_ = auditeventMixinFields0
@@ -150,6 +201,51 @@ func init() {
 	auditeventDescRequestID := auditeventFields[6].Descriptor()
 	// auditevent.RequestIDValidator is a validator for the "request_id" field. It is called by the builders before save.
 	auditevent.RequestIDValidator = auditeventDescRequestID.Validators[0].(func(string) error)
+	budgetentryMixin := schema.BudgetEntry{}.Mixin()
+	budgetentryMixinFields0 := budgetentryMixin[0].Fields()
+	_ = budgetentryMixinFields0
+	budgetentryFields := schema.BudgetEntry{}.Fields()
+	_ = budgetentryFields
+	// budgetentryDescPublicID is the schema descriptor for public_id field.
+	budgetentryDescPublicID := budgetentryMixinFields0[0].Descriptor()
+	// budgetentry.DefaultPublicID holds the default value on creation for the public_id field.
+	budgetentry.DefaultPublicID = budgetentryDescPublicID.Default.(func() uuid.UUID)
+	// budgetentryDescCreatedAt is the schema descriptor for created_at field.
+	budgetentryDescCreatedAt := budgetentryMixinFields0[1].Descriptor()
+	// budgetentry.DefaultCreatedAt holds the default value on creation for the created_at field.
+	budgetentry.DefaultCreatedAt = budgetentryDescCreatedAt.Default.(func() time.Time)
+	// budgetentryDescUpdatedAt is the schema descriptor for updated_at field.
+	budgetentryDescUpdatedAt := budgetentryMixinFields0[2].Descriptor()
+	// budgetentry.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	budgetentry.DefaultUpdatedAt = budgetentryDescUpdatedAt.Default.(func() time.Time)
+	// budgetentry.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	budgetentry.UpdateDefaultUpdatedAt = budgetentryDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// budgetentryDescPeriod is the schema descriptor for period field.
+	budgetentryDescPeriod := budgetentryFields[3].Descriptor()
+	// budgetentry.PeriodValidator is a validator for the "period" field. It is called by the builders before save.
+	budgetentry.PeriodValidator = func() func(string) error {
+		validators := budgetentryDescPeriod.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(period string) error {
+			for _, fn := range fns {
+				if err := fn(period); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// budgetentryDescKind is the schema descriptor for kind field.
+	budgetentryDescKind := budgetentryFields[4].Descriptor()
+	// budgetentry.KindValidator is a validator for the "kind" field. It is called by the builders before save.
+	budgetentry.KindValidator = budgetentryDescKind.Validators[0].(func(string) error)
+	// budgetentryDescDescription is the schema descriptor for description field.
+	budgetentryDescDescription := budgetentryFields[6].Descriptor()
+	// budgetentry.DescriptionValidator is a validator for the "description" field. It is called by the builders before save.
+	budgetentry.DescriptionValidator = budgetentryDescDescription.Validators[0].(func(string) error)
 	environmentMixin := schema.Environment{}.Mixin()
 	environmentMixinFields0 := environmentMixin[0].Fields()
 	_ = environmentMixinFields0
@@ -213,6 +309,114 @@ func init() {
 	environmentDescIsDefault := environmentFields[5].Descriptor()
 	// environment.DefaultIsDefault holds the default value on creation for the is_default field.
 	environment.DefaultIsDefault = environmentDescIsDefault.Default.(bool)
+	experimentMixin := schema.Experiment{}.Mixin()
+	experimentMixinFields0 := experimentMixin[0].Fields()
+	_ = experimentMixinFields0
+	experimentFields := schema.Experiment{}.Fields()
+	_ = experimentFields
+	// experimentDescPublicID is the schema descriptor for public_id field.
+	experimentDescPublicID := experimentMixinFields0[0].Descriptor()
+	// experiment.DefaultPublicID holds the default value on creation for the public_id field.
+	experiment.DefaultPublicID = experimentDescPublicID.Default.(func() uuid.UUID)
+	// experimentDescCreatedAt is the schema descriptor for created_at field.
+	experimentDescCreatedAt := experimentMixinFields0[1].Descriptor()
+	// experiment.DefaultCreatedAt holds the default value on creation for the created_at field.
+	experiment.DefaultCreatedAt = experimentDescCreatedAt.Default.(func() time.Time)
+	// experimentDescUpdatedAt is the schema descriptor for updated_at field.
+	experimentDescUpdatedAt := experimentMixinFields0[2].Descriptor()
+	// experiment.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	experiment.DefaultUpdatedAt = experimentDescUpdatedAt.Default.(func() time.Time)
+	// experiment.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	experiment.UpdateDefaultUpdatedAt = experimentDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// experimentDescState is the schema descriptor for state field.
+	experimentDescState := experimentFields[6].Descriptor()
+	// experiment.DefaultState holds the default value on creation for the state field.
+	experiment.DefaultState = experimentDescState.Default.(string)
+	// experiment.StateValidator is a validator for the "state" field. It is called by the builders before save.
+	experiment.StateValidator = experimentDescState.Validators[0].(func(string) error)
+	// experimentDescDesiredState is the schema descriptor for desired_state field.
+	experimentDescDesiredState := experimentFields[7].Descriptor()
+	// experiment.DefaultDesiredState holds the default value on creation for the desired_state field.
+	experiment.DefaultDesiredState = experimentDescDesiredState.Default.(string)
+	// experiment.DesiredStateValidator is a validator for the "desired_state" field. It is called by the builders before save.
+	experiment.DesiredStateValidator = experimentDescDesiredState.Validators[0].(func(string) error)
+	// experimentDescCommitSha is the schema descriptor for commit_sha field.
+	experimentDescCommitSha := experimentFields[8].Descriptor()
+	// experiment.CommitShaValidator is a validator for the "commit_sha" field. It is called by the builders before save.
+	experiment.CommitShaValidator = experimentDescCommitSha.Validators[0].(func(string) error)
+	// experimentDescMaxRuntimeSeconds is the schema descriptor for max_runtime_seconds field.
+	experimentDescMaxRuntimeSeconds := experimentFields[10].Descriptor()
+	// experiment.MaxRuntimeSecondsValidator is a validator for the "max_runtime_seconds" field. It is called by the builders before save.
+	experiment.MaxRuntimeSecondsValidator = experimentDescMaxRuntimeSeconds.Validators[0].(func(int) error)
+	// experimentDescTimeoutExtensionSeconds is the schema descriptor for timeout_extension_seconds field.
+	experimentDescTimeoutExtensionSeconds := experimentFields[11].Descriptor()
+	// experiment.TimeoutExtensionSecondsValidator is a validator for the "timeout_extension_seconds" field. It is called by the builders before save.
+	experiment.TimeoutExtensionSecondsValidator = experimentDescTimeoutExtensionSeconds.Validators[0].(func(int) error)
+	// experimentDescTerminationGraceSeconds is the schema descriptor for termination_grace_seconds field.
+	experimentDescTerminationGraceSeconds := experimentFields[12].Descriptor()
+	// experiment.TerminationGraceSecondsValidator is a validator for the "termination_grace_seconds" field. It is called by the builders before save.
+	experiment.TerminationGraceSecondsValidator = experimentDescTerminationGraceSeconds.Validators[0].(func(int) error)
+	// experimentDescSecretNames is the schema descriptor for secret_names field.
+	experimentDescSecretNames := experimentFields[16].Descriptor()
+	// experiment.DefaultSecretNames holds the default value on creation for the secret_names field.
+	experiment.DefaultSecretNames = experimentDescSecretNames.Default.([]string)
+	// experimentDescOutputPath is the schema descriptor for output_path field.
+	experimentDescOutputPath := experimentFields[17].Descriptor()
+	// experiment.OutputPathValidator is a validator for the "output_path" field. It is called by the builders before save.
+	experiment.OutputPathValidator = experimentDescOutputPath.Validators[0].(func(string) error)
+	// experimentDescReservedCostMilli is the schema descriptor for reserved_cost_milli field.
+	experimentDescReservedCostMilli := experimentFields[18].Descriptor()
+	// experiment.ReservedCostMilliValidator is a validator for the "reserved_cost_milli" field. It is called by the builders before save.
+	experiment.ReservedCostMilliValidator = experimentDescReservedCostMilli.Validators[0].(func(int64) error)
+	// experimentDescEstimatedCostMilli is the schema descriptor for estimated_cost_milli field.
+	experimentDescEstimatedCostMilli := experimentFields[19].Descriptor()
+	// experiment.DefaultEstimatedCostMilli holds the default value on creation for the estimated_cost_milli field.
+	experiment.DefaultEstimatedCostMilli = experimentDescEstimatedCostMilli.Default.(int64)
+	// experiment.EstimatedCostMilliValidator is a validator for the "estimated_cost_milli" field. It is called by the builders before save.
+	experiment.EstimatedCostMilliValidator = experimentDescEstimatedCostMilli.Validators[0].(func(int64) error)
+	// experimentDescProviderResourceID is the schema descriptor for provider_resource_id field.
+	experimentDescProviderResourceID := experimentFields[20].Descriptor()
+	// experiment.ProviderResourceIDValidator is a validator for the "provider_resource_id" field. It is called by the builders before save.
+	experiment.ProviderResourceIDValidator = experimentDescProviderResourceID.Validators[0].(func(string) error)
+	// experimentDescProviderStatus is the schema descriptor for provider_status field.
+	experimentDescProviderStatus := experimentFields[21].Descriptor()
+	// experiment.ProviderStatusValidator is a validator for the "provider_status" field. It is called by the builders before save.
+	experiment.ProviderStatusValidator = experimentDescProviderStatus.Validators[0].(func(string) error)
+	// experimentDescFailureCode is the schema descriptor for failure_code field.
+	experimentDescFailureCode := experimentFields[26].Descriptor()
+	// experiment.FailureCodeValidator is a validator for the "failure_code" field. It is called by the builders before save.
+	experiment.FailureCodeValidator = experimentDescFailureCode.Validators[0].(func(string) error)
+	// experimentDescMetrics is the schema descriptor for metrics field.
+	experimentDescMetrics := experimentFields[29].Descriptor()
+	// experiment.DefaultMetrics holds the default value on creation for the metrics field.
+	experiment.DefaultMetrics = experimentDescMetrics.Default.(map[string]interface{})
+	// experimentDescLeaseOwner is the schema descriptor for lease_owner field.
+	experimentDescLeaseOwner := experimentFields[32].Descriptor()
+	// experiment.LeaseOwnerValidator is a validator for the "lease_owner" field. It is called by the builders before save.
+	experiment.LeaseOwnerValidator = experimentDescLeaseOwner.Validators[0].(func(string) error)
+	// experimentDescNextAttemptAt is the schema descriptor for next_attempt_at field.
+	experimentDescNextAttemptAt := experimentFields[33].Descriptor()
+	// experiment.DefaultNextAttemptAt holds the default value on creation for the next_attempt_at field.
+	experiment.DefaultNextAttemptAt = experimentDescNextAttemptAt.Default.(func() time.Time)
+	idempotencyrecordMixin := schema.IdempotencyRecord{}.Mixin()
+	idempotencyrecordMixinFields0 := idempotencyrecordMixin[0].Fields()
+	_ = idempotencyrecordMixinFields0
+	idempotencyrecordFields := schema.IdempotencyRecord{}.Fields()
+	_ = idempotencyrecordFields
+	// idempotencyrecordDescPublicID is the schema descriptor for public_id field.
+	idempotencyrecordDescPublicID := idempotencyrecordMixinFields0[0].Descriptor()
+	// idempotencyrecord.DefaultPublicID holds the default value on creation for the public_id field.
+	idempotencyrecord.DefaultPublicID = idempotencyrecordDescPublicID.Default.(func() uuid.UUID)
+	// idempotencyrecordDescCreatedAt is the schema descriptor for created_at field.
+	idempotencyrecordDescCreatedAt := idempotencyrecordMixinFields0[1].Descriptor()
+	// idempotencyrecord.DefaultCreatedAt holds the default value on creation for the created_at field.
+	idempotencyrecord.DefaultCreatedAt = idempotencyrecordDescCreatedAt.Default.(func() time.Time)
+	// idempotencyrecordDescUpdatedAt is the schema descriptor for updated_at field.
+	idempotencyrecordDescUpdatedAt := idempotencyrecordMixinFields0[2].Descriptor()
+	// idempotencyrecord.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	idempotencyrecord.DefaultUpdatedAt = idempotencyrecordDescUpdatedAt.Default.(func() time.Time)
+	// idempotencyrecord.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	idempotencyrecord.UpdateDefaultUpdatedAt = idempotencyrecordDescUpdatedAt.UpdateDefault.(func() time.Time)
 	projectMixin := schema.Project{}.Mixin()
 	projectMixinFields0 := projectMixin[0].Fields()
 	_ = projectMixinFields0
@@ -450,8 +654,28 @@ func init() {
 			return nil
 		}
 	}()
+	// repositoryDescDefaultBranch is the schema descriptor for default_branch field.
+	repositoryDescDefaultBranch := repositoryFields[4].Descriptor()
+	// repository.DefaultDefaultBranch holds the default value on creation for the default_branch field.
+	repository.DefaultDefaultBranch = repositoryDescDefaultBranch.Default.(string)
+	// repository.DefaultBranchValidator is a validator for the "default_branch" field. It is called by the builders before save.
+	repository.DefaultBranchValidator = func() func(string) error {
+		validators := repositoryDescDefaultBranch.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(default_branch string) error {
+			for _, fn := range fns {
+				if err := fn(default_branch); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
 	// repositoryDescHostKeyFingerprint is the schema descriptor for host_key_fingerprint field.
-	repositoryDescHostKeyFingerprint := repositoryFields[4].Descriptor()
+	repositoryDescHostKeyFingerprint := repositoryFields[5].Descriptor()
 	// repository.HostKeyFingerprintValidator is a validator for the "host_key_fingerprint" field. It is called by the builders before save.
 	repository.HostKeyFingerprintValidator = repositoryDescHostKeyFingerprint.Validators[0].(func(string) error)
 	resourceprofileMixin := schema.ResourceProfile{}.Mixin()

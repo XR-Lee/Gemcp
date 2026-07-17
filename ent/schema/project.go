@@ -34,6 +34,9 @@ func (Project) Edges() []ent.Edge {
 		edge.To("resource_profiles", ResourceProfile.Type),
 		edge.To("repositories", Repository.Type),
 		edge.To("agent_tokens", AgentToken.Type),
+		edge.To("experiments", Experiment.Type),
+		edge.To("attempts", Attempt.Type),
+		edge.To("budget_entries", BudgetEntry.Type),
 	}
 }
 
