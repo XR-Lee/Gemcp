@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/XR-Lee/Gemcp/ent"
+	"github.com/XR-Lee/Gemcp/guides"
 	"github.com/XR-Lee/Gemcp/internal/agentaccess"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
 	"github.com/XR-Lee/Gemcp/internal/auth"
@@ -51,6 +52,8 @@ func New(deps Dependencies) *http.Server {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 	router.GET("/readyz", readinessHandler(deps.DB))
+	router.GET("/docs/agent-mcp.md", markdownGuide(guides.AgentMCP()))
+	router.GET("/docs/owner-mcp.md", markdownGuide(guides.OwnerMCP()))
 
 	api := router.Group("/api/v1")
 	api.GET("/version", func(c *gin.Context) {
@@ -145,6 +148,14 @@ func New(deps Dependencies) *http.Server {
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		IdleTimeout:       120 * time.Second,
+	}
+}
+
+func markdownGuide(content string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Header("Cache-Control", "public, max-age=300")
+		c.Header("Content-Disposition", "inline")
+		c.Data(http.StatusOK, "text/markdown; charset=utf-8", []byte(content))
 	}
 }
 

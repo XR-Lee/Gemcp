@@ -47,6 +47,10 @@ Owner-managed project Agent Token issuance, bounded scopes, optional expiry, eff
 
 The initial downloader and all Runner requests send the stable `Gemcp-Runner/1` User-Agent instead of Python's default `Python-urllib/*` signature, which the production Cloudflare zone rejects with error 1010.
 
+### v0.8.0 - production MCP onboarding
+
+The production host serves self-contained Owner and Agent operating guides, the Agents page provides a credential-safe onboarding and handoff workflow, and Agents can discover the same mandatory preflight and approval contract through `get_usage_guide`, `gemcp://docs/agent-guide`, or the `operate_gemcp` Prompt.
+
 ## Further validation
 
 The following items still require the target environment or newly authorized paid resources:

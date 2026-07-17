@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"entgo.io/ent/dialect"
 	"github.com/XR-Lee/Gemcp/ent/enttest"
+	"github.com/XR-Lee/Gemcp/guides"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
 	"github.com/XR-Lee/Gemcp/internal/experiment"
 	"github.com/XR-Lee/Gemcp/internal/secrets"
@@ -87,9 +89,40 @@ func TestStreamableHTTPToolsWithAgentToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListTools() error = %v", err)
 	}
-	if len(tools.Tools) != 7 {
-		t.Fatalf("tool count = %d, want 7", len(tools.Tools))
+	if len(tools.Tools) != 8 {
+		t.Fatalf("tool count = %d, want 8", len(tools.Tools))
 	}
+	usage, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "get_usage_guide", Arguments: map[string]any{}})
+	if err != nil || usage.IsError {
+		t.Fatalf("get_usage_guide = %+v, %v", usage, err)
+	}
+	var usageOutput UsageGuide
+	decodeStructured(t, usage.StructuredContent, &usageOutput)
+	if usageOutput.ProjectID != project.PublicID.String() || usageOutput.ResourceURI != guides.AgentResourceURI || !strings.Contains(usageOutput.Markdown, "Non-negotiable rules") {
+		t.Fatalf("unexpected usage guide: %+v", usageOutput)
+	}
+
+	resources, err := session.ListResources(ctx, nil)
+	if err != nil || len(resources.Resources) != 1 || resources.Resources[0].URI != guides.AgentResourceURI {
+		t.Fatalf("ListResources() = %+v, %v", resources, err)
+	}
+	resource, err := session.ReadResource(ctx, &mcp.ReadResourceParams{URI: guides.AgentResourceURI})
+	if err != nil || len(resource.Contents) != 1 || !strings.Contains(resource.Contents[0].Text, "Required workflow") {
+		t.Fatalf("ReadResource() = %+v, %v", resource, err)
+	}
+	prompts, err := session.ListPrompts(ctx, nil)
+	if err != nil || len(prompts.Prompts) != 1 || prompts.Prompts[0].Name != guides.AgentPromptName {
+		t.Fatalf("ListPrompts() = %+v, %v", prompts, err)
+	}
+	prompt, err := session.GetPrompt(ctx, &mcp.GetPromptParams{Name: guides.AgentPromptName})
+	if err != nil || len(prompt.Messages) != 1 {
+		t.Fatalf("GetPrompt() = %+v, %v", prompt, err)
+	}
+	promptText, ok := prompt.Messages[0].Content.(*mcp.TextContent)
+	if !ok || !strings.Contains(promptText.Text, "Wait for explicit human approval") {
+		t.Fatalf("unexpected prompt content: %+v", prompt.Messages[0].Content)
+	}
+
 	options, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "get_project_options", Arguments: map[string]any{}})
 	if err != nil || options.IsError {
 		t.Fatalf("get_project_options = %+v, %v", options, err)

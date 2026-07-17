@@ -126,12 +126,14 @@ Gemcp records `agent_token.revoked` once when status first changes. Owners may l
 
 ## Console workflow
 
-1. Sign in as Owner and select the project.
-2. Open **Agents** and choose **Generate token**.
-3. Select the minimum required scopes and an expiry.
-4. Copy the secret into a secret store or download the one-time MCP JSON.
-5. Close the reveal dialog; Gemcp cannot display the secret again.
-6. Verify the connection with `get_project_options` before submitting work.
-7. Revoke old credentials after rotation.
+1. Sign in as Owner, select the project, and open **Agents**.
+2. Open **MCP guide** to review the approval boundary and supported discovery paths.
+3. Choose **Generate token**, then select the minimum scopes and a finite expiry.
+4. Copy the secret into a client secret store or download the one-time MCP JSON.
+5. Download the separate **Agent handoff**. It contains no credential and can be given directly to the configured Agent.
+6. Close the reveal dialog; Gemcp cannot display the secret again.
+7. Verify `get_usage_guide`, `get_project_options`, and `get_project_cost` before permitting submission.
+8. Require the Agent to present the full commit, command, runtime, approved resource, idempotency key, and worst-case reservation before paid work.
+9. Revoke old credentials after rotation and confirm the old client receives 401.
 
-See [Third-party MCP clients](mcp.md) for client-specific configuration and validation.
+The running service also exposes the non-secret Owner and Agent guides at `/docs/owner-mcp.md` and `/docs/agent-mcp.md`. See [Third-party MCP clients](mcp.md) for the MCP Resource/Prompt discovery paths and client-specific configuration.

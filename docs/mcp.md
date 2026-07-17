@@ -14,6 +14,25 @@ Authorization: Bearer gmc_<identifier>_<secret>
 
 Create a Token from the Owner console **Agents** page or the [Agent Token API](agent-tokens.md). Gemcp stores only an HMAC-SHA-256 digest. Revocation and expiration are checked on every HTTP request, and the authenticated Token identity is bound to the MCP session.
 
+## Built-in operating guides
+
+The production service serves two non-secret Markdown documents from its configured `GEMCP_PUBLIC_URL`:
+
+```text
+https://<gemcp-host>/docs/owner-mcp.md
+https://<gemcp-host>/docs/agent-mcp.md
+```
+
+The Owner guide covers client setup, scope selection, approval policy, verification, rotation, and incident response. The Agent guide is the handoff document: download or copy it separately after configuring the MCP client. Do not append the Agent Token to either document or paste the Token into an Agent prompt.
+
+MCP clients can discover the same Agent guide through all three capability levels:
+
+- Tool: `get_usage_guide` for clients that primarily expose Tools.
+- Resource: `gemcp://docs/agent-guide` with MIME type `text/markdown`.
+- Prompt: `operate_gemcp`, which loads the safe operating workflow as a user message.
+
+The server's initialization instructions also summarize the mandatory preflight and approval boundary. The Markdown files in [`guides/`](../guides/) are the embedded source used by the HTTP routes, Tool, Resource, Prompt, and Owner console download.
+
 ## Exported JSON
 
 The one-time download uses the `mcpServers` format accepted by Claude Code and Cursor:
@@ -166,7 +185,9 @@ The client must preserve the `Authorization` header on initialize, session, and 
 
 ## Verify a new connection
 
-The first call should be `get_project_options`. It is read-only and confirms all of the following:
+Start with `get_usage_guide`, or read `gemcp://docs/agent-guide` when the client supports MCP Resources. This confirms authentication, the intended project ID, Token scopes, and the current operating contract without creating paid work.
+
+Then call `get_project_options`. It is read-only and confirms all of the following:
 
 - the HTTPS endpoint is reachable;
 - the bearer header is present;
@@ -176,17 +197,18 @@ The first call should be `get_project_options`. It is read-only and confirms all
 
 Then call `get_project_cost` before submitting work. A third-party Agent should never guess UUIDs or use a branch name where Gemcp requires an immutable commit.
 
-A useful initial instruction for an Agent is:
+The production Agent handoff includes a complete initial instruction. Its central approval boundary is:
 
 ```text
-Use the Gemcp MCP server. Call get_project_options and get_project_cost first.
-Submit only a full immutable Git commit SHA and reuse the same idempotency key
-when retrying an identical request. Do not submit paid work unless the human has
-approved the budget and scheduling policy.
+Use Gemcp only through its MCP tools. Read the Gemcp usage guide when needed.
+Always call get_project_options and get_project_cost before proposing paid work.
+Present the exact immutable execution specification and worst-case reservation,
+then wait for human approval unless a standing authorization clearly covers it.
 ```
 
 ## Tools
 
+- `get_usage_guide`: current Agent operating guide, authenticated project ID, Token scopes, Resource URI, and Prompt name.
 - `get_project_options`: approved repositories, environments, resource profiles, and project limits.
 - `submit_experiment`: verify a full Git commit SHA, reserve worst-case budget, and create an immutable queued experiment.
 - `get_experiment`: current state and immutable experiment specification.
@@ -199,7 +221,7 @@ Scope mapping:
 
 | Scope | Required for |
 | --- | --- |
-| `read` | options, experiment queries, artifact listing, and cost queries |
+| `read` | usage guide, options, experiment queries, artifact listing, and cost queries |
 | `submit` | `submit_experiment` |
 | `cancel` | `cancel_experiment` |
 

@@ -158,6 +158,13 @@ async function mockLogin(page: Page) {
 }
 
 async function mockConsole(page: Page, counters?: { providerQueries: number }) {
+  await page.route('**/docs/*.md', async (route) => {
+    const path = new URL(route.request().url()).pathname
+    const body = path.endsWith('/agent-mcp.md')
+      ? '# Gemcp MCP Agent Operating Guide\n\n## Non-negotiable rules\nCall get_project_options and get_project_cost before submission.\n'
+      : '# Gemcp MCP Owner Guide\n\n## Owner onboarding checklist\nConfigure the MCP client without exposing its Agent Token.\n'
+    await route.fulfill({ status: 200, contentType: 'text/markdown', headers: { 'Access-Control-Allow-Origin': '*' }, body })
+  })
   await page.route('**/api/v1/**', async (route) => {
     const url = new URL(route.request().url())
     const path = url.pathname
@@ -302,6 +309,16 @@ test('Agent token issuance, MCP JSON export and revocation fit desktop and mobil
   await expectNoPageOverflow(page)
   await page.screenshot({ path: '/tmp/gemcp-agents-desktop.png', fullPage: true })
 
+  await page.getByRole('button', { name: 'MCP guide' }).click()
+  const guideDialog = page.getByRole('dialog', { name: 'Gemcp MCP onboarding guide' })
+  await expect(guideDialog).toBeVisible()
+  await expect(guideDialog.getByText('get_usage_guide', { exact: true })).toBeVisible()
+  await expect(guideDialog.getByText('gemcp://docs/agent-guide', { exact: true })).toBeVisible()
+  await expect(guideDialog.getByRole('link', { name: 'Download Agent handoff' })).toHaveAttribute('href', 'https://gemcp.example.com/docs/agent-mcp.md')
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: '/tmp/gemcp-agent-guide-desktop.png', fullPage: true })
+  await guideDialog.getByTitle('Close MCP guide').click()
+
   await page.getByRole('button', { name: 'Generate token' }).click()
   const issueDialog = page.getByRole('dialog', { name: 'Generate Agent token' })
   await expect(issueDialog).toBeVisible()
@@ -337,6 +354,11 @@ test('Agent token issuance, MCP JSON export and revocation fit desktop and mobil
 
   await page.setViewportSize({ width: 390, height: 844 })
   await expectNoPageOverflow(page)
+  await page.getByRole('button', { name: 'MCP guide' }).click()
+  await expect(guideDialog).toBeVisible()
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: '/tmp/gemcp-agent-guide-mobile.png', fullPage: true })
+  await guideDialog.getByTitle('Close MCP guide').click()
   await page.screenshot({ path: '/tmp/gemcp-agents-mobile.png', fullPage: true })
 })
 

@@ -53,6 +53,28 @@ func TestVersion(t *testing.T) {
 	}
 }
 
+func TestPublicMCPGuides(t *testing.T) {
+	for _, test := range []struct {
+		path string
+		want string
+	}{
+		{path: "/docs/agent-mcp.md", want: "Non-negotiable rules"},
+		{path: "/docs/owner-mcp.md", want: "Owner onboarding checklist"},
+	} {
+		response := httptest.NewRecorder()
+		testServer(fakeDatabase{}).ServeHTTP(response, httptest.NewRequest(http.MethodGet, test.path, nil))
+		if response.Code != http.StatusOK || !containsAll(response.Body.String(), test.want, "get_project_options", "get_project_cost") {
+			t.Fatalf("GET %s status=%d body=%s", test.path, response.Code, response.Body.String())
+		}
+		if got := response.Header().Get("Content-Type"); got != "text/markdown; charset=utf-8" {
+			t.Fatalf("GET %s Content-Type=%q", test.path, got)
+		}
+		if got := response.Header().Get("Cache-Control"); got != "public, max-age=300" {
+			t.Fatalf("GET %s Cache-Control=%q", test.path, got)
+		}
+	}
+}
+
 func TestRunnerEndpointsRequireBearerAndDisableCaching(t *testing.T) {
 	response := httptest.NewRecorder()
 	testServer(fakeDatabase{}).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/runner/spec", nil))

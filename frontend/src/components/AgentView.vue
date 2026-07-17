@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import {
+  BookOpen,
   Bot,
   Check,
   Clipboard,
   Clock3,
   Download,
   ExternalLink,
+  FileDown,
   KeyRound,
   LoaderCircle,
   Plus,
@@ -37,6 +39,8 @@ const issuing = ref(false)
 const issueError = ref('')
 const reveal = ref<AgentTokenIssue | null>(null)
 const copied = ref('')
+const guideDialog = ref(false)
+const guideError = ref('')
 const revokeTarget = ref<AgentToken | null>(null)
 const revoking = ref(false)
 const form = reactive({
@@ -54,6 +58,18 @@ const expiringTokens = computed(() => {
 const selectedScopes = computed(() => (Object.keys(form.scopes) as AgentScope[]).filter((scope) => form.scopes[scope]))
 const configJSON = computed(() => reveal.value ? JSON.stringify(reveal.value.mcp_config, null, 2) : '')
 const templateJSON = computed(() => data.value?.config_template ? JSON.stringify(data.value.config_template, null, 2) : '')
+const ownerGuideURL = computed(() => guideURL('owner-mcp.md'))
+const agentGuideURL = computed(() => guideURL('agent-mcp.md'))
+
+function guideURL(filename: string) {
+  const mcpURL = data.value?.mcp_url
+  if (!mcpURL) return ''
+  try {
+    return new URL(`/docs/${filename}`, mcpURL).toString()
+  } catch {
+    return ''
+  }
+}
 
 function handleError(caught: unknown, fallback: string) {
   if (caught instanceof APIError && caught.status === 401) {
@@ -146,6 +162,22 @@ async function copy(value: string, name: string) {
   }
 }
 
+function openGuide() {
+  guideError.value = ''
+  guideDialog.value = true
+}
+
+async function copyAgentGuide() {
+  guideError.value = ''
+  try {
+    const response = await fetch(agentGuideURL.value, { credentials: 'omit' })
+    if (!response.ok) throw new Error(`Guide request failed (${response.status})`)
+    await copy(await response.text(), 'guide')
+  } catch (caught) {
+    guideError.value = caught instanceof Error ? caught.message : 'Unable to copy the Agent guide.'
+  }
+}
+
 function downloadConfig() {
   if (!reveal.value) return
   const blob = new Blob([configJSON.value + '\n'], { type: 'application/json' })
@@ -210,7 +242,8 @@ watch(() => [props.active, props.project?.id] as const, ([active, projectID]) =>
         <p>{{ props.project?.name ?? 'Select a project' }}</p>
       </div>
       <div class="agent-actions">
-        <a class="secondary-button" href="https://github.com/XR-Lee/Gemcp/blob/main/docs/mcp.md" target="_blank" rel="noreferrer"><ExternalLink :size="16" />Integration guide</a>
+        <button class="secondary-button" type="button" :disabled="!agentGuideURL" @click="openGuide"><BookOpen :size="16" />MCP guide</button>
+        <a class="secondary-button" :class="{ disabled: !agentGuideURL }" :href="agentGuideURL || undefined" download="gemcp-agent-mcp.md"><FileDown :size="16" />Agent handoff</a>
         <button class="icon-button" type="button" title="Refresh Agent tokens" :disabled="loading || !props.project" @click="load"><RefreshCw :size="16" :class="{ spinning: loading }" /></button>
         <button class="primary-button" type="button" :disabled="!props.project || !data?.mcp_url" @click="openIssue"><Plus :size="16" />Generate token</button>
       </div>
@@ -256,6 +289,34 @@ watch(() => [props.active, props.project?.id] as const, ([active, projectID]) =>
     </template>
   </section>
 
+  <div v-if="guideDialog" class="modal-backdrop" @click.self="guideDialog = false">
+    <section class="modal agent-guide-modal" role="dialog" aria-modal="true" aria-label="Gemcp MCP onboarding guide">
+      <header><div><p class="eyebrow">Owner onboarding</p><h2>Connect an Agent safely</h2></div><button class="icon-button" type="button" title="Close MCP guide" @click="guideDialog = false"><X :size="17" /></button></header>
+      <div class="agent-guide-body">
+        <ol class="agent-guide-steps">
+          <li><span>1</span><div><strong>Set the boundary</strong><p>Confirm the project repository, approved GPU profile, runtime policy, budget, and whether every paid run requires explicit approval.</p></div></li>
+          <li><span>2</span><div><strong>Issue minimum access</strong><p>Generate a finite-lived Token with only the required read, submit, and cancel scopes. The secret is shown once.</p></div></li>
+          <li><span>3</span><div><strong>Configure the client</strong><p>Import the generated MCP JSON or place the Token in the client secret environment. Never paste it into an Agent prompt or repository.</p></div></li>
+          <li><span>4</span><div><strong>Hand off instructions</strong><p>Give the Agent the separate non-secret guide. It requires option and cost preflight, a full pushed commit SHA, stable idempotency, and human approval.</p></div></li>
+          <li><span>5</span><div><strong>Verify and supervise</strong><p>Start with the read-only guide, options, and cost tools. Monitor every submitted Experiment to a terminal state and revoke unexpected access immediately.</p></div></li>
+        </ol>
+        <div class="agent-discovery-list">
+          <div><span>Tool fallback</span><code>get_usage_guide</code></div>
+          <div><span>MCP Resource</span><code>gemcp://docs/agent-guide</code></div>
+          <div><span>MCP Prompt</span><code>operate_gemcp</code></div>
+          <div><span>Clients</span><strong>Claude Code, Cursor, VS Code, Codex, Streamable HTTP clients</strong></div>
+        </div>
+        <p class="agent-guide-note"><ShieldCheck :size="17" />The Owner guide and Agent handoff contain no credentials. Downloaded MCP configuration does contain the one-time live Token.</p>
+        <div v-if="guideError" class="form-error" role="alert">{{ guideError }}</div>
+        <div class="agent-guide-actions">
+          <a class="secondary-button" :href="ownerGuideURL" target="_blank" rel="noreferrer"><ExternalLink :size="16" />Full Owner guide</a>
+          <button class="secondary-button" type="button" @click="copyAgentGuide"><Check v-if="copied === 'guide'" :size="16" /><Clipboard v-else :size="16" />{{ copied === 'guide' ? 'Copied' : 'Copy Agent guide' }}</button>
+          <a class="primary-button" :href="agentGuideURL" download="gemcp-agent-mcp.md"><FileDown :size="16" />Download Agent handoff</a>
+        </div>
+      </div>
+    </section>
+  </div>
+
   <div v-if="issueDialog" class="modal-backdrop" @click.self="closeIssue">
     <section class="modal agent-token-modal" role="dialog" aria-modal="true" aria-label="Generate Agent token">
       <header><div><p class="eyebrow">Project credential</p><h2>Generate Agent token</h2></div><button class="icon-button" type="button" title="Close token form" :disabled="issuing" @click="closeIssue"><X :size="17" /></button></header>
@@ -276,7 +337,8 @@ watch(() => [props.active, props.project?.id] as const, ([active, projectID]) =>
       <div class="agent-reveal-body">
         <div class="credential-block"><span>Agent token</span><div class="code-box"><code>{{ reveal.agent_token }}</code><button class="icon-button" type="button" :title="copied === 'token' ? 'Copied' : 'Copy Agent token'" @click="copy(reveal.agent_token, 'token')"><Check v-if="copied === 'token'" :size="16" /><Clipboard v-else :size="16" /></button></div></div>
         <div class="credential-block"><span>MCP configuration</span><pre>{{ configJSON }}</pre></div>
-        <div class="agent-reveal-actions"><button class="secondary-button" type="button" @click="copy(configJSON, 'config')"><Check v-if="copied === 'config'" :size="16" /><Clipboard v-else :size="16" />{{ copied === 'config' ? 'Copied' : 'Copy JSON' }}</button><button class="primary-button" type="button" @click="downloadConfig"><Download :size="16" />Download JSON</button></div>
+        <p class="form-note">The MCP JSON contains the live secret. The separate Agent handoff guide does not and is safe to give to the Agent after its client is configured.</p>
+        <div class="agent-reveal-actions"><button class="secondary-button" type="button" @click="copy(configJSON, 'config')"><Check v-if="copied === 'config'" :size="16" /><Clipboard v-else :size="16" />{{ copied === 'config' ? 'Copied' : 'Copy JSON' }}</button><a class="secondary-button" :href="agentGuideURL" download="gemcp-agent-mcp.md"><FileDown :size="16" />Agent handoff</a><button class="primary-button" type="button" @click="downloadConfig"><Download :size="16" />Download JSON</button></div>
       </div>
     </section>
   </div>

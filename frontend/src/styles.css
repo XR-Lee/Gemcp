@@ -511,6 +511,7 @@ label small { color: #858e88; font-size: 10px; font-weight: 500; }
 .agent-heading p:last-child { margin: 3px 0 0; color: #78827b; font-size: 11px; }
 .agent-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 9px; }
 .agent-actions a { text-decoration: none; }
+.secondary-button.disabled { opacity: .55; pointer-events: none; }
 .agent-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: #fff; border: 1px solid #dfe4df; border-top: 0; }
 .agent-metrics > div { min-width: 0; min-height: 101px; padding: 16px 18px; border-right: 1px solid #e5e9e5; }
 .agent-metrics > div:last-child { border-right: 0; }
@@ -539,6 +540,25 @@ label small { color: #858e88; font-size: 10px; font-weight: 500; }
 .state-badge[data-state="expired"] > span { background: #b79243; }
 .state-badge[data-state="revoked"] > span { background: #7b8580; }
 .agent-token-modal { width: min(520px, 100%); }
+.agent-guide-modal { width: min(780px, 100%); }
+.agent-guide-body { padding: 20px; }
+.agent-guide-steps { margin: 0; padding: 0; list-style: none; }
+.agent-guide-steps li { padding: 12px 0; display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 9px; border-bottom: 1px solid #e5e9e6; }
+.agent-guide-steps li:first-child { padding-top: 0; }
+.agent-guide-steps li > span { color: #247155; font-size: 12px; font-weight: 800; line-height: 20px; }
+.agent-guide-steps strong { display: block; color: #303b34; font-size: 12px; line-height: 20px; }
+.agent-guide-steps p { margin: 2px 0 0; color: #6c766f; font-size: 11px; line-height: 17px; }
+.agent-discovery-list { margin-top: 18px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid #dfe5e0; border-bottom: 1px solid #dfe5e0; }
+.agent-discovery-list > div { min-width: 0; padding: 11px 12px 11px 0; }
+.agent-discovery-list > div:nth-child(odd) { border-right: 1px solid #e5e9e6; }
+.agent-discovery-list > div:nth-child(even) { padding-left: 12px; }
+.agent-discovery-list span, .agent-discovery-list code, .agent-discovery-list strong { display: block; }
+.agent-discovery-list span { margin-bottom: 4px; color: #858e88; font-size: 9px; font-weight: 750; text-transform: uppercase; }
+.agent-discovery-list code, .agent-discovery-list strong { min-width: 0; color: #3f4b44; font-size: 10px; line-height: 16px; overflow-wrap: anywhere; }
+.agent-guide-note { margin: 17px 0 0; display: flex; align-items: flex-start; gap: 8px; color: #59665f; font-size: 11px; line-height: 17px; }
+.agent-guide-note svg { flex: 0 0 auto; color: #32745b; }
+.agent-guide-actions { margin-top: 18px; display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 9px; }
+.agent-guide-actions a { text-decoration: none; }
 .scope-fieldset { margin: 0; padding: 11px 12px 12px; display: flex; flex-wrap: wrap; gap: 14px; border: 1px solid #c8d0ca; border-radius: 5px; }
 .scope-fieldset legend { padding: 0 5px; color: #505a54; font-size: 12px; font-weight: 650; }
 .scope-fieldset label { flex-direction: row; align-items: center; gap: 7px; font-weight: 600; }
@@ -657,6 +677,10 @@ label small { color: #858e88; font-size: 10px; font-weight: 500; }
   .agent-heading { padding: 14px; align-items: flex-start; flex-direction: column; }
   .agent-actions { width: 100%; }
   .agent-actions .secondary-button, .agent-actions .primary-button { flex: 1; white-space: nowrap; }
+  .agent-discovery-list { grid-template-columns: 1fr; }
+  .agent-discovery-list > div:nth-child(odd) { border-right: 0; }
+  .agent-discovery-list > div:nth-child(even) { padding-left: 0; }
+  .agent-guide-actions .secondary-button, .agent-guide-actions .primary-button { width: 100%; justify-content: center; }
   .agent-metrics, .agent-connection-band { grid-template-columns: 1fr; }
   .agent-metrics > div, .agent-connection-band > div { min-height: 0; border-right: 0; border-bottom: 1px solid #e5e9e5; }
   .agent-metrics > div { min-height: 88px; }

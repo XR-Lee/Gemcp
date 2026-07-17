@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/XR-Lee/Gemcp/guides"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
 	"github.com/XR-Lee/Gemcp/internal/experiment"
 	mcpauth "github.com/modelcontextprotocol/go-sdk/auth"
@@ -24,14 +25,27 @@ type Server struct {
 
 type emptyInput struct{}
 
+type UsageGuide struct {
+	ProjectID   string   `json:"project_id"`
+	TokenScopes []string `json:"token_scopes"`
+	ResourceURI string   `json:"resource_uri"`
+	PromptName  string   `json:"prompt_name"`
+	Markdown    string   `json:"markdown"`
+}
+
+const serverInstructions = "Operate immutable, budget-governed experiments only through Gemcp. If the workflow is unfamiliar, call get_usage_guide or read gemcp://docs/agent-guide. Before paid work, call get_project_options and get_project_cost, use only approved IDs and a full pushed commit SHA, present the exact command/runtime/resource/reservation to the human, and wait for approval unless a standing policy clearly covers it. Reuse one idempotency key only for an identical retry, record the returned experiment ID, and monitor it to a terminal state."
+
 func New(agentAuth *agentauth.Service, experiments *experiment.Service, version string, logger *slog.Logger) *Server {
 	if logger == nil {
 		logger = slog.Default()
 	}
 	server := &Server{agentAuth: agentAuth, experiments: experiments, logger: logger}
 	mcpServer := mcp.NewServer(&mcp.Implementation{Name: "gemcp", Version: version}, &mcp.ServerOptions{
-		Instructions: "Manage immutable, budget-governed experiments in the Agent token's project. Call get_project_options and get_project_cost before submission, use a full Git commit SHA, and reuse an idempotency key only for an identical request.",
+		Instructions: serverInstructions,
 	})
+	mcp.AddTool(mcpServer, &mcp.Tool{
+		Name: "get_usage_guide", Description: "Return the mandatory Gemcp operating guide, approval boundary, and safe submission workflow.",
+	}, server.getUsageGuide)
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "get_project_options", Description: "List the project policy and approved repositories, environments, and resource profiles.",
 	}, server.getProjectOptions)
@@ -53,6 +67,13 @@ func New(agentAuth *agentauth.Service, experiments *experiment.Service, version 
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "get_project_cost", Description: "Return the current project budget period, reservations, estimated charges, and available capacity.",
 	}, server.getProjectCost)
+	mcpServer.AddResource(&mcp.Resource{
+		Name: "agent-guide", Title: "Gemcp Agent Operating Guide", Description: "Mandatory workflow for safe, immutable, budget-approved Gemcp experiments.",
+		URI: guides.AgentResourceURI, MIMEType: "text/markdown",
+	}, server.readAgentGuide)
+	mcpServer.AddPrompt(&mcp.Prompt{
+		Name: guides.AgentPromptName, Title: "Operate Gemcp safely", Description: "Load the required preflight, approval, submission, monitoring, and cancellation workflow.",
+	}, server.operateGemcpPrompt)
 
 	streamable := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return mcpServer }, &mcp.StreamableHTTPOptions{
 		SessionTimeout:             30 * time.Minute,
@@ -65,6 +86,33 @@ func New(agentAuth *agentauth.Service, experiments *experiment.Service, version 
 }
 
 func (s *Server) Handler() http.Handler { return s.handler }
+
+func (s *Server) getUsageGuide(_ context.Context, request *mcp.CallToolRequest, _ emptyInput) (*mcp.CallToolResult, UsageGuide, error) {
+	principal, err := principalFrom(request)
+	if err != nil {
+		return nil, UsageGuide{}, err
+	}
+	if !principal.HasScope("read") {
+		return nil, UsageGuide{}, s.toolError("get_usage_guide", experiment.ErrForbidden)
+	}
+	return nil, UsageGuide{
+		ProjectID: principal.ProjectPublicID, TokenScopes: append([]string(nil), principal.Scopes...),
+		ResourceURI: guides.AgentResourceURI, PromptName: guides.AgentPromptName, Markdown: guides.AgentMCP(),
+	}, nil
+}
+
+func (s *Server) readAgentGuide(_ context.Context, request *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
+	return &mcp.ReadResourceResult{Contents: []*mcp.ResourceContents{{
+		URI: request.Params.URI, MIMEType: "text/markdown", Text: guides.AgentMCP(),
+	}}}, nil
+}
+
+func (s *Server) operateGemcpPrompt(_ context.Context, _ *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
+	return &mcp.GetPromptResult{
+		Description: "Apply the Gemcp safety and approval workflow before operating project experiments.",
+		Messages:    []*mcp.PromptMessage{{Role: "user", Content: &mcp.TextContent{Text: guides.AgentMCP()}}},
+	}, nil
+}
 
 func (s *Server) verifyToken(ctx context.Context, raw string, _ *http.Request) (*mcpauth.TokenInfo, error) {
 	principal, err := s.agentAuth.Authenticate(ctx, raw)
