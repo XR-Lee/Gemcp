@@ -1,6 +1,9 @@
 package phasezero
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
 func validJobSpec() JobSpec {
 	return JobSpec{
@@ -35,6 +38,31 @@ func TestJobSpecMinimumCharge(t *testing.T) {
 	spec.MaxRuntimeSeconds = 5
 	if got, want := spec.EstimatedMaximumSpendMilli(), int64(10); got != want {
 		t.Fatalf("estimate = %d, want %d", got, want)
+	}
+}
+
+func TestPrivateJobSpecValidation(t *testing.T) {
+	spec := validJobSpec()
+	spec.Backend = "private"
+	spec.Region = ""
+	spec.CUDAFrom = 0
+	spec.CUDATo = 0
+	spec.CUDAVersion = 118
+	if err := spec.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+
+	spec.CUDAVersion = 115
+	if err := spec.Validate(); err == nil {
+		t.Fatal("Validate() accepted an unsupported Private Cloud CUDA version")
+	}
+}
+
+func TestJobSpecRejectsEstimateOverflow(t *testing.T) {
+	spec := validJobSpec()
+	spec.PriceToMilliPerHour = math.MaxInt64
+	if err := spec.Validate(); err == nil {
+		t.Fatal("Validate() accepted an overflowing spend estimate")
 	}
 }
 

@@ -41,6 +41,9 @@ type Image struct {
 	FallbackName string    `json:"name,omitempty"`
 	Status       string    `json:"status,omitempty"`
 	SizeBytes    int64     `json:"image_size,omitempty"`
+	CUDAVersion  string    `json:"cuda_version,omitempty"`
+	ChipCorp     string    `json:"chip_corp,omitempty"`
+	CPUArch      string    `json:"cpu_arch,omitempty"`
 	CreatedAt    time.Time `json:"-"`
 }
 

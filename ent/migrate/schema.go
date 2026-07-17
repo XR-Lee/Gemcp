@@ -439,7 +439,7 @@ var (
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "name", Type: field.TypeString, Size: 120},
 		{Name: "base_url", Type: field.TypeString, Size: 512},
-		{Name: "backend", Type: field.TypeEnum, Enums: []string{"unverified", "elastic", "pro"}, Default: "unverified"},
+		{Name: "backend", Type: field.TypeEnum, Enums: []string{"unverified", "elastic", "private", "pro"}, Default: "unverified"},
 		{Name: "credential_ciphertext", Type: field.TypeString},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending_validation", "active", "disabled", "error"}, Default: "pending_validation"},
 		{Name: "last_validated_at", Type: field.TypeTime, Nullable: true},

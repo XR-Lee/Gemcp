@@ -1,6 +1,6 @@
 import { expect, test, type Page, type Route } from '@playwright/test'
 
-const build = { name: 'Gemcp', version: '0.4.1', commit: 'abc1234', built_at: '2026-07-16T00:00:00Z' }
+const build = { name: 'Gemcp', version: '0.4.2', commit: 'abc1234', built_at: '2026-07-16T00:00:00Z' }
 const project = {
   id: 'b492cbe4-f198-4d87-bbf9-3f77d8a3ab0a', name: 'Point Models', slug: 'point-models', status: 'active',
   monthly_budget_milli: 100000, max_experiment_milli: 20000, max_concurrency: 2, max_runtime_seconds: 86400,
@@ -103,6 +103,17 @@ test('first-run setup fits desktop and mobile', async ({ page }) => {
   await page.getByLabel('Owner email').fill('owner@example.com')
   await page.getByLabel('Owner password').fill('correct horse battery staple')
   await page.getByRole('button', { name: 'Continue' }).click()
+  await expect(page.getByLabel('AutoDL service')).toHaveValue('private')
+  await expect(page.getByLabel('API base URL')).toHaveValue('https://private.autodl.com')
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: '/tmp/gemcp-setup-provider-desktop.png', fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: '/tmp/gemcp-setup-provider-mobile.png', fullPage: true })
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.getByLabel('AutoDL service').selectOption('public')
+  await expect(page.getByLabel('API base URL')).toHaveValue('https://api.autodl.com')
+  await page.getByLabel('AutoDL service').selectOption('private')
   await page.getByLabel('AutoDL API token').fill('test-provider-token')
   await page.getByRole('button', { name: 'Continue' }).click()
   await expect(page.getByRole('heading', { name: 'Configure the first project' })).toBeVisible()

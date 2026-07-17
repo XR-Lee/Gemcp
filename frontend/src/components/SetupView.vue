@@ -12,14 +12,15 @@ const error = ref('')
 const result = ref<SetupResult | null>(null)
 const copied = ref(false)
 const slugEdited = ref(false)
+const providerMode = ref<'private' | 'public'>('private')
 
 const form = reactive({
   bootstrapToken: '',
   organizationName: '',
   ownerEmail: '',
   ownerPassword: '',
-  providerName: 'AutoDL',
-  providerBaseURL: 'https://api.autodl.com',
+  providerName: 'AutoDL Private Cloud',
+  providerBaseURL: 'https://private.autodl.com',
   providerToken: '',
   projectName: '',
   projectSlug: '',
@@ -30,17 +31,17 @@ const form = reactive({
   imageUUID: '',
   environmentName: 'default',
   profileName: 'default',
-  region: 'westDC2',
-  gpuNames: 'RTX 4090',
+  region: 'private',
+  gpuNames: 'NVIDIA GeForce RTX 3090',
   gpuNum: 1,
   cudaFrom: 118,
-  cudaTo: 128,
+  cudaTo: 118,
   cpuFrom: 1,
   cpuTo: 128,
   memoryFromGB: 1,
   memoryToGB: 512,
   priceFromCNY: 0.01,
-  priceToCNY: 3,
+  priceToCNY: 9,
   reuseContainer: false,
 })
 
@@ -57,6 +58,26 @@ function slugify(value: string) {
 
 function updateProjectName() {
   if (!slugEdited.value) form.projectSlug = slugify(form.projectName)
+}
+
+function applyProviderMode() {
+  if (providerMode.value === 'private') {
+    form.providerName = 'AutoDL Private Cloud'
+    form.providerBaseURL = 'https://private.autodl.com'
+    form.region = 'private'
+    form.gpuNames = 'NVIDIA GeForce RTX 3090'
+    form.cudaFrom = 118
+    form.cudaTo = 118
+    form.priceToCNY = 9
+    return
+  }
+  form.providerName = 'AutoDL'
+  form.providerBaseURL = 'https://api.autodl.com'
+  form.region = 'westDC2'
+  form.gpuNames = 'RTX 4090'
+  form.cudaFrom = 118
+  form.cudaTo = 128
+  form.priceToCNY = 3
 }
 
 function validate(current: number): string {
@@ -199,11 +220,12 @@ async function copyToken() {
         <section v-else-if="step === 2" class="form-section">
           <div class="form-heading"><p class="eyebrow">Credential custody</p><h1>Connect AutoDL</h1></div>
           <div class="form-grid two-columns">
+            <label>AutoDL service<select v-model="providerMode" @change="applyProviderMode"><option value="private">Private Cloud</option><option value="public">Public Cloud</option></select></label>
             <label>Provider name<input v-model="form.providerName" /></label>
-            <label>API base URL<input v-model="form.providerBaseURL" type="url" spellcheck="false" /></label>
+            <label class="full-field">API base URL<input v-model="form.providerBaseURL" type="url" spellcheck="false" /></label>
             <label class="full-field">AutoDL API token<input v-model="form.providerToken" type="password" autocomplete="off" spellcheck="false" /></label>
           </div>
-          <p class="form-note">The token is encrypted before it is written to PostgreSQL. Live compute remains disabled until phase-zero validation is accepted.</p>
+          <p class="form-note">The token is encrypted before it is written to PostgreSQL. The selected service controls which official API host receives it.</p>
         </section>
 
         <section v-else class="form-section wide-form-section">

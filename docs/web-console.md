@@ -6,7 +6,7 @@ The embedded Web application uses the same origin as the Go API and has three st
 2. Owner login when setup is complete and no valid Session exists.
 3. The operations console for an authenticated Owner.
 
-The setup flow collects the bootstrap credential, Owner account, encrypted AutoDL credential, initial project policy, approved image, and default resource profile. Its final response displays the first Agent Token once.
+The setup flow collects the bootstrap credential, Owner account, encrypted AutoDL credential, initial project policy, approved image, and default resource profile. The Provider step explicitly selects Public Cloud or Private Cloud so the Token is sent only to the matching official API host. Private Cloud is the default after live phase-zero validation. Its final response displays the first Agent Token once.
 
 The operations console provides:
 
@@ -16,7 +16,7 @@ The operations console provides:
 - Private GitHub repository registration with generated Deploy public keys.
 - Pinned host-key and read-access verification.
 
-The console is intentionally read-only for experiment lifecycle changes in `v0.4.1`; Agent MCP tools remain the experiment submission and cancellation boundary. Provider execution controls remain disabled until phase-zero validation selects a backend.
+The console remains read-only for experiment lifecycle changes in `v0.4.2`; Agent MCP tools remain the experiment submission and cancellation boundary. Private Cloud has been selected, but Provider execution controls remain disabled until the `v0.5.0` scheduler, runner, and watchdog are complete.
 
 ## Browser security
 

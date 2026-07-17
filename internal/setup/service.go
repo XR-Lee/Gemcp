@@ -13,6 +13,7 @@ import (
 
 	"github.com/XR-Lee/Gemcp/ent"
 	"github.com/XR-Lee/Gemcp/internal/auth"
+	"github.com/XR-Lee/Gemcp/internal/autodl"
 	"github.com/XR-Lee/Gemcp/internal/secrets"
 )
 
@@ -267,6 +268,10 @@ func validateInput(input Input) error {
 	providerURL, err := url.Parse(strings.TrimSpace(input.Provider.BaseURL))
 	if err != nil || providerURL.Scheme != "https" || providerURL.Host == "" || providerURL.User != nil || providerURL.RawQuery != "" || providerURL.Fragment != "" {
 		return invalid("provider base URL must be a credential-free HTTPS URL")
+	}
+	normalizedProviderURL := strings.TrimRight(providerURL.String(), "/")
+	if normalizedProviderURL != autodl.DefaultBaseURL && normalizedProviderURL != autodl.PrivateBaseURL {
+		return invalid("provider base URL must be an official AutoDL API URL")
 	}
 	if strings.TrimSpace(input.Provider.Name) == "" || strings.TrimSpace(input.Provider.Token) == "" {
 		return invalid("provider name and token are required")

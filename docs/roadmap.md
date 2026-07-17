@@ -7,7 +7,7 @@
 - Multi-stage container build and localhost-only Compose binding.
 - Versioned, testable release workflow.
 
-## v0.2.0: Phase-zero AutoDL validation (implemented, live validation pending)
+## v0.2.0: Phase-zero AutoDL validation (complete for public read probes)
 
 - Typed AutoDL developer API client.
 - Read-only balance, image, inventory, deployment, container, and event probes.
@@ -38,10 +38,18 @@
 - Tenant-scoped Owner experiment and cost APIs.
 - Desktop and mobile Playwright browser coverage.
 
+## v0.4.2: AutoDL Private Cloud phase zero (complete)
+
+- Separate Private Cloud API host, inventory shape, CUDA selector, and deployment request contract.
+- Private and system-image visibility without calling the unsupported public wallet endpoint.
+- Overflow-safe live-spend estimates and protected local Token/report paths.
+- Successful cold and stopped-container-reuse Jobs with stop/delete cleanup and zero residual deployments.
+- Recorded `finished_num` terminal semantics and disposable `in_cache` behavior.
+
 ## v0.5.0: M0 execution and operations
 
-- Elastic Job or Pro provider selected by live phase zero.
-- Runner callbacks, fixed AutoDL file-storage output path, and cost estimates.
+- Production AutoDL Private Cloud Job Provider selected by live phase zero.
+- Runner callbacks, fixed AutoDL file-storage output path, and local cost estimates.
 - Independent watchdog and critical SMTP notifications.
 - Provider lifecycle, live status, emergency-stop, and notification views in the existing Web console.
 

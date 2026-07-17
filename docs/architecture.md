@@ -36,12 +36,11 @@ The remote MCP endpoint uses the official Go SDK's Streamable HTTP transport. Ag
 
 ## Provider boundary
 
-The AutoDL adapter uses only documented developer APIs. Browser automation is excluded. Phase zero selects one verified execution backend:
+The production AutoDL adapter uses documented Developer APIs; browser automation is excluded. Live phase zero selected **AutoDL Private Cloud Job** as the M0 execution backend. Public Elastic and Pro remain diagnostic clients, not production scheduling fallbacks.
 
-- Elastic Deployment Job, preferred after enterprise certification.
-- Pro instance lease, only if Elastic access is unavailable.
+Private Cloud differs materially from public Elastic: it has a separate API host, no Developer wallet endpoint, a non-regional GPU inventory, one `cuda_v` selector, and Provider statuses where `finished_num=1` may coexist with `status=running`. The official console's read-only system-image endpoint is used only to enumerate valid base-image UUIDs during phase zero.
 
-The adapter is idempotent at the control-plane boundary and records every provider request ID available in responses.
+The adapter is idempotent at the control-plane boundary and records every Provider request ID available in responses. The validated Private Cloud installation did not return request IDs, so ownership records, immutable local attempt IDs, and reconciliation queries remain mandatory.
 
 ## Storage boundary
 

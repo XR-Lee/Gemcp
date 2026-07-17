@@ -45,6 +45,16 @@ func TestWalletBalance(t *testing.T) {
 
 func TestElasticGPUStockNormalization(t *testing.T) {
 	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/dev/machine/region/gpu_stock" {
+			t.Fatalf("request = %s %s", r.Method, r.URL.Path)
+		}
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decode body: %v", err)
+		}
+		if body["region_sign"] != "westDC2" {
+			t.Fatalf("region_sign = %v", body["region_sign"])
+		}
 		_, _ = w.Write([]byte(`{"code":"Success","data":[{"RTX 4090":{"idle_gpu_num":3,"total_gpu_num":9}},{"RTX 3090":{"idle_gpu_num":1,"total_gpu_num":5}}],"msg":""}`))
 	}))
 	stock, _, err := client.ElasticGPUStock(context.Background(), "westDC2", nil)
@@ -53,6 +63,90 @@ func TestElasticGPUStockNormalization(t *testing.T) {
 	}
 	if stock["RTX 4090"].Idle != 3 || stock["RTX 3090"].Total != 5 {
 		t.Fatalf("unexpected stock: %+v", stock)
+	}
+}
+
+func TestPrivateElasticGPUStockContract(t *testing.T) {
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/api/v1/dev/machine/gpu_stock" {
+			t.Fatalf("request = %s %s", r.Method, r.URL.Path)
+		}
+		_, _ = w.Write([]byte(`{"code":"Success","data":{"RTX 4090":{"idle_gpu_num":7,"total_gpu_num":12}},"msg":""}`))
+	}))
+	stock, _, err := client.PrivateElasticGPUStock(context.Background())
+	if err != nil {
+		t.Fatalf("PrivateElasticGPUStock() error = %v", err)
+	}
+	if stock["RTX 4090"].Idle != 7 || stock["RTX 4090"].Total != 12 {
+		t.Fatalf("unexpected stock: %+v", stock)
+	}
+}
+
+func TestPrivateSystemImagesContract(t *testing.T) {
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/api/v2/image/list" {
+			t.Fatalf("request = %s %s", r.Method, r.URL.Path)
+		}
+		_, _ = w.Write([]byte(`{"code":"Success","data":{"list":[{"image_uuid":"base-image-1","name":"torch","cuda_version":"11.8","chip_corp":"nvidia","cpu_arch":"x86"}],"page_index":1,"page_size":100},"msg":""}`))
+	}))
+	images, _, err := client.PrivateSystemImages(context.Background(), 1, 100)
+	if err != nil {
+		t.Fatalf("PrivateSystemImages() error = %v", err)
+	}
+	if len(images.List) != 1 || images.List[0].UUID != "base-image-1" || images.List[0].CUDAVersion != "11.8" {
+		t.Fatalf("unexpected images: %+v", images)
+	}
+}
+
+func TestPrivateElasticDeploymentContract(t *testing.T) {
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/dev/deployment" {
+			t.Fatalf("request = %s %s", r.Method, r.URL.Path)
+		}
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decode body: %v", err)
+		}
+		template, ok := body["container_template"].(map[string]any)
+		if !ok {
+			t.Fatalf("container_template = %#v", body["container_template"])
+		}
+		if template["cuda_v"] != float64(118) {
+			t.Fatalf("cuda_v = %v", template["cuda_v"])
+		}
+		if _, exists := template["dc_list"]; exists {
+			t.Fatalf("private request contains dc_list: %#v", template)
+		}
+		if _, exists := template["cuda_v_from"]; exists {
+			t.Fatalf("private request contains cuda_v_from: %#v", template)
+		}
+		_, _ = w.Write([]byte(`{"code":"Success","data":{"deployment_uuid":"deployment-private"},"msg":""}`))
+	}))
+	input := PrivateElasticDeploymentCreate{
+		Name:           "private-probe",
+		DeploymentType: "Job",
+		ReplicaNum:     1,
+		ParallelismNum: 1,
+		ContainerTemplate: PrivateElasticContainerTemplate{
+			CUDAVersion:    118,
+			GPUNames:       []string{"RTX 4090"},
+			GPUNum:         1,
+			MemoryFromGB:   1,
+			MemoryToGB:     64,
+			CPUFrom:        1,
+			CPUTo:          32,
+			PriceFromMilli: 10,
+			PriceToMilli:   3000,
+			ImageUUID:      "image-test",
+			Command:        "true",
+		},
+	}
+	created, _, err := client.CreatePrivateElasticDeployment(context.Background(), input)
+	if err != nil {
+		t.Fatalf("CreatePrivateElasticDeployment() error = %v", err)
+	}
+	if created.DeploymentUUID != "deployment-private" {
+		t.Fatalf("deployment UUID = %q", created.DeploymentUUID)
 	}
 }
 

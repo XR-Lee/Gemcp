@@ -11,21 +11,26 @@ import (
 )
 
 type ReadReport struct {
-	GeneratedAt time.Time            `json:"generated_at"`
-	Backend     string               `json:"backend"`
-	BaseURL     string               `json:"base_url"`
-	Wallet      autodl.WalletBalance `json:"wallet"`
-	Images      []ImageSummary       `json:"images"`
-	Instances   []ProInstanceSummary `json:"instances,omitempty"`
-	GPUStock    []GPUStockSummary    `json:"gpu_stock,omitempty"`
-	RequestIDs  map[string]string    `json:"request_ids,omitempty"`
+	GeneratedAt  time.Time             `json:"generated_at"`
+	Backend      string                `json:"backend"`
+	BaseURL      string                `json:"base_url"`
+	Wallet       *autodl.WalletBalance `json:"wallet,omitempty"`
+	Images       []ImageSummary        `json:"images"`
+	SystemImages []ImageSummary        `json:"system_images,omitempty"`
+	Instances    []ProInstanceSummary  `json:"instances,omitempty"`
+	Deployments  []DeploymentSummary   `json:"deployments,omitempty"`
+	GPUStock     []GPUStockSummary     `json:"gpu_stock,omitempty"`
+	RequestIDs   map[string]string     `json:"request_ids,omitempty"`
 }
 
 type ImageSummary struct {
-	UUID      string `json:"uuid"`
-	Name      string `json:"name"`
-	Status    string `json:"status,omitempty"`
-	SizeBytes int64  `json:"size_bytes,omitempty"`
+	UUID        string `json:"uuid"`
+	Name        string `json:"name"`
+	Status      string `json:"status,omitempty"`
+	SizeBytes   int64  `json:"size_bytes,omitempty"`
+	CUDAVersion string `json:"cuda_version,omitempty"`
+	ChipCorp    string `json:"chip_corp,omitempty"`
+	CPUArch     string `json:"cpu_arch,omitempty"`
 }
 
 type ProInstanceSummary struct {
@@ -43,6 +48,16 @@ type GPUStockSummary struct {
 	Total int    `json:"total"`
 }
 
+type DeploymentSummary struct {
+	UUID        string `json:"uuid"`
+	Name        string `json:"name"`
+	Type        string `json:"type"`
+	Status      string `json:"status"`
+	ReplicaNum  int    `json:"replica_num"`
+	RunningNum  int    `json:"running_num"`
+	FinishedNum int    `json:"finished_num"`
+}
+
 func RunReadProbe(ctx context.Context, client *autodl.Client, backend, baseURL, region string) (ReadReport, error) {
 	report := ReadReport{
 		GeneratedAt: time.Now().UTC(),
@@ -50,12 +65,19 @@ func RunReadProbe(ctx context.Context, client *autodl.Client, backend, baseURL, 
 		BaseURL:     baseURL,
 		RequestIDs:  map[string]string{},
 	}
-	wallet, requestID, err := client.WalletBalance(ctx)
-	if err != nil {
-		return report, fmt.Errorf("read wallet: %w", err)
+	switch backend {
+	case "elastic", "pro":
+		wallet, requestID, err := client.WalletBalance(ctx)
+		if err != nil {
+			return report, fmt.Errorf("read wallet: %w", err)
+		}
+		report.Wallet = &wallet
+		setRequestID(report.RequestIDs, "wallet", requestID)
+	case "private":
+		// AutoDL Private Cloud has no developer wallet endpoint.
+	default:
+		return report, fmt.Errorf("unsupported backend %q", backend)
 	}
-	report.Wallet = wallet
-	setRequestID(report.RequestIDs, "wallet", requestID)
 
 	switch backend {
 	case "elastic":
@@ -77,6 +99,47 @@ func RunReadProbe(ctx context.Context, client *autodl.Client, backend, baseURL, 
 			report.GPUStock = append(report.GPUStock, GPUStockSummary{Name: name, Idle: entry.Idle, Total: entry.Total})
 		}
 		sort.Slice(report.GPUStock, func(i, j int) bool { return report.GPUStock[i].Name < report.GPUStock[j].Name })
+	case "private":
+		images, imageRequestID, err := client.ElasticImages(ctx, 1, 100)
+		if err != nil {
+			return report, fmt.Errorf("read Private Cloud images: %w", err)
+		}
+		setRequestID(report.RequestIDs, "images", imageRequestID)
+		report.Images = summarizeImages(images.List)
+
+		systemImages, systemImageRequestID, err := client.PrivateSystemImages(ctx, 1, 100)
+		if err != nil {
+			return report, fmt.Errorf("read Private Cloud system images: %w", err)
+		}
+		setRequestID(report.RequestIDs, "system_images", systemImageRequestID)
+		report.SystemImages = summarizeImages(systemImages.List)
+
+		stock, stockRequestID, err := client.PrivateElasticGPUStock(ctx)
+		if err != nil {
+			return report, fmt.Errorf("read Private Cloud GPU stock: %w", err)
+		}
+		setRequestID(report.RequestIDs, "gpu_stock", stockRequestID)
+		for name, entry := range stock {
+			report.GPUStock = append(report.GPUStock, GPUStockSummary{Name: name, Idle: entry.Idle, Total: entry.Total})
+		}
+		sort.Slice(report.GPUStock, func(i, j int) bool { return report.GPUStock[i].Name < report.GPUStock[j].Name })
+
+		deployments, deploymentRequestID, err := client.ElasticDeployments(ctx, 1, 100, "")
+		if err != nil {
+			return report, fmt.Errorf("read Private Cloud deployments: %w", err)
+		}
+		setRequestID(report.RequestIDs, "deployments", deploymentRequestID)
+		for _, deployment := range deployments.List {
+			report.Deployments = append(report.Deployments, DeploymentSummary{
+				UUID:        deployment.UUID,
+				Name:        deployment.Name,
+				Type:        deployment.Type,
+				Status:      deployment.Status,
+				ReplicaNum:  deployment.ReplicaNum,
+				RunningNum:  deployment.RunningNum,
+				FinishedNum: deployment.FinishedNum,
+			})
+		}
 	case "pro":
 		images, imageRequestID, err := client.ProImages(ctx, 1, 100)
 		if err != nil {
@@ -99,8 +162,6 @@ func RunReadProbe(ctx context.Context, client *autodl.Client, backend, baseURL, 
 				GPUSpec:   instance.GPUSpecUUID,
 			})
 		}
-	default:
-		return report, fmt.Errorf("unsupported backend %q", backend)
 	}
 	return report, nil
 }
@@ -112,7 +173,15 @@ func summarizeImages(images []autodl.Image) []ImageSummary {
 		if name == "" {
 			name = image.FallbackName
 		}
-		result = append(result, ImageSummary{UUID: image.UUID, Name: name, Status: image.Status, SizeBytes: image.SizeBytes})
+		result = append(result, ImageSummary{
+			UUID:        image.UUID,
+			Name:        name,
+			Status:      image.Status,
+			SizeBytes:   image.SizeBytes,
+			CUDAVersion: image.CUDAVersion,
+			ChipCorp:    image.ChipCorp,
+			CPUArch:     image.CPUArch,
+		})
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i].UUID < result[j].UUID })
 	return result

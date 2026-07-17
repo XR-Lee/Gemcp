@@ -33,20 +33,21 @@ func runPhaseZero(args []string) error {
 func runPhaseZeroRead(args []string) error {
 	flags := flag.NewFlagSet("phase0 read", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
-	backend := flags.String("backend", "elastic", "provider backend: elastic or pro")
+	backend := flags.String("backend", "elastic", "provider backend: elastic, private, or pro")
 	region := flags.String("region", "", "AutoDL region for Elastic inventory")
 	timeout := flags.Duration("timeout", 90*time.Second, "overall read probe timeout")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
 
-	client, baseURL, err := phaseZeroClient()
+	backendName := strings.ToLower(strings.TrimSpace(*backend))
+	client, baseURL, err := phaseZeroClient(backendName)
 	if err != nil {
 		return err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
-	report, err := phasezero.RunReadProbe(ctx, client, strings.ToLower(*backend), baseURL, *region)
+	report, err := phasezero.RunReadProbe(ctx, client, backendName, baseURL, *region)
 	if encodeErr := writeJSON(os.Stdout, report); encodeErr != nil {
 		return encodeErr
 	}
@@ -84,7 +85,7 @@ func runPhaseZeroJob(args []string) error {
 		return fmt.Errorf("validate phase-zero spec: %w", err)
 	}
 
-	client, _, err := phaseZeroClient()
+	client, _, err := phaseZeroClient(spec.BackendName())
 	if err != nil {
 		return err
 	}
@@ -106,14 +107,18 @@ func runPhaseZeroJob(args []string) error {
 	return runErr
 }
 
-func phaseZeroClient() (*autodl.Client, string, error) {
+func phaseZeroClient(backend string) (*autodl.Client, string, error) {
 	token := strings.TrimSpace(os.Getenv("GEMCP_PHASE0_AUTODL_TOKEN"))
 	if token == "" {
 		return nil, "", fmt.Errorf("GEMCP_PHASE0_AUTODL_TOKEN is required")
 	}
 	baseURL := strings.TrimSpace(os.Getenv("GEMCP_PHASE0_AUTODL_BASE_URL"))
 	if baseURL == "" {
-		baseURL = autodl.DefaultBaseURL
+		if backend == "private" {
+			baseURL = autodl.PrivateBaseURL
+		} else {
+			baseURL = autodl.DefaultBaseURL
+		}
 	}
 	client, err := autodl.NewClient(baseURL, token, autodl.WithUserAgent("Gemcp/"+version+" phase-zero"))
 	if err != nil {

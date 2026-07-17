@@ -1,0 +1,17 @@
+{
+  "backend": "private",
+  "gpu_names": ["NVIDIA GeForce RTX 3090"],
+  "gpu_num": 1,
+  "cuda_version": 118,
+  "cpu_from": 1,
+  "cpu_to": 64,
+  "memory_from_gb": 1,
+  "memory_to_gb": 256,
+  "price_from_milli_per_hour": 10,
+  "price_to_milli_per_hour": 9000,
+  "image_uuid": "replace-with-visible-system-or-private-image-uuid",
+  "max_runtime_seconds": 30,
+  "provision_timeout_seconds": 600,
+  "output_root": "/root/autodl-fs/gemcp-phase0",
+  "reuse_container": false
+}

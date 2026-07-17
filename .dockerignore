@@ -1,6 +1,9 @@
 .git
 .pi
+.phase0
+autodl_token*
 .env
+.env.*
 bin
 coverage
 data

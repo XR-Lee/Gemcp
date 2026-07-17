@@ -38,8 +38,8 @@ The response is public so the embedded Web application can choose between setup 
     "password": "use-a-long-unique-password"
   },
   "provider": {
-    "name": "AutoDL",
-    "base_url": "https://api.autodl.com",
+    "name": "AutoDL Private Cloud",
+    "base_url": "https://private.autodl.com",
     "token": "set-through-the-private-setup-form"
   },
   "project": {
@@ -54,28 +54,30 @@ The response is public so the embedded Web application can choose between setup 
   },
   "environment": {
     "name": "default",
-    "image_uuid": "existing-autodl-image-uuid"
+    "image_uuid": "visible-private-or-system-image-uuid"
   },
   "resource_profile": {
     "name": "default",
-    "region": "westDC2",
-    "gpu_names": ["RTX 4090"],
+    "region": "private",
+    "gpu_names": ["NVIDIA GeForce RTX 3090"],
     "gpu_num": 1,
     "cuda_from": 118,
-    "cuda_to": 128,
+    "cuda_to": 118,
     "cpu_from": 1,
     "cpu_to": 128,
     "memory_from_gb": 1,
     "memory_to_gb": 512,
     "price_from_milli": 10,
-    "price_to_milli": 3000,
+    "price_to_milli": 9000,
     "reuse_container": false
   },
   "agent_token_label": "default-agent"
 }
 ```
 
-Money fields use milli-CNY. The Provider Token is AES-256-GCM encrypted before insertion. Agent and Session Tokens are stored as HMAC-SHA-256 digests.
+Money fields use milli-CNY. For the selected Private Cloud backend, `region` is the sentinel `private`, and the existing profile range stores the one validated `cuda_v` selector as equal `cuda_from` and `cuda_to` values. Public Elastic deployments continue to use a real region and CUDA range.
+
+The Provider Token is AES-256-GCM encrypted before insertion. Agent and Session Tokens are stored as HMAC-SHA-256 digests.
 
 ## Login
 

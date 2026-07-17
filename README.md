@@ -4,7 +4,7 @@ Gemcp is a private, single-organization control plane for running bounded AutoDL
 
 ## Current release
 
-`v0.4.1` adds the embedded first-run, Owner login, project, repository, budget, experiment list, and experiment detail Web workflows on top of the `v0.4.0` MCP experiment core. Accepted experiments remain queued until live phase-zero validation selects the production AutoDL backend.
+`v0.4.2` adds an explicitly separate AutoDL Private Cloud contract and records successful cold and stopped-container-reuse phase-zero Jobs. Private Cloud is now the selected M0 Provider; accepted experiments remain queued until the production scheduler, runner, and watchdog land in `v0.5.0`.
 
 ## Architecture
 
@@ -60,9 +60,10 @@ Phase-zero commands:
 ```bash
 ./bin/gemcp phase0 read --backend pro
 ./bin/gemcp phase0 read --backend elastic --region westDC2
+./bin/gemcp phase0 read --backend private
 ```
 
-A live Job probe is separately gated by a JSON specification, a conservative spend cap, and an exact confirmation phrase. Read [Phase-zero validation](docs/phase-zero.md) before using it.
+A live Job probe is separately gated by a backend-specific JSON specification, a conservative spend cap, and an exact confirmation phrase. Read [Phase-zero validation](docs/phase-zero.md) and the sanitized [Private Cloud validation](docs/private-cloud-validation.md) before using it.
 
 Generate both required bootstrap credentials on the deployment host:
 
@@ -89,6 +90,6 @@ Bind the origin to localhost and publish it through the configured Cloudflare Tu
 
 ## Security status
 
-No real AutoDL, SMTP, Git, or experiment secret belongs in this repository. Provider credentials will be encrypted at rest and configured only through the control plane setup flow.
+No real AutoDL, SMTP, Git, or experiment secret belongs in this repository. Provider credentials are encrypted at rest and configured only through the control-plane setup flow. Local phase-zero Token files and reports are Git-ignored and must be mode `0600` inside a mode `0700` directory.
 
 See [Architecture](docs/architecture.md) and [Roadmap](docs/roadmap.md).

@@ -1,4 +1,6 @@
 .pi/
+.phase0/
+autodl_token*
 .env
 .env.*
 !.env.example

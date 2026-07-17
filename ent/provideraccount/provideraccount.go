@@ -99,6 +99,7 @@ const DefaultBackend = BackendUnverified
 const (
 	BackendUnverified Backend = "unverified"
 	BackendElastic    Backend = "elastic"
+	BackendPrivate    Backend = "private"
 	BackendPro        Backend = "pro"
 )
 
@@ -109,7 +110,7 @@ func (b Backend) String() string {
 // BackendValidator is a validator for the "backend" field enum values. It is called by the builders before save.
 func BackendValidator(b Backend) error {
 	switch b {
-	case BackendUnverified, BackendElastic, BackendPro:
+	case BackendUnverified, BackendElastic, BackendPrivate, BackendPro:
 		return nil
 	default:
 		return fmt.Errorf("provideraccount: invalid enum value for backend field: %q", b)

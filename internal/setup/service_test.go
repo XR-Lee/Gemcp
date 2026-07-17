@@ -32,6 +32,25 @@ func TestValidateInput(t *testing.T) {
 	}
 }
 
+func TestValidateInputAcceptsPrivateCloud(t *testing.T) {
+	input := validInput()
+	input.Provider.BaseURL = "https://private.autodl.com"
+	input.ResourceProfile.Region = "private"
+	input.ResourceProfile.GPUNames = []string{"NVIDIA GeForce RTX 3090"}
+	input.ResourceProfile.CUDATo = input.ResourceProfile.CUDAFrom
+	if err := validateInput(input); err != nil {
+		t.Fatalf("validateInput() error = %v", err)
+	}
+}
+
+func TestValidateInputRejectsUnknownProviderHost(t *testing.T) {
+	input := validInput()
+	input.Provider.BaseURL = "https://autodl.attacker.example"
+	if err := validateInput(input); err == nil {
+		t.Fatal("validateInput() accepted an unknown Provider host")
+	}
+}
+
 func TestValidateInputRejectsBudgetInversion(t *testing.T) {
 	input := validInput()
 	input.Project.MaxExperimentMilli = input.Project.MonthlyBudgetMilli + 1

@@ -10,7 +10,7 @@ function response(data: unknown, status = 200) {
   }
 }
 
-const build = { name: 'Gemcp', version: '0.4.1', commit: 'abc123', built_at: 'now' }
+const build = { name: 'Gemcp', version: '0.4.2', commit: 'abc123', built_at: 'now' }
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -48,7 +48,7 @@ describe('App', () => {
 
     expect(wrapper.text()).toContain('Owner access')
     expect(wrapper.text()).toContain('Sign in')
-    expect(wrapper.text()).toContain('0.4.1')
+    expect(wrapper.text()).toContain('0.4.2')
   })
 
   it('loads the operations console for an authenticated Owner', async () => {

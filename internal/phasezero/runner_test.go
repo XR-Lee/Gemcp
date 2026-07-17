@@ -9,11 +9,13 @@ import (
 )
 
 type fakeJobAPI struct {
-	polls      int
-	created    bool
-	stopped    bool
-	deleted    bool
-	lastCreate autodl.ElasticDeploymentCreate
+	polls               int
+	created             bool
+	stopped             bool
+	deleted             bool
+	lastCreate          autodl.ElasticDeploymentCreate
+	lastPrivateCreate   autodl.PrivateElasticDeploymentCreate
+	runningWithFinished bool
 }
 
 func (f *fakeJobAPI) CreateElasticDeployment(_ context.Context, input autodl.ElasticDeploymentCreate) (autodl.DeploymentCreateResult, string, error) {
@@ -22,11 +24,19 @@ func (f *fakeJobAPI) CreateElasticDeployment(_ context.Context, input autodl.Ela
 	return autodl.DeploymentCreateResult{DeploymentUUID: "deployment-1"}, "req-create", nil
 }
 
+func (f *fakeJobAPI) CreatePrivateElasticDeployment(_ context.Context, input autodl.PrivateElasticDeploymentCreate) (autodl.DeploymentCreateResult, string, error) {
+	f.created = true
+	f.lastPrivateCreate = input
+	return autodl.DeploymentCreateResult{DeploymentUUID: "deployment-private"}, "req-create-private", nil
+}
+
 func (f *fakeJobAPI) ElasticDeployments(context.Context, int, int, string) (autodl.Page[autodl.Deployment], string, error) {
 	f.polls++
 	deployment := autodl.Deployment{UUID: "deployment-1", Status: "running", RunningNum: 1}
 	if f.polls >= 2 {
-		deployment.Status = "stopped"
+		if !f.runningWithFinished {
+			deployment.Status = "stopped"
+		}
 		deployment.RunningNum = 0
 		deployment.FinishedNum = 1
 	}
@@ -35,6 +45,10 @@ func (f *fakeJobAPI) ElasticDeployments(context.Context, int, int, string) (auto
 
 func (f *fakeJobAPI) ElasticContainers(context.Context, string, int, int) (autodl.Page[autodl.Container], string, error) {
 	return autodl.Page[autodl.Container]{List: []autodl.Container{{UUID: "container-1", Status: "running", PriceMilli: 2000}}}, "req-container", nil
+}
+
+func (f *fakeJobAPI) ElasticContainersWithReleased(context.Context, string, bool, int, int) (autodl.Page[autodl.Container], string, error) {
+	return autodl.Page[autodl.Container]{List: []autodl.Container{{UUID: "container-1", Status: "in_cache", PriceMilli: 2000}}}, "req-released-container", nil
 }
 
 func (f *fakeJobAPI) ElasticEvents(context.Context, string, int, int, int) (autodl.Page[autodl.ContainerEvent], string, error) {
@@ -71,14 +85,57 @@ func TestJobRunnerCompletesAndCleansUp(t *testing.T) {
 	if report.DeploymentUUID != "deployment-1" || report.TerminalStatus != "stopped" {
 		t.Fatalf("unexpected report: %+v", report)
 	}
-	if report.RequestIDs["cleanup_delete"] != "req-delete" {
+	if report.RequestIDs["cleanup_delete"] != "req-delete" || report.RequestIDs["released_containers"] != "req-released-container" {
 		t.Fatalf("cleanup request IDs missing: %+v", report.RequestIDs)
+	}
+	if len(report.ReleasedContainers) != 1 || report.ReleasedContainers[0].Status != "in_cache" {
+		t.Fatalf("released containers missing: %+v", report.ReleasedContainers)
 	}
 	if api.lastCreate.DeploymentType != "Job" || api.lastCreate.ReuseContainer {
 		t.Fatalf("unexpected deployment: %+v", api.lastCreate)
 	}
 	if api.lastCreate.ContainerTemplate.Command == "" {
 		t.Fatal("probe command is empty")
+	}
+}
+
+func TestJobRunnerTreatsFinishedCountAsTerminal(t *testing.T) {
+	api := &fakeJobAPI{runningWithFinished: true}
+	runner := NewJobRunner(api)
+	runner.Sleep = func(context.Context, time.Duration) error { return nil }
+
+	report, err := runner.Run(context.Background(), validJobSpec(), 100)
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.ProviderStatus != "running" || report.TerminalStatus != "finished" || report.FinishedNum != 1 {
+		t.Fatalf("unexpected terminal observation: %+v", report)
+	}
+}
+
+func TestPrivateJobRunnerUsesPrivateContract(t *testing.T) {
+	api := &fakeJobAPI{}
+	runner := NewJobRunner(api)
+	runner.Sleep = func(context.Context, time.Duration) error { return nil }
+	spec := validJobSpec()
+	spec.Backend = "private"
+	spec.Region = ""
+	spec.CUDAFrom = 0
+	spec.CUDATo = 0
+	spec.CUDAVersion = 118
+
+	report, err := runner.Run(context.Background(), spec, 100)
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Backend != "private" || report.DeploymentUUID != "deployment-private" {
+		t.Fatalf("unexpected report: %+v", report)
+	}
+	if api.lastPrivateCreate.ContainerTemplate.CUDAVersion != 118 {
+		t.Fatalf("private deployment = %+v", api.lastPrivateCreate)
+	}
+	if api.lastCreate.Name != "" {
+		t.Fatalf("public create path was used: %+v", api.lastCreate)
 	}
 }
 

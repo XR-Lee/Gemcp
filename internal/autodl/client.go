@@ -14,6 +14,7 @@ import (
 
 const (
 	DefaultBaseURL  = "https://api.autodl.com"
+	PrivateBaseURL  = "https://private.autodl.com"
 	maxResponseSize = 4 << 20
 )
 

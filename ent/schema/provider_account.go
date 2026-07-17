@@ -16,7 +16,7 @@ func (ProviderAccount) Fields() []ent.Field {
 		field.Int("tenant_id").Immutable(),
 		field.String("name").NotEmpty().MaxLen(120),
 		field.String("base_url").NotEmpty().MaxLen(512),
-		field.Enum("backend").Values("unverified", "elastic", "pro").Default("unverified"),
+		field.Enum("backend").Values("unverified", "elastic", "private", "pro").Default("unverified"),
 		field.String("credential_ciphertext").Sensitive(),
 		field.Enum("status").Values("pending_validation", "active", "disabled", "error").Default("pending_validation"),
 		field.Time("last_validated_at").Optional().Nillable(),
