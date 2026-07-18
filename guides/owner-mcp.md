@@ -123,6 +123,8 @@ Set `GEMCP_AGENT_TOKEN` before launching Codex and verify with `codex mcp list` 
 
 The client must support MCP Streamable HTTP and preserve the `Authorization` header on initialize, session, tool, resource, and prompt requests. Never follow an authenticated redirect to another origin.
 
+Gemcp primes an authenticated standalone SSE stream with a standard comment so reverse proxies forward it immediately. Clients that do not need server-initiated notifications may also disable the optional standalone SSE stream and use Streamable HTTP POST responses only.
+
 ## Agent handoff
 
 Give the Agent these items through separate channels:

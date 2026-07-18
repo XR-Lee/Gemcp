@@ -33,6 +33,24 @@ func (t bearerTransport) RoundTrip(request *http.Request) (*http.Response, error
 	return t.base.RoundTrip(clone)
 }
 
+func TestPrimeStandaloneSSEWritesCommentBeforeFlush(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	handler := primeStandaloneSSE(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		if err := http.NewResponseController(w).Flush(); err != nil {
+			t.Fatalf("Flush() error = %v", err)
+		}
+	}))
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/mcp", nil))
+	if got := recorder.Body.String(); got != ssePrimer {
+		t.Fatalf("primer body = %q, want %q", got, ssePrimer)
+	}
+	if !recorder.Flushed {
+		t.Fatal("response was not flushed")
+	}
+}
+
 func TestStreamableHTTPToolsWithAgentToken(t *testing.T) {
 	client := enttest.Open(t, dialect.SQLite, "file:mcp?mode=memory&cache=shared&_fk=1")
 	defer client.Close()
@@ -78,7 +96,7 @@ func TestStreamableHTTPToolsWithAgentToken(t *testing.T) {
 	httpClient := &http.Client{Transport: bearerTransport{token: rawToken, base: http.DefaultTransport}}
 	mcpClient := mcp.NewClient(&mcp.Implementation{Name: "gemcp-test", Version: "test"}, nil)
 	session, err := mcpClient.Connect(ctx, &mcp.StreamableClientTransport{
-		Endpoint: httpServer.URL, HTTPClient: httpClient, DisableStandaloneSSE: true,
+		Endpoint: httpServer.URL, HTTPClient: httpClient,
 	}, nil)
 	if err != nil {
 		t.Fatalf("Connect() error = %v", err)

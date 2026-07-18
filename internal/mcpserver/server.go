@@ -14,7 +14,10 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-const maxMCPRequestBytes = 1 << 20
+const (
+	maxMCPRequestBytes = 1 << 20
+	ssePrimer          = ": connected\n\n"
+)
 
 type Server struct {
 	agentAuth   *agentauth.Service
@@ -80,12 +83,43 @@ func New(agentAuth *agentauth.Service, experiments *experiment.Service, version 
 		DisableLocalhostProtection: true,
 	})
 	crossOrigin := http.NewCrossOriginProtection()
-	protected := crossOrigin.Handler(http.MaxBytesHandler(streamable, maxMCPRequestBytes))
+	protected := crossOrigin.Handler(http.MaxBytesHandler(primeStandaloneSSE(streamable), maxMCPRequestBytes))
 	server.handler = mcpauth.RequireBearerToken(server.verifyToken, nil)(protected)
 	return server
 }
 
 func (s *Server) Handler() http.Handler { return s.handler }
+
+// primeStandaloneSSE sends a valid SSE comment when the SDK first flushes an
+// authenticated standalone stream. Some reverse proxies buffer headers until
+// the first body bytes, which otherwise prevents clients from finishing setup.
+func primeStandaloneSSE(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
+		if request.Method == http.MethodGet {
+			w = &ssePrimerWriter{ResponseWriter: w}
+		}
+		next.ServeHTTP(w, request)
+	})
+}
+
+type ssePrimerWriter struct {
+	http.ResponseWriter
+	primed bool
+}
+
+func (w *ssePrimerWriter) FlushError() error {
+	if !w.primed && w.Header().Get("Content-Type") == "text/event-stream" {
+		w.primed = true
+		if _, err := w.ResponseWriter.Write([]byte(ssePrimer)); err != nil {
+			return err
+		}
+	}
+	return http.NewResponseController(w.ResponseWriter).Flush()
+}
+
+func (w *ssePrimerWriter) Flush() { _ = w.FlushError() }
+
+func (w *ssePrimerWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
 
 func (s *Server) getUsageGuide(_ context.Context, request *mcp.CallToolRequest, _ emptyInput) (*mcp.CallToolResult, UsageGuide, error) {
 	principal, err := principalFrom(request)

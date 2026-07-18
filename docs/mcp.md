@@ -181,7 +181,9 @@ Any MCP client that supports Streamable HTTP and custom headers can connect with
 }
 ```
 
-The client must preserve the `Authorization` header on initialize, session, and tool requests. It must not redirect authenticated requests to another origin. A `401` response means the Token is missing, malformed, expired, revoked, or no longer valid for the project.
+The client must preserve the `Authorization` header on initialize, session, Tool, Resource, and Prompt requests. It must not redirect authenticated requests to another origin. A `401` response means the Token is missing, malformed, expired, revoked, or no longer valid for the project.
+
+Gemcp sends a standard SSE comment immediately after a successful authenticated standalone stream opens. This ensures reverse proxies such as Cloudflare forward the stream before any server-initiated message exists. Clients that do not need server-initiated notifications may disable the optional standalone SSE stream and use Streamable HTTP POST responses only.
 
 ## Verify a new connection
 

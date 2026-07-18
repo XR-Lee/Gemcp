@@ -51,6 +51,10 @@ The initial downloader and all Runner requests send the stable `Gemcp-Runner/1` 
 
 The production host serves self-contained Owner and Agent operating guides, the Agents page provides a credential-safe onboarding and handoff workflow, and Agents can discover the same mandatory preflight and approval contract through `get_usage_guide`, `gemcp://docs/agent-guide`, or the `operate_gemcp` Prompt.
 
+### v0.8.1 - reverse-proxy SSE compatibility
+
+Authenticated standalone MCP SSE streams begin with a standard comment, ensuring Cloudflare and similar reverse proxies forward the successful stream before the first server-initiated message. POST-only Streamable HTTP remains supported.
+
 ## Further validation
 
 The following items still require the target environment or newly authorized paid resources:
