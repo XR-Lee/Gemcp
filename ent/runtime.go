@@ -5,6 +5,7 @@ package ent
 import (
 	"time"
 
+	"github.com/XR-Lee/Gemcp/ent/agentenrollment"
 	"github.com/XR-Lee/Gemcp/ent/agenttoken"
 	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/auditevent"
@@ -32,6 +33,47 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	agentenrollmentMixin := schema.AgentEnrollment{}.Mixin()
+	agentenrollmentMixinFields0 := agentenrollmentMixin[0].Fields()
+	_ = agentenrollmentMixinFields0
+	agentenrollmentFields := schema.AgentEnrollment{}.Fields()
+	_ = agentenrollmentFields
+	// agentenrollmentDescPublicID is the schema descriptor for public_id field.
+	agentenrollmentDescPublicID := agentenrollmentMixinFields0[0].Descriptor()
+	// agentenrollment.DefaultPublicID holds the default value on creation for the public_id field.
+	agentenrollment.DefaultPublicID = agentenrollmentDescPublicID.Default.(func() uuid.UUID)
+	// agentenrollmentDescCreatedAt is the schema descriptor for created_at field.
+	agentenrollmentDescCreatedAt := agentenrollmentMixinFields0[1].Descriptor()
+	// agentenrollment.DefaultCreatedAt holds the default value on creation for the created_at field.
+	agentenrollment.DefaultCreatedAt = agentenrollmentDescCreatedAt.Default.(func() time.Time)
+	// agentenrollmentDescUpdatedAt is the schema descriptor for updated_at field.
+	agentenrollmentDescUpdatedAt := agentenrollmentMixinFields0[2].Descriptor()
+	// agentenrollment.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	agentenrollment.DefaultUpdatedAt = agentenrollmentDescUpdatedAt.Default.(func() time.Time)
+	// agentenrollment.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	agentenrollment.UpdateDefaultUpdatedAt = agentenrollmentDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// agentenrollmentDescLabel is the schema descriptor for label field.
+	agentenrollmentDescLabel := agentenrollmentFields[1].Descriptor()
+	// agentenrollment.LabelValidator is a validator for the "label" field. It is called by the builders before save.
+	agentenrollment.LabelValidator = func() func(string) error {
+		validators := agentenrollmentDescLabel.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(label string) error {
+			for _, fn := range fns {
+				if err := fn(label); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// agentenrollmentDescTokenExpiresInDays is the schema descriptor for token_expires_in_days field.
+	agentenrollmentDescTokenExpiresInDays := agentenrollmentFields[6].Descriptor()
+	// agentenrollment.TokenExpiresInDaysValidator is a validator for the "token_expires_in_days" field. It is called by the builders before save.
+	agentenrollment.TokenExpiresInDaysValidator = agentenrollmentDescTokenExpiresInDays.Validators[0].(func(int) error)
 	agenttokenMixin := schema.AgentToken{}.Mixin()
 	agenttokenMixinFields0 := agenttokenMixin[0].Fields()
 	_ = agenttokenMixinFields0

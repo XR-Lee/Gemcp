@@ -54,6 +54,8 @@ const (
 	EdgeRepositories = "repositories"
 	// EdgeAgentTokens holds the string denoting the agent_tokens edge name in mutations.
 	EdgeAgentTokens = "agent_tokens"
+	// EdgeAgentEnrollments holds the string denoting the agent_enrollments edge name in mutations.
+	EdgeAgentEnrollments = "agent_enrollments"
 	// EdgeExperiments holds the string denoting the experiments edge name in mutations.
 	EdgeExperiments = "experiments"
 	// EdgeAttempts holds the string denoting the attempts edge name in mutations.
@@ -99,6 +101,13 @@ const (
 	AgentTokensInverseTable = "agent_tokens"
 	// AgentTokensColumn is the table column denoting the agent_tokens relation/edge.
 	AgentTokensColumn = "project_id"
+	// AgentEnrollmentsTable is the table that holds the agent_enrollments relation/edge.
+	AgentEnrollmentsTable = "agent_enrollments"
+	// AgentEnrollmentsInverseTable is the table name for the AgentEnrollment entity.
+	// It exists in this package in order to avoid circular dependency with the "agentenrollment" package.
+	AgentEnrollmentsInverseTable = "agent_enrollments"
+	// AgentEnrollmentsColumn is the table column denoting the agent_enrollments relation/edge.
+	AgentEnrollmentsColumn = "project_id"
 	// ExperimentsTable is the table that holds the experiments relation/edge.
 	ExperimentsTable = "experiments"
 	// ExperimentsInverseTable is the table name for the Experiment entity.
@@ -365,6 +374,20 @@ func ByAgentTokens(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// ByAgentEnrollmentsCount orders the results by agent_enrollments count.
+func ByAgentEnrollmentsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newAgentEnrollmentsStep(), opts...)
+	}
+}
+
+// ByAgentEnrollments orders the results by agent_enrollments terms.
+func ByAgentEnrollments(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newAgentEnrollmentsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByExperimentsCount orders the results by experiments count.
 func ByExperimentsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -453,6 +476,13 @@ func newAgentTokensStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(AgentTokensInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, AgentTokensTable, AgentTokensColumn),
+	)
+}
+func newAgentEnrollmentsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(AgentEnrollmentsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, AgentEnrollmentsTable, AgentEnrollmentsColumn),
 	)
 }
 func newExperimentsStep() *sqlgraph.Step {

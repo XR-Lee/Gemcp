@@ -12,7 +12,15 @@ Every request requires a project-scoped Agent Token:
 Authorization: Bearer gmc_<identifier>_<secret>
 ```
 
-Create a Token from the Owner console **Agents** page or the [Agent Token API](agent-tokens.md). Gemcp stores only an HMAC-SHA-256 digest. Revocation and expiration are checked on every HTTP request, and the authenticated Token identity is bound to the MCP session.
+For Pi, create a short-lived **Pi setup link** from the Owner console and let the Agent install its own credential. For other clients, create a Token from the advanced console action or the [Agent access API](agent-tokens.md). Gemcp stores only HMAC-SHA-256 digests. Revocation and expiration are checked on every HTTP request, and the authenticated Token identity is bound to the MCP session.
+
+## Pi with pi-mcp-adapter
+
+Gemcp's preferred Pi flow requires the already-installed `pi-mcp-adapter`. The Owner sends one URL from `/agent/setup#code=...`; the Agent reads the public setup instructions and runs the fixed installer from the same configured origin. The code remains in the URL fragment and is not sent by link previews or ordinary page requests.
+
+The installer merges a `gemcp-<project>` server into `<Pi agent dir>/mcp.json`, preserves existing servers, writes mode `0600`, exposes all eight bounded Gemcp tools through `directTools`, and verifies tool discovery plus guide, options, and cost calls. A local credential-reading helper supports the current session without printing the Token. One `/reload` activates native `gemcp-<project>_*` tools through the adapter.
+
+Claimed credentials remain `read`-only and expire at the setup deadline until verification completes. Completion activates the Owner-selected scopes and lifetime, clears the setup capability, and leaves only a credential-free local receipt. The complete API and installer are retry-safe if the final response is lost.
 
 ## Built-in operating guides
 

@@ -8,6 +8,56 @@ import (
 )
 
 var (
+	// AgentEnrollmentsColumns holds the columns for the "agent_enrollments" table.
+	AgentEnrollmentsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "public_id", Type: field.TypeUUID, Unique: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "label", Type: field.TypeString, Size: 120},
+		{Name: "code_hash", Type: field.TypeBytes, Unique: true},
+		{Name: "scopes", Type: field.TypeJSON},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "claimed", "completed", "revoked"}, Default: "pending"},
+		{Name: "expires_at", Type: field.TypeTime},
+		{Name: "token_expires_in_days", Type: field.TypeInt, Nullable: true},
+		{Name: "claimed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "completed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "verification", Type: field.TypeJSON, Nullable: true},
+		{Name: "agent_token_id", Type: field.TypeInt, Nullable: true},
+		{Name: "project_id", Type: field.TypeInt},
+	}
+	// AgentEnrollmentsTable holds the schema information for the "agent_enrollments" table.
+	AgentEnrollmentsTable = &schema.Table{
+		Name:       "agent_enrollments",
+		Columns:    AgentEnrollmentsColumns,
+		PrimaryKey: []*schema.Column{AgentEnrollmentsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "agent_enrollments_agent_tokens_agent_token",
+				Columns:    []*schema.Column{AgentEnrollmentsColumns[13]},
+				RefColumns: []*schema.Column{AgentTokensColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+			{
+				Symbol:     "agent_enrollments_projects_agent_enrollments",
+				Columns:    []*schema.Column{AgentEnrollmentsColumns[14]},
+				RefColumns: []*schema.Column{ProjectsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "agentenrollment_project_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{AgentEnrollmentsColumns[14], AgentEnrollmentsColumns[7]},
+			},
+			{
+				Name:    "agentenrollment_expires_at",
+				Unique:  false,
+				Columns: []*schema.Column{AgentEnrollmentsColumns[8]},
+			},
+		},
+	}
 	// AgentTokensColumns holds the columns for the "agent_tokens" table.
 	AgentTokensColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -127,7 +177,7 @@ var (
 		{Name: "public_id", Type: field.TypeUUID, Unique: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
-		{Name: "actor_type", Type: field.TypeEnum, Enums: []string{"system", "user", "agent_token"}, Default: "system"},
+		{Name: "actor_type", Type: field.TypeEnum, Enums: []string{"system", "user", "agent_token", "agent_enrollment"}, Default: "system"},
 		{Name: "actor_id", Type: field.TypeString, Nullable: true, Size: 120},
 		{Name: "action", Type: field.TypeString, Size: 160},
 		{Name: "target_type", Type: field.TypeString, Size: 80},
@@ -879,6 +929,7 @@ var (
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		AgentEnrollmentsTable,
 		AgentTokensTable,
 		AttemptsTable,
 		AuditEventsTable,
@@ -902,6 +953,8 @@ var (
 )
 
 func init() {
+	AgentEnrollmentsTable.ForeignKeys[0].RefTable = AgentTokensTable
+	AgentEnrollmentsTable.ForeignKeys[1].RefTable = ProjectsTable
 	AgentTokensTable.ForeignKeys[0].RefTable = ProjectsTable
 	AttemptsTable.ForeignKeys[0].RefTable = ExperimentsTable
 	AttemptsTable.ForeignKeys[1].RefTable = ProjectsTable

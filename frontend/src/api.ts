@@ -51,12 +51,36 @@ export type MCPConfig = {
   mcpServers: Record<string, MCPServerConfig>
 }
 
+export type AgentEnrollment = {
+  id: string
+  project_id: string
+  label: string
+  scopes: AgentScope[]
+  status: 'pending' | 'claimed' | 'completed' | 'expired' | 'revoked'
+  expires_at: string
+  token_expires_in_days?: number
+  claimed_at?: string
+  completed_at?: string
+  agent_token_id?: string
+  agent_token_prefix?: string
+  created_at: string
+  updated_at: string
+}
+
 export type AgentTokenList = {
   tokens: AgentToken[]
+  enrollments: AgentEnrollment[]
   mcp_url?: string
   config_template?: MCPConfig
   config_file_name: string
   truncated?: boolean
+  enrollments_truncated?: boolean
+}
+
+export type AgentEnrollmentIssue = {
+  enrollment: AgentEnrollment
+  setup_url: string
+  installer_url: string
 }
 
 export type AgentTokenIssue = {
@@ -393,6 +417,16 @@ export const api = {
   }) => request<AgentTokenIssue>(`/api/v1/projects/${encodeURIComponent(projectID)}/agent-tokens`, {
     method: 'POST', body: JSON.stringify(payload),
   }),
+  issueAgentEnrollment: (projectID: string, payload: {
+    label: string; scopes: AgentScope[]; expires_in_days?: number; never_expires: boolean;
+    setup_expires_in_minutes: number;
+  }) => request<AgentEnrollmentIssue>(`/api/v1/projects/${encodeURIComponent(projectID)}/agent-enrollments`, {
+    method: 'POST', body: JSON.stringify(payload),
+  }),
+  revokeAgentEnrollment: (projectID: string, enrollmentID: string) =>
+    request<AgentEnrollment>(`/api/v1/projects/${encodeURIComponent(projectID)}/agent-enrollments/${encodeURIComponent(enrollmentID)}`, {
+      method: 'DELETE',
+    }),
   revokeAgentToken: (projectID: string, tokenID: string) =>
     request<AgentToken>(`/api/v1/projects/${encodeURIComponent(projectID)}/agent-tokens/${encodeURIComponent(tokenID)}`, {
       method: 'DELETE',

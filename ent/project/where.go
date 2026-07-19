@@ -831,6 +831,29 @@ func HasAgentTokensWith(preds ...predicate.AgentToken) predicate.Project {
 	})
 }
 
+// HasAgentEnrollments applies the HasEdge predicate on the "agent_enrollments" edge.
+func HasAgentEnrollments() predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, AgentEnrollmentsTable, AgentEnrollmentsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasAgentEnrollmentsWith applies the HasEdge predicate on the "agent_enrollments" edge with a given conditions (other predicates).
+func HasAgentEnrollmentsWith(preds ...predicate.AgentEnrollment) predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := newAgentEnrollmentsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasExperiments applies the HasEdge predicate on the "experiments" edge.
 func HasExperiments() predicate.Project {
 	return predicate.Project(func(s *sql.Selector) {

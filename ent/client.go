@@ -15,6 +15,7 @@ import (
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"github.com/XR-Lee/Gemcp/ent/agentenrollment"
 	"github.com/XR-Lee/Gemcp/ent/agenttoken"
 	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/auditevent"
@@ -41,6 +42,8 @@ type Client struct {
 	config
 	// Schema is the client for creating, migrating and dropping schema.
 	Schema *migrate.Schema
+	// AgentEnrollment is the client for interacting with the AgentEnrollment builders.
+	AgentEnrollment *AgentEnrollmentClient
 	// AgentToken is the client for interacting with the AgentToken builders.
 	AgentToken *AgentTokenClient
 	// Attempt is the client for interacting with the Attempt builders.
@@ -90,6 +93,7 @@ func NewClient(opts ...Option) *Client {
 
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
+	c.AgentEnrollment = NewAgentEnrollmentClient(c.config)
 	c.AgentToken = NewAgentTokenClient(c.config)
 	c.Attempt = NewAttemptClient(c.config)
 	c.AuditEvent = NewAuditEventClient(c.config)
@@ -201,6 +205,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	return &Tx{
 		ctx:                 ctx,
 		config:              cfg,
+		AgentEnrollment:     NewAgentEnrollmentClient(cfg),
 		AgentToken:          NewAgentTokenClient(cfg),
 		Attempt:             NewAttemptClient(cfg),
 		AuditEvent:          NewAuditEventClient(cfg),
@@ -239,6 +244,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	return &Tx{
 		ctx:                 ctx,
 		config:              cfg,
+		AgentEnrollment:     NewAgentEnrollmentClient(cfg),
 		AgentToken:          NewAgentTokenClient(cfg),
 		Attempt:             NewAttemptClient(cfg),
 		AuditEvent:          NewAuditEventClient(cfg),
@@ -264,7 +270,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 // Debug returns a new debug-client. It's used to get verbose logging on specific operations.
 //
 //	client.Debug().
-//		AgentToken.
+//		AgentEnrollment.
 //		Query().
 //		Count(ctx)
 func (c *Client) Debug() *Client {
@@ -287,10 +293,11 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.AgentToken, c.Attempt, c.AuditEvent, c.BudgetEntry, c.Environment,
-		c.Experiment, c.IdempotencyRecord, c.Notification, c.NotificationSetting,
-		c.Project, c.ProviderAccount, c.ProviderResource, c.RecordMixin, c.Repository,
-		c.ResourceProfile, c.ServiceHeartbeat, c.Session, c.Tenant, c.User,
+		c.AgentEnrollment, c.AgentToken, c.Attempt, c.AuditEvent, c.BudgetEntry,
+		c.Environment, c.Experiment, c.IdempotencyRecord, c.Notification,
+		c.NotificationSetting, c.Project, c.ProviderAccount, c.ProviderResource,
+		c.RecordMixin, c.Repository, c.ResourceProfile, c.ServiceHeartbeat, c.Session,
+		c.Tenant, c.User,
 	} {
 		n.Use(hooks...)
 	}
@@ -300,10 +307,11 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.AgentToken, c.Attempt, c.AuditEvent, c.BudgetEntry, c.Environment,
-		c.Experiment, c.IdempotencyRecord, c.Notification, c.NotificationSetting,
-		c.Project, c.ProviderAccount, c.ProviderResource, c.RecordMixin, c.Repository,
-		c.ResourceProfile, c.ServiceHeartbeat, c.Session, c.Tenant, c.User,
+		c.AgentEnrollment, c.AgentToken, c.Attempt, c.AuditEvent, c.BudgetEntry,
+		c.Environment, c.Experiment, c.IdempotencyRecord, c.Notification,
+		c.NotificationSetting, c.Project, c.ProviderAccount, c.ProviderResource,
+		c.RecordMixin, c.Repository, c.ResourceProfile, c.ServiceHeartbeat, c.Session,
+		c.Tenant, c.User,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -312,6 +320,8 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 // Mutate implements the ent.Mutator interface.
 func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
+	case *AgentEnrollmentMutation:
+		return c.AgentEnrollment.mutate(ctx, m)
 	case *AgentTokenMutation:
 		return c.AgentToken.mutate(ctx, m)
 	case *AttemptMutation:
@@ -352,6 +362,171 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.User.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
+	}
+}
+
+// AgentEnrollmentClient is a client for the AgentEnrollment schema.
+type AgentEnrollmentClient struct {
+	config
+}
+
+// NewAgentEnrollmentClient returns a client for the AgentEnrollment from the given config.
+func NewAgentEnrollmentClient(c config) *AgentEnrollmentClient {
+	return &AgentEnrollmentClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `agentenrollment.Hooks(f(g(h())))`.
+func (c *AgentEnrollmentClient) Use(hooks ...Hook) {
+	c.hooks.AgentEnrollment = append(c.hooks.AgentEnrollment, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `agentenrollment.Intercept(f(g(h())))`.
+func (c *AgentEnrollmentClient) Intercept(interceptors ...Interceptor) {
+	c.inters.AgentEnrollment = append(c.inters.AgentEnrollment, interceptors...)
+}
+
+// Create returns a builder for creating a AgentEnrollment entity.
+func (c *AgentEnrollmentClient) Create() *AgentEnrollmentCreate {
+	mutation := newAgentEnrollmentMutation(c.config, OpCreate)
+	return &AgentEnrollmentCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of AgentEnrollment entities.
+func (c *AgentEnrollmentClient) CreateBulk(builders ...*AgentEnrollmentCreate) *AgentEnrollmentCreateBulk {
+	return &AgentEnrollmentCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *AgentEnrollmentClient) MapCreateBulk(slice any, setFunc func(*AgentEnrollmentCreate, int)) *AgentEnrollmentCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &AgentEnrollmentCreateBulk{err: fmt.Errorf("calling to AgentEnrollmentClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*AgentEnrollmentCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &AgentEnrollmentCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for AgentEnrollment.
+func (c *AgentEnrollmentClient) Update() *AgentEnrollmentUpdate {
+	mutation := newAgentEnrollmentMutation(c.config, OpUpdate)
+	return &AgentEnrollmentUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *AgentEnrollmentClient) UpdateOne(_m *AgentEnrollment) *AgentEnrollmentUpdateOne {
+	mutation := newAgentEnrollmentMutation(c.config, OpUpdateOne, withAgentEnrollment(_m))
+	return &AgentEnrollmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *AgentEnrollmentClient) UpdateOneID(id int) *AgentEnrollmentUpdateOne {
+	mutation := newAgentEnrollmentMutation(c.config, OpUpdateOne, withAgentEnrollmentID(id))
+	return &AgentEnrollmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for AgentEnrollment.
+func (c *AgentEnrollmentClient) Delete() *AgentEnrollmentDelete {
+	mutation := newAgentEnrollmentMutation(c.config, OpDelete)
+	return &AgentEnrollmentDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *AgentEnrollmentClient) DeleteOne(_m *AgentEnrollment) *AgentEnrollmentDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *AgentEnrollmentClient) DeleteOneID(id int) *AgentEnrollmentDeleteOne {
+	builder := c.Delete().Where(agentenrollment.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &AgentEnrollmentDeleteOne{builder}
+}
+
+// Query returns a query builder for AgentEnrollment.
+func (c *AgentEnrollmentClient) Query() *AgentEnrollmentQuery {
+	return &AgentEnrollmentQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeAgentEnrollment},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a AgentEnrollment entity by its id.
+func (c *AgentEnrollmentClient) Get(ctx context.Context, id int) (*AgentEnrollment, error) {
+	return c.Query().Where(agentenrollment.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *AgentEnrollmentClient) GetX(ctx context.Context, id int) *AgentEnrollment {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryProject queries the project edge of a AgentEnrollment.
+func (c *AgentEnrollmentClient) QueryProject(_m *AgentEnrollment) *ProjectQuery {
+	query := (&ProjectClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(agentenrollment.Table, agentenrollment.FieldID, id),
+			sqlgraph.To(project.Table, project.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, agentenrollment.ProjectTable, agentenrollment.ProjectColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryAgentToken queries the agent_token edge of a AgentEnrollment.
+func (c *AgentEnrollmentClient) QueryAgentToken(_m *AgentEnrollment) *AgentTokenQuery {
+	query := (&AgentTokenClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(agentenrollment.Table, agentenrollment.FieldID, id),
+			sqlgraph.To(agenttoken.Table, agenttoken.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, agentenrollment.AgentTokenTable, agentenrollment.AgentTokenColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *AgentEnrollmentClient) Hooks() []Hook {
+	return c.hooks.AgentEnrollment
+}
+
+// Interceptors returns the client interceptors.
+func (c *AgentEnrollmentClient) Interceptors() []Interceptor {
+	return c.inters.AgentEnrollment
+}
+
+func (c *AgentEnrollmentClient) mutate(ctx context.Context, m *AgentEnrollmentMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&AgentEnrollmentCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&AgentEnrollmentUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&AgentEnrollmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&AgentEnrollmentDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown AgentEnrollment mutation op: %q", m.Op())
 	}
 }
 
@@ -2188,6 +2363,22 @@ func (c *ProjectClient) QueryAgentTokens(_m *Project) *AgentTokenQuery {
 	return query
 }
 
+// QueryAgentEnrollments queries the agent_enrollments edge of a Project.
+func (c *ProjectClient) QueryAgentEnrollments(_m *Project) *AgentEnrollmentQuery {
+	query := (&AgentEnrollmentClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, id),
+			sqlgraph.To(agentenrollment.Table, agentenrollment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.AgentEnrollmentsTable, project.AgentEnrollmentsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryExperiments queries the experiments edge of a Project.
 func (c *ProjectClient) QueryExperiments(_m *Project) *ExperimentQuery {
 	query := (&ExperimentClient{config: c.config}).Query()
@@ -3877,15 +4068,15 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		AgentToken, Attempt, AuditEvent, BudgetEntry, Environment, Experiment,
-		IdempotencyRecord, Notification, NotificationSetting, Project, ProviderAccount,
-		ProviderResource, RecordMixin, Repository, ResourceProfile, ServiceHeartbeat,
-		Session, Tenant, User []ent.Hook
+		AgentEnrollment, AgentToken, Attempt, AuditEvent, BudgetEntry, Environment,
+		Experiment, IdempotencyRecord, Notification, NotificationSetting, Project,
+		ProviderAccount, ProviderResource, RecordMixin, Repository, ResourceProfile,
+		ServiceHeartbeat, Session, Tenant, User []ent.Hook
 	}
 	inters struct {
-		AgentToken, Attempt, AuditEvent, BudgetEntry, Environment, Experiment,
-		IdempotencyRecord, Notification, NotificationSetting, Project, ProviderAccount,
-		ProviderResource, RecordMixin, Repository, ResourceProfile, ServiceHeartbeat,
-		Session, Tenant, User []ent.Interceptor
+		AgentEnrollment, AgentToken, Attempt, AuditEvent, BudgetEntry, Environment,
+		Experiment, IdempotencyRecord, Notification, NotificationSetting, Project,
+		ProviderAccount, ProviderResource, RecordMixin, Repository, ResourceProfile,
+		ServiceHeartbeat, Session, Tenant, User []ent.Interceptor
 	}
 )

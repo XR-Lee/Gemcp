@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/XR-Lee/Gemcp/ent/agentenrollment"
 	"github.com/XR-Lee/Gemcp/ent/agenttoken"
 	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
@@ -284,6 +285,21 @@ func (_u *ProjectUpdate) AddAgentTokens(v ...*AgentToken) *ProjectUpdate {
 	return _u.AddAgentTokenIDs(ids...)
 }
 
+// AddAgentEnrollmentIDs adds the "agent_enrollments" edge to the AgentEnrollment entity by IDs.
+func (_u *ProjectUpdate) AddAgentEnrollmentIDs(ids ...int) *ProjectUpdate {
+	_u.mutation.AddAgentEnrollmentIDs(ids...)
+	return _u
+}
+
+// AddAgentEnrollments adds the "agent_enrollments" edges to the AgentEnrollment entity.
+func (_u *ProjectUpdate) AddAgentEnrollments(v ...*AgentEnrollment) *ProjectUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddAgentEnrollmentIDs(ids...)
+}
+
 // AddExperimentIDs adds the "experiments" edge to the Experiment entity by IDs.
 func (_u *ProjectUpdate) AddExperimentIDs(ids ...int) *ProjectUpdate {
 	_u.mutation.AddExperimentIDs(ids...)
@@ -431,6 +447,27 @@ func (_u *ProjectUpdate) RemoveAgentTokens(v ...*AgentToken) *ProjectUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveAgentTokenIDs(ids...)
+}
+
+// ClearAgentEnrollments clears all "agent_enrollments" edges to the AgentEnrollment entity.
+func (_u *ProjectUpdate) ClearAgentEnrollments() *ProjectUpdate {
+	_u.mutation.ClearAgentEnrollments()
+	return _u
+}
+
+// RemoveAgentEnrollmentIDs removes the "agent_enrollments" edge to AgentEnrollment entities by IDs.
+func (_u *ProjectUpdate) RemoveAgentEnrollmentIDs(ids ...int) *ProjectUpdate {
+	_u.mutation.RemoveAgentEnrollmentIDs(ids...)
+	return _u
+}
+
+// RemoveAgentEnrollments removes "agent_enrollments" edges to AgentEnrollment entities.
+func (_u *ProjectUpdate) RemoveAgentEnrollments(v ...*AgentEnrollment) *ProjectUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveAgentEnrollmentIDs(ids...)
 }
 
 // ClearExperiments clears all "experiments" edges to the Experiment entity.
@@ -847,6 +884,51 @@ func (_u *ProjectUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(agenttoken.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.AgentEnrollmentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.AgentEnrollmentsTable,
+			Columns: []string{project.AgentEnrollmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(agentenrollment.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedAgentEnrollmentsIDs(); len(nodes) > 0 && !_u.mutation.AgentEnrollmentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.AgentEnrollmentsTable,
+			Columns: []string{project.AgentEnrollmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(agentenrollment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.AgentEnrollmentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.AgentEnrollmentsTable,
+			Columns: []string{project.AgentEnrollmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(agentenrollment.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -1302,6 +1384,21 @@ func (_u *ProjectUpdateOne) AddAgentTokens(v ...*AgentToken) *ProjectUpdateOne {
 	return _u.AddAgentTokenIDs(ids...)
 }
 
+// AddAgentEnrollmentIDs adds the "agent_enrollments" edge to the AgentEnrollment entity by IDs.
+func (_u *ProjectUpdateOne) AddAgentEnrollmentIDs(ids ...int) *ProjectUpdateOne {
+	_u.mutation.AddAgentEnrollmentIDs(ids...)
+	return _u
+}
+
+// AddAgentEnrollments adds the "agent_enrollments" edges to the AgentEnrollment entity.
+func (_u *ProjectUpdateOne) AddAgentEnrollments(v ...*AgentEnrollment) *ProjectUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddAgentEnrollmentIDs(ids...)
+}
+
 // AddExperimentIDs adds the "experiments" edge to the Experiment entity by IDs.
 func (_u *ProjectUpdateOne) AddExperimentIDs(ids ...int) *ProjectUpdateOne {
 	_u.mutation.AddExperimentIDs(ids...)
@@ -1449,6 +1546,27 @@ func (_u *ProjectUpdateOne) RemoveAgentTokens(v ...*AgentToken) *ProjectUpdateOn
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveAgentTokenIDs(ids...)
+}
+
+// ClearAgentEnrollments clears all "agent_enrollments" edges to the AgentEnrollment entity.
+func (_u *ProjectUpdateOne) ClearAgentEnrollments() *ProjectUpdateOne {
+	_u.mutation.ClearAgentEnrollments()
+	return _u
+}
+
+// RemoveAgentEnrollmentIDs removes the "agent_enrollments" edge to AgentEnrollment entities by IDs.
+func (_u *ProjectUpdateOne) RemoveAgentEnrollmentIDs(ids ...int) *ProjectUpdateOne {
+	_u.mutation.RemoveAgentEnrollmentIDs(ids...)
+	return _u
+}
+
+// RemoveAgentEnrollments removes "agent_enrollments" edges to AgentEnrollment entities.
+func (_u *ProjectUpdateOne) RemoveAgentEnrollments(v ...*AgentEnrollment) *ProjectUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveAgentEnrollmentIDs(ids...)
 }
 
 // ClearExperiments clears all "experiments" edges to the Experiment entity.
@@ -1895,6 +2013,51 @@ func (_u *ProjectUpdateOne) sqlSave(ctx context.Context) (_node *Project, err er
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(agenttoken.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.AgentEnrollmentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.AgentEnrollmentsTable,
+			Columns: []string{project.AgentEnrollmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(agentenrollment.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedAgentEnrollmentsIDs(); len(nodes) > 0 && !_u.mutation.AgentEnrollmentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.AgentEnrollmentsTable,
+			Columns: []string{project.AgentEnrollmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(agentenrollment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.AgentEnrollmentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.AgentEnrollmentsTable,
+			Columns: []string{project.AgentEnrollmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(agentenrollment.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

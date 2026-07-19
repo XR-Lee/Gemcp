@@ -6,6 +6,9 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
+// AgentEnrollment is the predicate function for agentenrollment builders.
+type AgentEnrollment func(*sql.Selector)
+
 // AgentToken is the predicate function for agenttoken builders.
 type AgentToken func(*sql.Selector)
 

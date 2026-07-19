@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -56,8 +57,9 @@ func newFixture(t *testing.T) *fixture {
 	}
 	now := time.Now().UTC().Truncate(time.Second)
 	service := NewService(client, box, "https://gemcp.example.com/")
-	service.now = func() time.Time { return now }
-	return &fixture{client: client, box: box, tenant: tenant, project: project, service: service, now: now}
+	result := &fixture{client: client, box: box, tenant: tenant, project: project, service: service, now: now}
+	service.now = func() time.Time { return result.now }
+	return result
 }
 
 func TestIssueListAuthenticateAndRevoke(t *testing.T) {
@@ -230,6 +232,188 @@ func TestActiveLimitAndBoundedList(t *testing.T) {
 	listed, err := f.service.List(ctx, f.tenant.ID, f.project.PublicID.String())
 	if err != nil || len(listed.Tokens) != maxListedTokens || !listed.Truncated {
 		t.Fatalf("bounded List() count=%d truncated=%t err=%v", len(listed.Tokens), listed.Truncated, err)
+	}
+}
+
+func TestPiEnrollmentClaimCompleteAndSecretHygiene(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	setupMinutes := 15
+	tokenDays := 30
+	if _, err := f.service.IssueEnrollment(ctx, f.tenant.ID, "owner-id", f.project.PublicID.String(), EnrollmentIssueInput{
+		Label: "write-only", Scopes: []string{"submit"}, ExpiresInDays: &tokenDays, SetupExpiresInMinutes: &setupMinutes,
+	}); err == nil {
+		t.Fatal("IssueEnrollment() accepted scopes without read")
+	}
+	issued, err := f.service.IssueEnrollment(ctx, f.tenant.ID, "owner-id", f.project.PublicID.String(), EnrollmentIssueInput{
+		Label: "pi-experiment-agent", Scopes: []string{"read", "submit", "cancel"},
+		ExpiresInDays: &tokenDays, SetupExpiresInMinutes: &setupMinutes,
+	})
+	if err != nil {
+		t.Fatalf("IssueEnrollment() error = %v", err)
+	}
+	parsed, err := url.Parse(issued.SetupURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	code := parsed.Fragment
+	values, err := url.ParseQuery(code)
+	if err != nil {
+		t.Fatal(err)
+	}
+	code = values.Get("code")
+	if !strings.HasPrefix(code, "gme_") || parsed.RawQuery != "" || parsed.Path != "/agent/setup" {
+		t.Fatalf("setup URL = %q", issued.SetupURL)
+	}
+	if issued.InstallerURL != "https://gemcp.example.com/agent/setup/install.mjs" || issued.Enrollment.Status != "pending" {
+		t.Fatalf("issue result = %+v", issued)
+	}
+	if count, _ := f.client.AgentToken.Query().Count(ctx); count != 0 {
+		t.Fatalf("Agent token count before claim = %d", count)
+	}
+	listed, err := f.service.List(ctx, f.tenant.ID, f.project.PublicID.String())
+	if err != nil || len(listed.Enrollments) != 1 || listed.Enrollments[0].Status != "pending" {
+		t.Fatalf("List() enrollments=%+v err=%v", listed.Enrollments, err)
+	}
+	listedJSON, _ := json.Marshal(listed)
+	if strings.Contains(string(listedJSON), code) {
+		t.Fatal("list response contains setup code")
+	}
+
+	claimed, err := f.service.ClaimEnrollment(ctx, code)
+	if err != nil {
+		t.Fatalf("ClaimEnrollment() error = %v", err)
+	}
+	if claimed.ProjectID != f.project.PublicID.String() || claimed.ServerName != "gemcp-research" || strings.Join(claimed.Scopes, ",") != "read,submit,cancel" || claimed.PiConfig.Auth != "bearer" || len(claimed.PiConfig.DirectTools) != 8 {
+		t.Fatalf("claim result = %+v", claimed)
+	}
+	if claimed.PiConfig.BearerToken != claimed.AgentToken || claimed.GuideURL != "https://gemcp.example.com/docs/agent-mcp.md" {
+		t.Fatalf("claim config = %+v", claimed)
+	}
+	claimedList, err := f.service.List(ctx, f.tenant.ID, f.project.PublicID.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	claimedListJSON, _ := json.Marshal(claimedList)
+	if strings.Contains(string(claimedListJSON), code) || strings.Contains(string(claimedListJSON), claimed.AgentToken) {
+		t.Fatal("claimed enrollment list contains a setup or Agent secret")
+	}
+	tokenRecord, err := f.client.AgentToken.Query().Only(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tokenRecord.ExpiresAt == nil || !tokenRecord.ExpiresAt.Equal(f.now.Add(15*time.Minute)) {
+		t.Fatalf("provisional token expires_at = %v", tokenRecord.ExpiresAt)
+	}
+	provisionalPrincipal, err := agentauth.NewService(f.client, f.box).Authenticate(ctx, claimed.AgentToken)
+	if err != nil {
+		t.Fatalf("provisional token authentication error = %v", err)
+	}
+	if len(provisionalPrincipal.Scopes) != 1 || provisionalPrincipal.Scopes[0] != "read" {
+		t.Fatalf("provisional token scopes = %v", provisionalPrincipal.Scopes)
+	}
+	retried, err := f.service.ClaimEnrollment(ctx, code)
+	if err != nil || retried.AgentToken != claimed.AgentToken {
+		t.Fatalf("idempotent claim result=%+v err=%v", retried, err)
+	}
+	if _, err := f.service.CompleteEnrollment(ctx, code, EnrollmentCompleteInput{
+		Client: "pi-mcp-adapter/2.10.0", ToolCount: 7, Checks: []string{"tools", "guide", "options"},
+	}); err == nil {
+		t.Fatal("CompleteEnrollment() accepted incomplete verification")
+	}
+
+	completed, err := f.service.CompleteEnrollment(ctx, code, EnrollmentCompleteInput{
+		Client: "pi-mcp-adapter/2.10.0", ToolCount: 8, Checks: []string{"tools", "guide", "options", "cost"},
+	})
+	if err != nil {
+		t.Fatalf("CompleteEnrollment() error = %v", err)
+	}
+	if completed.Enrollment.Status != "completed" || completed.Enrollment.AgentTokenPrefix != completed.Token.Prefix || strings.Join(completed.Token.Scopes, ",") != "read,submit,cancel" || completed.Token.ExpiresAt == nil || !completed.Token.ExpiresAt.Equal(f.now.Add(30*24*time.Hour)) {
+		t.Fatalf("complete result = %+v", completed)
+	}
+	retriedCompletion, err := f.service.CompleteEnrollment(ctx, code, EnrollmentCompleteInput{
+		Client: "pi-mcp-adapter/2.10.0", ToolCount: 8, Checks: []string{"tools", "guide", "options", "cost"},
+	})
+	if err != nil || retriedCompletion.Enrollment.ID != completed.Enrollment.ID || retriedCompletion.Enrollment.AgentTokenPrefix != completed.Token.Prefix {
+		t.Fatalf("idempotent completion result=%+v err=%v", retriedCompletion, err)
+	}
+	storedEnrollment, err := f.client.AgentEnrollment.Query().Only(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if storedEnrollment.Status != "completed" || storedEnrollment.Verification["client"] != "pi-mcp-adapter/2.10.0" {
+		t.Fatalf("stored enrollment = %+v", storedEnrollment)
+	}
+	if _, err := f.service.ClaimEnrollment(ctx, code); !errors.Is(err, ErrEnrollmentInvalid) {
+		t.Fatalf("claim after complete error = %v", err)
+	}
+
+	audits, err := f.client.AuditEvent.Query().All(ctx)
+	if err != nil || len(audits) != 4 {
+		t.Fatalf("audit events=%+v err=%v", audits, err)
+	}
+	for _, audit := range audits {
+		encoded, _ := json.Marshal(audit.Metadata)
+		if strings.Contains(string(encoded), code) || strings.Contains(string(encoded), claimed.AgentToken) {
+			t.Fatal("audit metadata contains an enrollment or Agent secret")
+		}
+	}
+}
+
+func TestPiEnrollmentExpiryAndRevocation(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	minutes := 5
+	issued, err := f.service.IssueEnrollment(ctx, f.tenant.ID, "owner", f.project.PublicID.String(), EnrollmentIssueInput{
+		Label: "revocable", SetupExpiresInMinutes: &minutes,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsed, _ := url.Parse(issued.SetupURL)
+	values, _ := url.ParseQuery(parsed.Fragment)
+	code := values.Get("code")
+	claimed, err := f.service.ClaimEnrollment(ctx, code)
+	if err != nil {
+		t.Fatal(err)
+	}
+	revoked, err := f.service.RevokeEnrollment(ctx, f.tenant.ID, "owner", f.project.PublicID.String(), issued.Enrollment.ID)
+	if err != nil || revoked.Status != "revoked" {
+		t.Fatalf("RevokeEnrollment() result=%+v err=%v", revoked, err)
+	}
+	if _, err := agentauth.NewService(f.client, f.box).Authenticate(ctx, claimed.AgentToken); !errors.Is(err, agentauth.ErrInvalidToken) {
+		t.Fatalf("authentication after enrollment revocation error = %v", err)
+	}
+	if _, err := f.service.ClaimEnrollment(ctx, code); !errors.Is(err, ErrEnrollmentInvalid) {
+		t.Fatalf("claim after revocation error = %v", err)
+	}
+	audits, err := f.client.AuditEvent.Query().All(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actions := make(map[string]bool, len(audits))
+	for _, audit := range audits {
+		actions[audit.Action] = true
+	}
+	if !actions["agent_token.revoked"] || !actions["agent_enrollment.revoked"] {
+		t.Fatalf("revocation audit actions = %v", actions)
+	}
+
+	expiring, err := f.service.IssueEnrollment(ctx, f.tenant.ID, "owner", f.project.PublicID.String(), EnrollmentIssueInput{
+		Label: "expiring", SetupExpiresInMinutes: &minutes,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	expiringURL, _ := url.Parse(expiring.SetupURL)
+	expiringValues, _ := url.ParseQuery(expiringURL.Fragment)
+	f.now = f.now.Add(6 * time.Minute)
+	if _, err := f.service.ClaimEnrollment(ctx, expiringValues.Get("code")); !errors.Is(err, ErrEnrollmentInvalid) {
+		t.Fatalf("expired claim error = %v", err)
+	}
+	listed, err := f.service.List(ctx, f.tenant.ID, f.project.PublicID.String())
+	if err != nil || listed.Enrollments[0].Status != "expired" {
+		t.Fatalf("expired enrollment list=%+v err=%v", listed.Enrollments, err)
 	}
 }
 

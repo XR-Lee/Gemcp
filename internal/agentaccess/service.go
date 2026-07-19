@@ -65,11 +65,13 @@ type MCPConfig struct {
 }
 
 type ListResult struct {
-	Tokens         []View     `json:"tokens"`
-	MCPURL         string     `json:"mcp_url,omitempty"`
-	ConfigTemplate *MCPConfig `json:"config_template,omitempty"`
-	ConfigFileName string     `json:"config_file_name"`
-	Truncated      bool       `json:"truncated,omitempty"`
+	Tokens               []View           `json:"tokens"`
+	Enrollments          []EnrollmentView `json:"enrollments"`
+	MCPURL               string           `json:"mcp_url,omitempty"`
+	ConfigTemplate       *MCPConfig       `json:"config_template,omitempty"`
+	ConfigFileName       string           `json:"config_file_name"`
+	Truncated            bool             `json:"truncated,omitempty"`
+	EnrollmentsTruncated bool             `json:"enrollments_truncated,omitempty"`
 }
 
 type IssueResult struct {
@@ -81,14 +83,16 @@ type IssueResult struct {
 }
 
 type Service struct {
-	client *ent.Client
-	box    *secrets.Box
-	mcpURL string
-	now    func() time.Time
+	client    *ent.Client
+	box       *secrets.Box
+	publicURL string
+	mcpURL    string
+	now       func() time.Time
 }
 
 func NewService(client *ent.Client, box *secrets.Box, publicURL string) *Service {
-	return &Service{client: client, box: box, mcpURL: canonicalMCPURL(publicURL), now: time.Now}
+	origin := canonicalPublicURL(publicURL)
+	return &Service{client: client, box: box, publicURL: origin, mcpURL: canonicalMCPURL(origin), now: time.Now}
 }
 
 func (s *Service) List(ctx context.Context, tenantID int, projectPublicID string) (ListResult, error) {
@@ -114,6 +118,12 @@ func (s *Service) List(ctx context.Context, tenantID int, projectPublicID string
 	for _, record := range records {
 		result.Tokens = append(result.Tokens, makeView(record, projectRecord.PublicID.String(), now))
 	}
+	enrollments, truncated, err := s.listEnrollments(ctx, projectRecord, now)
+	if err != nil {
+		return result, err
+	}
+	result.Enrollments = enrollments
+	result.EnrollmentsTruncated = truncated
 	result.MCPURL = s.mcpURL
 	result.ConfigFileName = configFileName(projectRecord.Slug)
 	if s.mcpURL != "" {
@@ -358,10 +368,18 @@ func configFileName(projectSlug string) string {
 	return serverName(projectSlug) + "-mcp.json"
 }
 
-func canonicalMCPURL(publicURL string) string {
+func canonicalPublicURL(publicURL string) string {
 	parsed, err := url.Parse(strings.TrimRight(strings.TrimSpace(publicURL), "/"))
 	if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || strings.Trim(parsed.Path, "/") != "" {
 		return ""
 	}
-	return strings.TrimRight(parsed.String(), "/") + "/mcp"
+	return strings.TrimRight(parsed.String(), "/")
+}
+
+func canonicalMCPURL(publicURL string) string {
+	origin := canonicalPublicURL(publicURL)
+	if origin == "" {
+		return ""
+	}
+	return origin + "/mcp"
 }

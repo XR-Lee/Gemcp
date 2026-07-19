@@ -106,9 +106,10 @@ const DefaultActorType = ActorTypeSystem
 
 // ActorType values.
 const (
-	ActorTypeSystem     ActorType = "system"
-	ActorTypeUser       ActorType = "user"
-	ActorTypeAgentToken ActorType = "agent_token"
+	ActorTypeSystem          ActorType = "system"
+	ActorTypeUser            ActorType = "user"
+	ActorTypeAgentToken      ActorType = "agent_token"
+	ActorTypeAgentEnrollment ActorType = "agent_enrollment"
 )
 
 func (at ActorType) String() string {
@@ -118,7 +119,7 @@ func (at ActorType) String() string {
 // ActorTypeValidator is a validator for the "actor_type" field enum values. It is called by the builders before save.
 func ActorTypeValidator(at ActorType) error {
 	switch at {
-	case ActorTypeSystem, ActorTypeUser, ActorTypeAgentToken:
+	case ActorTypeSystem, ActorTypeUser, ActorTypeAgentToken, ActorTypeAgentEnrollment:
 		return nil
 	default:
 		return fmt.Errorf("auditevent: invalid enum value for actor_type field: %q", at)

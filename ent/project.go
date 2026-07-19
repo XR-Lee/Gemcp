@@ -65,6 +65,8 @@ type ProjectEdges struct {
 	Repositories []*Repository `json:"repositories,omitempty"`
 	// AgentTokens holds the value of the agent_tokens edge.
 	AgentTokens []*AgentToken `json:"agent_tokens,omitempty"`
+	// AgentEnrollments holds the value of the agent_enrollments edge.
+	AgentEnrollments []*AgentEnrollment `json:"agent_enrollments,omitempty"`
 	// Experiments holds the value of the experiments edge.
 	Experiments []*Experiment `json:"experiments,omitempty"`
 	// Attempts holds the value of the attempts edge.
@@ -75,7 +77,7 @@ type ProjectEdges struct {
 	BudgetEntries []*BudgetEntry `json:"budget_entries,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [9]bool
+	loadedTypes [10]bool
 }
 
 // TenantOrErr returns the Tenant value or an error if the edge
@@ -125,10 +127,19 @@ func (e ProjectEdges) AgentTokensOrErr() ([]*AgentToken, error) {
 	return nil, &NotLoadedError{edge: "agent_tokens"}
 }
 
+// AgentEnrollmentsOrErr returns the AgentEnrollments value or an error if the edge
+// was not loaded in eager-loading.
+func (e ProjectEdges) AgentEnrollmentsOrErr() ([]*AgentEnrollment, error) {
+	if e.loadedTypes[5] {
+		return e.AgentEnrollments, nil
+	}
+	return nil, &NotLoadedError{edge: "agent_enrollments"}
+}
+
 // ExperimentsOrErr returns the Experiments value or an error if the edge
 // was not loaded in eager-loading.
 func (e ProjectEdges) ExperimentsOrErr() ([]*Experiment, error) {
-	if e.loadedTypes[5] {
+	if e.loadedTypes[6] {
 		return e.Experiments, nil
 	}
 	return nil, &NotLoadedError{edge: "experiments"}
@@ -137,7 +148,7 @@ func (e ProjectEdges) ExperimentsOrErr() ([]*Experiment, error) {
 // AttemptsOrErr returns the Attempts value or an error if the edge
 // was not loaded in eager-loading.
 func (e ProjectEdges) AttemptsOrErr() ([]*Attempt, error) {
-	if e.loadedTypes[6] {
+	if e.loadedTypes[7] {
 		return e.Attempts, nil
 	}
 	return nil, &NotLoadedError{edge: "attempts"}
@@ -146,7 +157,7 @@ func (e ProjectEdges) AttemptsOrErr() ([]*Attempt, error) {
 // ProviderResourcesOrErr returns the ProviderResources value or an error if the edge
 // was not loaded in eager-loading.
 func (e ProjectEdges) ProviderResourcesOrErr() ([]*ProviderResource, error) {
-	if e.loadedTypes[7] {
+	if e.loadedTypes[8] {
 		return e.ProviderResources, nil
 	}
 	return nil, &NotLoadedError{edge: "provider_resources"}
@@ -155,7 +166,7 @@ func (e ProjectEdges) ProviderResourcesOrErr() ([]*ProviderResource, error) {
 // BudgetEntriesOrErr returns the BudgetEntries value or an error if the edge
 // was not loaded in eager-loading.
 func (e ProjectEdges) BudgetEntriesOrErr() ([]*BudgetEntry, error) {
-	if e.loadedTypes[8] {
+	if e.loadedTypes[9] {
 		return e.BudgetEntries, nil
 	}
 	return nil, &NotLoadedError{edge: "budget_entries"}
@@ -315,6 +326,11 @@ func (_m *Project) QueryRepositories() *RepositoryQuery {
 // QueryAgentTokens queries the "agent_tokens" edge of the Project entity.
 func (_m *Project) QueryAgentTokens() *AgentTokenQuery {
 	return NewProjectClient(_m.config).QueryAgentTokens(_m)
+}
+
+// QueryAgentEnrollments queries the "agent_enrollments" edge of the Project entity.
+func (_m *Project) QueryAgentEnrollments() *AgentEnrollmentQuery {
+	return NewProjectClient(_m.config).QueryAgentEnrollments(_m)
 }
 
 // QueryExperiments queries the "experiments" edge of the Project entity.

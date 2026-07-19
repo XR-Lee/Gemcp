@@ -55,6 +55,10 @@ The production host serves self-contained Owner and Agent operating guides, the 
 
 Authenticated standalone MCP SSE streams begin with a standard comment, ensuring Cloudflare and similar reverse proxies forward the successful stream before the first server-initiated message. POST-only Streamable HTTP remains supported.
 
+### v0.9.0 - one-link Pi enrollment
+
+Owners create a short-lived one-time link instead of manually transferring a long-lived Token or editing Pi JSON. The Pi Agent claims a read-only provisional credential, atomically merges a mode-`0600` global adapter config, discovers all bounded tools, verifies guide/options/cost, and only then activates the Owner-selected scopes and lifetime. Setup codes and Agent Tokens remain digest-only in PostgreSQL, and completion plus the local installer are retry-safe.
+
 ## Further validation
 
 The following items still require the target environment or newly authorized paid resources:

@@ -1,13 +1,14 @@
 {
   "name": "gemcp-frontend",
   "private": true,
-  "version": "0.8.1",
+  "version": "0.9.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
     "test:run": "vitest run",
     "test:e2e": "playwright test",
+    "test:e2e:validation": "npm run build && playwright test --config=playwright.validation.config.ts",
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {

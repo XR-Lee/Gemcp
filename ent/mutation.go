@@ -11,6 +11,7 @@ import (
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
+	"github.com/XR-Lee/Gemcp/ent/agentenrollment"
 	"github.com/XR-Lee/Gemcp/ent/agenttoken"
 	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/auditevent"
@@ -43,6 +44,7 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
+	TypeAgentEnrollment     = "AgentEnrollment"
 	TypeAgentToken          = "AgentToken"
 	TypeAttempt             = "Attempt"
 	TypeAuditEvent          = "AuditEvent"
@@ -63,6 +65,1285 @@ const (
 	TypeTenant              = "Tenant"
 	TypeUser                = "User"
 )
+
+// AgentEnrollmentMutation represents an operation that mutates the AgentEnrollment nodes in the graph.
+type AgentEnrollmentMutation struct {
+	config
+	op                       Op
+	typ                      string
+	id                       *int
+	public_id                *uuid.UUID
+	created_at               *time.Time
+	updated_at               *time.Time
+	label                    *string
+	code_hash                *[]byte
+	scopes                   *[]string
+	appendscopes             []string
+	status                   *agentenrollment.Status
+	expires_at               *time.Time
+	token_expires_in_days    *int
+	addtoken_expires_in_days *int
+	claimed_at               *time.Time
+	completed_at             *time.Time
+	verification             *map[string]interface{}
+	clearedFields            map[string]struct{}
+	project                  *int
+	clearedproject           bool
+	agent_token              *int
+	clearedagent_token       bool
+	done                     bool
+	oldValue                 func(context.Context) (*AgentEnrollment, error)
+	predicates               []predicate.AgentEnrollment
+}
+
+var _ ent.Mutation = (*AgentEnrollmentMutation)(nil)
+
+// agentenrollmentOption allows management of the mutation configuration using functional options.
+type agentenrollmentOption func(*AgentEnrollmentMutation)
+
+// newAgentEnrollmentMutation creates new mutation for the AgentEnrollment entity.
+func newAgentEnrollmentMutation(c config, op Op, opts ...agentenrollmentOption) *AgentEnrollmentMutation {
+	m := &AgentEnrollmentMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeAgentEnrollment,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withAgentEnrollmentID sets the ID field of the mutation.
+func withAgentEnrollmentID(id int) agentenrollmentOption {
+	return func(m *AgentEnrollmentMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *AgentEnrollment
+		)
+		m.oldValue = func(ctx context.Context) (*AgentEnrollment, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().AgentEnrollment.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withAgentEnrollment sets the old AgentEnrollment of the mutation.
+func withAgentEnrollment(node *AgentEnrollment) agentenrollmentOption {
+	return func(m *AgentEnrollmentMutation) {
+		m.oldValue = func(context.Context) (*AgentEnrollment, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m AgentEnrollmentMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m AgentEnrollmentMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *AgentEnrollmentMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *AgentEnrollmentMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().AgentEnrollment.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetPublicID sets the "public_id" field.
+func (m *AgentEnrollmentMutation) SetPublicID(u uuid.UUID) {
+	m.public_id = &u
+}
+
+// PublicID returns the value of the "public_id" field in the mutation.
+func (m *AgentEnrollmentMutation) PublicID() (r uuid.UUID, exists bool) {
+	v := m.public_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPublicID returns the old "public_id" field's value of the AgentEnrollment entity.
+// If the AgentEnrollment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AgentEnrollmentMutation) OldPublicID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPublicID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPublicID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPublicID: %w", err)
+	}
+	return oldValue.PublicID, nil
+}
+
+// ResetPublicID resets all changes to the "public_id" field.
+func (m *AgentEnrollmentMutation) ResetPublicID() {
+	m.public_id = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *AgentEnrollmentMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *AgentEnrollmentMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the AgentEnrollment entity.
+// If the AgentEnrollment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AgentEnrollmentMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *AgentEnrollmentMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *AgentEnrollmentMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *AgentEnrollmentMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the AgentEnrollment entity.
+// If the AgentEnrollment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AgentEnrollmentMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *AgentEnrollmentMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetProjectID sets the "project_id" field.
+func (m *AgentEnrollmentMutation) SetProjectID(i int) {
+	m.project = &i
+}
+
+// ProjectID returns the value of the "project_id" field in the mutation.
+func (m *AgentEnrollmentMutation) ProjectID() (r int, exists bool) {
+	v := m.project
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProjectID returns the old "project_id" field's value of the AgentEnrollment entity.
+// If the AgentEnrollment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AgentEnrollmentMutation) OldProjectID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProjectID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProjectID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProjectID: %w", err)
+	}
+	return oldValue.ProjectID, nil
+}
+
+// ResetProjectID resets all changes to the "project_id" field.
+func (m *AgentEnrollmentMutation) ResetProjectID() {
+	m.project = nil
+}
+
+// SetLabel sets the "label" field.
+func (m *AgentEnrollmentMutation) SetLabel(s string) {
+	m.label = &s
+}
+
+// Label returns the value of the "label" field in the mutation.
+func (m *AgentEnrollmentMutation) Label() (r string, exists bool) {
+	v := m.label
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLabel returns the old "label" field's value of the AgentEnrollment entity.
+// If the AgentEnrollment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AgentEnrollmentMutation) OldLabel(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLabel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLabel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLabel: %w", err)
+	}
+	return oldValue.Label, nil
+}
+
+// ResetLabel resets all changes to the "label" field.
+func (m *AgentEnrollmentMutation) ResetLabel() {
+	m.label = nil
+}
+
+// SetCodeHash sets the "code_hash" field.
+func (m *AgentEnrollmentMutation) SetCodeHash(b []byte) {
+	m.code_hash = &b
+}
+
+// CodeHash returns the value of the "code_hash" field in the mutation.
+func (m *AgentEnrollmentMutation) CodeHash() (r []byte, exists bool) {
+	v := m.code_hash
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCodeHash returns the old "code_hash" field's value of the AgentEnrollment entity.
+// If the AgentEnrollment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AgentEnrollmentMutation) OldCodeHash(ctx context.Context) (v []byte, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCodeHash is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCodeHash requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCodeHash: %w", err)
+	}
+	return oldValue.CodeHash, nil
+}
+
+// ResetCodeHash resets all changes to the "code_hash" field.
+func (m *AgentEnrollmentMutation) ResetCodeHash() {
+	m.code_hash = nil
+}
+
+// SetScopes sets the "scopes" field.
+func (m *AgentEnrollmentMutation) SetScopes(s []string) {
+	m.scopes = &s
+	m.appendscopes = nil
+}
+
+// Scopes returns the value of the "scopes" field in the mutation.
+func (m *AgentEnrollmentMutation) Scopes() (r []string, exists bool) {
+	v := m.scopes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldScopes returns the old "scopes" field's value of the AgentEnrollment entity.
+// If the AgentEnrollment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AgentEnrollmentMutation) OldScopes(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldScopes is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldScopes requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldScopes: %w", err)
+	}
+	return oldValue.Scopes, nil
+}
+
+// AppendScopes adds s to the "scopes" field.
+func (m *AgentEnrollmentMutation) AppendScopes(s []string) {
+	m.appendscopes = append(m.appendscopes, s...)
+}
+
+// AppendedScopes returns the list of values that were appended to the "scopes" field in this mutation.
+func (m *AgentEnrollmentMutation) AppendedScopes() ([]string, bool) {
+	if len(m.appendscopes) == 0 {
+		return nil, false
+	}
+	return m.appendscopes, true
+}
+
+// ResetScopes resets all changes to the "scopes" field.
+func (m *AgentEnrollmentMutation) ResetScopes() {
+	m.scopes = nil
+	m.appendscopes = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *AgentEnrollmentMutation) SetStatus(a agentenrollment.Status) {
+	m.status = &a
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *AgentEnrollmentMutation) Status() (r agentenrollment.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the AgentEnrollment entity.
+// If the AgentEnrollment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AgentEnrollmentMutation) OldStatus(ctx context.Context) (v agentenrollment.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *AgentEnrollmentMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (m *AgentEnrollmentMutation) SetExpiresAt(t time.Time) {
+	m.expires_at = &t
+}
+
+// ExpiresAt returns the value of the "expires_at" field in the mutation.
+func (m *AgentEnrollmentMutation) ExpiresAt() (r time.Time, exists bool) {
+	v := m.expires_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpiresAt returns the old "expires_at" field's value of the AgentEnrollment entity.
+// If the AgentEnrollment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AgentEnrollmentMutation) OldExpiresAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpiresAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpiresAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpiresAt: %w", err)
+	}
+	return oldValue.ExpiresAt, nil
+}
+
+// ResetExpiresAt resets all changes to the "expires_at" field.
+func (m *AgentEnrollmentMutation) ResetExpiresAt() {
+	m.expires_at = nil
+}
+
+// SetTokenExpiresInDays sets the "token_expires_in_days" field.
+func (m *AgentEnrollmentMutation) SetTokenExpiresInDays(i int) {
+	m.token_expires_in_days = &i
+	m.addtoken_expires_in_days = nil
+}
+
+// TokenExpiresInDays returns the value of the "token_expires_in_days" field in the mutation.
+func (m *AgentEnrollmentMutation) TokenExpiresInDays() (r int, exists bool) {
+	v := m.token_expires_in_days
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTokenExpiresInDays returns the old "token_expires_in_days" field's value of the AgentEnrollment entity.
+// If the AgentEnrollment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AgentEnrollmentMutation) OldTokenExpiresInDays(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTokenExpiresInDays is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTokenExpiresInDays requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTokenExpiresInDays: %w", err)
+	}
+	return oldValue.TokenExpiresInDays, nil
+}
+
+// AddTokenExpiresInDays adds i to the "token_expires_in_days" field.
+func (m *AgentEnrollmentMutation) AddTokenExpiresInDays(i int) {
+	if m.addtoken_expires_in_days != nil {
+		*m.addtoken_expires_in_days += i
+	} else {
+		m.addtoken_expires_in_days = &i
+	}
+}
+
+// AddedTokenExpiresInDays returns the value that was added to the "token_expires_in_days" field in this mutation.
+func (m *AgentEnrollmentMutation) AddedTokenExpiresInDays() (r int, exists bool) {
+	v := m.addtoken_expires_in_days
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearTokenExpiresInDays clears the value of the "token_expires_in_days" field.
+func (m *AgentEnrollmentMutation) ClearTokenExpiresInDays() {
+	m.token_expires_in_days = nil
+	m.addtoken_expires_in_days = nil
+	m.clearedFields[agentenrollment.FieldTokenExpiresInDays] = struct{}{}
+}
+
+// TokenExpiresInDaysCleared returns if the "token_expires_in_days" field was cleared in this mutation.
+func (m *AgentEnrollmentMutation) TokenExpiresInDaysCleared() bool {
+	_, ok := m.clearedFields[agentenrollment.FieldTokenExpiresInDays]
+	return ok
+}
+
+// ResetTokenExpiresInDays resets all changes to the "token_expires_in_days" field.
+func (m *AgentEnrollmentMutation) ResetTokenExpiresInDays() {
+	m.token_expires_in_days = nil
+	m.addtoken_expires_in_days = nil
+	delete(m.clearedFields, agentenrollment.FieldTokenExpiresInDays)
+}
+
+// SetClaimedAt sets the "claimed_at" field.
+func (m *AgentEnrollmentMutation) SetClaimedAt(t time.Time) {
+	m.claimed_at = &t
+}
+
+// ClaimedAt returns the value of the "claimed_at" field in the mutation.
+func (m *AgentEnrollmentMutation) ClaimedAt() (r time.Time, exists bool) {
+	v := m.claimed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldClaimedAt returns the old "claimed_at" field's value of the AgentEnrollment entity.
+// If the AgentEnrollment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AgentEnrollmentMutation) OldClaimedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldClaimedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldClaimedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldClaimedAt: %w", err)
+	}
+	return oldValue.ClaimedAt, nil
+}
+
+// ClearClaimedAt clears the value of the "claimed_at" field.
+func (m *AgentEnrollmentMutation) ClearClaimedAt() {
+	m.claimed_at = nil
+	m.clearedFields[agentenrollment.FieldClaimedAt] = struct{}{}
+}
+
+// ClaimedAtCleared returns if the "claimed_at" field was cleared in this mutation.
+func (m *AgentEnrollmentMutation) ClaimedAtCleared() bool {
+	_, ok := m.clearedFields[agentenrollment.FieldClaimedAt]
+	return ok
+}
+
+// ResetClaimedAt resets all changes to the "claimed_at" field.
+func (m *AgentEnrollmentMutation) ResetClaimedAt() {
+	m.claimed_at = nil
+	delete(m.clearedFields, agentenrollment.FieldClaimedAt)
+}
+
+// SetCompletedAt sets the "completed_at" field.
+func (m *AgentEnrollmentMutation) SetCompletedAt(t time.Time) {
+	m.completed_at = &t
+}
+
+// CompletedAt returns the value of the "completed_at" field in the mutation.
+func (m *AgentEnrollmentMutation) CompletedAt() (r time.Time, exists bool) {
+	v := m.completed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCompletedAt returns the old "completed_at" field's value of the AgentEnrollment entity.
+// If the AgentEnrollment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AgentEnrollmentMutation) OldCompletedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCompletedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCompletedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCompletedAt: %w", err)
+	}
+	return oldValue.CompletedAt, nil
+}
+
+// ClearCompletedAt clears the value of the "completed_at" field.
+func (m *AgentEnrollmentMutation) ClearCompletedAt() {
+	m.completed_at = nil
+	m.clearedFields[agentenrollment.FieldCompletedAt] = struct{}{}
+}
+
+// CompletedAtCleared returns if the "completed_at" field was cleared in this mutation.
+func (m *AgentEnrollmentMutation) CompletedAtCleared() bool {
+	_, ok := m.clearedFields[agentenrollment.FieldCompletedAt]
+	return ok
+}
+
+// ResetCompletedAt resets all changes to the "completed_at" field.
+func (m *AgentEnrollmentMutation) ResetCompletedAt() {
+	m.completed_at = nil
+	delete(m.clearedFields, agentenrollment.FieldCompletedAt)
+}
+
+// SetAgentTokenID sets the "agent_token_id" field.
+func (m *AgentEnrollmentMutation) SetAgentTokenID(i int) {
+	m.agent_token = &i
+}
+
+// AgentTokenID returns the value of the "agent_token_id" field in the mutation.
+func (m *AgentEnrollmentMutation) AgentTokenID() (r int, exists bool) {
+	v := m.agent_token
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAgentTokenID returns the old "agent_token_id" field's value of the AgentEnrollment entity.
+// If the AgentEnrollment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AgentEnrollmentMutation) OldAgentTokenID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAgentTokenID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAgentTokenID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAgentTokenID: %w", err)
+	}
+	return oldValue.AgentTokenID, nil
+}
+
+// ClearAgentTokenID clears the value of the "agent_token_id" field.
+func (m *AgentEnrollmentMutation) ClearAgentTokenID() {
+	m.agent_token = nil
+	m.clearedFields[agentenrollment.FieldAgentTokenID] = struct{}{}
+}
+
+// AgentTokenIDCleared returns if the "agent_token_id" field was cleared in this mutation.
+func (m *AgentEnrollmentMutation) AgentTokenIDCleared() bool {
+	_, ok := m.clearedFields[agentenrollment.FieldAgentTokenID]
+	return ok
+}
+
+// ResetAgentTokenID resets all changes to the "agent_token_id" field.
+func (m *AgentEnrollmentMutation) ResetAgentTokenID() {
+	m.agent_token = nil
+	delete(m.clearedFields, agentenrollment.FieldAgentTokenID)
+}
+
+// SetVerification sets the "verification" field.
+func (m *AgentEnrollmentMutation) SetVerification(value map[string]interface{}) {
+	m.verification = &value
+}
+
+// Verification returns the value of the "verification" field in the mutation.
+func (m *AgentEnrollmentMutation) Verification() (r map[string]interface{}, exists bool) {
+	v := m.verification
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVerification returns the old "verification" field's value of the AgentEnrollment entity.
+// If the AgentEnrollment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AgentEnrollmentMutation) OldVerification(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVerification is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVerification requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVerification: %w", err)
+	}
+	return oldValue.Verification, nil
+}
+
+// ClearVerification clears the value of the "verification" field.
+func (m *AgentEnrollmentMutation) ClearVerification() {
+	m.verification = nil
+	m.clearedFields[agentenrollment.FieldVerification] = struct{}{}
+}
+
+// VerificationCleared returns if the "verification" field was cleared in this mutation.
+func (m *AgentEnrollmentMutation) VerificationCleared() bool {
+	_, ok := m.clearedFields[agentenrollment.FieldVerification]
+	return ok
+}
+
+// ResetVerification resets all changes to the "verification" field.
+func (m *AgentEnrollmentMutation) ResetVerification() {
+	m.verification = nil
+	delete(m.clearedFields, agentenrollment.FieldVerification)
+}
+
+// ClearProject clears the "project" edge to the Project entity.
+func (m *AgentEnrollmentMutation) ClearProject() {
+	m.clearedproject = true
+	m.clearedFields[agentenrollment.FieldProjectID] = struct{}{}
+}
+
+// ProjectCleared reports if the "project" edge to the Project entity was cleared.
+func (m *AgentEnrollmentMutation) ProjectCleared() bool {
+	return m.clearedproject
+}
+
+// ProjectIDs returns the "project" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ProjectID instead. It exists only for internal usage by the builders.
+func (m *AgentEnrollmentMutation) ProjectIDs() (ids []int) {
+	if id := m.project; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetProject resets all changes to the "project" edge.
+func (m *AgentEnrollmentMutation) ResetProject() {
+	m.project = nil
+	m.clearedproject = false
+}
+
+// ClearAgentToken clears the "agent_token" edge to the AgentToken entity.
+func (m *AgentEnrollmentMutation) ClearAgentToken() {
+	m.clearedagent_token = true
+	m.clearedFields[agentenrollment.FieldAgentTokenID] = struct{}{}
+}
+
+// AgentTokenCleared reports if the "agent_token" edge to the AgentToken entity was cleared.
+func (m *AgentEnrollmentMutation) AgentTokenCleared() bool {
+	return m.AgentTokenIDCleared() || m.clearedagent_token
+}
+
+// AgentTokenIDs returns the "agent_token" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// AgentTokenID instead. It exists only for internal usage by the builders.
+func (m *AgentEnrollmentMutation) AgentTokenIDs() (ids []int) {
+	if id := m.agent_token; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetAgentToken resets all changes to the "agent_token" edge.
+func (m *AgentEnrollmentMutation) ResetAgentToken() {
+	m.agent_token = nil
+	m.clearedagent_token = false
+}
+
+// Where appends a list predicates to the AgentEnrollmentMutation builder.
+func (m *AgentEnrollmentMutation) Where(ps ...predicate.AgentEnrollment) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the AgentEnrollmentMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *AgentEnrollmentMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.AgentEnrollment, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *AgentEnrollmentMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *AgentEnrollmentMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (AgentEnrollment).
+func (m *AgentEnrollmentMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *AgentEnrollmentMutation) Fields() []string {
+	fields := make([]string, 0, 14)
+	if m.public_id != nil {
+		fields = append(fields, agentenrollment.FieldPublicID)
+	}
+	if m.created_at != nil {
+		fields = append(fields, agentenrollment.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, agentenrollment.FieldUpdatedAt)
+	}
+	if m.project != nil {
+		fields = append(fields, agentenrollment.FieldProjectID)
+	}
+	if m.label != nil {
+		fields = append(fields, agentenrollment.FieldLabel)
+	}
+	if m.code_hash != nil {
+		fields = append(fields, agentenrollment.FieldCodeHash)
+	}
+	if m.scopes != nil {
+		fields = append(fields, agentenrollment.FieldScopes)
+	}
+	if m.status != nil {
+		fields = append(fields, agentenrollment.FieldStatus)
+	}
+	if m.expires_at != nil {
+		fields = append(fields, agentenrollment.FieldExpiresAt)
+	}
+	if m.token_expires_in_days != nil {
+		fields = append(fields, agentenrollment.FieldTokenExpiresInDays)
+	}
+	if m.claimed_at != nil {
+		fields = append(fields, agentenrollment.FieldClaimedAt)
+	}
+	if m.completed_at != nil {
+		fields = append(fields, agentenrollment.FieldCompletedAt)
+	}
+	if m.agent_token != nil {
+		fields = append(fields, agentenrollment.FieldAgentTokenID)
+	}
+	if m.verification != nil {
+		fields = append(fields, agentenrollment.FieldVerification)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *AgentEnrollmentMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case agentenrollment.FieldPublicID:
+		return m.PublicID()
+	case agentenrollment.FieldCreatedAt:
+		return m.CreatedAt()
+	case agentenrollment.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case agentenrollment.FieldProjectID:
+		return m.ProjectID()
+	case agentenrollment.FieldLabel:
+		return m.Label()
+	case agentenrollment.FieldCodeHash:
+		return m.CodeHash()
+	case agentenrollment.FieldScopes:
+		return m.Scopes()
+	case agentenrollment.FieldStatus:
+		return m.Status()
+	case agentenrollment.FieldExpiresAt:
+		return m.ExpiresAt()
+	case agentenrollment.FieldTokenExpiresInDays:
+		return m.TokenExpiresInDays()
+	case agentenrollment.FieldClaimedAt:
+		return m.ClaimedAt()
+	case agentenrollment.FieldCompletedAt:
+		return m.CompletedAt()
+	case agentenrollment.FieldAgentTokenID:
+		return m.AgentTokenID()
+	case agentenrollment.FieldVerification:
+		return m.Verification()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *AgentEnrollmentMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case agentenrollment.FieldPublicID:
+		return m.OldPublicID(ctx)
+	case agentenrollment.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case agentenrollment.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case agentenrollment.FieldProjectID:
+		return m.OldProjectID(ctx)
+	case agentenrollment.FieldLabel:
+		return m.OldLabel(ctx)
+	case agentenrollment.FieldCodeHash:
+		return m.OldCodeHash(ctx)
+	case agentenrollment.FieldScopes:
+		return m.OldScopes(ctx)
+	case agentenrollment.FieldStatus:
+		return m.OldStatus(ctx)
+	case agentenrollment.FieldExpiresAt:
+		return m.OldExpiresAt(ctx)
+	case agentenrollment.FieldTokenExpiresInDays:
+		return m.OldTokenExpiresInDays(ctx)
+	case agentenrollment.FieldClaimedAt:
+		return m.OldClaimedAt(ctx)
+	case agentenrollment.FieldCompletedAt:
+		return m.OldCompletedAt(ctx)
+	case agentenrollment.FieldAgentTokenID:
+		return m.OldAgentTokenID(ctx)
+	case agentenrollment.FieldVerification:
+		return m.OldVerification(ctx)
+	}
+	return nil, fmt.Errorf("unknown AgentEnrollment field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *AgentEnrollmentMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case agentenrollment.FieldPublicID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPublicID(v)
+		return nil
+	case agentenrollment.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case agentenrollment.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case agentenrollment.FieldProjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProjectID(v)
+		return nil
+	case agentenrollment.FieldLabel:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLabel(v)
+		return nil
+	case agentenrollment.FieldCodeHash:
+		v, ok := value.([]byte)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCodeHash(v)
+		return nil
+	case agentenrollment.FieldScopes:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetScopes(v)
+		return nil
+	case agentenrollment.FieldStatus:
+		v, ok := value.(agentenrollment.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case agentenrollment.FieldExpiresAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpiresAt(v)
+		return nil
+	case agentenrollment.FieldTokenExpiresInDays:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTokenExpiresInDays(v)
+		return nil
+	case agentenrollment.FieldClaimedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetClaimedAt(v)
+		return nil
+	case agentenrollment.FieldCompletedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCompletedAt(v)
+		return nil
+	case agentenrollment.FieldAgentTokenID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAgentTokenID(v)
+		return nil
+	case agentenrollment.FieldVerification:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVerification(v)
+		return nil
+	}
+	return fmt.Errorf("unknown AgentEnrollment field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *AgentEnrollmentMutation) AddedFields() []string {
+	var fields []string
+	if m.addtoken_expires_in_days != nil {
+		fields = append(fields, agentenrollment.FieldTokenExpiresInDays)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *AgentEnrollmentMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case agentenrollment.FieldTokenExpiresInDays:
+		return m.AddedTokenExpiresInDays()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *AgentEnrollmentMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case agentenrollment.FieldTokenExpiresInDays:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTokenExpiresInDays(v)
+		return nil
+	}
+	return fmt.Errorf("unknown AgentEnrollment numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *AgentEnrollmentMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(agentenrollment.FieldTokenExpiresInDays) {
+		fields = append(fields, agentenrollment.FieldTokenExpiresInDays)
+	}
+	if m.FieldCleared(agentenrollment.FieldClaimedAt) {
+		fields = append(fields, agentenrollment.FieldClaimedAt)
+	}
+	if m.FieldCleared(agentenrollment.FieldCompletedAt) {
+		fields = append(fields, agentenrollment.FieldCompletedAt)
+	}
+	if m.FieldCleared(agentenrollment.FieldAgentTokenID) {
+		fields = append(fields, agentenrollment.FieldAgentTokenID)
+	}
+	if m.FieldCleared(agentenrollment.FieldVerification) {
+		fields = append(fields, agentenrollment.FieldVerification)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *AgentEnrollmentMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *AgentEnrollmentMutation) ClearField(name string) error {
+	switch name {
+	case agentenrollment.FieldTokenExpiresInDays:
+		m.ClearTokenExpiresInDays()
+		return nil
+	case agentenrollment.FieldClaimedAt:
+		m.ClearClaimedAt()
+		return nil
+	case agentenrollment.FieldCompletedAt:
+		m.ClearCompletedAt()
+		return nil
+	case agentenrollment.FieldAgentTokenID:
+		m.ClearAgentTokenID()
+		return nil
+	case agentenrollment.FieldVerification:
+		m.ClearVerification()
+		return nil
+	}
+	return fmt.Errorf("unknown AgentEnrollment nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *AgentEnrollmentMutation) ResetField(name string) error {
+	switch name {
+	case agentenrollment.FieldPublicID:
+		m.ResetPublicID()
+		return nil
+	case agentenrollment.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case agentenrollment.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case agentenrollment.FieldProjectID:
+		m.ResetProjectID()
+		return nil
+	case agentenrollment.FieldLabel:
+		m.ResetLabel()
+		return nil
+	case agentenrollment.FieldCodeHash:
+		m.ResetCodeHash()
+		return nil
+	case agentenrollment.FieldScopes:
+		m.ResetScopes()
+		return nil
+	case agentenrollment.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case agentenrollment.FieldExpiresAt:
+		m.ResetExpiresAt()
+		return nil
+	case agentenrollment.FieldTokenExpiresInDays:
+		m.ResetTokenExpiresInDays()
+		return nil
+	case agentenrollment.FieldClaimedAt:
+		m.ResetClaimedAt()
+		return nil
+	case agentenrollment.FieldCompletedAt:
+		m.ResetCompletedAt()
+		return nil
+	case agentenrollment.FieldAgentTokenID:
+		m.ResetAgentTokenID()
+		return nil
+	case agentenrollment.FieldVerification:
+		m.ResetVerification()
+		return nil
+	}
+	return fmt.Errorf("unknown AgentEnrollment field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *AgentEnrollmentMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.project != nil {
+		edges = append(edges, agentenrollment.EdgeProject)
+	}
+	if m.agent_token != nil {
+		edges = append(edges, agentenrollment.EdgeAgentToken)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *AgentEnrollmentMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case agentenrollment.EdgeProject:
+		if id := m.project; id != nil {
+			return []ent.Value{*id}
+		}
+	case agentenrollment.EdgeAgentToken:
+		if id := m.agent_token; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *AgentEnrollmentMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *AgentEnrollmentMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *AgentEnrollmentMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.clearedproject {
+		edges = append(edges, agentenrollment.EdgeProject)
+	}
+	if m.clearedagent_token {
+		edges = append(edges, agentenrollment.EdgeAgentToken)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *AgentEnrollmentMutation) EdgeCleared(name string) bool {
+	switch name {
+	case agentenrollment.EdgeProject:
+		return m.clearedproject
+	case agentenrollment.EdgeAgentToken:
+		return m.clearedagent_token
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *AgentEnrollmentMutation) ClearEdge(name string) error {
+	switch name {
+	case agentenrollment.EdgeProject:
+		m.ClearProject()
+		return nil
+	case agentenrollment.EdgeAgentToken:
+		m.ClearAgentToken()
+		return nil
+	}
+	return fmt.Errorf("unknown AgentEnrollment unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *AgentEnrollmentMutation) ResetEdge(name string) error {
+	switch name {
+	case agentenrollment.EdgeProject:
+		m.ResetProject()
+		return nil
+	case agentenrollment.EdgeAgentToken:
+		m.ResetAgentToken()
+		return nil
+	}
+	return fmt.Errorf("unknown AgentEnrollment edge %s", name)
+}
 
 // AgentTokenMutation represents an operation that mutates the AgentToken nodes in the graph.
 type AgentTokenMutation struct {
@@ -13218,6 +14499,9 @@ type ProjectMutation struct {
 	agent_tokens                 map[int]struct{}
 	removedagent_tokens          map[int]struct{}
 	clearedagent_tokens          bool
+	agent_enrollments            map[int]struct{}
+	removedagent_enrollments     map[int]struct{}
+	clearedagent_enrollments     bool
 	experiments                  map[int]struct{}
 	removedexperiments           map[int]struct{}
 	clearedexperiments           bool
@@ -14200,6 +15484,60 @@ func (m *ProjectMutation) ResetAgentTokens() {
 	m.removedagent_tokens = nil
 }
 
+// AddAgentEnrollmentIDs adds the "agent_enrollments" edge to the AgentEnrollment entity by ids.
+func (m *ProjectMutation) AddAgentEnrollmentIDs(ids ...int) {
+	if m.agent_enrollments == nil {
+		m.agent_enrollments = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.agent_enrollments[ids[i]] = struct{}{}
+	}
+}
+
+// ClearAgentEnrollments clears the "agent_enrollments" edge to the AgentEnrollment entity.
+func (m *ProjectMutation) ClearAgentEnrollments() {
+	m.clearedagent_enrollments = true
+}
+
+// AgentEnrollmentsCleared reports if the "agent_enrollments" edge to the AgentEnrollment entity was cleared.
+func (m *ProjectMutation) AgentEnrollmentsCleared() bool {
+	return m.clearedagent_enrollments
+}
+
+// RemoveAgentEnrollmentIDs removes the "agent_enrollments" edge to the AgentEnrollment entity by IDs.
+func (m *ProjectMutation) RemoveAgentEnrollmentIDs(ids ...int) {
+	if m.removedagent_enrollments == nil {
+		m.removedagent_enrollments = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.agent_enrollments, ids[i])
+		m.removedagent_enrollments[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedAgentEnrollments returns the removed IDs of the "agent_enrollments" edge to the AgentEnrollment entity.
+func (m *ProjectMutation) RemovedAgentEnrollmentsIDs() (ids []int) {
+	for id := range m.removedagent_enrollments {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// AgentEnrollmentsIDs returns the "agent_enrollments" edge IDs in the mutation.
+func (m *ProjectMutation) AgentEnrollmentsIDs() (ids []int) {
+	for id := range m.agent_enrollments {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetAgentEnrollments resets all changes to the "agent_enrollments" edge.
+func (m *ProjectMutation) ResetAgentEnrollments() {
+	m.agent_enrollments = nil
+	m.clearedagent_enrollments = false
+	m.removedagent_enrollments = nil
+}
+
 // AddExperimentIDs adds the "experiments" edge to the Experiment entity by ids.
 func (m *ProjectMutation) AddExperimentIDs(ids ...int) {
 	if m.experiments == nil {
@@ -14845,7 +16183,7 @@ func (m *ProjectMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *ProjectMutation) AddedEdges() []string {
-	edges := make([]string, 0, 9)
+	edges := make([]string, 0, 10)
 	if m.tenant != nil {
 		edges = append(edges, project.EdgeTenant)
 	}
@@ -14860,6 +16198,9 @@ func (m *ProjectMutation) AddedEdges() []string {
 	}
 	if m.agent_tokens != nil {
 		edges = append(edges, project.EdgeAgentTokens)
+	}
+	if m.agent_enrollments != nil {
+		edges = append(edges, project.EdgeAgentEnrollments)
 	}
 	if m.experiments != nil {
 		edges = append(edges, project.EdgeExperiments)
@@ -14908,6 +16249,12 @@ func (m *ProjectMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case project.EdgeAgentEnrollments:
+		ids := make([]ent.Value, 0, len(m.agent_enrollments))
+		for id := range m.agent_enrollments {
+			ids = append(ids, id)
+		}
+		return ids
 	case project.EdgeExperiments:
 		ids := make([]ent.Value, 0, len(m.experiments))
 		for id := range m.experiments {
@@ -14938,7 +16285,7 @@ func (m *ProjectMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *ProjectMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 9)
+	edges := make([]string, 0, 10)
 	if m.removedenvironments != nil {
 		edges = append(edges, project.EdgeEnvironments)
 	}
@@ -14950,6 +16297,9 @@ func (m *ProjectMutation) RemovedEdges() []string {
 	}
 	if m.removedagent_tokens != nil {
 		edges = append(edges, project.EdgeAgentTokens)
+	}
+	if m.removedagent_enrollments != nil {
+		edges = append(edges, project.EdgeAgentEnrollments)
 	}
 	if m.removedexperiments != nil {
 		edges = append(edges, project.EdgeExperiments)
@@ -14994,6 +16344,12 @@ func (m *ProjectMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case project.EdgeAgentEnrollments:
+		ids := make([]ent.Value, 0, len(m.removedagent_enrollments))
+		for id := range m.removedagent_enrollments {
+			ids = append(ids, id)
+		}
+		return ids
 	case project.EdgeExperiments:
 		ids := make([]ent.Value, 0, len(m.removedexperiments))
 		for id := range m.removedexperiments {
@@ -15024,7 +16380,7 @@ func (m *ProjectMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *ProjectMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 9)
+	edges := make([]string, 0, 10)
 	if m.clearedtenant {
 		edges = append(edges, project.EdgeTenant)
 	}
@@ -15039,6 +16395,9 @@ func (m *ProjectMutation) ClearedEdges() []string {
 	}
 	if m.clearedagent_tokens {
 		edges = append(edges, project.EdgeAgentTokens)
+	}
+	if m.clearedagent_enrollments {
+		edges = append(edges, project.EdgeAgentEnrollments)
 	}
 	if m.clearedexperiments {
 		edges = append(edges, project.EdgeExperiments)
@@ -15069,6 +16428,8 @@ func (m *ProjectMutation) EdgeCleared(name string) bool {
 		return m.clearedrepositories
 	case project.EdgeAgentTokens:
 		return m.clearedagent_tokens
+	case project.EdgeAgentEnrollments:
+		return m.clearedagent_enrollments
 	case project.EdgeExperiments:
 		return m.clearedexperiments
 	case project.EdgeAttempts:
@@ -15110,6 +16471,9 @@ func (m *ProjectMutation) ResetEdge(name string) error {
 		return nil
 	case project.EdgeAgentTokens:
 		m.ResetAgentTokens()
+		return nil
+	case project.EdgeAgentEnrollments:
+		m.ResetAgentEnrollments()
 		return nil
 	case project.EdgeExperiments:
 		m.ResetExperiments()

@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/XR-Lee/Gemcp/ent/agentenrollment"
 	"github.com/XR-Lee/Gemcp/ent/agenttoken"
 	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
@@ -37,6 +38,7 @@ type ProjectQuery struct {
 	withResourceProfiles  *ResourceProfileQuery
 	withRepositories      *RepositoryQuery
 	withAgentTokens       *AgentTokenQuery
+	withAgentEnrollments  *AgentEnrollmentQuery
 	withExperiments       *ExperimentQuery
 	withAttempts          *AttemptQuery
 	withProviderResources *ProviderResourceQuery
@@ -180,6 +182,28 @@ func (_q *ProjectQuery) QueryAgentTokens() *AgentTokenQuery {
 			sqlgraph.From(project.Table, project.FieldID, selector),
 			sqlgraph.To(agenttoken.Table, agenttoken.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, project.AgentTokensTable, project.AgentTokensColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryAgentEnrollments chains the current query on the "agent_enrollments" edge.
+func (_q *ProjectQuery) QueryAgentEnrollments() *AgentEnrollmentQuery {
+	query := (&AgentEnrollmentClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, selector),
+			sqlgraph.To(agentenrollment.Table, agentenrollment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.AgentEnrollmentsTable, project.AgentEnrollmentsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -472,6 +496,7 @@ func (_q *ProjectQuery) Clone() *ProjectQuery {
 		withResourceProfiles:  _q.withResourceProfiles.Clone(),
 		withRepositories:      _q.withRepositories.Clone(),
 		withAgentTokens:       _q.withAgentTokens.Clone(),
+		withAgentEnrollments:  _q.withAgentEnrollments.Clone(),
 		withExperiments:       _q.withExperiments.Clone(),
 		withAttempts:          _q.withAttempts.Clone(),
 		withProviderResources: _q.withProviderResources.Clone(),
@@ -534,6 +559,17 @@ func (_q *ProjectQuery) WithAgentTokens(opts ...func(*AgentTokenQuery)) *Project
 		opt(query)
 	}
 	_q.withAgentTokens = query
+	return _q
+}
+
+// WithAgentEnrollments tells the query-builder to eager-load the nodes that are connected to
+// the "agent_enrollments" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ProjectQuery) WithAgentEnrollments(opts ...func(*AgentEnrollmentQuery)) *ProjectQuery {
+	query := (&AgentEnrollmentClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withAgentEnrollments = query
 	return _q
 }
 
@@ -659,12 +695,13 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 	var (
 		nodes       = []*Project{}
 		_spec       = _q.querySpec()
-		loadedTypes = [9]bool{
+		loadedTypes = [10]bool{
 			_q.withTenant != nil,
 			_q.withEnvironments != nil,
 			_q.withResourceProfiles != nil,
 			_q.withRepositories != nil,
 			_q.withAgentTokens != nil,
+			_q.withAgentEnrollments != nil,
 			_q.withExperiments != nil,
 			_q.withAttempts != nil,
 			_q.withProviderResources != nil,
@@ -720,6 +757,13 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 		if err := _q.loadAgentTokens(ctx, query, nodes,
 			func(n *Project) { n.Edges.AgentTokens = []*AgentToken{} },
 			func(n *Project, e *AgentToken) { n.Edges.AgentTokens = append(n.Edges.AgentTokens, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withAgentEnrollments; query != nil {
+		if err := _q.loadAgentEnrollments(ctx, query, nodes,
+			func(n *Project) { n.Edges.AgentEnrollments = []*AgentEnrollment{} },
+			func(n *Project, e *AgentEnrollment) { n.Edges.AgentEnrollments = append(n.Edges.AgentEnrollments, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -890,6 +934,36 @@ func (_q *ProjectQuery) loadAgentTokens(ctx context.Context, query *AgentTokenQu
 	}
 	query.Where(predicate.AgentToken(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(project.AgentTokensColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ProjectID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "project_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *ProjectQuery) loadAgentEnrollments(ctx context.Context, query *AgentEnrollmentQuery, nodes []*Project, init func(*Project), assign func(*Project, *AgentEnrollment)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Project)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(agentenrollment.FieldProjectID)
+	}
+	query.Where(predicate.AgentEnrollment(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(project.AgentEnrollmentsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

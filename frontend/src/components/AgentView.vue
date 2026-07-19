@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import {
   BookOpen,
   Bot,
@@ -10,8 +10,8 @@ import {
   ExternalLink,
   FileDown,
   KeyRound,
+  Link2,
   LoaderCircle,
-  Plus,
   RefreshCw,
   ShieldCheck,
   Trash2,
@@ -20,6 +20,8 @@ import {
 import {
   APIError,
   api,
+  type AgentEnrollment,
+  type AgentEnrollmentIssue,
   type AgentScope,
   type AgentToken,
   type AgentTokenIssue,
@@ -34,6 +36,10 @@ const data = ref<AgentTokenList | null>(null)
 const loadedProjectID = ref('')
 const loading = ref(false)
 const error = ref('')
+const setupDialog = ref(false)
+const settingUp = ref(false)
+const setupError = ref('')
+const setupReveal = ref<AgentEnrollmentIssue | null>(null)
 const issueDialog = ref(false)
 const issuing = ref(false)
 const issueError = ref('')
@@ -43,6 +49,14 @@ const guideDialog = ref(false)
 const guideError = ref('')
 const revokeTarget = ref<AgentToken | null>(null)
 const revoking = ref(false)
+const enrollmentRevokeTarget = ref<AgentEnrollment | null>(null)
+const revokingEnrollment = ref(false)
+const setupForm = reactive({
+  label: '',
+  expiration: '90',
+  linkExpiration: '30',
+  scopes: { read: true, submit: true, cancel: true } as Record<AgentScope, boolean>,
+})
 const form = reactive({
   label: '',
   expiration: '90',
@@ -50,12 +64,16 @@ const form = reactive({
 })
 
 const activeTokens = computed(() => data.value?.tokens.filter((item) => item.status === 'active').length ?? 0)
-const revokedTokens = computed(() => data.value?.tokens.filter((item) => item.status === 'revoked').length ?? 0)
+const activeEnrollments = computed(() => data.value?.enrollments.filter((item) => item.status === 'pending' || item.status === 'claimed').length ?? 0)
 const expiringTokens = computed(() => {
   const threshold = Date.now() + 30 * 24 * 60 * 60 * 1000
   return data.value?.tokens.filter((item) => item.status === 'active' && item.expires_at && new Date(item.expires_at).getTime() <= threshold).length ?? 0
 })
 const selectedScopes = computed(() => (Object.keys(form.scopes) as AgentScope[]).filter((scope) => form.scopes[scope]))
+const selectedSetupScopes = computed(() => (Object.keys(setupForm.scopes) as AgentScope[]).filter((scope) => setupForm.scopes[scope]))
+const setupAgentMessage = computed(() => setupReveal.value
+  ? `Set up Gemcp for this Pi Agent using the one-time link below. Complete the automated install, tool verification, and credential storage yourself. Do not print or forward the link, and do not pass the complete link to a Web-fetch, search, or preview tool.\n\n${setupReveal.value.setup_url}`
+  : '')
 const configJSON = computed(() => reveal.value ? JSON.stringify(reveal.value.mcp_config, null, 2) : '')
 const templateJSON = computed(() => data.value?.config_template ? JSON.stringify(data.value.config_template, null, 2) : '')
 const ownerGuideURL = computed(() => guideURL('owner-mcp.md'))
@@ -86,6 +104,7 @@ async function load() {
   error.value = ''
   try {
     const loaded = await api.agentTokens(projectID)
+    loaded.enrollments ??= []
     if (props.project?.id === projectID) {
       data.value = loaded
       loadedProjectID.value = projectID
@@ -96,6 +115,60 @@ async function load() {
     loading.value = false
     if (props.active && props.project?.id && props.project.id !== projectID) void load()
   }
+}
+
+function openSetup() {
+  setupForm.label = ''
+  setupForm.expiration = '90'
+  setupForm.linkExpiration = '30'
+  setupForm.scopes.read = true
+  setupForm.scopes.submit = true
+  setupForm.scopes.cancel = true
+  setupError.value = ''
+  setupDialog.value = true
+}
+
+function closeSetup() {
+  if (settingUp.value) return
+  setupForm.label = ''
+  setupError.value = ''
+  setupDialog.value = false
+}
+
+async function createSetupLink() {
+  if (!props.project) return
+  if (!selectedSetupScopes.value.length) {
+    setupError.value = 'Select at least one scope.'
+    return
+  }
+  settingUp.value = true
+  setupError.value = ''
+  try {
+    const neverExpires = setupForm.expiration === 'never'
+    const result = await api.issueAgentEnrollment(props.project.id, {
+      label: setupForm.label.trim(),
+      scopes: selectedSetupScopes.value,
+      ...(neverExpires ? {} : { expires_in_days: Number(setupForm.expiration) }),
+      never_expires: neverExpires,
+      setup_expires_in_minutes: Number(setupForm.linkExpiration),
+    })
+    if (data.value) {
+      data.value.enrollments = [result.enrollment, ...data.value.enrollments.filter((item) => item.id !== result.enrollment.id)]
+    }
+    setupForm.label = ''
+    setupDialog.value = false
+    setupReveal.value = result
+  } catch (caught) {
+    if (caught instanceof APIError && caught.status === 401) emit('unauthorized')
+    else setupError.value = caught instanceof APIError ? caught.message : 'Could not create Pi setup link.'
+  } finally {
+    settingUp.value = false
+  }
+}
+
+function closeSetupReveal() {
+  setupReveal.value = null
+  copied.value = ''
 }
 
 function openIssue() {
@@ -191,6 +264,33 @@ function downloadConfig() {
   window.setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
+function closeEnrollmentRevoke() {
+  if (!revokingEnrollment.value) enrollmentRevokeTarget.value = null
+}
+
+async function revokeEnrollment() {
+  if (!props.project || !enrollmentRevokeTarget.value) return
+  const target = enrollmentRevokeTarget.value
+  revokingEnrollment.value = true
+  error.value = ''
+  try {
+    const revoked = await api.revokeAgentEnrollment(props.project.id, target.id)
+    if (data.value) {
+      data.value.enrollments = data.value.enrollments.map((item) => item.id === revoked.id ? revoked : item)
+      if (target.agent_token_id) {
+        data.value.tokens = data.value.tokens.map((item) => item.id === target.agent_token_id
+          ? { ...item, status: 'revoked', updated_at: new Date().toISOString() }
+          : item)
+      }
+    }
+    enrollmentRevokeTarget.value = null
+  } catch (caught) {
+    handleError(caught, 'Could not revoke Pi setup link.')
+  } finally {
+    revokingEnrollment.value = false
+  }
+}
+
 function closeRevoke() {
   if (!revoking.value) revokeTarget.value = null
 }
@@ -222,6 +322,18 @@ function statusLabel(value: string) {
   return value.replaceAll('_', ' ')
 }
 
+let enrollmentRefreshTimer: number | undefined
+onMounted(() => {
+  enrollmentRefreshTimer = window.setInterval(() => {
+    if (props.active && activeEnrollments.value > 0 && !loading.value && document.visibilityState === 'visible') {
+      void load()
+    }
+  }, 15_000)
+})
+onUnmounted(() => {
+  if (enrollmentRefreshTimer !== undefined) window.clearInterval(enrollmentRefreshTimer)
+})
+
 watch(() => [props.active, props.project?.id] as const, ([active, projectID]) => {
   if (!active || !projectID) return
   if (loadedProjectID.value !== projectID) {
@@ -242,10 +354,10 @@ watch(() => [props.active, props.project?.id] as const, ([active, projectID]) =>
         <p>{{ props.project?.name ?? 'Select a project' }}</p>
       </div>
       <div class="agent-actions">
-        <button class="secondary-button" type="button" :disabled="!agentGuideURL" @click="openGuide"><BookOpen :size="16" />MCP guide</button>
-        <a class="secondary-button" :class="{ disabled: !agentGuideURL }" :href="agentGuideURL || undefined" download="gemcp-agent-mcp.md"><FileDown :size="16" />Agent handoff</a>
-        <button class="icon-button" type="button" title="Refresh Agent tokens" :disabled="loading || !props.project" @click="load"><RefreshCw :size="16" :class="{ spinning: loading }" /></button>
-        <button class="primary-button" type="button" :disabled="!props.project || !data?.mcp_url" @click="openIssue"><Plus :size="16" />Generate token</button>
+        <button class="secondary-button" type="button" :disabled="!agentGuideURL" @click="openGuide"><BookOpen :size="16" />Guide</button>
+        <button class="secondary-button" type="button" :disabled="!props.project || !data?.mcp_url" @click="openIssue"><KeyRound :size="16" />Token</button>
+        <button class="icon-button" type="button" title="Refresh Agent access" :disabled="loading || !props.project" @click="load"><RefreshCw :size="16" :class="{ spinning: loading }" /></button>
+        <button class="primary-button" type="button" :disabled="!props.project || !data?.mcp_url" @click="openSetup"><Link2 :size="16" />Pi setup link</button>
       </div>
     </header>
 
@@ -254,7 +366,7 @@ watch(() => [props.active, props.project?.id] as const, ([active, projectID]) =>
       <section class="agent-metrics">
         <div><span><Bot :size="16" />Active</span><strong>{{ activeTokens }}</strong><small>Usable project credentials</small></div>
         <div><span><Clock3 :size="16" />Expiring</span><strong>{{ expiringTokens }}</strong><small>Within the next 30 days</small></div>
-        <div><span><Trash2 :size="16" />Revoked</span><strong>{{ revokedTokens }}</strong><small>Rejected on every request</small></div>
+        <div><span><Link2 :size="16" />Setup links</span><strong>{{ activeEnrollments }}</strong><small>Pending or being installed</small></div>
         <div><span><ShieldCheck :size="16" />Authentication</span><strong>Bearer</strong><small>HMAC digest at rest</small></div>
       </section>
 
@@ -263,6 +375,27 @@ watch(() => [props.active, props.project?.id] as const, ([active, projectID]) =>
         <div><span>Endpoint</span><strong>{{ data?.mcp_url ?? 'GEMCP_PUBLIC_URL is not configured' }}</strong></div>
         <div><span>Template</span><strong>{{ data?.config_file_name ?? 'Unavailable' }}</strong></div>
         <div class="agent-template-action"><span>Environment config</span><button class="icon-button" type="button" title="Copy environment-variable MCP template" :disabled="!templateJSON" @click="copy(templateJSON, 'template')"><Check v-if="copied === 'template'" :size="16" /><Clipboard v-else :size="16" /></button></div>
+      </section>
+
+      <section class="agent-workspace agent-setup-workspace">
+        <div class="section-heading"><div><h2>Pi setup links</h2><p>{{ data?.enrollments_truncated ? 'Latest 50 links. Setup secrets are never listed again.' : 'Short-lived one-time links that install, verify and store Pi authorization.' }}</p></div><button class="primary-button small-button" type="button" :disabled="!props.project || !data?.mcp_url" @click="openSetup"><Link2 :size="15" />New link</button></div>
+        <div v-if="data?.enrollments.length" class="table-scroll">
+          <table class="data-table agent-enrollment-table">
+            <thead><tr><th>Status</th><th>Label</th><th>Scopes</th><th>Link expires</th><th>Credential policy</th><th>Installed token</th><th>Actions</th></tr></thead>
+            <tbody>
+              <tr v-for="item in data.enrollments" :key="item.id">
+                <td><span class="state-badge" :data-state="item.status"><span />{{ statusLabel(item.status) }}</span></td>
+                <td><strong>{{ item.label }}</strong></td>
+                <td><div class="scope-list"><span v-for="scope in item.scopes" :key="scope">{{ scope }}</span></div></td>
+                <td>{{ dateTime(item.expires_at) }}</td>
+                <td>{{ item.token_expires_in_days ? `${item.token_expires_in_days} days` : 'No expiry' }}</td>
+                <td><code v-if="item.agent_token_prefix">{{ item.agent_token_prefix }}</code><span v-else>Not claimed</span></td>
+                <td><button class="icon-button danger-icon" type="button" title="Revoke Pi setup link" :disabled="item.status !== 'pending' && item.status !== 'claimed'" @click="enrollmentRevokeTarget = item"><Trash2 :size="16" /></button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div v-else class="empty-state compact-empty"><span class="empty-icon"><Link2 :size="21" /></span><h3>No Pi setup links</h3><p>Create one link, send it to the Agent, and let the Agent finish setup.</p></div>
       </section>
 
       <section class="agent-workspace">
@@ -289,16 +422,46 @@ watch(() => [props.active, props.project?.id] as const, ([active, projectID]) =>
     </template>
   </section>
 
+  <div v-if="setupDialog" class="modal-backdrop" @click.self="closeSetup">
+    <section class="modal agent-token-modal" role="dialog" aria-modal="true" aria-label="Create Pi setup link">
+      <header><div><p class="eyebrow">Automated enrollment</p><h2>Create Pi setup link</h2></div><button class="icon-button" type="button" title="Close setup link form" :disabled="settingUp" @click="closeSetup"><X :size="17" /></button></header>
+      <form class="dialog-form agent-token-form" @submit.prevent="createSetupLink">
+        <label>Agent label<input v-model="setupForm.label" required maxlength="120" autocomplete="off" placeholder="pi-training-agent" /></label>
+        <div class="form-grid two-columns">
+          <label>Credential expiration<select v-model="setupForm.expiration"><option value="30">30 days</option><option value="90">90 days</option><option value="365">1 year</option><option value="never">No expiry</option></select></label>
+          <label>Link validity<select v-model="setupForm.linkExpiration"><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="60">1 hour</option><option value="240">4 hours</option></select></label>
+        </div>
+        <fieldset class="scope-fieldset"><legend>Scopes</legend><label title="Required for setup verification"><input v-model="setupForm.scopes.read" type="checkbox" disabled /><span>Read</span></label><label><input v-model="setupForm.scopes.submit" type="checkbox" /><span>Submit</span></label><label><input v-model="setupForm.scopes.cancel" type="checkbox" /><span>Cancel</span></label></fieldset>
+        <p class="form-note">The provisional credential is read-only. Selected write scopes activate after verification; Submit is technical capability, not standing approval for paid work.</p>
+        <div v-if="setupError" class="form-error" role="alert">{{ setupError }}</div>
+        <button class="primary-button" type="submit" :disabled="settingUp"><LoaderCircle v-if="settingUp" :size="16" class="spinning" /><Link2 v-else :size="16" />Create setup link</button>
+      </form>
+    </section>
+  </div>
+
+  <div v-if="setupReveal" class="modal-backdrop" @click.self="closeSetupReveal">
+    <section class="modal agent-setup-reveal-modal" role="dialog" aria-modal="true" aria-label="One-time Pi setup link">
+      <header><div><p class="eyebrow">Ready to hand off</p><h2>Send one link to the Pi Agent</h2></div><button class="icon-button" type="button" title="Close Pi setup link" @click="closeSetupReveal"><X :size="17" /></button></header>
+      <div class="agent-reveal-body">
+        <div class="credential-block"><span>One-time setup link</span><div class="code-box"><code>{{ setupReveal.setup_url }}</code><button class="icon-button" type="button" :title="copied === 'setup-link' ? 'Copied' : 'Copy setup link'" @click="copy(setupReveal.setup_url, 'setup-link')"><Check v-if="copied === 'setup-link'" :size="16" /><Clipboard v-else :size="16" /></button></div></div>
+        <div class="setup-handoff-summary"><Link2 :size="18" /><div><strong>Give the Agent only this link</strong><p>It will install the Pi MCP configuration, store the credential with mode 0600, verify all tools plus project options and cost, then invalidate the link.</p></div></div>
+        <dl class="setup-link-facts"><div><dt>Link expires</dt><dd>{{ dateTime(setupReveal.enrollment.expires_at) }}</dd></div><div><dt>Scopes</dt><dd>{{ setupReveal.enrollment.scopes.join(', ') }}</dd></div><div><dt>Credential</dt><dd>{{ setupReveal.enrollment.token_expires_in_days ? `${setupReveal.enrollment.token_expires_in_days} days` : 'No expiry' }}</dd></div></dl>
+        <p class="form-note">This link is not shown again. Do not open it with untrusted preview services or include it in a repository.</p>
+        <div class="agent-reveal-actions"><button class="secondary-button" type="button" @click="copy(setupAgentMessage, 'setup-message')"><Check v-if="copied === 'setup-message'" :size="16" /><Clipboard v-else :size="16" />{{ copied === 'setup-message' ? 'Copied' : 'Copy Agent message' }}</button><button class="primary-button" type="button" @click="copy(setupReveal.setup_url, 'setup-link')"><Check v-if="copied === 'setup-link'" :size="16" /><Link2 v-else :size="16" />{{ copied === 'setup-link' ? 'Copied' : 'Copy link' }}</button></div>
+      </div>
+    </section>
+  </div>
+
   <div v-if="guideDialog" class="modal-backdrop" @click.self="guideDialog = false">
     <section class="modal agent-guide-modal" role="dialog" aria-modal="true" aria-label="Gemcp MCP onboarding guide">
       <header><div><p class="eyebrow">Owner onboarding</p><h2>Connect an Agent safely</h2></div><button class="icon-button" type="button" title="Close MCP guide" @click="guideDialog = false"><X :size="17" /></button></header>
       <div class="agent-guide-body">
         <ol class="agent-guide-steps">
-          <li><span>1</span><div><strong>Set the boundary</strong><p>Confirm the project repository, approved GPU profile, runtime policy, budget, and whether every paid run requires explicit approval.</p></div></li>
-          <li><span>2</span><div><strong>Issue minimum access</strong><p>Generate a finite-lived Token with only the required read, submit, and cancel scopes. The secret is shown once.</p></div></li>
-          <li><span>3</span><div><strong>Configure the client</strong><p>Import the generated MCP JSON or place the Token in the client secret environment. Never paste it into an Agent prompt or repository.</p></div></li>
-          <li><span>4</span><div><strong>Hand off instructions</strong><p>Give the Agent the separate non-secret guide. It requires option and cost preflight, a full pushed commit SHA, stable idempotency, and human approval.</p></div></li>
-          <li><span>5</span><div><strong>Verify and supervise</strong><p>Start with the read-only guide, options, and cost tools. Monitor every submitted Experiment to a terminal state and revoke unexpected access immediately.</p></div></li>
+          <li><span>1</span><div><strong>Set the boundary</strong><p>Choose the project scopes, credential lifetime, budget policy, and whether every paid run requires explicit approval.</p></div></li>
+          <li><span>2</span><div><strong>Create one setup link</strong><p>The short-lived fragment capability is shown once. No long-lived Token is exposed to the Owner or placed in the link.</p></div></li>
+          <li><span>3</span><div><strong>Send only the link</strong><p>The Pi Agent runs the fixed installer, stores its credential, discovers all tools, and tests the guide, options and cost itself.</p></div></li>
+          <li><span>4</span><div><strong>Reload once</strong><p>After setup reports all checks passed, one Pi reload makes the eight Gemcp operations available as native direct tools.</p></div></li>
+          <li><span>5</span><div><strong>Approve and supervise</strong><p>The Agent must still present the immutable run and worst-case reservation before paid submission, then monitor it to a terminal state.</p></div></li>
         </ol>
         <div class="agent-discovery-list">
           <div><span>Tool fallback</span><code>get_usage_guide</code></div>
@@ -340,6 +503,13 @@ watch(() => [props.active, props.project?.id] as const, ([active, projectID]) =>
         <p class="form-note">The MCP JSON contains the live secret. The separate Agent handoff guide does not and is safe to give to the Agent after its client is configured.</p>
         <div class="agent-reveal-actions"><button class="secondary-button" type="button" @click="copy(configJSON, 'config')"><Check v-if="copied === 'config'" :size="16" /><Clipboard v-else :size="16" />{{ copied === 'config' ? 'Copied' : 'Copy JSON' }}</button><a class="secondary-button" :href="agentGuideURL" download="gemcp-agent-mcp.md"><FileDown :size="16" />Agent handoff</a><button class="primary-button" type="button" @click="downloadConfig"><Download :size="16" />Download JSON</button></div>
       </div>
+    </section>
+  </div>
+
+  <div v-if="enrollmentRevokeTarget" class="modal-backdrop" @click.self="closeEnrollmentRevoke">
+    <section class="modal agent-revoke-modal" role="alertdialog" aria-modal="true" aria-label="Revoke Pi setup link">
+      <header><div><p class="eyebrow">Enrollment revocation</p><h2>Revoke {{ enrollmentRevokeTarget.label }}</h2></div><button class="icon-button" type="button" title="Close setup revocation" :disabled="revokingEnrollment" @click="closeEnrollmentRevoke"><X :size="17" /></button></header>
+      <div class="agent-revoke-body"><p>The setup link will stop working immediately. If it was already claimed but not completed, its provisional Agent Token is revoked too.</p><div class="agent-reveal-actions"><button class="secondary-button" type="button" :disabled="revokingEnrollment" @click="closeEnrollmentRevoke">Keep link</button><button class="danger-button" type="button" :disabled="revokingEnrollment" @click="revokeEnrollment"><LoaderCircle v-if="revokingEnrollment" :size="16" class="spinning" /><Trash2 v-else :size="16" />Revoke link</button></div></div>
     </section>
   </div>
 

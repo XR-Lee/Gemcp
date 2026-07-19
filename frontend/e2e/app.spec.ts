@@ -50,6 +50,21 @@ const agentTokens = [
     scopes: ['read'], status: 'revoked', created_at: '2026-06-01T00:00:00Z', updated_at: '2026-07-01T00:00:00Z',
   },
 ]
+const agentEnrollments = [
+  {
+    id: 'agent-enrollment-completed-1', project_id: project.id, label: 'pi-research-agent',
+    scopes: ['read', 'submit', 'cancel'], status: 'completed', expires_at: '2026-07-17T01:00:00Z',
+    token_expires_in_days: 30, claimed_at: '2026-07-17T00:31:00Z', completed_at: '2026-07-17T00:32:00Z',
+    agent_token_id: agentTokens[0].id, agent_token_prefix: agentTokens[0].prefix,
+    created_at: '2026-07-17T00:30:00Z', updated_at: '2026-07-17T00:32:00Z',
+  },
+]
+const issuedEnrollment = {
+  id: 'agent-enrollment-issued-1', project_id: project.id, label: 'pi-integration-agent',
+  scopes: ['read', 'submit', 'cancel'], status: 'pending', expires_at: '2026-07-17T02:15:00Z',
+  token_expires_in_days: 30, created_at: '2026-07-17T02:00:00Z', updated_at: '2026-07-17T02:00:00Z',
+}
+const issuedSetupURL = 'https://gemcp.example.com/agent/setup#code=gme_setup1_test-capability'
 const issuedAgentToken = 'gmc_new1234_test-secret'
 const issuedAgent = {
   id: 'agent-token-issued-1', project_id: project.id, label: 'integration-agent', prefix: 'gmc_new1234',
@@ -65,7 +80,7 @@ const mcpConfig = {
   },
 }
 const agentTokenList = {
-  tokens: agentTokens, mcp_url: 'https://gemcp.example.com/mcp', config_file_name: 'gemcp-point-models-mcp.json',
+  tokens: agentTokens, enrollments: agentEnrollments, mcp_url: 'https://gemcp.example.com/mcp', config_file_name: 'gemcp-point-models-mcp.json',
   config_template: {
     mcpServers: {
       'gemcp-point-models': {
@@ -197,6 +212,19 @@ async function mockConsole(page: Page, counters?: { providerQueries: number }) {
     })
     if (path === '/api/v1/projects') return fulfill(route, [project])
     if (path === `/api/v1/projects/${project.id}/agent-tokens` && route.request().method() === 'GET') return fulfill(route, agentTokenList)
+    if (path === `/api/v1/projects/${project.id}/agent-enrollments` && route.request().method() === 'POST') {
+      expect(route.request().postDataJSON()).toEqual({
+        label: 'pi-integration-agent', scopes: ['read', 'submit', 'cancel'], expires_in_days: 30,
+        never_expires: false, setup_expires_in_minutes: 15,
+      })
+      return fulfill(route, {
+        enrollment: issuedEnrollment, setup_url: issuedSetupURL,
+        installer_url: 'https://gemcp.example.com/agent/setup/install.mjs',
+      }, 201)
+    }
+    if (path === `/api/v1/projects/${project.id}/agent-enrollments/${issuedEnrollment.id}` && route.request().method() === 'DELETE') {
+      return fulfill(route, { ...issuedEnrollment, status: 'revoked', updated_at: '2026-07-17T02:01:00Z' })
+    }
     if (path === `/api/v1/projects/${project.id}/agent-tokens` && route.request().method() === 'POST') {
       expect(route.request().postDataJSON()).toEqual({
         label: 'integration-agent', scopes: ['read', 'submit', 'cancel'], expires_in_days: 30, never_expires: false,
@@ -298,18 +326,46 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await page.screenshot({ path: '/tmp/gemcp-experiment-detail.png', fullPage: true })
 })
 
-test('Agent token issuance, MCP JSON export and revocation fit desktop and mobile', async ({ page }) => {
+test('Pi setup links, MCP guidance and advanced token controls fit desktop and mobile', async ({ page }) => {
   await mockConsole(page)
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.goto('/')
   await page.getByRole('button', { name: 'Agents', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Agent access', level: 1 })).toBeVisible()
   await expect(page.getByText('default-agent', { exact: true })).toBeVisible()
-  await expect(page.getByText('gmc_abcd123', { exact: true })).toBeVisible()
+  await expect(page.getByRole('row').filter({ hasText: 'default-agent' }).getByText('gmc_abcd123', { exact: true })).toBeVisible()
+  await expect(page.getByText('pi-research-agent', { exact: true })).toBeVisible()
   await expectNoPageOverflow(page)
   await page.screenshot({ path: '/tmp/gemcp-agents-desktop.png', fullPage: true })
 
-  await page.getByRole('button', { name: 'MCP guide' }).click()
+  await page.getByRole('button', { name: 'Pi setup link', exact: true }).click()
+  const setupDialog = page.getByRole('dialog', { name: 'Create Pi setup link' })
+  await expect(setupDialog).toBeVisible()
+  await setupDialog.getByLabel('Agent label').fill('pi-integration-agent')
+  await setupDialog.getByLabel('Credential expiration').selectOption('30')
+  await setupDialog.getByLabel('Link validity').selectOption('15')
+  await expect(setupDialog.getByLabel('Read')).toBeChecked()
+  await expect(setupDialog.getByLabel('Submit')).toBeChecked()
+  await expect(setupDialog.getByLabel('Cancel')).toBeChecked()
+  await setupDialog.getByRole('button', { name: 'Create setup link' }).click()
+
+  const setupReveal = page.getByRole('dialog', { name: 'One-time Pi setup link' })
+  await expect(setupReveal).toBeVisible()
+  await expect(setupReveal.getByText(issuedSetupURL, { exact: true })).toBeVisible()
+  await expect(setupReveal.getByText('Give the Agent only this link', { exact: true })).toBeVisible()
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: '/tmp/gemcp-agent-setup-link.png', fullPage: true })
+  await setupReveal.getByTitle('Close Pi setup link').click()
+  await expect(page.getByText(issuedSetupURL, { exact: true })).toHaveCount(0)
+  const setupRow = page.getByRole('row').filter({ hasText: 'pi-integration-agent' })
+  await expect(setupRow).toBeVisible()
+  await setupRow.getByTitle('Revoke Pi setup link').click()
+  const setupRevokeDialog = page.getByRole('alertdialog', { name: 'Revoke Pi setup link' })
+  await expect(setupRevokeDialog).toBeVisible()
+  await setupRevokeDialog.getByRole('button', { name: 'Revoke link' }).click()
+  await expect(setupRow.getByText('revoked', { exact: true })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Guide', exact: true }).click()
   const guideDialog = page.getByRole('dialog', { name: 'Gemcp MCP onboarding guide' })
   await expect(guideDialog).toBeVisible()
   await expect(guideDialog.getByText('get_usage_guide', { exact: true })).toBeVisible()
@@ -319,7 +375,7 @@ test('Agent token issuance, MCP JSON export and revocation fit desktop and mobil
   await page.screenshot({ path: '/tmp/gemcp-agent-guide-desktop.png', fullPage: true })
   await guideDialog.getByTitle('Close MCP guide').click()
 
-  await page.getByRole('button', { name: 'Generate token' }).click()
+  await page.getByRole('button', { name: 'Token', exact: true }).click()
   const issueDialog = page.getByRole('dialog', { name: 'Generate Agent token' })
   await expect(issueDialog).toBeVisible()
   await issueDialog.getByLabel('Label').fill('integration-agent')
@@ -354,11 +410,16 @@ test('Agent token issuance, MCP JSON export and revocation fit desktop and mobil
 
   await page.setViewportSize({ width: 390, height: 844 })
   await expectNoPageOverflow(page)
-  await page.getByRole('button', { name: 'MCP guide' }).click()
+  await page.getByRole('button', { name: 'Guide', exact: true }).click()
   await expect(guideDialog).toBeVisible()
   await expectNoPageOverflow(page)
   await page.screenshot({ path: '/tmp/gemcp-agent-guide-mobile.png', fullPage: true })
   await guideDialog.getByTitle('Close MCP guide').click()
+  await page.getByRole('button', { name: 'Pi setup link', exact: true }).click()
+  await expect(setupDialog).toBeVisible()
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: '/tmp/gemcp-agent-setup-form-mobile.png', fullPage: true })
+  await setupDialog.getByTitle('Close setup link form').click()
   await page.screenshot({ path: '/tmp/gemcp-agents-mobile.png', fullPage: true })
 })
 

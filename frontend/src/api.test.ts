@@ -103,6 +103,42 @@ describe('API security headers', () => {
     expect(revokeHeaders.get('X-CSRF-Token')).toBe('csrf-agent-token')
   })
 
+  it('creates and revokes one-time Agent setup links through project endpoints', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        json: async () => ({ data: { enrollment: { id: 'enrollment-id' }, setup_url: 'https://gemcp.example/agent/setup#code=test' } }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ data: { id: 'enrollment-id', status: 'revoked' } }),
+      })
+    vi.stubGlobal('fetch', fetchMock)
+    setCSRFToken('csrf-setup-link')
+
+    await api.issueAgentEnrollment('project/id', {
+      label: 'pi-agent', scopes: ['read', 'submit', 'cancel'], expires_in_days: 30,
+      never_expires: false, setup_expires_in_minutes: 15,
+    })
+    await api.revokeAgentEnrollment('project/id', 'enrollment/id')
+
+    const [issuePath, issueOptions] = fetchMock.mock.calls[0]
+    expect(issuePath).toBe('/api/v1/projects/project%2Fid/agent-enrollments')
+    expect(issueOptions.method).toBe('POST')
+    expect((issueOptions.headers as Headers).get('X-CSRF-Token')).toBe('csrf-setup-link')
+    expect(JSON.parse(String(issueOptions.body))).toEqual({
+      label: 'pi-agent', scopes: ['read', 'submit', 'cancel'], expires_in_days: 30,
+      never_expires: false, setup_expires_in_minutes: 15,
+    })
+
+    const [revokePath, revokeOptions] = fetchMock.mock.calls[1]
+    expect(revokePath).toBe('/api/v1/projects/project%2Fid/agent-enrollments/enrollment%2Fid')
+    expect(revokeOptions.method).toBe('DELETE')
+    expect((revokeOptions.headers as Headers).get('X-CSRF-Token')).toBe('csrf-setup-link')
+  })
+
   it('adds the current CSRF token to state-changing Owner requests', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

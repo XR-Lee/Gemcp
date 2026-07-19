@@ -54,6 +54,9 @@ func New(deps Dependencies) *http.Server {
 	router.GET("/readyz", readinessHandler(deps.DB))
 	router.GET("/docs/agent-mcp.md", markdownGuide(guides.AgentMCP()))
 	router.GET("/docs/owner-mcp.md", markdownGuide(guides.OwnerMCP()))
+	router.GET("/agent/setup", markdownGuide(guides.PiSetup(deps.Config.PublicURL)))
+	router.GET("/agent/setup/install.mjs", staticGuide("text/javascript; charset=utf-8", guides.PiSetupInstaller(deps.Config.PublicURL)))
+	router.GET("/agent/setup/gemcp-tool.mjs", staticGuide("text/javascript; charset=utf-8", guides.GemcpTool()))
 
 	api := router.Group("/api/v1")
 	api.GET("/version", func(c *gin.Context) {
@@ -65,6 +68,10 @@ func New(deps Dependencies) *http.Server {
 	api.GET("/setup/status", setupHandlers.Status)
 	api.POST("/setup", setupHandlers.Initialize)
 	api.POST("/auth/login", authHandlers.Login)
+	agentAccessService := agentaccess.NewService(deps.Ent, deps.Secrets, deps.Config.PublicURL)
+	agentTokenHandlers := httpapi.NewAgentTokenHandlers(agentAccessService)
+	api.POST("/agent-enrollments/claim", agentTokenHandlers.ClaimEnrollment)
+	api.POST("/agent-enrollments/complete", agentTokenHandlers.CompleteEnrollment)
 
 	repositoryService := gitrepository.NewService(deps.Ent, deps.Secrets, nil)
 	runnerHandlers := httpapi.NewRunnerHandlers(runnerservice.NewService(
@@ -81,10 +88,11 @@ func New(deps Dependencies) *http.Server {
 	protected.POST("/auth/logout", authHandlers.Logout)
 	projectHandlers := httpapi.NewProjectHandlers(deps.Ent)
 	protected.GET("/projects", projectHandlers.List)
-	agentTokenHandlers := httpapi.NewAgentTokenHandlers(agentaccess.NewService(deps.Ent, deps.Secrets, deps.Config.PublicURL))
 	protected.GET("/projects/:id/agent-tokens", agentTokenHandlers.List)
 	protected.POST("/projects/:id/agent-tokens", agentTokenHandlers.Issue)
 	protected.DELETE("/projects/:id/agent-tokens/:tokenID", agentTokenHandlers.Revoke)
+	protected.POST("/projects/:id/agent-enrollments", agentTokenHandlers.IssueEnrollment)
+	protected.DELETE("/projects/:id/agent-enrollments/:enrollmentID", agentTokenHandlers.RevokeEnrollment)
 
 	providerService := providerservice.NewService(deps.Ent, deps.Secrets, deps.Build.Version)
 	providerHandlers := httpapi.NewProviderHandlers(providerService)
@@ -152,10 +160,14 @@ func New(deps Dependencies) *http.Server {
 }
 
 func markdownGuide(content string) gin.HandlerFunc {
+	return staticGuide("text/markdown; charset=utf-8", content)
+}
+
+func staticGuide(contentType, content string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("Cache-Control", "public, max-age=300")
 		c.Header("Content-Disposition", "inline")
-		c.Data(http.StatusOK, "text/markdown; charset=utf-8", []byte(content))
+		c.Data(http.StatusOK, contentType, []byte(content))
 	}
 }
 

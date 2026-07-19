@@ -17,7 +17,7 @@ func (f fakeDatabase) Ping(context.Context) error { return f.err }
 
 func testServer(db Database) http.Handler {
 	return New(Dependencies{
-		Config: config.Config{Environment: "test", Address: ":0"},
+		Config: config.Config{Environment: "test", Address: ":0", PublicURL: "https://gemcp.example.com"},
 		Build:  buildinfo.New("test", "abc123", "now"),
 		DB:     db,
 	}).Handler
@@ -67,6 +67,33 @@ func TestPublicMCPGuides(t *testing.T) {
 			t.Fatalf("GET %s status=%d body=%s", test.path, response.Code, response.Body.String())
 		}
 		if got := response.Header().Get("Content-Type"); got != "text/markdown; charset=utf-8" {
+			t.Fatalf("GET %s Content-Type=%q", test.path, got)
+		}
+		if got := response.Header().Get("Cache-Control"); got != "public, max-age=300" {
+			t.Fatalf("GET %s Cache-Control=%q", test.path, got)
+		}
+	}
+}
+
+func TestPiSetupAssets(t *testing.T) {
+	for _, test := range []struct {
+		path        string
+		contentType string
+		want        []string
+	}{
+		{path: "/agent/setup", contentType: "text/markdown; charset=utf-8", want: []string{"Gemcp Pi Agent Setup", "https://gemcp.example.com/agent/setup/install.mjs"}},
+		{path: "/agent/setup/install.mjs", contentType: "text/javascript; charset=utf-8", want: []string{"GEMCP_PI_SETUP_INSTALLER_V1", "const trustedOrigin = 'https://gemcp.example.com'"}},
+		{path: "/agent/setup/gemcp-tool.mjs", contentType: "text/javascript; charset=utf-8", want: []string{"GEMCP_TOOL_HELPER_V1", "verifyConfiguredServer"}},
+	} {
+		response := httptest.NewRecorder()
+		testServer(fakeDatabase{}).ServeHTTP(response, httptest.NewRequest(http.MethodGet, test.path, nil))
+		if response.Code != http.StatusOK || !containsAll(response.Body.String(), test.want...) {
+			t.Fatalf("GET %s status=%d body=%s", test.path, response.Code, response.Body.String())
+		}
+		if containsAll(response.Body.String(), "{{GEMCP_PUBLIC_URL}}") {
+			t.Fatalf("GET %s retained the public URL placeholder", test.path)
+		}
+		if got := response.Header().Get("Content-Type"); got != test.contentType {
 			t.Fatalf("GET %s Content-Type=%q", test.path, got)
 		}
 		if got := response.Header().Get("Cache-Control"); got != "public, max-age=300" {

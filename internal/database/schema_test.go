@@ -35,6 +35,24 @@ func TestPostgres18ComposeSecuresCorrectedBindRoot(t *testing.T) {
 	}
 }
 
+func TestAgentEnrollmentSchemaStoresNoRecoverableCredential(t *testing.T) {
+	digestFound := false
+	for _, column := range entmigrate.AgentEnrollmentsColumns {
+		if strings.Contains(column.Name, "ciphertext") || strings.Contains(column.Name, "secret") {
+			t.Fatalf("Agent enrollment schema contains recoverable credential column %q", column.Name)
+		}
+		if column.Name == "code_hash" {
+			digestFound = true
+			if !column.Unique {
+				t.Fatal("Agent enrollment code_hash must be unique")
+			}
+		}
+	}
+	if !digestFound {
+		t.Fatal("Agent enrollment code_hash column is missing")
+	}
+}
+
 func TestAttemptResultColumnsRemainNullableForV05Upgrade(t *testing.T) {
 	for _, name := range []string{"metrics", "provider_request_ids"} {
 		found := false

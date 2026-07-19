@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -44,6 +45,10 @@ func TestOwnerAgentTokenHTTPContract(t *testing.T) {
 	router.GET("/projects/:id/agent-tokens", handlers.List)
 	router.POST("/projects/:id/agent-tokens", handlers.Issue)
 	router.DELETE("/projects/:id/agent-tokens/:tokenID", handlers.Revoke)
+	router.POST("/projects/:id/agent-enrollments", handlers.IssueEnrollment)
+	router.DELETE("/projects/:id/agent-enrollments/:enrollmentID", handlers.RevokeEnrollment)
+	router.POST("/agent-enrollments/claim", handlers.ClaimEnrollment)
+	router.POST("/agent-enrollments/complete", handlers.CompleteEnrollment)
 
 	issueRequest := httptest.NewRequest(http.MethodPost, "/projects/"+project.PublicID.String()+"/agent-tokens", strings.NewReader(`{
 		"label":"third-party-agent","scopes":["read","submit"],"expires_in_days":90
@@ -77,6 +82,67 @@ func TestOwnerAgentTokenHTTPContract(t *testing.T) {
 	}
 	if len(listed.Data.Tokens) != 1 || listed.Data.ConfigTemplate == nil || listed.Data.MCPURL != "https://gemcp.example.com/mcp" {
 		t.Fatalf("list response = %+v", listed.Data)
+	}
+
+	enrollmentRequest := httptest.NewRequest(http.MethodPost, "/projects/"+project.PublicID.String()+"/agent-enrollments", strings.NewReader(`{
+		"label":"pi-agent","scopes":["read","submit","cancel"],"expires_in_days":30,"setup_expires_in_minutes":15
+	}`))
+	enrollmentRequest.Header.Set("Content-Type", "application/json")
+	enrollmentResponse := httptest.NewRecorder()
+	router.ServeHTTP(enrollmentResponse, enrollmentRequest)
+	if enrollmentResponse.Code != http.StatusCreated {
+		t.Fatalf("enrollment status=%d body=%s", enrollmentResponse.Code, enrollmentResponse.Body.String())
+	}
+	var enrollment struct {
+		Data agentaccess.EnrollmentIssueResult `json:"data"`
+	}
+	if err := json.Unmarshal(enrollmentResponse.Body.Bytes(), &enrollment); err != nil {
+		t.Fatal(err)
+	}
+	setupURL, err := url.Parse(enrollment.Data.SetupURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fragment, _ := url.ParseQuery(setupURL.Fragment)
+	setupCode := fragment.Get("code")
+	if !strings.HasPrefix(setupCode, "gme_") || setupURL.RawQuery != "" {
+		t.Fatalf("setup URL = %q", enrollment.Data.SetupURL)
+	}
+
+	claimRequest := httptest.NewRequest(http.MethodPost, "/agent-enrollments/claim", strings.NewReader(`{"code":"`+setupCode+`"}`))
+	claimRequest.Header.Set("Content-Type", "application/json")
+	claimResponse := httptest.NewRecorder()
+	router.ServeHTTP(claimResponse, claimRequest)
+	if claimResponse.Code != http.StatusOK {
+		t.Fatalf("claim status=%d body=%s", claimResponse.Code, claimResponse.Body.String())
+	}
+	var claim struct {
+		Data agentaccess.EnrollmentClaimResult `json:"data"`
+	}
+	if err := json.Unmarshal(claimResponse.Body.Bytes(), &claim); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(claim.Data.AgentToken, "gmc_") || claim.Data.PiConfig.BearerToken != claim.Data.AgentToken || len(claim.Data.PiConfig.DirectTools) != 8 {
+		t.Fatalf("claim response = %+v", claim.Data)
+	}
+
+	completeRequest := httptest.NewRequest(http.MethodPost, "/agent-enrollments/complete", strings.NewReader(`{
+		"code":"`+setupCode+`","client":"pi-mcp-adapter/2.10.0","tool_count":8,
+		"checks":["tools","guide","options","cost"]
+	}`))
+	completeRequest.Header.Set("Content-Type", "application/json")
+	completeResponse := httptest.NewRecorder()
+	router.ServeHTTP(completeResponse, completeRequest)
+	if completeResponse.Code != http.StatusOK || !strings.Contains(completeResponse.Body.String(), `"status":"completed"`) {
+		t.Fatalf("complete status=%d body=%s", completeResponse.Code, completeResponse.Body.String())
+	}
+
+	replayedRequest := httptest.NewRequest(http.MethodPost, "/agent-enrollments/claim", strings.NewReader(`{"code":"`+setupCode+`"}`))
+	replayedRequest.Header.Set("Content-Type", "application/json")
+	replayedResponse := httptest.NewRecorder()
+	router.ServeHTTP(replayedResponse, replayedRequest)
+	if replayedResponse.Code != http.StatusGone || !strings.Contains(replayedResponse.Body.String(), "AGENT_SETUP_INVALID") {
+		t.Fatalf("replayed claim status=%d body=%s", replayedResponse.Code, replayedResponse.Body.String())
 	}
 
 	revokeResponse := httptest.NewRecorder()

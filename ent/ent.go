@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"github.com/XR-Lee/Gemcp/ent/agentenrollment"
 	"github.com/XR-Lee/Gemcp/ent/agenttoken"
 	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/auditevent"
@@ -91,6 +92,7 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
+			agentenrollment.Table:     agentenrollment.ValidColumn,
 			agenttoken.Table:          agenttoken.ValidColumn,
 			attempt.Table:             attempt.ValidColumn,
 			auditevent.Table:          auditevent.ValidColumn,

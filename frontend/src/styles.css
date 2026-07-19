@@ -521,8 +521,8 @@ label small { color: #858e88; font-size: 10px; font-weight: 500; }
 .agent-metrics small { margin-top: 4px; color: #879089; font-size: 10px; }
 .agent-metrics > div:nth-child(1) { box-shadow: inset 0 3px #4a9f77; }
 .agent-metrics > div:nth-child(2) { box-shadow: inset 0 3px #b79243; }
-.agent-metrics > div:nth-child(3) { box-shadow: inset 0 3px #c45f55; }
-.agent-metrics > div:nth-child(4) { box-shadow: inset 0 3px #4e82a0; }
+.agent-metrics > div:nth-child(3) { box-shadow: inset 0 3px #4e82a0; }
+.agent-metrics > div:nth-child(4) { box-shadow: inset 0 3px #78847d; }
 .agent-connection-band { display: grid; grid-template-columns: .8fr 1.5fr 1fr .8fr; background: #f9faf9; border: 1px solid #dfe4df; border-top: 0; border-radius: 0 0 7px 7px; }
 .agent-connection-band > div { min-width: 0; min-height: 57px; padding: 11px 18px; border-right: 1px solid #e4e8e5; }
 .agent-connection-band > div:last-child { border-right: 0; }
@@ -534,6 +534,13 @@ label small { color: #858e88; font-size: 10px; font-weight: 500; }
 .agent-workspace { min-height: 390px; margin-top: 18px; background: #fff; border: 1px solid #dfe4df; border-radius: 7px; }
 .agent-table { min-width: 960px; }
 .agent-table strong { color: #344039; font-size: 12px; }
+.agent-setup-workspace { min-height: 250px; }
+.agent-enrollment-table { min-width: 900px; }
+.agent-enrollment-table strong { color: #344039; font-size: 12px; }
+.agent-enrollment-table td > code { color: #46534c; font-size: 10px; }
+.state-badge[data-state="pending"] > span { background: #b79243; }
+.state-badge[data-state="claimed"] > span { background: #3d78a0; }
+.state-badge[data-state="completed"] > span { background: #2f8b65; }
 .scope-list { display: flex; gap: 4px; }
 .scope-list span { padding: 3px 6px; color: #4d6257; background: #eef3ef; border-radius: 4px; font-size: 9px; font-weight: 700; text-transform: uppercase; }
 .danger-icon { color: #a8443e; }
@@ -563,7 +570,15 @@ label small { color: #858e88; font-size: 10px; font-weight: 500; }
 .scope-fieldset legend { padding: 0 5px; color: #505a54; font-size: 12px; font-weight: 650; }
 .scope-fieldset label { flex-direction: row; align-items: center; gap: 7px; font-weight: 600; }
 .scope-fieldset input { width: 16px; height: 16px; min-height: 16px; }
-.agent-reveal-modal { width: min(700px, 100%); }
+.agent-reveal-modal, .agent-setup-reveal-modal { width: min(700px, 100%); }
+.setup-handoff-summary { padding: 14px 0; display: flex; align-items: flex-start; gap: 10px; border-top: 1px solid #e3e8e4; border-bottom: 1px solid #e3e8e4; }
+.setup-handoff-summary > svg { flex: 0 0 auto; color: #287457; }
+.setup-handoff-summary strong { display: block; color: #344039; font-size: 12px; line-height: 18px; }
+.setup-handoff-summary p { margin: 3px 0 0; color: #68736c; font-size: 11px; line-height: 17px; }
+.setup-link-facts { margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-bottom: 1px solid #e3e8e4; }
+.setup-link-facts > div { min-width: 0; padding: 11px 12px 11px 0; }
+.setup-link-facts dt { color: #858e88; font-size: 9px; font-weight: 750; text-transform: uppercase; }
+.setup-link-facts dd { margin: 4px 0 0; color: #3f4b44; font-size: 11px; line-height: 16px; overflow-wrap: anywhere; }
 .agent-reveal-body { padding: 20px; display: grid; gap: 17px; }
 .credential-block > span { display: block; margin-bottom: 6px; color: #727c75; font-size: 10px; font-weight: 750; text-transform: uppercase; }
 .credential-block .code-box { min-width: 0; display: flex; align-items: flex-start; gap: 10px; background: #f2f5f3; border: 1px solid #dce2dd; border-radius: 5px; }
@@ -681,6 +696,9 @@ label small { color: #858e88; font-size: 10px; font-weight: 500; }
   .agent-discovery-list > div:nth-child(odd) { border-right: 0; }
   .agent-discovery-list > div:nth-child(even) { padding-left: 0; }
   .agent-guide-actions .secondary-button, .agent-guide-actions .primary-button { width: 100%; justify-content: center; }
+  .setup-link-facts { grid-template-columns: 1fr; }
+  .setup-link-facts > div { padding-right: 0; border-bottom: 1px solid #edf0ed; }
+  .setup-link-facts > div:last-child { border-bottom: 0; }
   .agent-metrics, .agent-connection-band { grid-template-columns: 1fr; }
   .agent-metrics > div, .agent-connection-band > div { min-height: 0; border-right: 0; border-bottom: 1px solid #e5e9e5; }
   .agent-metrics > div { min-height: 88px; }

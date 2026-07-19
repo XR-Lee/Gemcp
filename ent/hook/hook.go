@@ -9,6 +9,18 @@ import (
 	"github.com/XR-Lee/Gemcp/ent"
 )
 
+// The AgentEnrollmentFunc type is an adapter to allow the use of ordinary
+// function as AgentEnrollment mutator.
+type AgentEnrollmentFunc func(context.Context, *ent.AgentEnrollmentMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f AgentEnrollmentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.AgentEnrollmentMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AgentEnrollmentMutation", m)
+}
+
 // The AgentTokenFunc type is an adapter to allow the use of ordinary
 // function as AgentToken mutator.
 type AgentTokenFunc func(context.Context, *ent.AgentTokenMutation) (ent.Value, error)

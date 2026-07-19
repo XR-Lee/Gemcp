@@ -10,6 +10,7 @@ import (
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/XR-Lee/Gemcp/ent/agentenrollment"
 	"github.com/XR-Lee/Gemcp/ent/agenttoken"
 	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
@@ -249,6 +250,21 @@ func (_c *ProjectCreate) AddAgentTokens(v ...*AgentToken) *ProjectCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddAgentTokenIDs(ids...)
+}
+
+// AddAgentEnrollmentIDs adds the "agent_enrollments" edge to the AgentEnrollment entity by IDs.
+func (_c *ProjectCreate) AddAgentEnrollmentIDs(ids ...int) *ProjectCreate {
+	_c.mutation.AddAgentEnrollmentIDs(ids...)
+	return _c
+}
+
+// AddAgentEnrollments adds the "agent_enrollments" edges to the AgentEnrollment entity.
+func (_c *ProjectCreate) AddAgentEnrollments(v ...*AgentEnrollment) *ProjectCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddAgentEnrollmentIDs(ids...)
 }
 
 // AddExperimentIDs adds the "experiments" edge to the Experiment entity by IDs.
@@ -633,6 +649,22 @@ func (_c *ProjectCreate) createSpec() (*Project, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(agenttoken.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.AgentEnrollmentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.AgentEnrollmentsTable,
+			Columns: []string{project.AgentEnrollmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(agentenrollment.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
