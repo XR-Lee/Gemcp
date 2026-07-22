@@ -68,6 +68,10 @@ Owners create a short-lived one-time link instead of manually transferring a lon
 
 Build Sessions, Environment and Dataset Snapshots, cross-node asset placement, and full historical output transfer remain later increments.
 
+### v0.10.1 - dependency security update
+
+Upgrade `golang.org/x/text` to `v0.39.0` to resolve reachable vulnerability `GO-2026-5970` reported by `govulncheck`.
+
 ## Further validation
 
 The following items still require the target environment or newly authorized paid resources:
