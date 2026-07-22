@@ -335,9 +335,12 @@ func (s *Service) collectResources(ctx context.Context, providerClient api) (Res
 		return providerClient.PrivateSystemImages(ctx, page, size)
 	})
 	if err != nil {
-		return snapshot, operationError("system-image query", err)
-	}
-	if truncated {
+		if !optionalSystemImagesUnavailable(err) {
+			return snapshot, operationError("system-image query", err)
+		}
+		snapshot.Truncated = append(snapshot.Truncated, "system_images")
+		systemImages = nil
+	} else if truncated {
 		snapshot.Truncated = append(snapshot.Truncated, "system_images")
 	}
 	stock, _, err := providerClient.PrivateElasticGPUStock(ctx)
@@ -397,6 +400,19 @@ func summaryFromRecord(record *ent.ProviderAccount) Summary {
 
 func operationError(operation string, err error) error {
 	return &OperationError{Operation: operation, Cause: err}
+}
+
+func optionalSystemImagesUnavailable(err error) bool {
+	var providerErr *autodl.ProviderError
+	if !errors.As(err, &providerErr) {
+		return false
+	}
+	switch strings.ToLower(strings.TrimSpace(providerErr.Code)) {
+	case "authorizefailed", "unauthorized":
+		return true
+	default:
+		return false
+	}
 }
 
 const (

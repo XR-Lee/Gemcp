@@ -4,6 +4,8 @@ Gemcp is a private, single-organization control plane for running bounded AutoDL
 
 ## Current release
 
+`v0.10.2` keeps the documented AutoDL Private Cloud Developer API resource view available when the optional Web-console system-image endpoint requires a browser login session.
+
 `v0.10.1` updates `golang.org/x/text` to `v0.39.0`, resolving reachable vulnerability `GO-2026-5970` reported by the release CI vulnerability gate.
 
 `v0.10.0` adds feature-gated Self-hosted NVIDIA nodes: short-lived pairing, digest-only Node credentials, Project authorization, durable Commands and Events, transactional single-GPU Assignments, zero-CNY runtime profiles, digest-pinned OCI execution, Node-authenticated source transfer, local deadline enforcement, complete node-local logs, bounded result projection, external GPU-use detection, and an Owner Nodes console. Build Sessions, Dataset Snapshots, and cross-node asset placement are not yet exposed.

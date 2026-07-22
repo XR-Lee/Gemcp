@@ -35,12 +35,12 @@ The response contains a timestamped snapshot of:
 
 - GPU model, idle count, and total count.
 - User-private images.
-- Private Cloud system images and CUDA metadata.
+- Private Cloud system images and CUDA metadata when the optional Web-console endpoint accepts Developer Token authentication.
 - Deployments and replica/starting/running/finished/failed counters.
 - Active containers.
 - Released containers, including reusable `in_cache` entries.
 
-A successful query marks the account `backend=private`, `status=active`, and updates `last_validated_at`. A failed live query does not replace the credential. Collection follows Provider pagination up to 10 pages of 100 records per category; responses explicitly list any category truncated at that 1,000-record safety boundary.
+A successful query marks the account `backend=private`, `status=active`, and updates `last_validated_at`. A failed live query does not replace the credential. Collection follows Provider pagination up to 10 pages of 100 records per category; responses explicitly list any category truncated at that 1,000-record safety boundary. AutoDL documents private images, GPU stock, deployments, and containers under `/api/v1/dev/`. Its separate `/api/v2/image/list` system-image endpoint may require a browser login session; when it rejects Developer Token authentication, Gemcp marks only `system_images` as truncated and continues collecting the documented Developer API resources.
 
 ### Deployment details
 
@@ -76,7 +76,7 @@ X-CSRF-Token: <session CSRF token>
 }
 ```
 
-Only the official Private Cloud host is accepted. Gemcp first queries images, system images, GPU stock, deployments, active containers, and released containers with the candidate Token. It encrypts and commits the Token only after every required query succeeds. The transaction also writes a `provider.credential_rotated` audit event that contains no Token material.
+Only the official Private Cloud host is accepted. Gemcp first queries private images, GPU stock, deployments, active containers, and released containers with the candidate Token. It also attempts the optional system-image query. The Token is encrypted and committed only after every documented Developer API query succeeds; browser-session rejection from the optional system-image endpoint does not invalidate an otherwise valid Developer Token. The transaction also writes a `provider.credential_rotated` audit event that contains no Token material.
 
 ## Web console
 

@@ -72,6 +72,10 @@ Build Sessions, Environment and Dataset Snapshots, cross-node asset placement, a
 
 Upgrade `golang.org/x/text` to `v0.39.0` to resolve reachable vulnerability `GO-2026-5970` reported by `govulncheck`.
 
+### v0.10.2 - Private Cloud system-image compatibility
+
+Treat browser-session rejection from AutoDL Private Cloud's optional `/api/v2/image/list` endpoint as a truncated system-image category while continuing to validate and display the documented Developer API resources.
+
 ## Further validation
 
 The following items still require the target environment or newly authorized paid resources:

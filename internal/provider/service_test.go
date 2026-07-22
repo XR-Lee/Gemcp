@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -18,7 +19,8 @@ import (
 )
 
 type fakeAPI struct {
-	err error
+	err            error
+	systemImageErr error
 }
 
 func (f *fakeAPI) ElasticImages(context.Context, int, int) (autodl.Page[autodl.Image], string, error) {
@@ -29,6 +31,9 @@ func (f *fakeAPI) ElasticImages(context.Context, int, int) (autodl.Page[autodl.I
 }
 
 func (f *fakeAPI) PrivateSystemImages(context.Context, int, int) (autodl.Page[autodl.Image], string, error) {
+	if f.systemImageErr != nil {
+		return autodl.Page[autodl.Image]{}, "", f.systemImageErr
+	}
 	return autodl.Page[autodl.Image]{List: []autodl.Image{{UUID: "base-image-1", FallbackName: "torch", CUDAVersion: "11.8", ChipCorp: "nvidia", CPUArch: "x86"}}}, "req-system", nil
 }
 
@@ -138,6 +143,21 @@ func TestQueryResourcesDecryptsCredentialAndNormalizesData(t *testing.T) {
 	}
 	if len(snapshot.CachedContainers) != 1 || !snapshot.CachedContainers[0].Released {
 		t.Fatalf("unexpected cached containers: %+v", snapshot.CachedContainers)
+	}
+}
+
+func TestQueryResourcesTreatsWebOnlySystemImagesAsOptional(t *testing.T) {
+	fixture := newProviderFixture(t)
+	fixture.fake.systemImageErr = &autodl.ProviderError{HTTPStatus: 200, Code: "AuthorizeFailed", Message: "login expired"}
+	snapshot, err := fixture.service.QueryResources(context.Background(), fixture.tenantID)
+	if err != nil {
+		t.Fatalf("QueryResources() error = %v", err)
+	}
+	if len(snapshot.SystemImages) != 0 || !slices.Contains(snapshot.Truncated, "system_images") {
+		t.Fatalf("unexpected optional system images: images=%+v truncated=%+v", snapshot.SystemImages, snapshot.Truncated)
+	}
+	if len(snapshot.PrivateImages) != 1 || len(snapshot.GPUStock) != 1 || len(snapshot.Deployments) != 1 {
+		t.Fatalf("official Developer API resources were not retained: %+v", snapshot)
 	}
 }
 
