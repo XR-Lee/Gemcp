@@ -80,6 +80,10 @@ Treat browser-session rejection from AutoDL Private Cloud's optional `/api/v2/im
 
 Render the hosted Node Setup page with the control plane's exact release and commit, repository checkout verification, host preflight, immutable build, installer, setup-link custody, pairing, and post-install reporting requirements.
 
+### v0.10.4 - bilingual Node Setup
+
+Provide equivalent Chinese and English Node Agent handoffs selected by an explicit `lang` query or browser language, with a language control in the one-time Setup Link dialog and strict query validation in the installer and node client.
+
 ## Further validation
 
 The following items still require the target environment or newly authorized paid resources:

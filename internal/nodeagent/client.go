@@ -54,7 +54,7 @@ func NewClient(origin, version string, options ...ClientOption) (*Client, error)
 
 func OriginFromSetupURL(raw string) (string, string, error) {
 	parsed, err := url.Parse(strings.TrimSpace(raw))
-	if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil || parsed.Path != "/node/setup" || parsed.RawQuery != "" {
+	if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil || parsed.Path != "/node/setup" || !validSetupLanguageQuery(parsed.RawQuery) {
 		return "", "", fmt.Errorf("node setup URL is invalid")
 	}
 	values, err := url.ParseQuery(parsed.Fragment)
@@ -63,6 +63,18 @@ func OriginFromSetupURL(raw string) (string, string, error) {
 	}
 	origin := (&url.URL{Scheme: parsed.Scheme, Host: parsed.Host}).String()
 	return origin, values.Get("code"), nil
+}
+
+func validSetupLanguageQuery(rawQuery string) bool {
+	if rawQuery == "" {
+		return true
+	}
+	query, err := url.ParseQuery(rawQuery)
+	if err != nil || len(query) != 1 || len(query["lang"]) != 1 {
+		return false
+	}
+	language := query.Get("lang")
+	return language == "zh" || language == "en"
 }
 
 func (c *Client) Claim(ctx context.Context, code string, inventory nodeprotocol.Inventory) (nodeprotocol.EnrollmentClaimResponse, error) {

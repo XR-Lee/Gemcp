@@ -22,6 +22,7 @@ const approving = ref(false)
 const revokeTarget = ref<NodeEnrollment | null>(null)
 const revoking = ref(false)
 const copied = ref(false)
+const setupLanguage = ref<'zh' | 'en'>(typeof navigator !== 'undefined' && navigator.language?.toLowerCase().startsWith('zh') ? 'zh' : 'en')
 const runtimes = ref<SelfHostedRuntimeList>({ environments: [], resource_profiles: [] })
 const runtimeProjectID = ref(props.projects[0]?.id ?? '')
 const runtimeLoading = ref(false)
@@ -41,6 +42,12 @@ const runtimeRows = computed(() => runtimes.value.resource_profiles.map((profile
   profile, environment: runtimes.value.environments.find((item) => item.name === profile.name),
 })))
 const reportedGPUNames = computed(() => [...new Set(data.value.nodes.flatMap((node) => node.capabilities.gpus?.map((gpu) => gpu.name) ?? []))].sort())
+const localizedSetupURL = computed(() => {
+  if (!reveal.value) return ''
+  const setupURL = new URL(reveal.value.setup_url)
+  setupURL.searchParams.set('lang', setupLanguage.value)
+  return setupURL.toString()
+})
 
 function apiMessage(caught: unknown, fallback: string) {
   if (caught instanceof APIError && caught.status === 401) {
@@ -141,7 +148,7 @@ async function createEnrollment() {
 async function copySetupURL() {
   if (!reveal.value) return
   try {
-    await navigator.clipboard.writeText(reveal.value.setup_url)
+    await navigator.clipboard.writeText(localizedSetupURL.value)
     copied.value = true
     window.setTimeout(() => (copied.value = false), 1600)
   } catch {
@@ -397,7 +404,8 @@ onUnmounted(() => timer !== undefined && window.clearTimeout(timer))
     <div v-if="reveal" class="modal-backdrop" @click.self="reveal = null">
       <section class="modal-card node-dialog" role="dialog" aria-modal="true" aria-labelledby="setup-url-heading">
         <div class="modal-heading"><div><p class="eyebrow">Enrollment created</p><h2 id="setup-url-heading">Setup link</h2></div><button class="close-button" type="button" aria-label="Close" @click="reveal = null"><X :size="18" /></button></div>
-        <div class="secret-display"><code>{{ reveal.setup_url }}</code><button class="table-command" type="button" :title="copied ? 'Copied' : 'Copy setup link'" aria-label="Copy setup link" @click="copySetupURL"><Check v-if="copied" :size="17" /><Clipboard v-else :size="17" /></button></div>
+        <div class="setup-language-row"><span>Handoff language</span><div class="segmented-control" role="group" aria-label="Node setup language"><button type="button" :class="{ active: setupLanguage === 'zh' }" @click="setupLanguage = 'zh'">中文</button><button type="button" :class="{ active: setupLanguage === 'en' }" @click="setupLanguage = 'en'">English</button></div></div>
+        <div class="secret-display"><code>{{ localizedSetupURL }}</code><button class="table-command" type="button" :title="copied ? 'Copied' : 'Copy setup link'" aria-label="Copy setup link" @click="copySetupURL"><Check v-if="copied" :size="17" /><Clipboard v-else :size="17" /></button></div>
         <p class="dialog-note">This link is shown once and expires {{ formatDate(reveal.enrollment.expires_at) }}. It opens a self-contained handoff with the exact release, host checks, build, installation, secret-handling, and approval workflow for a trusted coding Agent.</p>
         <div class="modal-actions"><button class="primary-button" type="button" @click="reveal = null">Done</button></div>
       </section>
@@ -539,6 +547,9 @@ onUnmounted(() => timer !== undefined && window.clearTimeout(timer))
 .project-options label { min-height: 26px; flex-direction: row; align-items: center; gap: 8px; font-size: 12px; }
 .project-options input { width: 16px; height: 16px; min-height: 0; margin: 0; accent-color: #216e55; }
 .modal-actions { margin-top: 21px; justify-content: flex-end; }
+.setup-language-row { margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.setup-language-row > span { color: #59645d; font-size: 12px; font-weight: 650; }
+.setup-language-row .segmented-control { flex: 0 0 auto; }
 .secret-display { min-width: 0; padding: 9px 9px 9px 12px; display: flex; align-items: center; gap: 10px; background: #f0f3f1; border: 1px solid #d7ded9; border-radius: 5px; }
 .secret-display code { min-width: 0; flex: 1; overflow-wrap: anywhere; color: #24342b; font-size: 11px; line-height: 18px; }
 .dialog-note { margin: 13px 0 0; color: #69736c; font-size: 12px; line-height: 19px; }

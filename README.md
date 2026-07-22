@@ -4,6 +4,8 @@ Gemcp is a private, single-organization control plane for running bounded AutoDL
 
 ## Current release
 
+`v0.10.4` adds switchable Chinese and English Node Setup handoffs, language-aware one-time links, and strict `lang` validation through the UI, installer, and node client.
+
 `v0.10.3` turns the hosted Node Setup page into a self-contained coding-Agent handoff rendered with the running control plane's exact release and commit.
 
 `v0.10.2` keeps the documented AutoDL Private Cloud Developer API resource view available when the optional Web-console system-image endpoint requires a browser login session.

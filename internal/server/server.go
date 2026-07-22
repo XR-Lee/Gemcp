@@ -2,7 +2,9 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -60,7 +62,7 @@ func New(deps Dependencies) *http.Server {
 	router.GET("/agent/setup", markdownGuide(guides.PiSetup(deps.Config.PublicURL)))
 	router.GET("/agent/setup/install.mjs", staticGuide("text/javascript; charset=utf-8", guides.PiSetupInstaller(deps.Config.PublicURL)))
 	router.GET("/agent/setup/gemcp-tool.mjs", staticGuide("text/javascript; charset=utf-8", guides.GemcpTool()))
-	router.GET("/node/setup", markdownGuide(guides.NodeSetup(deps.Config.PublicURL, deps.Build.Version, deps.Build.Commit)))
+	router.GET("/node/setup", localizedNodeSetupGuide(deps.Config.PublicURL, deps.Build))
 
 	api := router.Group("/api/v1")
 	api.GET("/version", func(c *gin.Context) {
@@ -181,6 +183,56 @@ func New(deps Dependencies) *http.Server {
 
 func markdownGuide(content string) gin.HandlerFunc {
 	return staticGuide("text/markdown; charset=utf-8", content)
+}
+
+func localizedNodeSetupGuide(publicURL string, build buildinfo.Info) gin.HandlerFunc {
+	english := guides.NodeSetup(publicURL, build.Version, build.Commit, "en")
+	chinese := guides.NodeSetup(publicURL, build.Version, build.Commit, "zh")
+	return func(c *gin.Context) {
+		language, err := nodeSetupLanguage(c.Request.URL.RawQuery, c.GetHeader("Accept-Language"))
+		if err != nil {
+			c.Header("Cache-Control", "no-store")
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": gin.H{
+				"code": "INVALID_LANGUAGE", "message": "lang must be exactly zh or en",
+			}})
+			return
+		}
+		content := english
+		contentLanguage := "en"
+		if language == "zh" {
+			content = chinese
+			contentLanguage = "zh-CN"
+		}
+		c.Header("Cache-Control", "public, max-age=300")
+		c.Header("Content-Disposition", "inline")
+		c.Header("Content-Language", contentLanguage)
+		c.Header("Vary", "Accept-Language")
+		c.Data(http.StatusOK, "text/markdown; charset=utf-8", []byte(content))
+	}
+}
+
+func nodeSetupLanguage(rawQuery, acceptLanguage string) (string, error) {
+	if rawQuery != "" {
+		query, err := url.ParseQuery(rawQuery)
+		if err != nil || len(query) != 1 || len(query["lang"]) != 1 {
+			return "", fmt.Errorf("invalid language query")
+		}
+		language := query.Get("lang")
+		if language != "zh" && language != "en" {
+			return "", fmt.Errorf("invalid language query")
+		}
+		return language, nil
+	}
+	for _, preference := range strings.Split(strings.ToLower(acceptLanguage), ",") {
+		language := strings.TrimSpace(strings.SplitN(preference, ";", 2)[0])
+		if strings.HasPrefix(language, "zh") {
+			return "zh", nil
+		}
+		if strings.HasPrefix(language, "en") {
+			return "en", nil
+		}
+	}
+	return "en", nil
 }
 
 func staticGuide(contentType, content string) gin.HandlerFunc {

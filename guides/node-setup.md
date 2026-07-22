@@ -1,5 +1,7 @@
 # Gemcp Node Setup
 
+[中文]({{GEMCP_PUBLIC_URL}}/node/setup?lang=zh) | **English**
+
 This page is the complete coding-Agent handoff for an Owner-approved trusted Self-hosted GPU PC.
 
 ## Release identity
@@ -13,7 +15,7 @@ The node binary and control plane must use the same release. The repository is p
 
 ## Setup-link boundary
 
-The complete `{{GEMCP_PUBLIC_URL}}/node/setup#code=...` link is a short-lived, single-use bearer capability. The setup code is stored only in the URL fragment and is not sent when this Markdown page is fetched.
+The complete `{{GEMCP_PUBLIC_URL}}/node/setup?lang=en#code=...` link is a short-lived, single-use bearer capability. The optional `lang` query selects only the guide language. The setup code is stored only in the URL fragment and is not sent when this Markdown page is fetched.
 
 - Do not send the complete link to Web search, Web fetch, issue trackers, shell history, logs, or command-line arguments.
 - A coding Agent may read this public page before the enrollment exists.

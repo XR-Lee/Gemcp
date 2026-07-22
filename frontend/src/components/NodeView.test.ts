@@ -47,7 +47,7 @@ describe('NodeView enrollment operations', () => {
       throw new Error(`unexpected request ${method} ${path}`)
     })
     vi.stubGlobal('fetch', fetchMock)
-    vi.stubGlobal('navigator', { clipboard: { writeText: copy } })
+    vi.stubGlobal('navigator', { language: 'en-GB', clipboard: { writeText: copy } })
 
     const wrapper = mount(NodeView, {
       props: { active: true, projects: [{
@@ -71,7 +71,11 @@ describe('NodeView enrollment operations', () => {
 
     expect(wrapper.text()).toContain('one-time-secret')
     await wrapper.get('button[aria-label="Copy setup link"]').trigger('click')
-    expect(copy).toHaveBeenCalledWith('https://gemcp.example/node/setup#code=one-time-secret')
+    expect(copy).toHaveBeenCalledWith('https://gemcp.example/node/setup?lang=en#code=one-time-secret')
+    const chineseButton = wrapper.findAll('button').find((button) => button.text() === '中文')
+    await chineseButton!.trigger('click')
+    await wrapper.get('button[aria-label="Copy setup link"]').trigger('click')
+    expect(copy).toHaveBeenLastCalledWith('https://gemcp.example/node/setup?lang=zh#code=one-time-secret')
     const doneButton = wrapper.findAll('button').find((button) => button.text() === 'Done')
     await doneButton!.trigger('click')
     expect(wrapper.text()).not.toContain('one-time-secret')

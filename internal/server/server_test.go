@@ -84,7 +84,7 @@ func TestPiSetupAssets(t *testing.T) {
 		{path: "/agent/setup", contentType: "text/markdown; charset=utf-8", want: []string{"Gemcp Pi Agent Setup", "https://gemcp.example.com/agent/setup/install.mjs"}},
 		{path: "/agent/setup/install.mjs", contentType: "text/javascript; charset=utf-8", want: []string{"GEMCP_PI_SETUP_INSTALLER_V1", "const trustedOrigin = 'https://gemcp.example.com'"}},
 		{path: "/agent/setup/gemcp-tool.mjs", contentType: "text/javascript; charset=utf-8", want: []string{"GEMCP_TOOL_HELPER_V1", "verifyConfiguredServer"}},
-		{path: "/node/setup", contentType: "text/markdown; charset=utf-8", want: []string{"Gemcp Node Setup", "https://gemcp.example.com/node/setup#code="}},
+		{path: "/node/setup", contentType: "text/markdown; charset=utf-8", want: []string{"Gemcp Node Setup", "https://gemcp.example.com/node/setup?lang=en#code="}},
 	} {
 		response := httptest.NewRecorder()
 		testServer(fakeDatabase{}).ServeHTTP(response, httptest.NewRequest(http.MethodGet, test.path, nil))
@@ -100,6 +100,41 @@ func TestPiSetupAssets(t *testing.T) {
 		if got := response.Header().Get("Cache-Control"); got != "public, max-age=300" {
 			t.Fatalf("GET %s Cache-Control=%q", test.path, got)
 		}
+	}
+}
+
+func TestNodeSetupLanguageSelection(t *testing.T) {
+	for _, test := range []struct {
+		path           string
+		acceptLanguage string
+		wantLanguage   string
+		wantContent    string
+	}{
+		{path: "/node/setup?lang=en", wantLanguage: "en", wantContent: "Gemcp Node Setup"},
+		{path: "/node/setup?lang=zh", wantLanguage: "zh-CN", wantContent: "Gemcp 节点部署"},
+		{path: "/node/setup", acceptLanguage: "zh-CN,zh;q=0.9,en;q=0.8", wantLanguage: "zh-CN", wantContent: "Gemcp 节点部署"},
+	} {
+		request := httptest.NewRequest(http.MethodGet, test.path, nil)
+		if test.acceptLanguage != "" {
+			request.Header.Set("Accept-Language", test.acceptLanguage)
+		}
+		response := httptest.NewRecorder()
+		testServer(fakeDatabase{}).ServeHTTP(response, request)
+		if response.Code != http.StatusOK || !containsAll(response.Body.String(), test.wantContent, "abc123") {
+			t.Fatalf("GET %s status=%d body=%s", test.path, response.Code, response.Body.String())
+		}
+		if got := response.Header().Get("Content-Language"); got != test.wantLanguage {
+			t.Fatalf("GET %s Content-Language=%q, want %q", test.path, got, test.wantLanguage)
+		}
+		if got := response.Header().Get("Vary"); got != "Accept-Language" {
+			t.Fatalf("GET %s Vary=%q", test.path, got)
+		}
+	}
+
+	response := httptest.NewRecorder()
+	testServer(fakeDatabase{}).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/node/setup?lang=fr", nil))
+	if response.Code != http.StatusBadRequest || !containsAll(response.Body.String(), "INVALID_LANGUAGE") {
+		t.Fatalf("invalid language status=%d body=%s", response.Code, response.Body.String())
 	}
 }
 

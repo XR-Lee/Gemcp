@@ -79,7 +79,7 @@ func TestClientClaimAndSyncContract(t *testing.T) {
 		}
 	}))
 	defer server.Close()
-	origin, code, err := OriginFromSetupURL(server.URL + "/node/setup#code=gne_test_code_that_is_long_enough_for_setup")
+	origin, code, err := OriginFromSetupURL(server.URL + "/node/setup?lang=zh#code=gne_test_code_that_is_long_enough_for_setup")
 	if err != nil || origin != server.URL || !strings.HasPrefix(code, "gne_") {
 		t.Fatalf("origin=%q code=%q err=%v", origin, code, err)
 	}
@@ -94,5 +94,24 @@ func TestClientClaimAndSyncContract(t *testing.T) {
 	syncResult, err := client.Sync(context.Background(), claim.NodeToken, nodeprotocol.SyncRequest{})
 	if err != nil || syncResult.DesiredState != "active" || requests != 2 {
 		t.Fatalf("sync=%+v requests=%d err=%v", syncResult, requests, err)
+	}
+}
+
+func TestOriginFromSetupURLRestrictsLanguageQuery(t *testing.T) {
+	for _, language := range []string{"zh", "en"} {
+		origin, code, err := OriginFromSetupURL("https://gemcp.example.com/node/setup?lang=" + language + "#code=gne_test_code_that_is_long_enough")
+		if err != nil || origin != "https://gemcp.example.com" || !strings.HasPrefix(code, "gne_") {
+			t.Fatalf("language=%s origin=%q code=%q err=%v", language, origin, code, err)
+		}
+	}
+	for _, raw := range []string{
+		"https://gemcp.example.com/node/setup?lang=fr#code=gne_test_code_that_is_long_enough",
+		"https://gemcp.example.com/node/setup?lang=ZH#code=gne_test_code_that_is_long_enough",
+		"https://gemcp.example.com/node/setup?lang=en&next=bad#code=gne_test_code_that_is_long_enough",
+		"https://gemcp.example.com/node/setup?next=bad#code=gne_test_code_that_is_long_enough",
+	} {
+		if _, _, err := OriginFromSetupURL(raw); err == nil {
+			t.Fatalf("OriginFromSetupURL(%q) succeeded", raw)
+		}
 	}
 }

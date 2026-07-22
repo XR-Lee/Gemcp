@@ -25,6 +25,9 @@ var piSetupInstaller string
 //go:embed node-setup.md
 var nodeSetup string
 
+//go:embed node-setup.zh.md
+var nodeSetupZH string
+
 //go:embed gemcp-tool.mjs
 var gemcpTool string
 
@@ -36,11 +39,15 @@ func PiSetup(publicURL string) string { return renderPublicURL(piSetup, publicUR
 
 func PiSetupInstaller(publicURL string) string { return renderPublicURL(piSetupInstaller, publicURL) }
 
-func NodeSetup(publicURL, version, commit string) string {
+func NodeSetup(publicURL, version, commit, language string) string {
+	template := nodeSetup
+	if strings.EqualFold(strings.TrimSpace(language), "zh") {
+		template = nodeSetupZH
+	}
 	return strings.NewReplacer(
 		"{{GEMCP_VERSION}}", strings.TrimSpace(version),
 		"{{GEMCP_COMMIT}}", strings.TrimSpace(commit),
-	).Replace(renderPublicURL(nodeSetup, publicURL))
+	).Replace(renderPublicURL(template, publicURL))
 }
 
 func GemcpTool() string { return strings.TrimSpace(gemcpTool) + "\n" }

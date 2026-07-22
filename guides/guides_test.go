@@ -55,9 +55,10 @@ func TestPiSetupAssetsUseTrustedRenderedOrigin(t *testing.T) {
 func TestNodeSetupIsSelfContainedAgentHandoff(t *testing.T) {
 	origin := "https://gemcp.example.com"
 	commit := strings.Repeat("a", 40)
-	setup := NodeSetup(origin, "0.10.3", commit)
+	setup := NodeSetup(origin, "0.10.3", commit, "en")
+	chinese := NodeSetup(origin, "0.10.3", commit, "zh")
 	for _, required := range []string{
-		origin + "/node/setup#code=...", "v0.10.3", commit,
+		origin + "/node/setup?lang=en#code=...", origin + "/node/setup?lang=zh", "v0.10.3", commit,
 		"git@github.com:XR-Lee/Gemcp.git", "make build-node", "pending_verification",
 		"Do not install or upgrade the NVIDIA Driver", "/var/lib/gemcp-node/storage",
 	} {
@@ -65,9 +66,19 @@ func TestNodeSetupIsSelfContainedAgentHandoff(t *testing.T) {
 			t.Fatalf("node setup guide does not contain %q", required)
 		}
 	}
-	for _, placeholder := range []string{"{{GEMCP_PUBLIC_URL}}", "{{GEMCP_VERSION}}", "{{GEMCP_COMMIT}}"} {
-		if strings.Contains(setup, placeholder) {
-			t.Fatalf("node setup guide retained %q", placeholder)
+	for _, required := range []string{
+		origin + "/node/setup?lang=zh#code=...", origin + "/node/setup?lang=en", "v0.10.3", commit,
+		"代码仓库", "不得安装或升级 NVIDIA Driver", "/var/lib/gemcp-node/storage", "pending_verification",
+	} {
+		if !strings.Contains(chinese, required) {
+			t.Fatalf("Chinese node setup guide does not contain %q", required)
+		}
+	}
+	for _, content := range []string{setup, chinese} {
+		for _, placeholder := range []string{"{{GEMCP_PUBLIC_URL}}", "{{GEMCP_VERSION}}", "{{GEMCP_COMMIT}}"} {
+			if strings.Contains(content, placeholder) {
+				t.Fatalf("node setup guide retained %q", placeholder)
+			}
 		}
 	}
 }

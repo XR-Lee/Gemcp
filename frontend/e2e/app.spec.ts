@@ -149,6 +149,11 @@ const selfHostedRuntimes = {
   environments: [{ id: 'environment-self-hosted', name: 'local-3090', image: `registry.example/train@sha256:${'b'.repeat(64)}`, is_default: true }],
   resource_profiles: [{ id: 'profile-self-hosted', name: 'local-3090', gpu_names: ['NVIDIA GeForce RTX 3090'], cpu_limit: 8, memory_gb: 32, is_default: true }],
 }
+const issuedNodeEnrollment = {
+  id: 'node-enrollment-issued-1', label: 'second-gpu-node', status: 'pending', expires_at: '2026-07-17T02:30:00Z',
+  created_at: '2026-07-17T02:00:00Z', updated_at: '2026-07-17T02:00:00Z',
+}
+const issuedNodeSetupURL = 'https://gemcp.example.com/node/setup#code=gne_setup_test-capability'
 const notificationSetting = {
   configured: true, enabled: true, host: 'smtp.example.com', port: 587, tls_mode: 'starttls',
   username: 'mailer@example.com', password_configured: true, from_address: 'mailer@example.com',
@@ -210,6 +215,13 @@ async function mockConsole(page: Page, counters?: { providerQueries: number; sel
     if (path === '/api/v1/nodes' && counters?.selfHosted) return fulfill(route, {
       nodes: [selfHostedNode], enrollments: [], assignments: [selfHostedAssignment],
     })
+    if (path === '/api/v1/node-enrollments' && route.request().method() === 'POST' && counters?.selfHosted) {
+      expect(route.request().postDataJSON()).toEqual({ label: 'second-gpu-node', setup_expires_in_minutes: 30 })
+      return fulfill(route, {
+        enrollment: issuedNodeEnrollment, setup_url: issuedNodeSetupURL,
+        claim_url: 'https://gemcp.example.com/api/v1/node-enrollments/claim',
+      }, 201)
+    }
     if (path === `/api/v1/projects/${project.id}/self-hosted-runtimes` && counters?.selfHosted) return fulfill(route, selfHostedRuntimes)
     if (path === '/api/v1/provider' && route.request().method() === 'GET') return fulfill(route, provider)
     if (path === '/api/v1/provider' && route.request().method() === 'PUT') return fulfill(route, { provider, resources: providerResources })
@@ -361,6 +373,22 @@ test('Self-hosted nodes, Assignments and runtime configuration fit desktop and m
   await expect(page.getByText('gmn_test', { exact: true })).toHaveCount(0)
   await expectNoPageOverflow(page)
   await page.screenshot({ path: '/tmp/gemcp-nodes-desktop.png', fullPage: true })
+
+  await page.getByRole('button', { name: 'Create enrollment', exact: true }).click()
+  const enrollmentDialog = page.locator('form.node-dialog').filter({ hasText: 'Create enrollment' })
+  await enrollmentDialog.getByLabel('Node label').fill('second-gpu-node')
+  await enrollmentDialog.getByRole('button', { name: 'Create', exact: true }).click()
+  const setupLinkDialog = page.getByRole('dialog', { name: 'Setup link' })
+  await expect(setupLinkDialog.getByText(`${issuedNodeSetupURL.replace('#', '?lang=en#')}`, { exact: true })).toBeVisible()
+  await setupLinkDialog.getByRole('button', { name: '中文', exact: true }).click()
+  await expect(setupLinkDialog.getByText(`${issuedNodeSetupURL.replace('#', '?lang=zh#')}`, { exact: true })).toBeVisible()
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: '/tmp/gemcp-node-setup-language-desktop.png', fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: '/tmp/gemcp-node-setup-language-mobile.png', fullPage: true })
+  await setupLinkDialog.getByRole('button', { name: 'Done', exact: true }).click()
+  await page.setViewportSize({ width: 1440, height: 1000 })
 
   await page.getByRole('button', { name: 'Add runtime', exact: true }).click()
   const runtimeDialog = page.locator('.runtime-dialog')

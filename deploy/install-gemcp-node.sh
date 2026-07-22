@@ -55,7 +55,9 @@ chmod 0644 /etc/systemd/system/gemcp-node.service.d/storage.conf
 printf '%s' 'Paste the complete Gemcp node setup link: '
 IFS= read -r setup_link
 case "$setup_link" in
-  https://*/node/setup\#code=gne_*) ;;
+  https://*/node/setup\#code=gne_* | \
+  https://*/node/setup\?lang=zh\#code=gne_* | \
+  https://*/node/setup\?lang=en\#code=gne_*) ;;
   *)
     unset setup_link
     printf '%s\n' 'The node setup link is invalid' >&2
