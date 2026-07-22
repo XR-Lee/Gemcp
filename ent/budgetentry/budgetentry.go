@@ -35,6 +35,8 @@ const (
 	FieldAmountMilli = "amount_milli"
 	// FieldDescription holds the string denoting the description field in the database.
 	FieldDescription = "description"
+	// FieldIdempotencyKey holds the string denoting the idempotency_key field in the database.
+	FieldIdempotencyKey = "idempotency_key"
 	// EdgeTenant holds the string denoting the tenant edge name in mutations.
 	EdgeTenant = "tenant"
 	// EdgeProject holds the string denoting the project edge name in mutations.
@@ -79,6 +81,7 @@ var Columns = []string{
 	FieldKind,
 	FieldAmountMilli,
 	FieldDescription,
+	FieldIdempotencyKey,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -106,6 +109,8 @@ var (
 	KindValidator func(string) error
 	// DescriptionValidator is a validator for the "description" field. It is called by the builders before save.
 	DescriptionValidator func(string) error
+	// IdempotencyKeyValidator is a validator for the "idempotency_key" field. It is called by the builders before save.
+	IdempotencyKeyValidator func(string) error
 )
 
 // OrderOption defines the ordering options for the BudgetEntry queries.
@@ -164,6 +169,11 @@ func ByAmountMilli(opts ...sql.OrderTermOption) OrderOption {
 // ByDescription orders the results by the description field.
 func ByDescription(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDescription, opts...).ToFunc()
+}
+
+// ByIdempotencyKey orders the results by the idempotency_key field.
+func ByIdempotencyKey(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIdempotencyKey, opts...).ToFunc()
 }
 
 // ByTenantField orders the results by tenant field.

@@ -5812,6 +5812,7 @@ type BudgetEntryMutation struct {
 	amount_milli      *int64
 	addamount_milli   *int64
 	description       *string
+	idempotency_key   *string
 	clearedFields     map[string]struct{}
 	tenant            *int
 	clearedtenant     bool
@@ -6119,7 +6120,7 @@ func (m *BudgetEntryMutation) ExperimentID() (r int, exists bool) {
 // OldExperimentID returns the old "experiment_id" field's value of the BudgetEntry entity.
 // If the BudgetEntry object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *BudgetEntryMutation) OldExperimentID(ctx context.Context) (v int, err error) {
+func (m *BudgetEntryMutation) OldExperimentID(ctx context.Context) (v *int, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldExperimentID is only allowed on UpdateOne operations")
 	}
@@ -6133,9 +6134,22 @@ func (m *BudgetEntryMutation) OldExperimentID(ctx context.Context) (v int, err e
 	return oldValue.ExperimentID, nil
 }
 
+// ClearExperimentID clears the value of the "experiment_id" field.
+func (m *BudgetEntryMutation) ClearExperimentID() {
+	m.experiment = nil
+	m.clearedFields[budgetentry.FieldExperimentID] = struct{}{}
+}
+
+// ExperimentIDCleared returns if the "experiment_id" field was cleared in this mutation.
+func (m *BudgetEntryMutation) ExperimentIDCleared() bool {
+	_, ok := m.clearedFields[budgetentry.FieldExperimentID]
+	return ok
+}
+
 // ResetExperimentID resets all changes to the "experiment_id" field.
 func (m *BudgetEntryMutation) ResetExperimentID() {
 	m.experiment = nil
+	delete(m.clearedFields, budgetentry.FieldExperimentID)
 }
 
 // SetPeriod sets the "period" field.
@@ -6302,6 +6316,55 @@ func (m *BudgetEntryMutation) ResetDescription() {
 	m.description = nil
 }
 
+// SetIdempotencyKey sets the "idempotency_key" field.
+func (m *BudgetEntryMutation) SetIdempotencyKey(s string) {
+	m.idempotency_key = &s
+}
+
+// IdempotencyKey returns the value of the "idempotency_key" field in the mutation.
+func (m *BudgetEntryMutation) IdempotencyKey() (r string, exists bool) {
+	v := m.idempotency_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIdempotencyKey returns the old "idempotency_key" field's value of the BudgetEntry entity.
+// If the BudgetEntry object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BudgetEntryMutation) OldIdempotencyKey(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIdempotencyKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIdempotencyKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIdempotencyKey: %w", err)
+	}
+	return oldValue.IdempotencyKey, nil
+}
+
+// ClearIdempotencyKey clears the value of the "idempotency_key" field.
+func (m *BudgetEntryMutation) ClearIdempotencyKey() {
+	m.idempotency_key = nil
+	m.clearedFields[budgetentry.FieldIdempotencyKey] = struct{}{}
+}
+
+// IdempotencyKeyCleared returns if the "idempotency_key" field was cleared in this mutation.
+func (m *BudgetEntryMutation) IdempotencyKeyCleared() bool {
+	_, ok := m.clearedFields[budgetentry.FieldIdempotencyKey]
+	return ok
+}
+
+// ResetIdempotencyKey resets all changes to the "idempotency_key" field.
+func (m *BudgetEntryMutation) ResetIdempotencyKey() {
+	m.idempotency_key = nil
+	delete(m.clearedFields, budgetentry.FieldIdempotencyKey)
+}
+
 // ClearTenant clears the "tenant" edge to the Tenant entity.
 func (m *BudgetEntryMutation) ClearTenant() {
 	m.clearedtenant = true
@@ -6364,7 +6427,7 @@ func (m *BudgetEntryMutation) ClearExperiment() {
 
 // ExperimentCleared reports if the "experiment" edge to the Experiment entity was cleared.
 func (m *BudgetEntryMutation) ExperimentCleared() bool {
-	return m.clearedexperiment
+	return m.ExperimentIDCleared() || m.clearedexperiment
 }
 
 // ExperimentIDs returns the "experiment" edge IDs in the mutation.
@@ -6417,7 +6480,7 @@ func (m *BudgetEntryMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *BudgetEntryMutation) Fields() []string {
-	fields := make([]string, 0, 10)
+	fields := make([]string, 0, 11)
 	if m.public_id != nil {
 		fields = append(fields, budgetentry.FieldPublicID)
 	}
@@ -6448,6 +6511,9 @@ func (m *BudgetEntryMutation) Fields() []string {
 	if m.description != nil {
 		fields = append(fields, budgetentry.FieldDescription)
 	}
+	if m.idempotency_key != nil {
+		fields = append(fields, budgetentry.FieldIdempotencyKey)
+	}
 	return fields
 }
 
@@ -6476,6 +6542,8 @@ func (m *BudgetEntryMutation) Field(name string) (ent.Value, bool) {
 		return m.AmountMilli()
 	case budgetentry.FieldDescription:
 		return m.Description()
+	case budgetentry.FieldIdempotencyKey:
+		return m.IdempotencyKey()
 	}
 	return nil, false
 }
@@ -6505,6 +6573,8 @@ func (m *BudgetEntryMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldAmountMilli(ctx)
 	case budgetentry.FieldDescription:
 		return m.OldDescription(ctx)
+	case budgetentry.FieldIdempotencyKey:
+		return m.OldIdempotencyKey(ctx)
 	}
 	return nil, fmt.Errorf("unknown BudgetEntry field %s", name)
 }
@@ -6584,6 +6654,13 @@ func (m *BudgetEntryMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetDescription(v)
 		return nil
+	case budgetentry.FieldIdempotencyKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIdempotencyKey(v)
+		return nil
 	}
 	return fmt.Errorf("unknown BudgetEntry field %s", name)
 }
@@ -6628,7 +6705,14 @@ func (m *BudgetEntryMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *BudgetEntryMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(budgetentry.FieldExperimentID) {
+		fields = append(fields, budgetentry.FieldExperimentID)
+	}
+	if m.FieldCleared(budgetentry.FieldIdempotencyKey) {
+		fields = append(fields, budgetentry.FieldIdempotencyKey)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -6641,6 +6725,14 @@ func (m *BudgetEntryMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *BudgetEntryMutation) ClearField(name string) error {
+	switch name {
+	case budgetentry.FieldExperimentID:
+		m.ClearExperimentID()
+		return nil
+	case budgetentry.FieldIdempotencyKey:
+		m.ClearIdempotencyKey()
+		return nil
+	}
 	return fmt.Errorf("unknown BudgetEntry nullable field %s", name)
 }
 
@@ -6677,6 +6769,9 @@ func (m *BudgetEntryMutation) ResetField(name string) error {
 		return nil
 	case budgetentry.FieldDescription:
 		m.ResetDescription()
+		return nil
+	case budgetentry.FieldIdempotencyKey:
+		m.ResetIdempotencyKey()
 		return nil
 	}
 	return fmt.Errorf("unknown BudgetEntry field %s", name)

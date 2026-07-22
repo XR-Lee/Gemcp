@@ -27,7 +27,7 @@ func TestEmergencyStopRequiresServerSideSTOPConfirmation(t *testing.T) {
 	}
 }
 
-func TestRuntimeAndNotificationOperationsRequireOwner(t *testing.T) {
+func TestRuntimeNotificationAndFinanceOperationsRequireOwner(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	router.Use(func(c *gin.Context) {
@@ -37,6 +37,7 @@ func TestRuntimeAndNotificationOperationsRequireOwner(t *testing.T) {
 	runtimeHandlers := NewRuntimeHandlers(nil)
 	notificationHandlers := NewNotificationHandlers(nil)
 	agentTokenHandlers := NewAgentTokenHandlers(nil)
+	financeHandlers := NewFinanceHandlers(nil)
 	router.GET("/managed", runtimeHandlers.List)
 	router.GET("/runtime/status", runtimeHandlers.Status)
 	router.POST("/emergency", runtimeHandlers.EmergencyStop)
@@ -45,6 +46,8 @@ func TestRuntimeAndNotificationOperationsRequireOwner(t *testing.T) {
 	router.GET("/projects/:id/agent-tokens", agentTokenHandlers.List)
 	router.POST("/projects/:id/agent-tokens", agentTokenHandlers.Issue)
 	router.DELETE("/projects/:id/agent-tokens/:tokenID", agentTokenHandlers.Revoke)
+	router.GET("/finance", financeHandlers.Dashboard)
+	router.POST("/projects/:id/budget-adjustments", financeHandlers.Adjust)
 
 	for _, request := range []*http.Request{
 		httptest.NewRequest(http.MethodGet, "/managed", nil),
@@ -55,6 +58,8 @@ func TestRuntimeAndNotificationOperationsRequireOwner(t *testing.T) {
 		httptest.NewRequest(http.MethodGet, "/projects/project-id/agent-tokens", nil),
 		httptest.NewRequest(http.MethodPost, "/projects/project-id/agent-tokens", nil),
 		httptest.NewRequest(http.MethodDelete, "/projects/project-id/agent-tokens/token-id", nil),
+		httptest.NewRequest(http.MethodGet, "/finance", nil),
+		httptest.NewRequest(http.MethodPost, "/projects/project-id/budget-adjustments", nil),
 	} {
 		response := httptest.NewRecorder()
 		router.ServeHTTP(response, request)

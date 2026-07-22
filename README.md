@@ -4,6 +4,8 @@ Gemcp is a private, single-organization control plane for running bounded AutoDL
 
 ## Current release
 
+`v0.11.0` adds an Owner-only Finance workspace with monthly and Project filters, capacity and charge summaries, daily trends, backend attribution, per-Project analysis, an immutable budget ledger, finance-related audit history, and idempotent internal credit/debit adjustments. These adjustments change Gemcp scheduling capacity only and never transfer AutoDL funds.
+
 `v0.10.5` adds a global Chinese / English console language switch with browser-language defaults, persistent preference, localized operational views and locale-aware dates.
 
 `v0.10.4` adds switchable Chinese and English Node Setup handoffs, language-aware one-time links, and strict `lang` validation through the UI, installer, and node client.
@@ -68,6 +70,8 @@ GET /agent/setup
 GET /agent/setup/install.mjs
 GET /agent/setup/gemcp-tool.mjs
 GET /api/v1/projects
+GET /api/v1/finance
+POST /api/v1/projects/:id/budget-adjustments
 GET /api/v1/nodes
 POST /api/v1/node-enrollments
 POST /api/v1/node-enrollments/:id/approve
@@ -123,7 +127,7 @@ Generate both required bootstrap credentials on the deployment host:
 
 Store them only in the protected deployment `.env`. The first-run setup transaction and Session API are documented in [First-run setup](docs/setup-api.md).
 
-After initialization, validate the live credential and inspect resources through [Private Cloud Provider operations](docs/provider-operations.md). Register the private repository using the [Owner Web console](docs/web-console.md) or [Private Git repository API](docs/repositories.md), enroll Pi or issue other client credentials through [Agent Token management](docs/agent-tokens.md), then connect an Agent using the [MCP client guide](docs/mcp.md). The embedded [Owner guide](guides/owner-mcp.md) and [Agent handoff](guides/agent-mcp.md) are also served by the production host and exposed from the Agents page. Before arming execution, follow [Execution and shutdown enforcement](docs/execution.md) and configure [SMTP notifications](docs/notifications.md).
+After initialization, validate the live credential and inspect resources through [Private Cloud Provider operations](docs/provider-operations.md). Register the private repository using the [Owner Web console](docs/web-console.md) or [Private Git repository API](docs/repositories.md), enroll Pi or issue other client credentials through [Agent Token management](docs/agent-tokens.md), then connect an Agent using the [MCP client guide](docs/mcp.md). The embedded [Owner guide](guides/owner-mcp.md) and [Agent handoff](guides/agent-mcp.md) are also served by the production host and exposed from the Agents page. Review [Finance ledger and internal credits](docs/finance.md) before adjusting Project capacity. Before arming execution, follow [Execution and shutdown enforcement](docs/execution.md) and configure [SMTP notifications](docs/notifications.md).
 
 ## Deployment
 

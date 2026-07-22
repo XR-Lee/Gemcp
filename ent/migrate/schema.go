@@ -222,7 +222,8 @@ var (
 		{Name: "kind", Type: field.TypeString},
 		{Name: "amount_milli", Type: field.TypeInt64},
 		{Name: "description", Type: field.TypeString, Size: 255},
-		{Name: "experiment_id", Type: field.TypeInt},
+		{Name: "idempotency_key", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "experiment_id", Type: field.TypeInt, Nullable: true},
 		{Name: "project_id", Type: field.TypeInt},
 		{Name: "tenant_id", Type: field.TypeInt},
 	}
@@ -234,19 +235,19 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "budget_entries_experiments_budget_entries",
-				Columns:    []*schema.Column{BudgetEntriesColumns[8]},
+				Columns:    []*schema.Column{BudgetEntriesColumns[9]},
 				RefColumns: []*schema.Column{ExperimentsColumns[0]},
-				OnDelete:   schema.NoAction,
+				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "budget_entries_projects_budget_entries",
-				Columns:    []*schema.Column{BudgetEntriesColumns[9]},
+				Columns:    []*schema.Column{BudgetEntriesColumns[10]},
 				RefColumns: []*schema.Column{ProjectsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "budget_entries_tenants_budget_entries",
-				Columns:    []*schema.Column{BudgetEntriesColumns[10]},
+				Columns:    []*schema.Column{BudgetEntriesColumns[11]},
 				RefColumns: []*schema.Column{TenantsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -255,12 +256,17 @@ var (
 			{
 				Name:    "budgetentry_project_id_period_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{BudgetEntriesColumns[9], BudgetEntriesColumns[4], BudgetEntriesColumns[2]},
+				Columns: []*schema.Column{BudgetEntriesColumns[10], BudgetEntriesColumns[4], BudgetEntriesColumns[2]},
 			},
 			{
 				Name:    "budgetentry_experiment_id_kind",
 				Unique:  false,
-				Columns: []*schema.Column{BudgetEntriesColumns[8], BudgetEntriesColumns[5]},
+				Columns: []*schema.Column{BudgetEntriesColumns[9], BudgetEntriesColumns[5]},
+			},
+			{
+				Name:    "budgetentry_project_id_idempotency_key",
+				Unique:  true,
+				Columns: []*schema.Column{BudgetEntriesColumns[10], BudgetEntriesColumns[8]},
 			},
 		},
 	}

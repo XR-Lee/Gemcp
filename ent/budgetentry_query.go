@@ -549,7 +549,10 @@ func (_q *BudgetEntryQuery) loadExperiment(ctx context.Context, query *Experimen
 	ids := make([]int, 0, len(nodes))
 	nodeids := make(map[int][]*BudgetEntry)
 	for i := range nodes {
-		fk := nodes[i].ExperimentID
+		if nodes[i].ExperimentID == nil {
+			continue
+		}
+		fk := *nodes[i].ExperimentID
 		if _, ok := nodeids[fk]; !ok {
 			ids = append(ids, fk)
 		}

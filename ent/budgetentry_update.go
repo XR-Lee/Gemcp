@@ -83,9 +83,6 @@ func (_u *BudgetEntryUpdate) check() error {
 	if _u.mutation.ProjectCleared() && len(_u.mutation.ProjectIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "BudgetEntry.project"`)
 	}
-	if _u.mutation.ExperimentCleared() && len(_u.mutation.ExperimentIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "BudgetEntry.experiment"`)
-	}
 	return nil
 }
 
@@ -103,6 +100,9 @@ func (_u *BudgetEntryUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(budgetentry.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if _u.mutation.IdempotencyKeyCleared() {
+		_spec.ClearField(budgetentry.FieldIdempotencyKey, field.TypeString)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -192,9 +192,6 @@ func (_u *BudgetEntryUpdateOne) check() error {
 	if _u.mutation.ProjectCleared() && len(_u.mutation.ProjectIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "BudgetEntry.project"`)
 	}
-	if _u.mutation.ExperimentCleared() && len(_u.mutation.ExperimentIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "BudgetEntry.experiment"`)
-	}
 	return nil
 }
 
@@ -229,6 +226,9 @@ func (_u *BudgetEntryUpdateOne) sqlSave(ctx context.Context) (_node *BudgetEntry
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(budgetentry.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if _u.mutation.IdempotencyKeyCleared() {
+		_spec.ClearField(budgetentry.FieldIdempotencyKey, field.TypeString)
 	}
 	_node = &BudgetEntry{config: _u.config}
 	_spec.Assign = _node.assignValues

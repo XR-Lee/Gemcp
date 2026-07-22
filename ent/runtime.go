@@ -312,6 +312,24 @@ func init() {
 	budgetentryDescDescription := budgetentryFields[6].Descriptor()
 	// budgetentry.DescriptionValidator is a validator for the "description" field. It is called by the builders before save.
 	budgetentry.DescriptionValidator = budgetentryDescDescription.Validators[0].(func(string) error)
+	// budgetentryDescIdempotencyKey is the schema descriptor for idempotency_key field.
+	budgetentryDescIdempotencyKey := budgetentryFields[7].Descriptor()
+	// budgetentry.IdempotencyKeyValidator is a validator for the "idempotency_key" field. It is called by the builders before save.
+	budgetentry.IdempotencyKeyValidator = func() func(string) error {
+		validators := budgetentryDescIdempotencyKey.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(idempotency_key string) error {
+			for _, fn := range fns {
+				if err := fn(idempotency_key); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
 	environmentMixin := schema.Environment{}.Mixin()
 	environmentMixinFields0 := environmentMixin[0].Fields()
 	_ = environmentMixinFields0

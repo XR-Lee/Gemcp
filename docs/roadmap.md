@@ -88,6 +88,10 @@ Provide equivalent Chinese and English Node Agent handoffs selected by an explic
 
 Add an always-available Chinese / English switch to the console, login, and first-run setup surfaces. Apply language changes immediately across operational views, persist the preference locally, and use locale-aware dates and accessible control labels.
 
+### v0.11.0 - finance analytics and internal credits
+
+Add an Owner-only Finance workspace with monthly and Project filtering, budget and charge summaries, daily trends, backend attribution, per-Project capacity, an immutable budget ledger, relevant audit history, and append-only idempotent credits and debits. Internal adjustments change Gemcp scheduling capacity without presenting themselves as AutoDL payment, refund, or account-balance operations.
+
 ## Further validation
 
 The following items still require the target environment or newly authorized paid resources:

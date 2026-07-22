@@ -110,3 +110,28 @@ func TestAttemptResultColumnsRemainNullableForV05Upgrade(t *testing.T) {
 		}
 	}
 }
+
+func TestBudgetAdjustmentsCanBeProjectScopedAndIdempotent(t *testing.T) {
+	columns := map[string]*schema.Column{}
+	for _, column := range entmigrate.BudgetEntriesColumns {
+		columns[column.Name] = column
+	}
+	for _, name := range []string{"experiment_id", "idempotency_key"} {
+		column := columns[name]
+		if column == nil {
+			t.Fatalf("budget_entries column %s is missing", name)
+		}
+		if !column.Nullable {
+			t.Fatalf("budget_entries column %s must be nullable for historical and Project-level entries", name)
+		}
+	}
+	foundUnique := false
+	for _, index := range entmigrate.BudgetEntriesTable.Indexes {
+		if index.Name == "budgetentry_project_id_idempotency_key" {
+			foundUnique = index.Unique
+		}
+	}
+	if !foundUnique {
+		t.Fatal("budget adjustment Project/idempotency key unique index is missing")
+	}
+}

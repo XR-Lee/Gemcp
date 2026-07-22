@@ -159,6 +159,80 @@ export type Cost = {
   available_milli: number
 }
 
+export type FinanceTotals = {
+  base_budget_milli: number
+  reserved_milli: number
+  charged_milli: number
+  credits_milli: number
+  debits_milli: number
+  committed_milli: number
+  available_milli: number
+}
+
+export type FinanceProjectSummary = FinanceTotals & {
+  id: string
+  name: string
+  status: string
+  timezone: string
+}
+
+export type FinanceDailyPoint = {
+  date: string
+  reserved_milli: number
+  charged_milli: number
+  credits_milli: number
+  debits_milli: number
+}
+
+export type FinanceBackendSummary = {
+  backend: string
+  experiments: number
+  reserved_milli: number
+  charged_milli: number
+}
+
+export type FinanceLedgerEntry = {
+  id: string
+  project_id: string
+  project_name: string
+  experiment_id?: string
+  backend?: string
+  period: string
+  kind: string
+  direction?: 'credit' | 'debit'
+  amount_milli: number
+  balance_effect_milli: number
+  description: string
+  created_at: string
+}
+
+export type FinanceAuditEntry = {
+  id: string
+  actor_type: string
+  actor_id?: string
+  action: string
+  target_type: string
+  target_id?: string
+  created_at: string
+}
+
+export type FinanceDashboard = {
+  period: string
+  audit_scope: 'organization'
+  totals: FinanceTotals
+  projects: FinanceProjectSummary[]
+  daily: FinanceDailyPoint[]
+  backends: FinanceBackendSummary[]
+  ledger: FinanceLedgerEntry[]
+  audit: FinanceAuditEntry[]
+  generated_at: string
+}
+
+export type BudgetAdjustmentResult = {
+  entry: FinanceLedgerEntry
+  idempotent: boolean
+}
+
 export type ProviderSummary = {
   id: string
   name: string
@@ -575,6 +649,16 @@ export const api = {
       `/api/v1/experiments/${encodeURIComponent(experimentID)}/attempts?project_id=${encodeURIComponent(projectID)}`,
     ),
   cost: (projectID: string) => request<Cost>(`/api/v1/projects/${encodeURIComponent(projectID)}/cost`),
+  finance: (period: string, projectID = '') => {
+    const params = new URLSearchParams({ period })
+    if (projectID) params.set('project_id', projectID)
+    return request<FinanceDashboard>(`/api/v1/finance?${params}`)
+  },
+  adjustBudget: (projectID: string, payload: {
+    direction: 'credit' | 'debit'; amount_milli: number; reason: string; idempotency_key: string;
+  }) => request<BudgetAdjustmentResult>(`/api/v1/projects/${encodeURIComponent(projectID)}/budget-adjustments`, {
+    method: 'POST', body: JSON.stringify(payload),
+  }),
   provider: () => request<ProviderSummary>('/api/v1/provider'),
   queryProvider: () => request<ProviderResources>('/api/v1/provider/query', { method: 'POST' }),
   configureProvider: (payload: { name: string; base_url: string; token: string }) =>

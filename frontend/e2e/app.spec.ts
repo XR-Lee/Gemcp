@@ -173,6 +173,40 @@ const providerResources = {
   ],
   deployments: [providerDeployment], active_containers: [activeProviderContainer], cached_containers: [cachedProviderContainer],
 }
+const financeDashboard = {
+  period: '2026-07', audit_scope: 'organization', generated_at: '2026-07-17T02:00:00Z',
+  totals: {
+    base_budget_milli: 100000, reserved_milli: 15750, charged_milli: 2180,
+    credits_milli: 25000, debits_milli: 0, committed_milli: -7070, available_milli: 107070,
+  },
+  projects: [{
+    id: project.id, name: project.name, status: project.status, timezone: project.timezone,
+    base_budget_milli: 100000, reserved_milli: 15750, charged_milli: 2180,
+    credits_milli: 25000, debits_milli: 0, committed_milli: -7070, available_milli: 107070,
+  }],
+  daily: [
+    { date: '2026-07-15', reserved_milli: 0, charged_milli: 2180, credits_milli: 0, debits_milli: 0 },
+    { date: '2026-07-16', reserved_milli: 15750, charged_milli: 0, credits_milli: 0, debits_milli: 0 },
+    { date: '2026-07-17', reserved_milli: 0, charged_milli: 0, credits_milli: 25000, debits_milli: 0 },
+  ],
+  backends: [{ backend: 'autodl_private', experiments: 2, reserved_milli: 15750, charged_milli: 2180 }],
+  ledger: [
+    {
+      id: 'budget-credit-1', project_id: project.id, project_name: project.name, period: '2026-07',
+      kind: 'adjustment', direction: 'credit', amount_milli: -25000, balance_effect_milli: 25000,
+      description: 'Approved July AutoDL test allocation', created_at: '2026-07-17T02:00:00Z',
+    },
+    {
+      id: 'budget-charge-1', project_id: project.id, project_name: project.name, experiment_id: experiments[1].id,
+      backend: 'autodl_private', period: '2026-07', kind: 'charge', amount_milli: 2180, balance_effect_milli: -2180,
+      description: 'Provider runtime cost estimate', created_at: '2026-07-15T06:02:00Z',
+    },
+  ],
+  audit: [{
+    id: 'audit-budget-1', actor_type: 'user', actor_id: 'owner-id', action: 'budget.credit_recorded',
+    target_type: 'budget_entry', target_id: 'budget-credit-1', created_at: '2026-07-17T02:00:00Z',
+  }],
+}
 
 async function fulfill(route: Route, data: unknown, status = 200) {
   await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(status >= 400 ? data : { data }) })
@@ -212,6 +246,14 @@ async function mockConsole(page: Page, counters?: { providerQueries: number; sel
     if (path === '/api/v1/setup/status') return fulfill(route, { initialized: true })
     if (path === '/api/v1/auth/me') return fulfill(route, { user_id: 'owner-id', tenant_id: 'tenant-id', email: 'owner@example.com', role: 'owner' })
     if (path === '/api/v1/runtime/status') return fulfill(route, { ...runtimeStatus, self_hosted_enabled: Boolean(counters?.selfHosted) })
+    if (path === '/api/v1/finance' && route.request().method() === 'GET') return fulfill(route, financeDashboard)
+    if (path === `/api/v1/projects/${project.id}/budget-adjustments` && route.request().method() === 'POST') {
+      expect(route.request().postDataJSON()).toMatchObject({
+        direction: 'credit', amount_milli: 50000, reason: 'Approved AutoDL integration test allocation',
+      })
+      expect(route.request().postDataJSON().idempotency_key).toMatch(/^budget-/)
+      return fulfill(route, { entry: financeDashboard.ledger[0], idempotent: false }, 201)
+    }
     if (path === '/api/v1/nodes' && counters?.selfHosted) return fulfill(route, {
       nodes: [selfHostedNode], enrollments: [], assignments: [selfHostedAssignment],
     })
@@ -362,6 +404,42 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await page.screenshot({ path: '/tmp/gemcp-experiment-detail.png', fullPage: true })
 })
 
+test('Owner finance analytics and budget adjustments fit desktop and mobile', async ({ page }) => {
+  await mockConsole(page)
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Finance', exact: true }).click()
+
+  await expect(page.locator('.finance-heading h1')).toHaveText('Budget and ledger')
+  await expect(page.getByText('Approved July AutoDL test allocation', { exact: true })).toBeVisible()
+  await expect(page.getByText('AutoDL Private', { exact: true }).first()).toBeVisible()
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: '/tmp/gemcp-finance-desktop.png', fullPage: true })
+
+  await page.getByRole('button', { name: 'Adjust credit', exact: true }).click()
+  const adjustmentDialog = page.getByRole('dialog', { name: 'Record budget adjustment' })
+  await expect(adjustmentDialog).toBeVisible()
+  await adjustmentDialog.getByLabel('Amount (CNY)').fill('50')
+  await adjustmentDialog.getByLabel('Reason').fill('Approved AutoDL integration test allocation')
+  await adjustmentDialog.getByRole('checkbox').check()
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: '/tmp/gemcp-finance-adjustment-desktop.png', fullPage: true })
+  await adjustmentDialog.getByRole('button', { name: 'Record credit' }).click()
+  await expect(adjustmentDialog).toHaveCount(0)
+
+  await page.getByRole('button', { name: 'Audit', exact: true }).click()
+  await expect(page.getByText('Budget credit recorded', { exact: true })).toBeVisible()
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: '/tmp/gemcp-finance-mobile.png', fullPage: true })
+
+  await page.getByRole('button', { name: 'Ledger', exact: true }).click()
+  await page.getByRole('button', { name: 'Adjust credit', exact: true }).click()
+  await expect(adjustmentDialog).toBeVisible()
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: '/tmp/gemcp-finance-adjustment-mobile.png', fullPage: true })
+})
+
 test('global language toggle switches immediately and persists', async ({ page }) => {
   await mockConsole(page, { providerQueries: 0, selfHosted: true })
   await page.setViewportSize({ width: 1440, height: 1000 })
@@ -386,6 +464,8 @@ test('global language toggle switches immediately and persists', async ({ page }
   await expect(page.getByText('实时 Provider', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: '告警', exact: true }).click()
   await expect(page.locator('.notification-heading h2')).toHaveText('关键通知')
+  await page.getByRole('button', { name: '财务', exact: true }).click()
+  await expect(page.locator('.finance-heading h1')).toHaveText('预算与账本')
   await page.getByRole('button', { name: '概览', exact: true }).click()
 
   await page.setViewportSize({ width: 390, height: 844 })

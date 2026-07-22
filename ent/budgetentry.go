@@ -32,7 +32,7 @@ type BudgetEntry struct {
 	// ProjectID holds the value of the "project_id" field.
 	ProjectID int `json:"project_id,omitempty"`
 	// ExperimentID holds the value of the "experiment_id" field.
-	ExperimentID int `json:"experiment_id,omitempty"`
+	ExperimentID *int `json:"experiment_id,omitempty"`
 	// Period holds the value of the "period" field.
 	Period string `json:"period,omitempty"`
 	// Kind holds the value of the "kind" field.
@@ -41,6 +41,8 @@ type BudgetEntry struct {
 	AmountMilli int64 `json:"amount_milli,omitempty"`
 	// Description holds the value of the "description" field.
 	Description string `json:"description,omitempty"`
+	// IdempotencyKey holds the value of the "idempotency_key" field.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the BudgetEntryQuery when eager-loading is set.
 	Edges        BudgetEntryEdges `json:"edges"`
@@ -100,7 +102,7 @@ func (*BudgetEntry) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case budgetentry.FieldID, budgetentry.FieldTenantID, budgetentry.FieldProjectID, budgetentry.FieldExperimentID, budgetentry.FieldAmountMilli:
 			values[i] = new(sql.NullInt64)
-		case budgetentry.FieldPeriod, budgetentry.FieldKind, budgetentry.FieldDescription:
+		case budgetentry.FieldPeriod, budgetentry.FieldKind, budgetentry.FieldDescription, budgetentry.FieldIdempotencyKey:
 			values[i] = new(sql.NullString)
 		case budgetentry.FieldCreatedAt, budgetentry.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -161,7 +163,8 @@ func (_m *BudgetEntry) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field experiment_id", values[i])
 			} else if value.Valid {
-				_m.ExperimentID = int(value.Int64)
+				_m.ExperimentID = new(int)
+				*_m.ExperimentID = int(value.Int64)
 			}
 		case budgetentry.FieldPeriod:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -186,6 +189,13 @@ func (_m *BudgetEntry) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field description", values[i])
 			} else if value.Valid {
 				_m.Description = value.String
+			}
+		case budgetentry.FieldIdempotencyKey:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field idempotency_key", values[i])
+			} else if value.Valid {
+				_m.IdempotencyKey = new(string)
+				*_m.IdempotencyKey = value.String
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -253,8 +263,10 @@ func (_m *BudgetEntry) String() string {
 	builder.WriteString("project_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ProjectID))
 	builder.WriteString(", ")
-	builder.WriteString("experiment_id=")
-	builder.WriteString(fmt.Sprintf("%v", _m.ExperimentID))
+	if v := _m.ExperimentID; v != nil {
+		builder.WriteString("experiment_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("period=")
 	builder.WriteString(_m.Period)
@@ -267,6 +279,11 @@ func (_m *BudgetEntry) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("description=")
 	builder.WriteString(_m.Description)
+	builder.WriteString(", ")
+	if v := _m.IdempotencyKey; v != nil {
+		builder.WriteString("idempotency_key=")
+		builder.WriteString(*v)
+	}
 	builder.WriteByte(')')
 	return builder.String()
 }

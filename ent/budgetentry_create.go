@@ -84,6 +84,14 @@ func (_c *BudgetEntryCreate) SetExperimentID(v int) *BudgetEntryCreate {
 	return _c
 }
 
+// SetNillableExperimentID sets the "experiment_id" field if the given value is not nil.
+func (_c *BudgetEntryCreate) SetNillableExperimentID(v *int) *BudgetEntryCreate {
+	if v != nil {
+		_c.SetExperimentID(*v)
+	}
+	return _c
+}
+
 // SetPeriod sets the "period" field.
 func (_c *BudgetEntryCreate) SetPeriod(v string) *BudgetEntryCreate {
 	_c.mutation.SetPeriod(v)
@@ -105,6 +113,20 @@ func (_c *BudgetEntryCreate) SetAmountMilli(v int64) *BudgetEntryCreate {
 // SetDescription sets the "description" field.
 func (_c *BudgetEntryCreate) SetDescription(v string) *BudgetEntryCreate {
 	_c.mutation.SetDescription(v)
+	return _c
+}
+
+// SetIdempotencyKey sets the "idempotency_key" field.
+func (_c *BudgetEntryCreate) SetIdempotencyKey(v string) *BudgetEntryCreate {
+	_c.mutation.SetIdempotencyKey(v)
+	return _c
+}
+
+// SetNillableIdempotencyKey sets the "idempotency_key" field if the given value is not nil.
+func (_c *BudgetEntryCreate) SetNillableIdempotencyKey(v *string) *BudgetEntryCreate {
+	if v != nil {
+		_c.SetIdempotencyKey(*v)
+	}
 	return _c
 }
 
@@ -189,9 +211,6 @@ func (_c *BudgetEntryCreate) check() error {
 	if _, ok := _c.mutation.ProjectID(); !ok {
 		return &ValidationError{Name: "project_id", err: errors.New(`ent: missing required field "BudgetEntry.project_id"`)}
 	}
-	if _, ok := _c.mutation.ExperimentID(); !ok {
-		return &ValidationError{Name: "experiment_id", err: errors.New(`ent: missing required field "BudgetEntry.experiment_id"`)}
-	}
 	if _, ok := _c.mutation.Period(); !ok {
 		return &ValidationError{Name: "period", err: errors.New(`ent: missing required field "BudgetEntry.period"`)}
 	}
@@ -219,14 +238,16 @@ func (_c *BudgetEntryCreate) check() error {
 			return &ValidationError{Name: "description", err: fmt.Errorf(`ent: validator failed for field "BudgetEntry.description": %w`, err)}
 		}
 	}
+	if v, ok := _c.mutation.IdempotencyKey(); ok {
+		if err := budgetentry.IdempotencyKeyValidator(v); err != nil {
+			return &ValidationError{Name: "idempotency_key", err: fmt.Errorf(`ent: validator failed for field "BudgetEntry.idempotency_key": %w`, err)}
+		}
+	}
 	if len(_c.mutation.TenantIDs()) == 0 {
 		return &ValidationError{Name: "tenant", err: errors.New(`ent: missing required edge "BudgetEntry.tenant"`)}
 	}
 	if len(_c.mutation.ProjectIDs()) == 0 {
 		return &ValidationError{Name: "project", err: errors.New(`ent: missing required edge "BudgetEntry.project"`)}
-	}
-	if len(_c.mutation.ExperimentIDs()) == 0 {
-		return &ValidationError{Name: "experiment", err: errors.New(`ent: missing required edge "BudgetEntry.experiment"`)}
 	}
 	return nil
 }
@@ -282,6 +303,10 @@ func (_c *BudgetEntryCreate) createSpec() (*BudgetEntry, *sqlgraph.CreateSpec) {
 		_spec.SetField(budgetentry.FieldDescription, field.TypeString, value)
 		_node.Description = value
 	}
+	if value, ok := _c.mutation.IdempotencyKey(); ok {
+		_spec.SetField(budgetentry.FieldIdempotencyKey, field.TypeString, value)
+		_node.IdempotencyKey = &value
+	}
 	if nodes := _c.mutation.TenantIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
@@ -330,7 +355,7 @@ func (_c *BudgetEntryCreate) createSpec() (*BudgetEntry, *sqlgraph.CreateSpec) {
 		for _, k := range nodes {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.ExperimentID = nodes[0]
+		_node.ExperimentID = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec

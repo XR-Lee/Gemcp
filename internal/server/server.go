@@ -17,6 +17,7 @@ import (
 	"github.com/XR-Lee/Gemcp/internal/config"
 	"github.com/XR-Lee/Gemcp/internal/execution"
 	"github.com/XR-Lee/Gemcp/internal/experiment"
+	"github.com/XR-Lee/Gemcp/internal/finance"
 	"github.com/XR-Lee/Gemcp/internal/httpapi"
 	"github.com/XR-Lee/Gemcp/internal/mcpserver"
 	"github.com/XR-Lee/Gemcp/internal/nodeaccess"
@@ -103,6 +104,9 @@ func New(deps Dependencies) *http.Server {
 	protected.POST("/auth/logout", authHandlers.Logout)
 	projectHandlers := httpapi.NewProjectHandlers(deps.Ent)
 	protected.GET("/projects", projectHandlers.List)
+	financeHandlers := httpapi.NewFinanceHandlers(finance.NewService(deps.Ent))
+	protected.GET("/finance", financeHandlers.Dashboard)
+	protected.POST("/projects/:id/budget-adjustments", financeHandlers.Adjust)
 	protected.GET("/projects/:id/agent-tokens", agentTokenHandlers.List)
 	protected.POST("/projects/:id/agent-tokens", agentTokenHandlers.Issue)
 	protected.DELETE("/projects/:id/agent-tokens/:tokenID", agentTokenHandlers.Revoke)

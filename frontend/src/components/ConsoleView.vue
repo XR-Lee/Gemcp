@@ -19,11 +19,13 @@ import {
   RefreshCw,
   Server,
   ShieldCheck,
+  WalletCards,
   X,
 } from '@lucide/vue'
 import { APIError, api, type Attempt, type BuildInfo, type Cost, type Experiment, type Project, type Repository, type RuntimeStatus, type User } from '../api'
 import { localizedState, useI18n } from '../i18n'
 import ExperimentTable from './ExperimentTable.vue'
+import FinanceView from './FinanceView.vue'
 import LanguageToggle from './LanguageToggle.vue'
 import ProviderView from './ProviderView.vue'
 import NotificationView from './NotificationView.vue'
@@ -33,7 +35,7 @@ import NodeView from './NodeView.vue'
 const props = defineProps<{ build: BuildInfo | null; user: User }>()
 const emit = defineEmits<{ signedOut: [] }>()
 
-type ViewName = 'overview' | 'experiments' | 'projects' | 'agents' | 'nodes' | 'provider' | 'notifications'
+type ViewName = 'overview' | 'experiments' | 'finance' | 'projects' | 'agents' | 'nodes' | 'provider' | 'notifications'
 const activeView = ref<ViewName>('overview')
 const projects = ref<Project[]>([])
 const selectedProjectID = ref('')
@@ -66,6 +68,7 @@ const latestAttempt = computed(() => attempts.value.at(-1) ?? null)
 const viewTitle = computed(() => ({
   overview: t('Overview', '概览'),
   experiments: t('Experiments', '实验'),
+  finance: t('Budget and ledger', '预算与账本'),
   projects: t('Project configuration', 'Project 配置'),
   agents: t('Agent access', 'Agent 访问'),
   nodes: t('Self-hosted nodes', '自托管节点'),
@@ -261,6 +264,7 @@ onMounted(refreshAll)
       <nav :aria-label="t('Primary navigation', '主导航')">
         <button class="nav-item" :class="{ active: activeView === 'overview' }" type="button" :aria-label="t('Overview', '概览')" :title="t('Overview', '概览')" @click="activeView = 'overview'"><Activity :size="17" /><span>{{ t('Overview', '概览') }}</span></button>
         <button class="nav-item" :class="{ active: activeView === 'experiments' }" type="button" :aria-label="t('Experiments', '实验')" :title="t('Experiments', '实验')" @click="activeView = 'experiments'"><FlaskConical :size="17" /><span>{{ t('Experiments', '实验') }}</span></button>
+        <button class="nav-item" :class="{ active: activeView === 'finance' }" type="button" :aria-label="t('Finance', '财务')" :title="t('Finance', '财务')" @click="activeView = 'finance'"><WalletCards :size="17" /><span>{{ t('Finance', '财务') }}</span></button>
         <button class="nav-item" :class="{ active: activeView === 'projects' }" type="button" aria-label="Project" title="Project" @click="activeView = 'projects'"><Boxes :size="17" /><span>Project</span></button>
         <button class="nav-item" :class="{ active: activeView === 'agents' }" type="button" :aria-label="t('Agents', 'Agent')" :title="t('Agents', 'Agent')" @click="activeView = 'agents'"><Bot :size="17" /><span>Agent</span></button>
         <button v-if="runtimeStatus?.self_hosted_enabled" class="nav-item" :class="{ active: activeView === 'nodes' }" type="button" :aria-label="t('Nodes', '节点')" :title="t('Nodes', '节点')" @click="activeView = 'nodes'"><Cpu :size="17" /><span>{{ t('Nodes', '节点') }}</span></button>
@@ -278,10 +282,10 @@ onMounted(refreshAll)
           <h1>{{ viewTitle }}</h1>
         </div>
         <div class="topbar-actions">
-          <label v-if="!['nodes', 'provider', 'notifications'].includes(activeView)" class="project-select"><span>Project</span><select v-model="selectedProjectID" @change="refreshProject()"><option v-for="project in projects" :key="project.id" :value="project.id">{{ project.name }}</option></select></label>
+          <label v-if="!['finance', 'nodes', 'provider', 'notifications'].includes(activeView)" class="project-select"><span>Project</span><select v-model="selectedProjectID" @change="refreshProject()"><option v-for="project in projects" :key="project.id" :value="project.id">{{ project.name }}</option></select></label>
           <span class="status online"><span class="status-dot" />{{ t('Online', '在线') }}</span>
           <LanguageToggle />
-          <button v-if="!['nodes', 'provider', 'notifications'].includes(activeView)" class="icon-button" type="button" :title="t('Refresh project', '刷新 Project')" :disabled="loading" @click="refreshAll"><RefreshCw :size="17" :class="{ spinning: loading }" /></button>
+          <button v-if="!['finance', 'nodes', 'provider', 'notifications'].includes(activeView)" class="icon-button" type="button" :title="t('Refresh project', '刷新 Project')" :disabled="loading" @click="refreshAll"><RefreshCw :size="17" :class="{ spinning: loading }" /></button>
         </div>
       </header>
 
@@ -331,6 +335,7 @@ onMounted(refreshAll)
         <div v-else class="empty-state compact-empty"><span class="empty-icon"><GitBranch :size="21" /></span><h3>{{ t('No repositories registered', '尚未注册仓库') }}</h3><p>{{ t('Register the private GitHub repository used by the first experiment.', '注册首个实验使用的私有 GitHub 仓库。') }}</p></div>
       </section>
 
+      <FinanceView v-if="activeView === 'finance'" :active="true" :projects="projects" @unauthorized="emit('signedOut')" />
       <AgentView v-if="activeView === 'agents'" :active="true" :project="selectedProject" @unauthorized="emit('signedOut')" />
       <NodeView v-if="activeView === 'nodes'" :active="true" :projects="projects" @unauthorized="emit('signedOut')" />
       <div v-show="activeView === 'provider'" class="persistent-view"><ProviderView :active="activeView === 'provider'" @unauthorized="emit('signedOut')" /></div>

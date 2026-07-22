@@ -263,6 +263,27 @@ func TestQueuedCancellationReleasesBudgetOnce(t *testing.T) {
 	}
 }
 
+func TestProjectCreditIncreasesAvailableSchedulingCapacity(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	ctx := context.Background()
+	before, err := f.service.Cost(ctx, f.principal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.client.BudgetEntry.Create().SetTenantID(f.principal.TenantID).SetProjectID(f.project.ID).
+		SetPeriod(before.Period).SetKind("adjustment").SetAmountMilli(-25_000).
+		SetDescription("approved test credit").SetIdempotencyKey("test-credit-001").Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	after, err := f.service.Cost(ctx, f.principal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.AdjustmentsMilli != -25_000 || after.CommittedMilli != -25_000 || after.AvailableMilli != 125_000 {
+		t.Fatalf("cost after Project credit=%+v", after)
+	}
+}
+
 func TestRunningCancellationDurablyRequestsOwnedResourceStop(t *testing.T) {
 	f := newFixture(t, 100000, 20000)
 	ctx := context.Background()

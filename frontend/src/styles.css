@@ -305,7 +305,8 @@ label small { color: #858e88; font-size: 10px; font-weight: 500; }
 .brand strong, .brand span { display: block; }
 .brand strong { font-size: 15px; line-height: 20px; }
 .brand div span { color: #9ca8a1; font-size: 11px; line-height: 15px; }
-.sidebar nav { min-height: 0; flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.sidebar nav { min-height: 0; flex: 1; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; scrollbar-width: none; }
+.sidebar nav::-webkit-scrollbar { display: none; }
 .nav-item {
   width: 100%;
   min-height: 38px;
@@ -679,9 +680,8 @@ label small { color: #858e88; font-size: 10px; font-weight: 500; }
   .app-shell { display: block; padding-bottom: 58px; }
   .sidebar { position: fixed; z-index: 20; top: auto; bottom: 0; width: 100%; height: 58px; padding: 7px 8px; border-top: 1px solid #303734; border-right: 0; }
   .brand { display: none; }
-  .sidebar nav { flex-direction: row; justify-content: space-around; }
-  .nav-item, .nav-bottom { width: 44px; min-height: 42px; margin: 0; }
-  .nav-bottom { margin-left: auto; }
+  .sidebar nav { flex-direction: row; justify-content: flex-start; gap: 4px; overflow-x: auto; overflow-y: hidden; }
+  .nav-item, .nav-bottom { width: 44px; min-height: 42px; margin: 0; flex: 0 0 44px; }
   .topbar { min-height: 74px; padding: 10px 14px; align-items: flex-start; }
   .topbar h1 { font-size: 18px; }
   .topbar-actions { gap: 7px; }
