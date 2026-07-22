@@ -23,10 +23,12 @@ const repositories = [
 const experiments = [
   {
     id: 'ec29dc68-9674-4611-9d8c-542f68f5e31c', project_id: project.id, repository_id: repositories[0].id,
-    environment_id: 'environment-id', resource_profile_id: 'profile-id', state: 'queued', desired_state: 'running',
+    environment_id: 'environment-id', resource_profile_id: 'profile-id', state: 'provisioning', desired_state: 'running',
     commit_sha: '0123456789012345678901234567890123456789', command: 'python train.py --config configs/scanobjectnn.yaml',
     max_runtime_seconds: 14400, reserved_cost_milli: 12250, estimated_cost_milli: 0,
     output_path: '/root/autodl-fs/projects/b492cbe4/experiments/ec29dc68/',
+    runner_attempt_id: 'a72afbc7-df86-4aaf-a7bc-68060968ed11', runner_source_downloads: 2,
+    runner_stage: 'source_extracted', runner_stage_updated_at: '2026-07-16T09:31:15Z',
     created_at: '2026-07-16T09:30:00Z', updated_at: '2026-07-16T09:30:00Z', metrics: {},
   },
   {
@@ -399,6 +401,8 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await page.getByRole('button', { name: 'Experiments', exact: true }).click()
   await page.getByText('ec29dc68').click()
   await expect(page.getByRole('dialog', { name: 'Experiment details' })).toBeVisible()
+  await expect(page.getByText('source_extracted', { exact: true })).toBeVisible()
+  await expect(page.getByText('Source downloads', { exact: true })).toBeVisible()
   await expect(page.getByText('epoch 3 loss=0.42')).toBeVisible()
   await expectNoPageOverflow(page)
   await page.screenshot({ path: '/tmp/gemcp-experiment-detail.png', fullPage: true })

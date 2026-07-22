@@ -22,24 +22,27 @@ var (
 )
 
 type Spec struct {
-	ExperimentID             string    `json:"experiment_id"`
-	AttemptID                string    `json:"attempt_id"`
-	Command                  string    `json:"command"`
-	OutputPath               string    `json:"output_path"`
-	MaxRuntimeSeconds        int       `json:"max_runtime_seconds"`
-	TimeoutExtensionSeconds  int       `json:"timeout_extension_seconds"`
-	TerminationGraceSeconds  int       `json:"termination_grace_seconds"`
-	HeartbeatIntervalSeconds int       `json:"heartbeat_interval_seconds"`
-	SourceMaxBytes           int64     `json:"source_max_bytes"`
-	TokenExpiresAt           time.Time `json:"token_expires_at"`
+	ExperimentID                 string    `json:"experiment_id"`
+	AttemptID                    string    `json:"attempt_id"`
+	Command                      string    `json:"command"`
+	OutputPath                   string    `json:"output_path"`
+	MaxRuntimeSeconds            int       `json:"max_runtime_seconds"`
+	TimeoutExtensionSeconds      int       `json:"timeout_extension_seconds"`
+	TerminationGraceSeconds      int       `json:"termination_grace_seconds"`
+	HeartbeatIntervalSeconds     int       `json:"heartbeat_interval_seconds"`
+	SourceMaxBytes               int64     `json:"source_max_bytes"`
+	ProvisioningSecondsRemaining int       `json:"provisioning_seconds_remaining,omitempty"`
+	TokenExpiresAt               time.Time `json:"token_expires_at"`
 }
 
 type EventInput struct {
-	Type     string         `json:"type"`
-	ExitCode *int           `json:"exit_code,omitempty"`
-	Reason   string         `json:"reason,omitempty"`
-	LogTail  string         `json:"log_tail,omitempty"`
-	Metrics  map[string]any `json:"metrics,omitempty"`
+	Type      string         `json:"type"`
+	Stage     string         `json:"stage,omitempty"`
+	ErrorType string         `json:"error_type,omitempty"`
+	ExitCode  *int           `json:"exit_code,omitempty"`
+	Reason    string         `json:"reason,omitempty"`
+	LogTail   string         `json:"log_tail,omitempty"`
+	Metrics   map[string]any `json:"metrics,omitempty"`
 }
 
 type Control struct {

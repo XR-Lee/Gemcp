@@ -96,6 +96,10 @@ Add an Owner-only Finance workspace with monthly and Project filtering, budget a
 
 Extend the bounded AutoDL runtime-prerequisite wait to five minutes, retry only transient Bootstrap downloads before Runner execution begins, and write credential-free launch stages to `gemcp-launch.log` in the immutable Experiment output path. Keep the Provider command below its 4096-byte boundary and preserve redirect rejection and single-execution semantics.
 
+### v0.11.2 - observable pre-execution recovery
+
+Retry transiently interrupted source bodies from a clean temporary file and retry the idempotent first `started` callback within the remaining provisioning window. Persist a controlled Bootstrap-stage vocabulary in the immutable audit log and expose the latest stage through Agent and Owner Experiment details. Preserve non-retryable HTTP and redirect behavior, enforce the existing source-download cap, execute the workload at most once, and clean up immediately when Bootstrap reports a terminal pre-execution failure.
+
 ## Further validation
 
 The following items still require the target environment or newly authorized paid resources:

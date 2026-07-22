@@ -145,6 +145,53 @@ func TestSubmitIsAtomicAndIdempotent(t *testing.T) {
 	}
 }
 
+func TestGetIncludesCurrentRunnerBootstrapStatus(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	ctx := context.Background()
+	submitted, err := f.service.Submit(ctx, f.principal, validSubmit(f, "runner-status-0001"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	experimentRecord, err := f.service.getRecord(ctx, f.project.ID, submitted.Experiment.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstAttempt, err := f.client.Attempt.Create().SetTenantID(f.principal.TenantID).SetProjectID(f.project.ID).
+		SetExperimentID(experimentRecord.ID).SetNumber(1).SetSourceDownloads(1).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	currentAttempt, err := f.client.Attempt.Create().SetTenantID(f.principal.TenantID).SetProjectID(f.project.ID).
+		SetExperimentID(experimentRecord.ID).SetNumber(2).SetSourceDownloads(2).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.client.AuditEvent.Create().SetTenantID(f.principal.TenantID).SetActorType("system").SetActorID("runner").
+		SetAction("runner.bootstrap_stage").SetTargetType("experiment").SetTargetID(experimentRecord.PublicID.String()).
+		SetMetadata(map[string]any{"attempt_id": currentAttempt.PublicID.String(), "stage": "bootstrap_failed_during_source_extract", "error_type": "ReadError"}).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.client.AuditEvent.Create().SetTenantID(f.principal.TenantID).SetActorType("system").SetActorID("runner").
+		SetAction("runner.bootstrap_stage").SetTargetType("experiment").SetTargetID(experimentRecord.PublicID.String()).
+		SetMetadata(map[string]any{"attempt_id": firstAttempt.PublicID.String(), "stage": "started"}).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	view, err := f.service.Get(ctx, f.principal, submitted.Experiment.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if view.RunnerAttemptID == nil || *view.RunnerAttemptID != currentAttempt.PublicID.String() ||
+		view.RunnerSourceDownloads == nil || *view.RunnerSourceDownloads != 2 ||
+		view.RunnerStage == nil || *view.RunnerStage != "bootstrap_failed_during_source_extract" ||
+		view.RunnerErrorType == nil || *view.RunnerErrorType != "ReadError" || view.RunnerStageUpdatedAt == nil {
+		t.Fatalf("Runner status view = %+v", view)
+	}
+	listed, err := f.service.List(ctx, f.principal, ListInput{})
+	if err != nil || listed.Experiments[0].RunnerStage != nil {
+		t.Fatalf("List() unexpectedly expanded Runner diagnostics: %+v, %v", listed, err)
+	}
+}
+
 func TestArtifactsRegistersAutoDLLaunchDiagnosticsAfterDispatch(t *testing.T) {
 	f := newFixture(t, 100000, 20000)
 	ctx := context.Background()

@@ -17,6 +17,7 @@ const (
 )
 
 const bootstrapScript = `import ctypes
+import http.client
 import json
 import os
 import shutil
@@ -33,6 +34,7 @@ BASE_URL = os.environ.pop("GEMCP_RUNNER_URL", "").rstrip("/")
 TOKEN = os.environ.pop("GEMCP_RUNNER_TOKEN", "")
 LAUNCH_LOG = os.environ.get("GEMCP_LAUNCH_LOG", "")
 USER_AGENT = "` + runnerUserAgent + `"
+FAILURE_STAGE = "bootstrap_failed_before_spec"
 
 def launch_log(message):
     if not LAUNCH_LOG:
@@ -86,6 +88,38 @@ def post_event(payload, retries=5):
     with request("/api/v1/runner/events", payload, retries=retries) as response:
         return json.load(response)["data"]
 
+def report_stage(stage, error_type="", retries=1):
+    marker = "gemcp-launch-stage-" + stage
+    if error_type:
+        marker += "-" + error_type
+    launch_log(marker)
+    payload = {"type": "diagnostic", "stage": stage}
+    if error_type:
+        payload["error_type"] = error_type
+    try:
+        post_event(payload, retries=retries)
+    except Exception as error:
+        launch_log("gemcp-launch-stage-report-failed-" + stage + "-" + type(error).__name__)
+
+def post_started(seconds_remaining):
+    if not seconds_remaining:
+        return post_event({"type": "started"}, retries=5)
+    retry_until = time.monotonic() + max(0, float(seconds_remaining) - 30)
+    delay = 1
+    while True:
+        try:
+            return post_event({"type": "started"}, retries=1)
+        except urllib.error.HTTPError:
+            raise
+        except (urllib.error.URLError, http.client.HTTPException, TimeoutError, ConnectionError, OSError, ValueError) as error:
+            last_error = error
+        launch_log("gemcp-launch-started-callback-retry-" + type(last_error).__name__)
+        remaining = retry_until - time.monotonic()
+        if remaining <= 0:
+            raise last_error
+        time.sleep(min(delay, remaining))
+        delay = min(delay * 2, 15)
+
 def safe_extract(archive_path, destination):
     root = os.path.realpath(destination)
     with tarfile.open(archive_path, "r:gz") as archive:
@@ -106,19 +140,50 @@ def safe_extract(archive_path, destination):
         archive.extractall(root)
 
 def download_source(path, maximum):
-    total = 0
-    with request("/api/v1/runner/source", retries=3) as response, open(path, "wb") as output:
-        length = response.headers.get("Content-Length")
-        if length and int(length) > maximum:
-            raise RuntimeError("source archive exceeds the declared size limit")
-        while True:
-            chunk = response.read(1024 * 1024)
-            if not chunk:
-                break
-            total += len(chunk)
-            if total > maximum:
-                raise RuntimeError("source archive exceeds the declared size limit")
-            output.write(chunk)
+    temporary = path + ".part"
+    last_error = None
+    transient_errors = (urllib.error.URLError, http.client.IncompleteRead, http.client.RemoteDisconnected, TimeoutError, ConnectionError, OSError)
+    for attempt in range(3):
+        try:
+            total = 0
+            declared = None
+            with request("/api/v1/runner/source", retries=1) as response, open(temporary, "wb") as output:
+                length = response.headers.get("Content-Length")
+                if length:
+                    declared = int(length)
+                    if declared > maximum:
+                        raise RuntimeError("source archive exceeds the declared size limit")
+                while True:
+                    chunk = response.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    total += len(chunk)
+                    if total > maximum:
+                        raise RuntimeError("source archive exceeds the declared size limit")
+                    output.write(chunk)
+                if declared is not None and total != declared:
+                    raise http.client.IncompleteRead(b"", declared - total)
+                output.flush()
+                os.fsync(output.fileno())
+            os.replace(temporary, path)
+            return
+        except urllib.error.HTTPError:
+            try:
+                os.remove(temporary)
+            except FileNotFoundError:
+                pass
+            raise
+        except transient_errors as error:
+            last_error = error
+            try:
+                os.remove(temporary)
+            except FileNotFoundError:
+                pass
+            launch_log("gemcp-launch-source-download-retry-" + type(error).__name__)
+            if attempt + 1 == 3:
+                raise
+            time.sleep(2 ** attempt)
+    raise last_error if last_error is not None else RuntimeError("source download failed")
 
 def terminate(process, grace):
     if process.poll() is not None:
@@ -178,7 +243,11 @@ def write_result(output_path, result):
     os.replace(temporary, final)
 
 def main():
+    global FAILURE_STAGE
+    report_stage("runner_entered")
     spec = get_json("/api/v1/runner/spec")
+    report_stage("spec_loaded")
+    FAILURE_STAGE = "bootstrap_failed_during_source_download"
     output_path = spec["output_path"]
     os.makedirs(output_path, mode=0o700, exist_ok=True)
     work_path = os.path.join(tempfile.gettempdir(), "gemcp-" + spec["attempt_id"])
@@ -186,12 +255,16 @@ def main():
     os.makedirs(work_path, mode=0o700)
     archive_path = os.path.join(work_path, "source.tar.gz")
     download_source(archive_path, int(spec["source_max_bytes"]))
+    FAILURE_STAGE = "bootstrap_failed_during_source_extract"
+    report_stage("source_downloaded")
     source_path = os.path.join(work_path, "source")
     os.makedirs(source_path, mode=0o700)
     safe_extract(archive_path, source_path)
     os.remove(archive_path)
+    report_stage("source_extracted")
 
-    control = post_event({"type": "started"})
+    FAILURE_STAGE = "bootstrap_failed_during_started_callback"
+    control = post_started(int(spec.get("provisioning_seconds_remaining", 0)))
     log_path = os.path.join(output_path, "run.log")
     reason = "completed"
     exit_code = 0
@@ -264,6 +337,7 @@ try:
     sys.exit(main())
 except Exception as error:
     launch_log("gemcp-launch-runner-failed-" + type(error).__name__)
+    report_stage(FAILURE_STAGE, type(error).__name__, retries=3)
     sys.stderr.write("Gemcp Runner bootstrap failed: " + type(error).__name__ + ": " + str(error)[:512] + "\n")
     sys.exit(70)
 `

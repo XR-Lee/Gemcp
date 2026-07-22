@@ -349,6 +349,8 @@ func terminalResult(experimentRecord *ent.Experiment, attemptRecord *ent.Attempt
 		return "failed", "failed", "oom", valueOr(experimentRecord.FailureReason, "Provider reported an out-of-memory termination")
 	case "runner_error":
 		return "failed", "failed", "runner_error", "the Runner failed while managing the experiment process"
+	case "runner_bootstrap_failed":
+		return "provider_error", "failed", "runner_bootstrap_failed", valueOr(experimentRecord.FailureReason, "Runner bootstrap failed before workload execution")
 	case "provider_error", "provision_timeout", "runner_callback_missing":
 		code := valueOr(experimentRecord.FailureCode, reason)
 		return "provider_error", "failed", code, valueOr(experimentRecord.FailureReason, "Provider execution failed")

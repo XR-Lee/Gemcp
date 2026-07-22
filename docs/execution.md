@@ -49,14 +49,14 @@ The GitHub Deploy private key never enters the experiment container.
 
 1. The controlplane re-fetches the exact commit using the pinned GitHub host key and encrypted Deploy Key.
 2. It creates a bounded tar.gz archive on private temporary storage.
-3. The experiment downloads it through an Attempt-scoped Runner Bearer Token.
+3. The experiment downloads it through an Attempt-scoped Runner Bearer Token. An interrupted response body is discarded and the complete archive is requested again, up to the existing three-download Attempt limit.
 4. The key, known-host file, and bare repository are deleted after archive generation; the archive is deleted when streaming finishes.
 
 The Token can access only its own specification, source, and event endpoint. Its digest is indexed for authentication. Recoverable ciphertext exists only so a restarted controlplane can finish uncertain provisioning; both forms are cleared when the Attempt retires or the experiment finalizes.
 
 ## Runner
 
-The Provider command downloads a small Python bootstrap. `v0.6.2` fixes the incomplete one-line URL opener found during the first live control-plane trial by using Python's standard opener construction with an explicit redirect-denying handler. Live diagnostics later showed that Private Cloud expands command variables and quotes before its final `bash -c` process. `v0.6.4` therefore emits a quote-free command with no shell variables and streams a Base64-encoded downloader through `/usr/bin/base64` to Python standard input. `v0.7.1` explicitly sends `User-Agent: Gemcp-Runner/1` on the initial download and every callback after Cloudflare error 1010 rejected Python's default `Python-urllib/*` signature. `v0.11.1` allows up to five minutes for both approved runtime prerequisites, retries transient initial downloads only before the Runner is executed, and writes credential-free stage markers to `gemcp-launch.log`. HTTP errors and redirects are not retried, and the workload is never automatically launched twice. The Runner then:
+The Provider command downloads a small Python bootstrap. `v0.6.2` fixes the incomplete one-line URL opener found during the first live control-plane trial by using Python's standard opener construction with an explicit redirect-denying handler. Live diagnostics later showed that Private Cloud expands command variables and quotes before its final `bash -c` process. `v0.6.4` therefore emits a quote-free command with no shell variables and streams a Base64-encoded downloader through `/usr/bin/base64` to Python standard input. `v0.7.1` explicitly sends `User-Agent: Gemcp-Runner/1` on the initial download and every callback after Cloudflare error 1010 rejected Python's default `Python-urllib/*` signature. `v0.11.1` allows up to five minutes for both approved runtime prerequisites, retries transient initial downloads only before the Runner is executed, and writes credential-free stage markers to `gemcp-launch.log`. `v0.11.2` additionally retries interrupted source bodies from a clean temporary file and retries a transient first `started` callback within the remaining provisioning window. HTTP errors and redirects are not retried, and these pre-execution retries never launch the workload more than once. The Runner then:
 
 - safely downloads and bounds the source archive;
 - reports `started` and heartbeats every 15 seconds;
@@ -74,7 +74,7 @@ The fixed durable path is:
 /root/autodl-fs/projects/<project-uuid>/experiments/<experiment-uuid>/
 ```
 
-Gemcp never automatically deletes durable output. `list_artifacts` reports Runner-managed filenames without browsing arbitrary shared-storage paths. A dispatched AutoDL Attempt registers `gemcp-launch.log`; if provisioning expires before the first callback, its last marker distinguishes Bootstrap download and Runner entry when the Provider executed enough of the launch command to write the file.
+Gemcp never automatically deletes durable output. `list_artifacts` reports Runner-managed filenames without browsing arbitrary shared-storage paths. A dispatched AutoDL Attempt registers `gemcp-launch.log`; if provisioning expires before the first callback, its last marker distinguishes Bootstrap download and Runner entry when the Provider executed enough of the launch command to write the file. Bootstrap also reports a fixed, credential-free stage vocabulary to the immutable audit log. `get_experiment` and the Owner detail view expose the current Attempt ID, source-download count, latest stage, stage time, and bounded exception type. Arbitrary error text is never accepted. A terminal Bootstrap failure that reaches the controlplane records `runner_bootstrap_failed` and immediately requests managed Provider cleanup.
 
 Approved images must provide the AutoDL `/root/miniconda3/bin/python3` link, `/usr/bin/base64`, and TLS root certificates.
 

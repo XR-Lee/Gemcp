@@ -122,6 +122,11 @@ export type Experiment = {
   exit_code?: number
   failure_code?: string
   failure_reason?: string
+  runner_attempt_id?: string
+  runner_source_downloads?: number
+  runner_stage?: string
+  runner_stage_updated_at?: string
+  runner_error_type?: string
   metrics?: Record<string, unknown>
   created_at: string
   updated_at: string

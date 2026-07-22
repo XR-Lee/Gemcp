@@ -73,6 +73,13 @@ func (s *Service) Spec(ctx context.Context, token string) (Spec, error) {
 	if isTerminalState(session.experiment.State) || session.experiment.DesiredState == "cancelled" || (session.experiment.State != "provisioning" && session.experiment.State != "running") {
 		return Spec{}, ErrTerminal
 	}
+	var provisioningSecondsRemaining int
+	if session.resource.HardDeadlineAt != nil {
+		remaining := session.resource.HardDeadlineAt.Sub(s.now().UTC())
+		if remaining > 0 {
+			provisioningSecondsRemaining = int(remaining / time.Second)
+		}
+	}
 	return Spec{
 		ExperimentID: session.experiment.PublicID.String(), AttemptID: session.attempt.PublicID.String(),
 		Command: session.experiment.Command, OutputPath: session.experiment.OutputPath,
@@ -80,7 +87,8 @@ func (s *Service) Spec(ctx context.Context, token string) (Spec, error) {
 		TimeoutExtensionSeconds:  session.experiment.TimeoutExtensionSeconds,
 		TerminationGraceSeconds:  session.experiment.TerminationGraceSeconds,
 		HeartbeatIntervalSeconds: 15, SourceMaxBytes: sourceTransferLimit(s.sourceMaxBytes),
-		TokenExpiresAt: *session.attempt.RunnerTokenExpiresAt,
+		ProvisioningSecondsRemaining: provisioningSecondsRemaining,
+		TokenExpiresAt:               *session.attempt.RunnerTokenExpiresAt,
 	}, nil
 }
 
@@ -158,6 +166,8 @@ func (s *Service) Event(ctx context.Context, token string, input EventInput) (Co
 	}
 
 	switch input.Type {
+	case "diagnostic":
+		err = s.recordBootstrapDiagnostic(ctx, tx, record, experimentRecord, resourceRecord, input.Stage, input.ErrorType, now)
 	case "started":
 		err = s.recordStarted(ctx, tx, record, experimentRecord, resourceRecord, now)
 	case "heartbeat":
@@ -206,12 +216,52 @@ func (s *Service) recordStarted(ctx context.Context, tx *ent.Tx, record *ent.Att
 		if _, err := tx.ProviderResource.UpdateOneID(resourceRecord.ID).SetState("active").SetLastSeenAt(now).SetHardDeadlineAt(hardDeadline).Save(ctx); err != nil {
 			return err
 		}
+		if err := s.recordDiagnostic(ctx, tx, record, experimentRecord, "started", "", now); err != nil {
+			return err
+		}
 		_, err := tx.AuditEvent.Create().SetTenantID(experimentRecord.TenantID).SetActorType("system").SetActorID("runner").
 			SetAction("experiment.started").SetTargetType("experiment").SetTargetID(experimentRecord.PublicID.String()).
 			SetMetadata(map[string]any{"attempt_id": record.PublicID.String(), "deadline_at": deadline}).Save(ctx)
 		return err
 	}
 	return nil
+}
+
+func (s *Service) recordDiagnostic(ctx context.Context, tx *ent.Tx, record *ent.Attempt, experimentRecord *ent.Experiment, stage, errorType string, now time.Time) error {
+	metadata := map[string]any{
+		"attempt_id":  record.PublicID.String(),
+		"stage":       stage,
+		"recorded_at": now,
+	}
+	if errorType != "" {
+		metadata["error_type"] = errorType
+	}
+	_, err := tx.AuditEvent.Create().SetTenantID(experimentRecord.TenantID).SetActorType("system").SetActorID("runner").
+		SetAction("runner.bootstrap_stage").SetTargetType("experiment").SetTargetID(experimentRecord.PublicID.String()).
+		SetMetadata(metadata).Save(ctx)
+	return err
+}
+
+func (s *Service) recordBootstrapDiagnostic(ctx context.Context, tx *ent.Tx, record *ent.Attempt, experimentRecord *ent.Experiment, resourceRecord *ent.ProviderResource, stage, errorType string, now time.Time) error {
+	if err := s.recordDiagnostic(ctx, tx, record, experimentRecord, stage, errorType, now); err != nil {
+		return err
+	}
+	if !strings.HasPrefix(stage, "bootstrap_failed_") {
+		return nil
+	}
+	if experimentRecord.DesiredState == "cancelled" {
+		return requestResourceStop(ctx, tx, resourceRecord, "cancelled", now)
+	}
+	phase := strings.ReplaceAll(strings.TrimPrefix(stage, "bootstrap_failed_"), "_", " ")
+	reason := fmt.Sprintf("Runner bootstrap failed %s (%s)", phase, errorType)
+	if _, err := tx.Attempt.UpdateOneID(record.ID).SetState("failed").SetFinishedAt(now).SetRunnerTokenExpiresAt(now).
+		ClearRunnerTokenHash().ClearRunnerTokenCiphertext().SetFailureCode("runner_bootstrap_failed").SetFailureReason(reason).Save(ctx); err != nil {
+		return err
+	}
+	if _, err := tx.Experiment.UpdateOneID(experimentRecord.ID).SetState("collecting").SetFailureCode("runner_bootstrap_failed").SetFailureReason(reason).Save(ctx); err != nil {
+		return err
+	}
+	return requestResourceStop(ctx, tx, resourceRecord, "runner_bootstrap_failed", now)
 }
 
 func (s *Service) recordHeartbeat(ctx context.Context, tx *ent.Tx, record *ent.Attempt, experimentRecord *ent.Experiment, resourceRecord *ent.ProviderResource, now time.Time) error {
@@ -339,12 +389,18 @@ func (s *Service) authenticate(ctx context.Context, token string) (session, erro
 
 func validateEvent(input EventInput) error {
 	switch input.Type {
+	case "diagnostic":
+		failure := strings.HasPrefix(input.Stage, "bootstrap_failed_")
+		if _, ok := diagnosticStages[input.Stage]; !ok || input.ExitCode != nil || input.LogTail != "" || len(input.Metrics) != 0 || input.Reason != "" ||
+			(failure && !validErrorType(input.ErrorType)) || (!failure && input.ErrorType != "") {
+			return ErrInvalidEvent
+		}
 	case "started", "heartbeat":
-		if input.ExitCode != nil || input.LogTail != "" || len(input.Metrics) != 0 || input.Reason != "" {
+		if input.Stage != "" || input.ErrorType != "" || input.ExitCode != nil || input.LogTail != "" || len(input.Metrics) != 0 || input.Reason != "" {
 			return ErrInvalidEvent
 		}
 	case "finished":
-		if input.ExitCode == nil || *input.ExitCode < 0 || *input.ExitCode > 255 {
+		if input.Stage != "" || input.ErrorType != "" || input.ExitCode == nil || *input.ExitCode < 0 || *input.ExitCode > 255 {
 			return ErrInvalidEvent
 		}
 		switch input.Reason {
@@ -363,6 +419,31 @@ func validateEvent(input EventInput) error {
 		return ErrInvalidEvent
 	}
 	return nil
+}
+
+var diagnosticStages = map[string]struct{}{
+	"runner_entered":                           {},
+	"spec_loaded":                              {},
+	"source_downloaded":                        {},
+	"source_extracted":                         {},
+	"bootstrap_failed_before_spec":             {},
+	"bootstrap_failed_during_source_download":  {},
+	"bootstrap_failed_during_source_extract":   {},
+	"bootstrap_failed_during_started_callback": {},
+}
+
+func validErrorType(value string) bool {
+	if len(value) < 1 || len(value) > 100 {
+		return false
+	}
+	for index := range value {
+		character := value[index]
+		if (character < 'a' || character > 'z') && (character < 'A' || character > 'Z') &&
+			(character < '0' || character > '9') && character != '_' && character != '.' {
+			return false
+		}
+	}
+	return true
 }
 
 func controlFrom(experimentRecord *ent.Experiment, resourceRecord *ent.ProviderResource) Control {

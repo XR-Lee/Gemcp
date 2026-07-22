@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/XR-Lee/Gemcp/ent"
+	entattempt "github.com/XR-Lee/Gemcp/ent/attempt"
+	"github.com/XR-Lee/Gemcp/ent/auditevent"
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	entexperiment "github.com/XR-Lee/Gemcp/ent/experiment"
@@ -37,7 +39,53 @@ func (s *Service) Get(ctx context.Context, principal agentauth.Principal, experi
 	if err != nil {
 		return view, err
 	}
-	return makeView(record), nil
+	view = makeView(record)
+	if err := s.enrichRunnerStatus(ctx, record, &view); err != nil {
+		return View{}, err
+	}
+	return view, nil
+}
+
+func (s *Service) enrichRunnerStatus(ctx context.Context, experimentRecord *ent.Experiment, view *View) error {
+	attemptRecord, err := s.client.Attempt.Query().Where(entattempt.ExperimentIDEQ(experimentRecord.ID)).
+		Order(ent.Desc(entattempt.FieldNumber)).First(ctx)
+	if ent.IsNotFound(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	attemptID := attemptRecord.PublicID.String()
+	sourceDownloads := attemptRecord.SourceDownloads
+	view.RunnerAttemptID = &attemptID
+	view.RunnerSourceDownloads = &sourceDownloads
+
+	events, err := s.client.AuditEvent.Query().Where(
+		auditevent.TenantIDEQ(experimentRecord.TenantID),
+		auditevent.ActionEQ("runner.bootstrap_stage"),
+		auditevent.TargetTypeEQ("experiment"),
+		auditevent.TargetIDEQ(experimentRecord.PublicID.String()),
+	).Order(ent.Desc(auditevent.FieldCreatedAt), ent.Desc(auditevent.FieldID)).Limit(64).All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, event := range events {
+		if value, _ := event.Metadata["attempt_id"].(string); value != attemptID {
+			continue
+		}
+		stage, ok := event.Metadata["stage"].(string)
+		if !ok || stage == "" {
+			continue
+		}
+		view.RunnerStage = &stage
+		stageUpdatedAt := event.CreatedAt
+		view.RunnerStageUpdatedAt = &stageUpdatedAt
+		if errorType, ok := event.Metadata["error_type"].(string); ok && errorType != "" {
+			view.RunnerErrorType = &errorType
+		}
+		break
+	}
+	return nil
 }
 
 func (s *Service) List(ctx context.Context, principal agentauth.Principal, input ListInput) (ListResult, error) {

@@ -105,7 +105,8 @@ func newRunnerFixture(t *testing.T) *runnerFixture {
 		SetExperimentID(experimentRecord.ID).SetNumber(1).SetRunnerTokenHash(box.Digest(TokenDigestDomain, token)).
 		SetRunnerTokenCiphertext(ciphertext).SetRunnerTokenExpiresAt(now.Add(time.Hour)).Save(ctx)
 	resourceRecord, _ := client.ProviderResource.Create().SetTenantID(tenant.ID).SetProjectID(project.ID).SetExperimentID(experimentRecord.ID).
-		SetAttemptID(attemptRecord.ID).SetProviderAccountID(providerAccount.ID).SetName("gemcp-attempt").SetProviderID("deployment-1").Save(ctx)
+		SetAttemptID(attemptRecord.ID).SetProviderAccountID(providerAccount.ID).SetName("gemcp-attempt").SetProviderID("deployment-1").
+		SetHardDeadlineAt(now.Add(10 * time.Minute)).Save(ctx)
 	archiver := &fakeArchiver{}
 	fixture := &runnerFixture{client: client, box: box, archiver: archiver, experiment: experimentRecord, attempt: attemptRecord, resource: resourceRecord, token: token, now: now}
 	fixture.service = NewService(client, box, archiver, WithSourceMaxBytes(1024), WithClock(func() time.Time { return fixture.now }))
@@ -119,7 +120,8 @@ func TestSpecAndSourceAreScopedToRunnerToken(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if spec.Command != "python train.py" || spec.SourceMaxBytes != sourceTransferLimit(1024) || spec.ExperimentID != f.experiment.PublicID.String() {
+	if spec.Command != "python train.py" || spec.SourceMaxBytes != sourceTransferLimit(1024) || spec.ExperimentID != f.experiment.PublicID.String() ||
+		spec.ProvisioningSecondsRemaining != 600 {
 		t.Fatalf("spec = %+v", spec)
 	}
 	archive, err := f.service.Source(ctx, f.token)
@@ -166,6 +168,48 @@ func TestSourceFailureReleasesDownloadReservation(t *testing.T) {
 		t.Fatal(err)
 	} else {
 		_ = archive.Close()
+	}
+}
+
+func TestDiagnosticEventsAreValidatedAndPersisted(t *testing.T) {
+	f := newRunnerFixture(t)
+	ctx := context.Background()
+	if _, err := f.service.Event(ctx, f.token, EventInput{Type: "diagnostic", Stage: "runner_entered"}); err != nil {
+		t.Fatal(err)
+	}
+	control, err := f.service.Event(ctx, f.token, EventInput{
+		Type: "diagnostic", Stage: "bootstrap_failed_during_source_extract", ErrorType: "tarfile.ReadError",
+	})
+	if err != nil || !control.StopRequested || control.StopReason != "runner_bootstrap_failed" {
+		t.Fatalf("failure control=%+v err=%v", control, err)
+	}
+	events, err := f.client.AuditEvent.Query().All(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(events) != 2 || events[0].Action != "runner.bootstrap_stage" || events[0].Metadata["stage"] != "runner_entered" ||
+		events[1].Metadata["stage"] != "bootstrap_failed_during_source_extract" || events[1].Metadata["error_type"] != "tarfile.ReadError" {
+		t.Fatalf("diagnostic events = %+v", events)
+	}
+	attemptRecord, _ := f.client.Attempt.Get(ctx, f.attempt.ID)
+	experimentRecord, _ := f.client.Experiment.Get(ctx, f.experiment.ID)
+	resourceRecord, _ := f.client.ProviderResource.Get(ctx, f.resource.ID)
+	if attemptRecord.State != "failed" || len(attemptRecord.RunnerTokenHash) != 0 || experimentRecord.State != "collecting" ||
+		experimentRecord.FailureCode == nil || *experimentRecord.FailureCode != "runner_bootstrap_failed" ||
+		resourceRecord.StopReason == nil || *resourceRecord.StopReason != "runner_bootstrap_failed" {
+		t.Fatalf("attempt=%+v experiment=%+v resource=%+v", attemptRecord, experimentRecord, resourceRecord)
+	}
+	invalid := []EventInput{
+		{Type: "diagnostic", Stage: "arbitrary_stage"},
+		{Type: "diagnostic", Stage: "spec_loaded", ErrorType: "RuntimeError"},
+		{Type: "diagnostic", Stage: "bootstrap_failed_before_spec"},
+		{Type: "diagnostic", Stage: "bootstrap_failed_before_spec", ErrorType: "error with spaces"},
+		{Type: "started", Stage: "spec_loaded"},
+	}
+	for _, input := range invalid {
+		if _, err := f.service.Event(ctx, f.token, input); err != ErrInvalidEvent {
+			t.Fatalf("Event(%+v) error = %v", input, err)
+		}
 	}
 }
 
@@ -251,6 +295,8 @@ func TestBootstrapNormalizesOwnerStopBeforeCompletionCallback(t *testing.T) {
 	}
 	outputPath := t.TempDir()
 	finishedEvents := make(chan EventInput, 1)
+	var sourceRequests atomic.Int32
+	var startedRequests atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
 		if request.Header.Get("Authorization") != "Bearer "+strings.Repeat("t", 40) || request.Header.Get("User-Agent") != runnerUserAgent {
 			http.Error(response, "unauthorized", http.StatusUnauthorized)
@@ -261,9 +307,22 @@ func TestBootstrapNormalizesOwnerStopBeforeCompletionCallback(t *testing.T) {
 			_ = json.NewEncoder(response).Encode(map[string]any{"data": Spec{
 				ExperimentID: "experiment", AttemptID: "attempt", Command: "true", OutputPath: outputPath,
 				MaxRuntimeSeconds: 60, TimeoutExtensionSeconds: 30, TerminationGraceSeconds: 1,
-				HeartbeatIntervalSeconds: 5, SourceMaxBytes: 1 << 20, TokenExpiresAt: time.Now().Add(time.Hour),
+				HeartbeatIntervalSeconds: 5, SourceMaxBytes: 1 << 20, ProvisioningSecondsRemaining: 60,
+				TokenExpiresAt: time.Now().Add(time.Hour),
 			}})
 		case "/api/v1/runner/source":
+			if sourceRequests.Add(1) == 1 {
+				connection, buffer, hijackErr := response.(http.Hijacker).Hijack()
+				if hijackErr != nil {
+					t.Errorf("hijack source response: %v", hijackErr)
+					return
+				}
+				_, _ = fmt.Fprintf(buffer, "HTTP/1.1 200 OK\r\nContent-Length: %d\r\nContent-Type: application/gzip\r\nConnection: close\r\n\r\n", archive.Len())
+				_, _ = buffer.Write(archive.Bytes()[:archive.Len()/2])
+				_ = buffer.Flush()
+				_ = connection.Close()
+				return
+			}
 			response.Header().Set("Content-Length", fmt.Sprint(archive.Len()))
 			_, _ = response.Write(archive.Bytes())
 		case "/api/v1/runner/events":
@@ -274,6 +333,15 @@ func TestBootstrapNormalizesOwnerStopBeforeCompletionCallback(t *testing.T) {
 			}
 			control := Control{}
 			if event.Type == "started" {
+				if startedRequests.Add(1) < 3 {
+					connection, _, hijackErr := response.(http.Hijacker).Hijack()
+					if hijackErr != nil {
+						t.Errorf("hijack started response: %v", hijackErr)
+						return
+					}
+					_ = connection.Close()
+					return
+				}
 				control = Control{StopRequested: true, StopReason: "owner_stop"}
 			}
 			if event.Type == "finished" {
@@ -306,7 +374,124 @@ func TestBootstrapNormalizesOwnerStopBeforeCompletionCallback(t *testing.T) {
 	default:
 		t.Fatal("bootstrap sent no completion callback")
 	}
-	if content, err := os.ReadFile(launchLog); err != nil || !strings.Contains(string(content), "gemcp-launch-runner-entered") {
+	if sourceRequests.Load() != 2 {
+		t.Fatalf("source requests = %d, want 2", sourceRequests.Load())
+	}
+	if startedRequests.Load() != 3 {
+		t.Fatalf("started requests = %d, want 3", startedRequests.Load())
+	}
+	if content, err := os.ReadFile(launchLog); err != nil || !strings.Contains(string(content), "gemcp-launch-runner-entered") ||
+		!strings.Contains(string(content), "gemcp-launch-source-download-retry-") || !strings.Contains(string(content), "gemcp-launch-stage-source_extracted") ||
+		!strings.Contains(string(content), "gemcp-launch-started-callback-retry-RemoteDisconnected") {
+		t.Fatalf("Runner launch log = %q, %v", content, err)
+	}
+}
+
+func TestBootstrapDoesNotRetrySourceHTTPFailures(t *testing.T) {
+	python, err := exec.LookPath("python3")
+	if err != nil {
+		t.Skip("python3 is unavailable")
+	}
+	var sourceRequests atomic.Int32
+	outputPath := t.TempDir()
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		switch request.URL.Path {
+		case "/api/v1/runner/spec":
+			_ = json.NewEncoder(response).Encode(map[string]any{"data": Spec{
+				ExperimentID: "experiment", AttemptID: "attempt", Command: "true", OutputPath: outputPath,
+				MaxRuntimeSeconds: 60, TerminationGraceSeconds: 1, HeartbeatIntervalSeconds: 5,
+				SourceMaxBytes: 1 << 20, TokenExpiresAt: time.Now().Add(time.Hour),
+			}})
+		case "/api/v1/runner/source":
+			sourceRequests.Add(1)
+			http.Error(response, "source unavailable", http.StatusServiceUnavailable)
+		case "/api/v1/runner/events":
+			_ = json.NewEncoder(response).Encode(map[string]any{"data": Control{}})
+		default:
+			http.NotFound(response, request)
+		}
+	}))
+	defer server.Close()
+	path := filepath.Join(t.TempDir(), "bootstrap.py")
+	if err := os.WriteFile(path, []byte(BootstrapScript()), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	launchLog := filepath.Join(t.TempDir(), "gemcp-launch.log")
+	command := exec.Command(python, path)
+	command.Env = append(os.Environ(), "GEMCP_RUNNER_URL="+server.URL, "GEMCP_RUNNER_TOKEN="+strings.Repeat("t", 40), "GEMCP_LAUNCH_LOG="+launchLog)
+	if output, err := command.CombinedOutput(); err == nil {
+		t.Fatalf("bootstrap accepted source HTTP failure: %s", output)
+	}
+	if sourceRequests.Load() != 1 {
+		t.Fatalf("source HTTP failure requests = %d, want 1", sourceRequests.Load())
+	}
+	content, err := os.ReadFile(launchLog)
+	if err != nil || !strings.Contains(string(content), "gemcp-launch-stage-bootstrap_failed_during_source_download-HTTPError") ||
+		strings.Contains(string(content), "gemcp-launch-source-download-retry-") {
+		t.Fatalf("Runner launch log = %q, %v", content, err)
+	}
+}
+
+func TestBootstrapDoesNotRetryStartedHTTPFailures(t *testing.T) {
+	python, err := exec.LookPath("python3")
+	if err != nil {
+		t.Skip("python3 is unavailable")
+	}
+	var archive bytes.Buffer
+	gzipWriter := gzip.NewWriter(&archive)
+	tarWriter := tar.NewWriter(gzipWriter)
+	if err := tarWriter.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := gzipWriter.Close(); err != nil {
+		t.Fatal(err)
+	}
+	var startedRequests atomic.Int32
+	outputPath := t.TempDir()
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		switch request.URL.Path {
+		case "/api/v1/runner/spec":
+			_ = json.NewEncoder(response).Encode(map[string]any{"data": Spec{
+				ExperimentID: "experiment", AttemptID: "attempt", Command: "true", OutputPath: outputPath,
+				MaxRuntimeSeconds: 60, TerminationGraceSeconds: 1, HeartbeatIntervalSeconds: 5,
+				SourceMaxBytes: 1 << 20, ProvisioningSecondsRemaining: 60, TokenExpiresAt: time.Now().Add(time.Hour),
+			}})
+		case "/api/v1/runner/source":
+			response.Header().Set("Content-Length", fmt.Sprint(archive.Len()))
+			_, _ = response.Write(archive.Bytes())
+		case "/api/v1/runner/events":
+			var event EventInput
+			if err := json.NewDecoder(request.Body).Decode(&event); err != nil {
+				http.Error(response, "bad event", http.StatusBadRequest)
+				return
+			}
+			if event.Type == "started" {
+				startedRequests.Add(1)
+				http.Error(response, "permanent HTTP failure", http.StatusServiceUnavailable)
+				return
+			}
+			_ = json.NewEncoder(response).Encode(map[string]any{"data": Control{}})
+		default:
+			http.NotFound(response, request)
+		}
+	}))
+	defer server.Close()
+	path := filepath.Join(t.TempDir(), "bootstrap.py")
+	if err := os.WriteFile(path, []byte(BootstrapScript()), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	launchLog := filepath.Join(t.TempDir(), "gemcp-launch.log")
+	command := exec.Command(python, path)
+	command.Env = append(os.Environ(), "GEMCP_RUNNER_URL="+server.URL, "GEMCP_RUNNER_TOKEN="+strings.Repeat("t", 40), "GEMCP_LAUNCH_LOG="+launchLog)
+	if output, err := command.CombinedOutput(); err == nil {
+		t.Fatalf("bootstrap accepted started HTTP failure: %s", output)
+	}
+	if startedRequests.Load() != 1 {
+		t.Fatalf("started HTTP failure requests = %d, want 1", startedRequests.Load())
+	}
+	content, err := os.ReadFile(launchLog)
+	if err != nil || !strings.Contains(string(content), "gemcp-launch-stage-bootstrap_failed_during_started_callback-HTTPError") ||
+		strings.Contains(string(content), "gemcp-launch-started-callback-retry-") {
 		t.Fatalf("Runner launch log = %q, %v", content, err)
 	}
 }
@@ -429,6 +614,9 @@ func TestBootstrapScriptParsesAndLaunchCommandRequiresHTTPSOrigin(t *testing.T) 
 	}
 	if !strings.Contains(BootstrapScript(), "normalized_stop_reason") || !strings.Contains(BootstrapScript(), `value[-maximum:].decode("utf-8", errors="ignore")`) || !strings.Contains(BootstrapScript(), `"User-Agent": USER_AGENT`) || !strings.Contains(BootstrapScript(), runnerUserAgent) {
 		t.Fatal("bootstrap is missing bounded completion normalization")
+	}
+	if len(BootstrapScript()) > 128<<10 {
+		t.Fatalf("Bootstrap script is %d bytes, want at most 128 KiB", len(BootstrapScript()))
 	}
 	python, err := exec.LookPath("python3")
 	if err != nil {

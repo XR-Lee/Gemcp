@@ -568,6 +568,12 @@ func TestTerminalResultClassifiesOwnerStopAndRunnerFailure(t *testing.T) {
 	if state != "failed" || attemptState != "failed" || code != "runner_error" {
 		t.Fatalf("Runner failure result = %s %s %s", state, attemptState, code)
 	}
+	bootstrapFailure := "runner_bootstrap_failed"
+	failureReason := "Runner bootstrap failed during source extract (ReadError)"
+	state, attemptState, code, reason := terminalResult(&ent.Experiment{FailureReason: &failureReason}, &ent.Attempt{}, &ent.ProviderResource{StopReason: &bootstrapFailure})
+	if state != "provider_error" || attemptState != "failed" || code != "runner_bootstrap_failed" || reason != failureReason {
+		t.Fatalf("Runner bootstrap result = %s %s %s %q", state, attemptState, code, reason)
+	}
 }
 
 func TestDispatchRollsQueuedReservationIntoCurrentProjectPeriod(t *testing.T) {

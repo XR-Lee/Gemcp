@@ -356,6 +356,8 @@ onMounted(refreshAll)
         <div><dt>{{ t('Maximum runtime', '最长运行时间') }}</dt><dd>{{ Math.round(selectedExperiment.max_runtime_seconds / 60) }} {{ t('minutes', '分钟') }}</dd></div>
         <div><dt>{{ t('Created', '创建时间') }}</dt><dd>{{ dateTime(selectedExperiment.created_at) }}</dd></div>
         <div><dt>{{ t('Output path', '输出路径') }}</dt><dd><code>{{ selectedExperiment.output_path }}</code></dd></div>
+        <div v-if="selectedExperiment.runner_stage"><dt>{{ t('Runner startup', 'Runner 启动阶段') }}</dt><dd><code>{{ selectedExperiment.runner_stage }}</code><template v-if="selectedExperiment.runner_error_type"> ({{ selectedExperiment.runner_error_type }})</template></dd></div>
+        <div v-if="selectedExperiment.runner_source_downloads !== undefined"><dt>{{ t('Source downloads', '源码下载次数') }}</dt><dd>{{ selectedExperiment.runner_source_downloads }}<template v-if="selectedExperiment.runner_stage_updated_at"> · {{ dateTime(selectedExperiment.runner_stage_updated_at) }}</template></dd></div>
         <div v-if="selectedExperiment.failure_reason"><dt>{{ t('Failure', '失败原因') }}</dt><dd>{{ selectedExperiment.failure_reason }}</dd></div>
       </dl>
       <section class="attempt-history">
