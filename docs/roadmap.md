@@ -84,6 +84,10 @@ Render the hosted Node Setup page with the control plane's exact release and com
 
 Provide equivalent Chinese and English Node Agent handoffs selected by an explicit `lang` query or browser language, with a language control in the one-time Setup Link dialog and strict query validation in the installer and node client.
 
+### v0.10.5 - bilingual operations console
+
+Add an always-available Chinese / English switch to the console, login, and first-run setup surfaces. Apply language changes immediately across operational views, persist the preference locally, and use locale-aware dates and accessible control labels.
+
 ## Further validation
 
 The following items still require the target environment or newly authorized paid resources:

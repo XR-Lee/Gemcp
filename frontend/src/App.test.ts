@@ -1,6 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App.vue'
+import { useI18n } from './i18n'
 
 function response(data: unknown, status = 200) {
   return {
@@ -14,6 +15,8 @@ const build = { name: 'Gemcp', version: '0.7.0', commit: 'abc123', built_at: 'no
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  useI18n().setLocale('en')
+  window.localStorage.removeItem('gemcp.locale')
   document.cookie = 'gemcp_csrf=; Max-Age=0; path=/'
 })
 
@@ -31,7 +34,7 @@ describe('App', () => {
 
     expect(wrapper.text()).toContain('Initial configuration')
     expect(wrapper.text()).toContain('Create the Owner')
-    expect(wrapper.text()).toContain('Step 1 of 3')
+    expect(wrapper.text()).toContain('Step 1 / 3')
   })
 
   it('shows Owner login when an initialized deployment has no session', async () => {
@@ -85,5 +88,13 @@ describe('App', () => {
     expect(wrapper.text()).toContain('CNY 100.00')
     expect(wrapper.text()).toContain('owner@example.com')
     expect(wrapper.text()).toContain('abc123')
+
+    await wrapper.get('button[aria-label="Switch to Chinese"]').trigger('click')
+    expect(wrapper.text()).toContain('GPU 控制平面')
+    expect(wrapper.text()).toContain('运行管理')
+    expect(wrapper.text()).toContain('可用预算')
+    expect(wrapper.get('button[aria-label="切换到英文"]').text()).toContain('EN')
+    expect(document.documentElement.lang).toBe('zh-CN')
+    expect(window.localStorage.getItem('gemcp.locale')).toBe('zh')
   })
 })

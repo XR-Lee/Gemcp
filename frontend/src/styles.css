@@ -51,6 +51,25 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; le
 }
 .icon-button:hover:not(:disabled) { color: #1d2721; background: #f4f6f3; }
 .icon-button:disabled { opacity: .55; cursor: wait; }
+.language-toggle {
+  min-width: 64px;
+  height: 34px;
+  padding: 0 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #3f4a43;
+  background: #fff;
+  border: 1px solid #cbd3cd;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 680;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.language-toggle:hover { color: #185e47; background: #eef4f0; border-color: #aebbb2; }
+.startup-language-toggle, .auth-language-toggle { position: fixed; z-index: 30; top: 24px; right: 24px; }
 .primary-button, .secondary-button, .text-button, .danger-button {
   min-height: 38px;
   display: inline-flex;
@@ -155,6 +174,7 @@ label small { color: #858e88; font-size: 10px; font-weight: 500; }
 .setup-brand strong, .setup-brand span, .auth-brand strong, .auth-brand span { display: block; }
 .setup-brand strong { color: #fff; font-size: 15px; }
 .setup-brand div span { color: #9ca8a1; font-size: 11px; }
+.setup-header-actions { display: flex; align-items: center; gap: 16px; }
 .setup-step-count { color: #b9c2bd; font-size: 12px; }
 .setup-progress {
   max-width: 720px;
@@ -665,6 +685,7 @@ label small { color: #858e88; font-size: 10px; font-weight: 500; }
   .topbar { min-height: 74px; padding: 10px 14px; align-items: flex-start; }
   .topbar h1 { font-size: 18px; }
   .topbar-actions { gap: 7px; }
+  .topbar .language-toggle { min-width: 48px; padding: 0 7px; }
   .project-select { display: block; }
   .project-select > span, .status { display: none; }
   .project-select select { width: 132px; }
@@ -723,6 +744,7 @@ label small { color: #858e88; font-size: 10px; font-weight: 500; }
   .provider-detail-row { min-width: 650px; }
   .provider-event { min-width: 560px; }
   .setup-header { height: 62px; padding: 0 16px; }
+  .setup-header-actions { gap: 8px; }
   .setup-step-count { display: none; }
   .setup-progress { margin-top: 14px; padding: 0 12px; }
   .setup-progress button { justify-content: center; font-size: 0; }
@@ -734,6 +756,7 @@ label small { color: #858e88; font-size: 10px; font-weight: 500; }
   .token-reveal { margin: 28px auto; padding: 25px 18px; }
   .setup-result-grid { grid-template-columns: 1fr; }
   .auth-panel { padding: 30px 22px; }
+  .auth-language-toggle, .startup-language-toggle { top: 16px; right: 16px; }
   .auth-brand { top: 22px; }
   .auth-panel footer { left: 22px; bottom: 18px; }
   .modal-backdrop { padding: 10px; align-items: flex-end; }

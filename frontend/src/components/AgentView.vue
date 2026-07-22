@@ -28,6 +28,7 @@ import {
   type AgentTokenList,
   type Project,
 } from '../api'
+import { localizedState, useI18n } from '../i18n'
 
 const props = defineProps<{ active: boolean; project: Project | null }>()
 const emit = defineEmits<{ unauthorized: [] }>()
@@ -62,6 +63,7 @@ const form = reactive({
   expiration: '90',
   scopes: { read: true, submit: true, cancel: true } as Record<AgentScope, boolean>,
 })
+const { languageTag, t } = useI18n()
 
 const activeTokens = computed(() => data.value?.tokens.filter((item) => item.status === 'active').length ?? 0)
 const activeEnrollments = computed(() => data.value?.enrollments.filter((item) => item.status === 'pending' || item.status === 'claimed').length ?? 0)
@@ -72,7 +74,7 @@ const expiringTokens = computed(() => {
 const selectedScopes = computed(() => (Object.keys(form.scopes) as AgentScope[]).filter((scope) => form.scopes[scope]))
 const selectedSetupScopes = computed(() => (Object.keys(setupForm.scopes) as AgentScope[]).filter((scope) => setupForm.scopes[scope]))
 const setupAgentMessage = computed(() => setupReveal.value
-  ? `Set up Gemcp for this Pi Agent using the one-time link below. Complete the automated install, tool verification, and credential storage yourself. Do not print or forward the link, and do not pass the complete link to a Web-fetch, search, or preview tool.\n\n${setupReveal.value.setup_url}`
+  ? `${t('Set up Gemcp for this Pi Agent using the one-time link below. Complete the automated install, tool verification, and credential storage yourself. Do not print or forward the link, and do not pass the complete link to a Web-fetch, search, or preview tool.', '请使用下面的一次性链接为此 Pi Agent 设置 Gemcp。请自行完成自动安装、工具验证和凭据存储。不要打印或转发此链接，也不要将完整链接传给 Web fetch、搜索或预览工具。')}\n\n${setupReveal.value.setup_url}`
   : '')
 const configJSON = computed(() => reveal.value ? JSON.stringify(reveal.value.mcp_config, null, 2) : '')
 const templateJSON = computed(() => data.value?.config_template ? JSON.stringify(data.value.config_template, null, 2) : '')
@@ -110,7 +112,7 @@ async function load() {
       loadedProjectID.value = projectID
     }
   } catch (caught) {
-    if (props.project?.id === projectID) handleError(caught, 'Could not load Agent access state.')
+    if (props.project?.id === projectID) handleError(caught, t('Could not load Agent access state.', '无法加载 Agent 访问状态。'))
   } finally {
     loading.value = false
     if (props.active && props.project?.id && props.project.id !== projectID) void load()
@@ -138,7 +140,7 @@ function closeSetup() {
 async function createSetupLink() {
   if (!props.project) return
   if (!selectedSetupScopes.value.length) {
-    setupError.value = 'Select at least one scope.'
+    setupError.value = t('Select at least one scope.', '请至少选择一个 scope。')
     return
   }
   settingUp.value = true
@@ -160,7 +162,7 @@ async function createSetupLink() {
     setupReveal.value = result
   } catch (caught) {
     if (caught instanceof APIError && caught.status === 401) emit('unauthorized')
-    else setupError.value = caught instanceof APIError ? caught.message : 'Could not create Pi setup link.'
+    else setupError.value = caught instanceof APIError ? caught.message : t('Could not create Pi setup link.', '无法创建 Pi Setup Link。')
   } finally {
     settingUp.value = false
   }
@@ -191,7 +193,7 @@ function closeIssue() {
 async function issueToken() {
   if (!props.project) return
   if (!selectedScopes.value.length) {
-    issueError.value = 'Select at least one scope.'
+    issueError.value = t('Select at least one scope.', '请至少选择一个 scope。')
     return
   }
   issuing.value = true
@@ -212,7 +214,7 @@ async function issueToken() {
     reveal.value = result
   } catch (caught) {
     if (caught instanceof APIError && caught.status === 401) emit('unauthorized')
-    else issueError.value = caught instanceof APIError ? caught.message : 'Could not generate Agent token.'
+    else issueError.value = caught instanceof APIError ? caught.message : t('Could not generate Agent token.', '无法生成 Agent Token。')
   } finally {
     issuing.value = false
   }
@@ -231,7 +233,7 @@ async function copy(value: string, name: string) {
       if (copied.value === name) copied.value = ''
     }, 1600)
   } catch {
-    error.value = 'Clipboard access was denied.'
+    error.value = t('Clipboard access was denied.', '剪贴板访问被拒绝。')
   }
 }
 
@@ -247,7 +249,7 @@ async function copyAgentGuide() {
     if (!response.ok) throw new Error(`Guide request failed (${response.status})`)
     await copy(await response.text(), 'guide')
   } catch (caught) {
-    guideError.value = caught instanceof Error ? caught.message : 'Unable to copy the Agent guide.'
+    guideError.value = caught instanceof Error ? caught.message : t('Unable to copy the Agent guide.', '无法复制 Agent 指南。')
   }
 }
 
@@ -285,7 +287,7 @@ async function revokeEnrollment() {
     }
     enrollmentRevokeTarget.value = null
   } catch (caught) {
-    handleError(caught, 'Could not revoke Pi setup link.')
+    handleError(caught, t('Could not revoke Pi setup link.', '无法撤销 Pi Setup Link。'))
   } finally {
     revokingEnrollment.value = false
   }
@@ -307,19 +309,19 @@ async function revokeToken() {
     }
     revokeTarget.value = null
   } catch (caught) {
-    handleError(caught, 'Could not revoke Agent token.')
+    handleError(caught, t('Could not revoke Agent token.', '无法撤销 Agent Token。'))
   } finally {
     revoking.value = false
   }
 }
 
 function dateTime(value?: string) {
-  if (!value) return 'Never'
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+  if (!value) return t('Never', '从未')
+  return new Intl.DateTimeFormat(languageTag.value, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 }
 
 function statusLabel(value: string) {
-  return value.replaceAll('_', ' ')
+  return localizedState(value)
 }
 
 let enrollmentRefreshTimer: number | undefined
@@ -345,178 +347,178 @@ watch(() => [props.active, props.project?.id] as const, ([active, projectID]) =>
 
 <template>
   <section class="agent-page">
-    <div v-if="error" class="page-alert agent-alert" role="alert">{{ error }}<button type="button" title="Dismiss" @click="error = ''"><X :size="16" /></button></div>
+    <div v-if="error" class="page-alert agent-alert" role="alert">{{ error }}<button type="button" :title="t('Dismiss', '关闭')" @click="error = ''"><X :size="16" /></button></div>
 
     <header class="agent-heading">
       <div>
-        <p class="eyebrow">Project credentials</p>
-        <h2>Agent access</h2>
-        <p>{{ props.project?.name ?? 'Select a project' }}</p>
+        <p class="eyebrow">{{ t('Project credentials', 'Project 凭据') }}</p>
+        <h2>{{ t('Agent access', 'Agent 访问') }}</h2>
+        <p>{{ props.project?.name ?? t('Select a project', '请选择 Project') }}</p>
       </div>
       <div class="agent-actions">
-        <button class="secondary-button" type="button" :disabled="!agentGuideURL" @click="openGuide"><BookOpen :size="16" />Guide</button>
+        <button class="secondary-button" type="button" :disabled="!agentGuideURL" @click="openGuide"><BookOpen :size="16" />{{ t('Guide', '指南') }}</button>
         <button class="secondary-button" type="button" :disabled="!props.project || !data?.mcp_url" @click="openIssue"><KeyRound :size="16" />Token</button>
-        <button class="icon-button" type="button" title="Refresh Agent access" :disabled="loading || !props.project" @click="load"><RefreshCw :size="16" :class="{ spinning: loading }" /></button>
+        <button class="icon-button" type="button" :title="t('Refresh Agent access', '刷新 Agent 访问')" :disabled="loading || !props.project" @click="load"><RefreshCw :size="16" :class="{ spinning: loading }" /></button>
         <button class="primary-button" type="button" :disabled="!props.project || !data?.mcp_url" @click="openSetup"><Link2 :size="16" />Pi setup link</button>
       </div>
     </header>
 
-    <div v-if="loading && !data" class="provider-loading"><LoaderCircle :size="20" class="spinning" /><span>Loading Agent access</span></div>
+    <div v-if="loading && !data" class="provider-loading"><LoaderCircle :size="20" class="spinning" /><span>{{ t('Loading Agent access', '正在加载 Agent 访问') }}</span></div>
     <template v-else>
       <section class="agent-metrics">
-        <div><span><Bot :size="16" />Active</span><strong>{{ activeTokens }}</strong><small>Usable project credentials</small></div>
-        <div><span><Clock3 :size="16" />Expiring</span><strong>{{ expiringTokens }}</strong><small>Within the next 30 days</small></div>
-        <div><span><Link2 :size="16" />Setup links</span><strong>{{ activeEnrollments }}</strong><small>Pending or being installed</small></div>
-        <div><span><ShieldCheck :size="16" />Authentication</span><strong>Bearer</strong><small>HMAC digest at rest</small></div>
+        <div><span><Bot :size="16" />{{ t('Active', '活跃') }}</span><strong>{{ activeTokens }}</strong><small>{{ t('Usable project credentials', '可用的 Project 凭据') }}</small></div>
+        <div><span><Clock3 :size="16" />{{ t('Expiring', '即将过期') }}</span><strong>{{ expiringTokens }}</strong><small>{{ t('Within the next 30 days', '未来 30 天内') }}</small></div>
+        <div><span><Link2 :size="16" />Setup Links</span><strong>{{ activeEnrollments }}</strong><small>{{ t('Pending or being installed', '等待中或正在安装') }}</small></div>
+        <div><span><ShieldCheck :size="16" />{{ t('Authentication', '认证') }}</span><strong>Bearer</strong><small>{{ t('HMAC digest at rest', '静态保存 HMAC 摘要') }}</small></div>
       </section>
 
       <section class="agent-connection-band">
         <div><span>MCP transport</span><strong>Streamable HTTP</strong></div>
-        <div><span>Endpoint</span><strong>{{ data?.mcp_url ?? 'GEMCP_PUBLIC_URL is not configured' }}</strong></div>
-        <div><span>Template</span><strong>{{ data?.config_file_name ?? 'Unavailable' }}</strong></div>
-        <div class="agent-template-action"><span>Environment config</span><button class="icon-button" type="button" title="Copy environment-variable MCP template" :disabled="!templateJSON" @click="copy(templateJSON, 'template')"><Check v-if="copied === 'template'" :size="16" /><Clipboard v-else :size="16" /></button></div>
+        <div><span>{{ t('Endpoint', '端点') }}</span><strong>{{ data?.mcp_url ?? t('GEMCP_PUBLIC_URL is not configured', '未配置 GEMCP_PUBLIC_URL') }}</strong></div>
+        <div><span>{{ t('Template', '模板') }}</span><strong>{{ data?.config_file_name ?? t('Unavailable', '不可用') }}</strong></div>
+        <div class="agent-template-action"><span>{{ t('Environment config', '环境变量配置') }}</span><button class="icon-button" type="button" :title="t('Copy environment-variable MCP template', '复制环境变量 MCP 模板')" :disabled="!templateJSON" @click="copy(templateJSON, 'template')"><Check v-if="copied === 'template'" :size="16" /><Clipboard v-else :size="16" /></button></div>
       </section>
 
       <section class="agent-workspace agent-setup-workspace">
-        <div class="section-heading"><div><h2>Pi setup links</h2><p>{{ data?.enrollments_truncated ? 'Latest 50 links. Setup secrets are never listed again.' : 'Short-lived one-time links that install, verify and store Pi authorization.' }}</p></div><button class="primary-button small-button" type="button" :disabled="!props.project || !data?.mcp_url" @click="openSetup"><Link2 :size="15" />New link</button></div>
+        <div class="section-heading"><div><h2>Pi Setup Links</h2><p>{{ data?.enrollments_truncated ? t('Latest 50 links. Setup secrets are never listed again.', '仅显示最新 50 条；Setup secret 不会再次列出。') : t('Short-lived one-time links that install, verify and store Pi authorization.', '用于安装、验证并保存 Pi 授权的短期一次性链接。') }}</p></div><button class="primary-button small-button" type="button" :disabled="!props.project || !data?.mcp_url" @click="openSetup"><Link2 :size="15" />{{ t('New link', '新建链接') }}</button></div>
         <div v-if="data?.enrollments.length" class="table-scroll">
           <table class="data-table agent-enrollment-table">
-            <thead><tr><th>Status</th><th>Label</th><th>Scopes</th><th>Link expires</th><th>Credential policy</th><th>Installed token</th><th>Actions</th></tr></thead>
+            <thead><tr><th>{{ t('Status', '状态') }}</th><th>{{ t('Label', '标签') }}</th><th>Scopes</th><th>{{ t('Link expires', '链接过期时间') }}</th><th>{{ t('Credential policy', '凭据策略') }}</th><th>{{ t('Installed token', '已安装 Token') }}</th><th>{{ t('Actions', '操作') }}</th></tr></thead>
             <tbody>
               <tr v-for="item in data.enrollments" :key="item.id">
                 <td><span class="state-badge" :data-state="item.status"><span />{{ statusLabel(item.status) }}</span></td>
                 <td><strong>{{ item.label }}</strong></td>
                 <td><div class="scope-list"><span v-for="scope in item.scopes" :key="scope">{{ scope }}</span></div></td>
                 <td>{{ dateTime(item.expires_at) }}</td>
-                <td>{{ item.token_expires_in_days ? `${item.token_expires_in_days} days` : 'No expiry' }}</td>
-                <td><code v-if="item.agent_token_prefix">{{ item.agent_token_prefix }}</code><span v-else>Not claimed</span></td>
-                <td><button class="icon-button danger-icon" type="button" title="Revoke Pi setup link" :disabled="item.status !== 'pending' && item.status !== 'claimed'" @click="enrollmentRevokeTarget = item"><Trash2 :size="16" /></button></td>
+                <td>{{ item.token_expires_in_days ? `${item.token_expires_in_days} ${t('days', '天')}` : t('No expiry', '永不过期') }}</td>
+                <td><code v-if="item.agent_token_prefix">{{ item.agent_token_prefix }}</code><span v-else>{{ t('Not claimed', '未认领') }}</span></td>
+                <td><button class="icon-button danger-icon" type="button" :title="t('Revoke Pi setup link', '撤销 Pi Setup Link')" :disabled="item.status !== 'pending' && item.status !== 'claimed'" @click="enrollmentRevokeTarget = item"><Trash2 :size="16" /></button></td>
               </tr>
             </tbody>
           </table>
         </div>
-        <div v-else class="empty-state compact-empty"><span class="empty-icon"><Link2 :size="21" /></span><h3>No Pi setup links</h3><p>Create one link, send it to the Agent, and let the Agent finish setup.</p></div>
+        <div v-else class="empty-state compact-empty"><span class="empty-icon"><Link2 :size="21" /></span><h3>{{ t('No Pi setup links', '暂无 Pi Setup Link') }}</h3><p>{{ t('Create one link, send it to the Agent, and let the Agent finish setup.', '创建一个链接并发送给 Agent，由 Agent 完成设置。') }}</p></div>
       </section>
 
       <section class="agent-workspace">
-        <div class="section-heading"><div><h2>Project tokens</h2><p>{{ data?.truncated ? 'Latest 200 records. Secret values are never recoverable.' : 'Prefixes, scopes, expiry and observed use. Secret values are never recoverable.' }}</p></div></div>
+        <div class="section-heading"><div><h2>{{ t('Project tokens', 'Project Token') }}</h2><p>{{ data?.truncated ? t('Latest 200 records. Secret values are never recoverable.', '仅显示最新 200 条；secret 值无法恢复。') : t('Prefixes, scopes, expiry and observed use. Secret values are never recoverable.', '显示前缀、scope、过期时间和使用记录；secret 值无法恢复。') }}</p></div></div>
         <div v-if="data?.tokens.length" class="table-scroll">
           <table class="data-table agent-table">
-            <thead><tr><th>Status</th><th>Label</th><th>Prefix</th><th>Scopes</th><th>Expires</th><th>Last used</th><th>Created</th><th>Actions</th></tr></thead>
+            <thead><tr><th>{{ t('Status', '状态') }}</th><th>{{ t('Label', '标签') }}</th><th>{{ t('Prefix', '前缀') }}</th><th>Scopes</th><th>{{ t('Expires', '过期时间') }}</th><th>{{ t('Last used', '最后使用') }}</th><th>{{ t('Created', '创建时间') }}</th><th>{{ t('Actions', '操作') }}</th></tr></thead>
             <tbody>
               <tr v-for="item in data.tokens" :key="item.id">
                 <td><span class="state-badge" :data-state="item.status"><span />{{ statusLabel(item.status) }}</span></td>
                 <td><strong>{{ item.label }}</strong></td>
                 <td><code>{{ item.prefix }}</code></td>
                 <td><div class="scope-list"><span v-for="scope in item.scopes" :key="scope">{{ scope }}</span></div></td>
-                <td>{{ item.expires_at ? dateTime(item.expires_at) : 'No expiry' }}</td>
+                <td>{{ item.expires_at ? dateTime(item.expires_at) : t('No expiry', '永不过期') }}</td>
                 <td>{{ dateTime(item.last_used_at) }}</td>
                 <td>{{ dateTime(item.created_at) }}</td>
-                <td><button class="icon-button danger-icon" type="button" title="Revoke Agent token" :disabled="item.status === 'revoked'" @click="revokeTarget = item"><Trash2 :size="16" /></button></td>
+                <td><button class="icon-button danger-icon" type="button" :title="t('Revoke Agent token', '撤销 Agent Token')" :disabled="item.status === 'revoked'" @click="revokeTarget = item"><Trash2 :size="16" /></button></td>
               </tr>
             </tbody>
           </table>
         </div>
-        <div v-else class="empty-state compact-empty"><span class="empty-icon"><KeyRound :size="21" /></span><h3>No Agent tokens</h3><p>Generate a project credential before connecting an MCP client.</p></div>
+        <div v-else class="empty-state compact-empty"><span class="empty-icon"><KeyRound :size="21" /></span><h3>{{ t('No Agent tokens', '暂无 Agent Token') }}</h3><p>{{ t('Generate a project credential before connecting an MCP client.', '连接 MCP 客户端前请先生成 Project 凭据。') }}</p></div>
       </section>
     </template>
   </section>
 
   <div v-if="setupDialog" class="modal-backdrop" @click.self="closeSetup">
-    <section class="modal agent-token-modal" role="dialog" aria-modal="true" aria-label="Create Pi setup link">
-      <header><div><p class="eyebrow">Automated enrollment</p><h2>Create Pi setup link</h2></div><button class="icon-button" type="button" title="Close setup link form" :disabled="settingUp" @click="closeSetup"><X :size="17" /></button></header>
+    <section class="modal agent-token-modal" role="dialog" aria-modal="true" :aria-label="t('Create Pi setup link', '创建 Pi Setup Link')">
+      <header><div><p class="eyebrow">{{ t('Automated enrollment', '自动注册') }}</p><h2>{{ t('Create Pi setup link', '创建 Pi Setup Link') }}</h2></div><button class="icon-button" type="button" :title="t('Close setup link form', '关闭 Setup Link 表单')" :disabled="settingUp" @click="closeSetup"><X :size="17" /></button></header>
       <form class="dialog-form agent-token-form" @submit.prevent="createSetupLink">
-        <label>Agent label<input v-model="setupForm.label" required maxlength="120" autocomplete="off" placeholder="pi-training-agent" /></label>
+        <label>{{ t('Agent label', 'Agent 标签') }}<input v-model="setupForm.label" required maxlength="120" autocomplete="off" placeholder="pi-training-agent" /></label>
         <div class="form-grid two-columns">
-          <label>Credential expiration<select v-model="setupForm.expiration"><option value="30">30 days</option><option value="90">90 days</option><option value="365">1 year</option><option value="never">No expiry</option></select></label>
-          <label>Link validity<select v-model="setupForm.linkExpiration"><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="60">1 hour</option><option value="240">4 hours</option></select></label>
+          <label>{{ t('Credential expiration', '凭据有效期') }}<select v-model="setupForm.expiration"><option value="30">30 {{ t('days', '天') }}</option><option value="90">90 {{ t('days', '天') }}</option><option value="365">1 {{ t('year', '年') }}</option><option value="never">{{ t('No expiry', '永不过期') }}</option></select></label>
+          <label>{{ t('Link validity', '链接有效期') }}<select v-model="setupForm.linkExpiration"><option value="15">15 {{ t('minutes', '分钟') }}</option><option value="30">30 {{ t('minutes', '分钟') }}</option><option value="60">1 {{ t('hour', '小时') }}</option><option value="240">4 {{ t('hours', '小时') }}</option></select></label>
         </div>
-        <fieldset class="scope-fieldset"><legend>Scopes</legend><label title="Required for setup verification"><input v-model="setupForm.scopes.read" type="checkbox" disabled /><span>Read</span></label><label><input v-model="setupForm.scopes.submit" type="checkbox" /><span>Submit</span></label><label><input v-model="setupForm.scopes.cancel" type="checkbox" /><span>Cancel</span></label></fieldset>
-        <p class="form-note">The provisional credential is read-only. Selected write scopes activate after verification; Submit is technical capability, not standing approval for paid work.</p>
+        <fieldset class="scope-fieldset"><legend>Scopes</legend><label :title="t('Required for setup verification', '设置验证所必需')"><input v-model="setupForm.scopes.read" type="checkbox" disabled /><span>Read</span></label><label><input v-model="setupForm.scopes.submit" type="checkbox" /><span>Submit</span></label><label><input v-model="setupForm.scopes.cancel" type="checkbox" /><span>Cancel</span></label></fieldset>
+        <p class="form-note">{{ t('The provisional credential is read-only. Selected write scopes activate after verification; Submit is technical capability, not standing approval for paid work.', '临时凭据仅有读取权限。验证完成后才激活所选写入 scope；Submit 是技术能力，不代表对付费任务的长期批准。') }}</p>
         <div v-if="setupError" class="form-error" role="alert">{{ setupError }}</div>
-        <button class="primary-button" type="submit" :disabled="settingUp"><LoaderCircle v-if="settingUp" :size="16" class="spinning" /><Link2 v-else :size="16" />Create setup link</button>
+        <button class="primary-button" type="submit" :disabled="settingUp"><LoaderCircle v-if="settingUp" :size="16" class="spinning" /><Link2 v-else :size="16" />{{ t('Create setup link', '创建 Setup Link') }}</button>
       </form>
     </section>
   </div>
 
   <div v-if="setupReveal" class="modal-backdrop" @click.self="closeSetupReveal">
-    <section class="modal agent-setup-reveal-modal" role="dialog" aria-modal="true" aria-label="One-time Pi setup link">
-      <header><div><p class="eyebrow">Ready to hand off</p><h2>Send one link to the Pi Agent</h2></div><button class="icon-button" type="button" title="Close Pi setup link" @click="closeSetupReveal"><X :size="17" /></button></header>
+    <section class="modal agent-setup-reveal-modal" role="dialog" aria-modal="true" :aria-label="t('One-time Pi setup link', '一次性 Pi Setup Link')">
+      <header><div><p class="eyebrow">{{ t('Ready to hand off', '可以交接') }}</p><h2>{{ t('Send one link to the Pi Agent', '向 Pi Agent 发送一个链接') }}</h2></div><button class="icon-button" type="button" :title="t('Close Pi setup link', '关闭 Pi Setup Link')" @click="closeSetupReveal"><X :size="17" /></button></header>
       <div class="agent-reveal-body">
-        <div class="credential-block"><span>One-time setup link</span><div class="code-box"><code>{{ setupReveal.setup_url }}</code><button class="icon-button" type="button" :title="copied === 'setup-link' ? 'Copied' : 'Copy setup link'" @click="copy(setupReveal.setup_url, 'setup-link')"><Check v-if="copied === 'setup-link'" :size="16" /><Clipboard v-else :size="16" /></button></div></div>
-        <div class="setup-handoff-summary"><Link2 :size="18" /><div><strong>Give the Agent only this link</strong><p>It will install the Pi MCP configuration, store the credential with mode 0600, verify all tools plus project options and cost, then invalidate the link.</p></div></div>
-        <dl class="setup-link-facts"><div><dt>Link expires</dt><dd>{{ dateTime(setupReveal.enrollment.expires_at) }}</dd></div><div><dt>Scopes</dt><dd>{{ setupReveal.enrollment.scopes.join(', ') }}</dd></div><div><dt>Credential</dt><dd>{{ setupReveal.enrollment.token_expires_in_days ? `${setupReveal.enrollment.token_expires_in_days} days` : 'No expiry' }}</dd></div></dl>
-        <p class="form-note">This link is not shown again. Do not open it with untrusted preview services or include it in a repository.</p>
-        <div class="agent-reveal-actions"><button class="secondary-button" type="button" @click="copy(setupAgentMessage, 'setup-message')"><Check v-if="copied === 'setup-message'" :size="16" /><Clipboard v-else :size="16" />{{ copied === 'setup-message' ? 'Copied' : 'Copy Agent message' }}</button><button class="primary-button" type="button" @click="copy(setupReveal.setup_url, 'setup-link')"><Check v-if="copied === 'setup-link'" :size="16" /><Link2 v-else :size="16" />{{ copied === 'setup-link' ? 'Copied' : 'Copy link' }}</button></div>
+        <div class="credential-block"><span>{{ t('One-time setup link', '一次性 Setup Link') }}</span><div class="code-box"><code>{{ setupReveal.setup_url }}</code><button class="icon-button" type="button" :title="copied === 'setup-link' ? t('Copied', '已复制') : t('Copy setup link', '复制 Setup Link')" @click="copy(setupReveal.setup_url, 'setup-link')"><Check v-if="copied === 'setup-link'" :size="16" /><Clipboard v-else :size="16" /></button></div></div>
+        <div class="setup-handoff-summary"><Link2 :size="18" /><div><strong>{{ t('Give the Agent only this link', '仅将此链接交给 Agent') }}</strong><p>{{ t('It will install the Pi MCP configuration, store the credential with mode 0600, verify all tools plus project options and cost, then invalidate the link.', '它会安装 Pi MCP 配置，以 0600 权限保存凭据，验证所有工具、Project 选项和成本，然后使链接失效。') }}</p></div></div>
+        <dl class="setup-link-facts"><div><dt>{{ t('Link expires', '链接过期时间') }}</dt><dd>{{ dateTime(setupReveal.enrollment.expires_at) }}</dd></div><div><dt>Scopes</dt><dd>{{ setupReveal.enrollment.scopes.join(', ') }}</dd></div><div><dt>{{ t('Credential', '凭据') }}</dt><dd>{{ setupReveal.enrollment.token_expires_in_days ? `${setupReveal.enrollment.token_expires_in_days} ${t('days', '天')}` : t('No expiry', '永不过期') }}</dd></div></dl>
+        <p class="form-note">{{ t('This link is not shown again. Do not open it with untrusted preview services or include it in a repository.', '此链接不会再次显示。不要使用不可信的预览服务打开，也不要将其写入仓库。') }}</p>
+        <div class="agent-reveal-actions"><button class="secondary-button" type="button" @click="copy(setupAgentMessage, 'setup-message')"><Check v-if="copied === 'setup-message'" :size="16" /><Clipboard v-else :size="16" />{{ copied === 'setup-message' ? t('Copied', '已复制') : t('Copy Agent message', '复制 Agent 消息') }}</button><button class="primary-button" type="button" @click="copy(setupReveal.setup_url, 'setup-link')"><Check v-if="copied === 'setup-link'" :size="16" /><Link2 v-else :size="16" />{{ copied === 'setup-link' ? t('Copied', '已复制') : t('Copy link', '复制链接') }}</button></div>
       </div>
     </section>
   </div>
 
   <div v-if="guideDialog" class="modal-backdrop" @click.self="guideDialog = false">
-    <section class="modal agent-guide-modal" role="dialog" aria-modal="true" aria-label="Gemcp MCP onboarding guide">
-      <header><div><p class="eyebrow">Owner onboarding</p><h2>Connect an Agent safely</h2></div><button class="icon-button" type="button" title="Close MCP guide" @click="guideDialog = false"><X :size="17" /></button></header>
+    <section class="modal agent-guide-modal" role="dialog" aria-modal="true" :aria-label="t('Gemcp MCP onboarding guide', 'Gemcp MCP 接入指南')">
+      <header><div><p class="eyebrow">{{ t('Owner onboarding', 'Owner 接入') }}</p><h2>{{ t('Connect an Agent safely', '安全连接 Agent') }}</h2></div><button class="icon-button" type="button" :title="t('Close MCP guide', '关闭 MCP 指南')" @click="guideDialog = false"><X :size="17" /></button></header>
       <div class="agent-guide-body">
         <ol class="agent-guide-steps">
-          <li><span>1</span><div><strong>Set the boundary</strong><p>Choose the project scopes, credential lifetime, budget policy, and whether every paid run requires explicit approval.</p></div></li>
-          <li><span>2</span><div><strong>Create one setup link</strong><p>The short-lived fragment capability is shown once. No long-lived Token is exposed to the Owner or placed in the link.</p></div></li>
-          <li><span>3</span><div><strong>Send only the link</strong><p>The Pi Agent runs the fixed installer, stores its credential, discovers all tools, and tests the guide, options and cost itself.</p></div></li>
-          <li><span>4</span><div><strong>Reload once</strong><p>After setup reports all checks passed, one Pi reload makes the eight Gemcp operations available as native direct tools.</p></div></li>
-          <li><span>5</span><div><strong>Approve and supervise</strong><p>The Agent must still present the immutable run and worst-case reservation before paid submission, then monitor it to a terminal state.</p></div></li>
+          <li><span>1</span><div><strong>{{ t('Set the boundary', '设置边界') }}</strong><p>{{ t('Choose the project scopes, credential lifetime, budget policy, and whether every paid run requires explicit approval.', '选择 Project scope、凭据有效期、预算策略，以及每次付费运行是否都需要显式批准。') }}</p></div></li>
+          <li><span>2</span><div><strong>{{ t('Create one setup link', '创建一个 Setup Link') }}</strong><p>{{ t('The short-lived fragment capability is shown once. No long-lived Token is exposed to the Owner or placed in the link.', '短期 fragment capability 只显示一次，不会向 Owner 暴露长期 Token，也不会把长期 Token 放入链接。') }}</p></div></li>
+          <li><span>3</span><div><strong>{{ t('Send only the link', '只发送链接') }}</strong><p>{{ t('The Pi Agent runs the fixed installer, stores its credential, discovers all tools, and tests the guide, options and cost itself.', 'Pi Agent 运行固定安装器、保存凭据、发现所有工具，并自行测试指南、选项和成本。') }}</p></div></li>
+          <li><span>4</span><div><strong>{{ t('Reload once', '重载一次') }}</strong><p>{{ t('After setup reports all checks passed, one Pi reload makes the eight Gemcp operations available as native direct tools.', '设置报告所有检查通过后，重载一次 Pi，即可将八项 Gemcp 操作作为原生直接工具使用。') }}</p></div></li>
+          <li><span>5</span><div><strong>{{ t('Approve and supervise', '批准并监督') }}</strong><p>{{ t('The Agent must still present the immutable run and worst-case reservation before paid submission, then monitor it to a terminal state.', 'Agent 在付费提交前仍必须展示不可变运行规格和最坏情况预留，随后监控至终态。') }}</p></div></li>
         </ol>
         <div class="agent-discovery-list">
-          <div><span>Tool fallback</span><code>get_usage_guide</code></div>
+          <div><span>{{ t('Tool fallback', '工具回退') }}</span><code>get_usage_guide</code></div>
           <div><span>MCP Resource</span><code>gemcp://docs/agent-guide</code></div>
           <div><span>MCP Prompt</span><code>operate_gemcp</code></div>
-          <div><span>Clients</span><strong>Claude Code, Cursor, VS Code, Codex, Streamable HTTP clients</strong></div>
+          <div><span>{{ t('Clients', '客户端') }}</span><strong>Claude Code, Cursor, VS Code, Codex, Streamable HTTP clients</strong></div>
         </div>
-        <p class="agent-guide-note"><ShieldCheck :size="17" />The Owner guide and Agent handoff contain no credentials. Downloaded MCP configuration does contain the one-time live Token.</p>
+        <p class="agent-guide-note"><ShieldCheck :size="17" />{{ t('The Owner guide and Agent handoff contain no credentials. Downloaded MCP configuration does contain the one-time live Token.', 'Owner 指南和 Agent handoff 不含凭据；下载的 MCP 配置包含一次性显示的有效 Token。') }}</p>
         <div v-if="guideError" class="form-error" role="alert">{{ guideError }}</div>
         <div class="agent-guide-actions">
-          <a class="secondary-button" :href="ownerGuideURL" target="_blank" rel="noreferrer"><ExternalLink :size="16" />Full Owner guide</a>
-          <button class="secondary-button" type="button" @click="copyAgentGuide"><Check v-if="copied === 'guide'" :size="16" /><Clipboard v-else :size="16" />{{ copied === 'guide' ? 'Copied' : 'Copy Agent guide' }}</button>
-          <a class="primary-button" :href="agentGuideURL" download="gemcp-agent-mcp.md"><FileDown :size="16" />Download Agent handoff</a>
+          <a class="secondary-button" :href="ownerGuideURL" target="_blank" rel="noreferrer"><ExternalLink :size="16" />{{ t('Full Owner guide', '完整 Owner 指南') }}</a>
+          <button class="secondary-button" type="button" @click="copyAgentGuide"><Check v-if="copied === 'guide'" :size="16" /><Clipboard v-else :size="16" />{{ copied === 'guide' ? t('Copied', '已复制') : t('Copy Agent guide', '复制 Agent 指南') }}</button>
+          <a class="primary-button" :href="agentGuideURL" download="gemcp-agent-mcp.md"><FileDown :size="16" />{{ t('Download Agent handoff', '下载 Agent handoff') }}</a>
         </div>
       </div>
     </section>
   </div>
 
   <div v-if="issueDialog" class="modal-backdrop" @click.self="closeIssue">
-    <section class="modal agent-token-modal" role="dialog" aria-modal="true" aria-label="Generate Agent token">
-      <header><div><p class="eyebrow">Project credential</p><h2>Generate Agent token</h2></div><button class="icon-button" type="button" title="Close token form" :disabled="issuing" @click="closeIssue"><X :size="17" /></button></header>
+    <section class="modal agent-token-modal" role="dialog" aria-modal="true" :aria-label="t('Generate Agent token', '生成 Agent Token')">
+      <header><div><p class="eyebrow">{{ t('Project credential', 'Project 凭据') }}</p><h2>{{ t('Generate Agent token', '生成 Agent Token') }}</h2></div><button class="icon-button" type="button" :title="t('Close token form', '关闭 Token 表单')" :disabled="issuing" @click="closeIssue"><X :size="17" /></button></header>
       <form class="dialog-form agent-token-form" @submit.prevent="issueToken">
-        <label>Label<input v-model="form.label" required maxlength="120" autocomplete="off" placeholder="training-agent" /></label>
-        <label>Expiration<select v-model="form.expiration"><option value="30">30 days</option><option value="90">90 days</option><option value="365">1 year</option><option value="never">No expiry</option></select></label>
+        <label>{{ t('Label', '标签') }}<input v-model="form.label" required maxlength="120" autocomplete="off" placeholder="training-agent" /></label>
+        <label>{{ t('Expiration', '有效期') }}<select v-model="form.expiration"><option value="30">30 {{ t('days', '天') }}</option><option value="90">90 {{ t('days', '天') }}</option><option value="365">1 {{ t('year', '年') }}</option><option value="never">{{ t('No expiry', '永不过期') }}</option></select></label>
         <fieldset class="scope-fieldset"><legend>Scopes</legend><label><input v-model="form.scopes.read" type="checkbox" /><span>Read</span></label><label><input v-model="form.scopes.submit" type="checkbox" /><span>Submit</span></label><label><input v-model="form.scopes.cancel" type="checkbox" /><span>Cancel</span></label></fieldset>
-        <p class="form-note">The secret and complete MCP configuration are returned once. Lost credentials must be revoked and replaced.</p>
+        <p class="form-note">{{ t('The secret and complete MCP configuration are returned once. Lost credentials must be revoked and replaced.', 'secret 和完整 MCP 配置仅返回一次；丢失的凭据必须撤销并替换。') }}</p>
         <div v-if="issueError" class="form-error" role="alert">{{ issueError }}</div>
-        <button class="primary-button" type="submit" :disabled="issuing"><LoaderCircle v-if="issuing" :size="16" class="spinning" /><KeyRound v-else :size="16" />Generate token</button>
+        <button class="primary-button" type="submit" :disabled="issuing"><LoaderCircle v-if="issuing" :size="16" class="spinning" /><KeyRound v-else :size="16" />{{ t('Generate token', '生成 Token') }}</button>
       </form>
     </section>
   </div>
 
   <div v-if="reveal" class="modal-backdrop" @click.self="closeReveal">
-    <section class="modal agent-reveal-modal" role="dialog" aria-modal="true" aria-label="Agent token and MCP configuration">
-      <header><div><p class="eyebrow">One-time secret</p><h2>MCP configuration ready</h2></div><button class="icon-button" type="button" title="Close Agent token" @click="closeReveal"><X :size="17" /></button></header>
+    <section class="modal agent-reveal-modal" role="dialog" aria-modal="true" :aria-label="t('Agent token and MCP configuration', 'Agent Token 和 MCP 配置')">
+      <header><div><p class="eyebrow">{{ t('One-time secret', '一次性 secret') }}</p><h2>{{ t('MCP configuration ready', 'MCP 配置已就绪') }}</h2></div><button class="icon-button" type="button" :title="t('Close Agent token', '关闭 Agent Token')" @click="closeReveal"><X :size="17" /></button></header>
       <div class="agent-reveal-body">
-        <div class="credential-block"><span>Agent token</span><div class="code-box"><code>{{ reveal.agent_token }}</code><button class="icon-button" type="button" :title="copied === 'token' ? 'Copied' : 'Copy Agent token'" @click="copy(reveal.agent_token, 'token')"><Check v-if="copied === 'token'" :size="16" /><Clipboard v-else :size="16" /></button></div></div>
-        <div class="credential-block"><span>MCP configuration</span><pre>{{ configJSON }}</pre></div>
-        <p class="form-note">The MCP JSON contains the live secret. The separate Agent handoff guide does not and is safe to give to the Agent after its client is configured.</p>
-        <div class="agent-reveal-actions"><button class="secondary-button" type="button" @click="copy(configJSON, 'config')"><Check v-if="copied === 'config'" :size="16" /><Clipboard v-else :size="16" />{{ copied === 'config' ? 'Copied' : 'Copy JSON' }}</button><a class="secondary-button" :href="agentGuideURL" download="gemcp-agent-mcp.md"><FileDown :size="16" />Agent handoff</a><button class="primary-button" type="button" @click="downloadConfig"><Download :size="16" />Download JSON</button></div>
+        <div class="credential-block"><span>Agent Token</span><div class="code-box"><code>{{ reveal.agent_token }}</code><button class="icon-button" type="button" :title="copied === 'token' ? t('Copied', '已复制') : t('Copy Agent token', '复制 Agent Token')" @click="copy(reveal.agent_token, 'token')"><Check v-if="copied === 'token'" :size="16" /><Clipboard v-else :size="16" /></button></div></div>
+        <div class="credential-block"><span>{{ t('MCP configuration', 'MCP 配置') }}</span><pre>{{ configJSON }}</pre></div>
+        <p class="form-note">{{ t('The MCP JSON contains the live secret. The separate Agent handoff guide does not and is safe to give to the Agent after its client is configured.', 'MCP JSON 包含有效 secret；单独的 Agent handoff 指南不含 secret，可在配置客户端后安全交给 Agent。') }}</p>
+        <div class="agent-reveal-actions"><button class="secondary-button" type="button" @click="copy(configJSON, 'config')"><Check v-if="copied === 'config'" :size="16" /><Clipboard v-else :size="16" />{{ copied === 'config' ? t('Copied', '已复制') : t('Copy JSON', '复制 JSON') }}</button><a class="secondary-button" :href="agentGuideURL" download="gemcp-agent-mcp.md"><FileDown :size="16" />Agent handoff</a><button class="primary-button" type="button" @click="downloadConfig"><Download :size="16" />{{ t('Download JSON', '下载 JSON') }}</button></div>
       </div>
     </section>
   </div>
 
   <div v-if="enrollmentRevokeTarget" class="modal-backdrop" @click.self="closeEnrollmentRevoke">
-    <section class="modal agent-revoke-modal" role="alertdialog" aria-modal="true" aria-label="Revoke Pi setup link">
-      <header><div><p class="eyebrow">Enrollment revocation</p><h2>Revoke {{ enrollmentRevokeTarget.label }}</h2></div><button class="icon-button" type="button" title="Close setup revocation" :disabled="revokingEnrollment" @click="closeEnrollmentRevoke"><X :size="17" /></button></header>
-      <div class="agent-revoke-body"><p>The setup link will stop working immediately. If it was already claimed but not completed, its provisional Agent Token is revoked too.</p><div class="agent-reveal-actions"><button class="secondary-button" type="button" :disabled="revokingEnrollment" @click="closeEnrollmentRevoke">Keep link</button><button class="danger-button" type="button" :disabled="revokingEnrollment" @click="revokeEnrollment"><LoaderCircle v-if="revokingEnrollment" :size="16" class="spinning" /><Trash2 v-else :size="16" />Revoke link</button></div></div>
+    <section class="modal agent-revoke-modal" role="alertdialog" aria-modal="true" :aria-label="t('Revoke Pi setup link', '撤销 Pi Setup Link')">
+      <header><div><p class="eyebrow">{{ t('Enrollment revocation', '撤销注册') }}</p><h2>{{ t('Revoke', '撤销') }} {{ enrollmentRevokeTarget.label }}</h2></div><button class="icon-button" type="button" :title="t('Close setup revocation', '关闭注册撤销')" :disabled="revokingEnrollment" @click="closeEnrollmentRevoke"><X :size="17" /></button></header>
+      <div class="agent-revoke-body"><p>{{ t('The setup link will stop working immediately. If it was already claimed but not completed, its provisional Agent Token is revoked too.', 'Setup Link 将立即失效；若已认领但尚未完成，其临时 Agent Token 也会被撤销。') }}</p><div class="agent-reveal-actions"><button class="secondary-button" type="button" :disabled="revokingEnrollment" @click="closeEnrollmentRevoke">{{ t('Keep link', '保留链接') }}</button><button class="danger-button" type="button" :disabled="revokingEnrollment" @click="revokeEnrollment"><LoaderCircle v-if="revokingEnrollment" :size="16" class="spinning" /><Trash2 v-else :size="16" />{{ t('Revoke link', '撤销链接') }}</button></div></div>
     </section>
   </div>
 
   <div v-if="revokeTarget" class="modal-backdrop" @click.self="closeRevoke">
-    <section class="modal agent-revoke-modal" role="alertdialog" aria-modal="true" aria-label="Revoke Agent token">
-      <header><div><p class="eyebrow">Immediate revocation</p><h2>Revoke {{ revokeTarget.label }}</h2></div><button class="icon-button" type="button" title="Close revocation" :disabled="revoking" @click="closeRevoke"><X :size="17" /></button></header>
-      <div class="agent-revoke-body"><p>Requests using <code>{{ revokeTarget.prefix }}</code> will be rejected immediately. Running experiments remain managed by the control plane.</p><div class="agent-reveal-actions"><button class="secondary-button" type="button" :disabled="revoking" @click="closeRevoke">Keep token</button><button class="danger-button" type="button" :disabled="revoking" @click="revokeToken"><LoaderCircle v-if="revoking" :size="16" class="spinning" /><Trash2 v-else :size="16" />Revoke token</button></div></div>
+    <section class="modal agent-revoke-modal" role="alertdialog" aria-modal="true" :aria-label="t('Revoke Agent token', '撤销 Agent Token')">
+      <header><div><p class="eyebrow">{{ t('Immediate revocation', '立即撤销') }}</p><h2>{{ t('Revoke', '撤销') }} {{ revokeTarget.label }}</h2></div><button class="icon-button" type="button" :title="t('Close revocation', '关闭撤销')" :disabled="revoking" @click="closeRevoke"><X :size="17" /></button></header>
+      <div class="agent-revoke-body"><p>{{ t('Requests using', '使用') }} <code>{{ revokeTarget.prefix }}</code> {{ t('will be rejected immediately. Running experiments remain managed by the control plane.', '的请求将立即被拒绝；运行中的实验仍由控制平面管理。') }}</p><div class="agent-reveal-actions"><button class="secondary-button" type="button" :disabled="revoking" @click="closeRevoke">{{ t('Keep token', '保留 Token') }}</button><button class="danger-button" type="button" :disabled="revoking" @click="revokeToken"><LoaderCircle v-if="revoking" :size="16" class="spinning" /><Trash2 v-else :size="16" />{{ t('Revoke token', '撤销 Token') }}</button></div></div>
     </section>
   </div>
 </template>

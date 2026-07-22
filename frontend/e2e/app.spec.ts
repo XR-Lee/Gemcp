@@ -362,6 +362,41 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await page.screenshot({ path: '/tmp/gemcp-experiment-detail.png', fullPage: true })
 })
 
+test('global language toggle switches immediately and persists', async ({ page }) => {
+  await mockConsole(page, { providerQueries: 0, selfHosted: true })
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/')
+
+  await page.getByRole('button', { name: 'Switch to Chinese' }).click()
+  await expect(page.getByRole('heading', { name: '概览', exact: true })).toBeVisible()
+  await expect(page.getByText('可用预算', { exact: true })).toBeVisible()
+  await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN')
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: '/tmp/gemcp-console-zh-desktop.png', fullPage: true })
+
+  await page.reload()
+  await expect(page.getByRole('heading', { name: '概览', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '切换到英文' })).toContainText('EN')
+
+  await page.getByRole('button', { name: '节点', exact: true }).click()
+  await expect(page.locator('.node-heading h1')).toHaveText('自托管节点')
+  await page.getByRole('button', { name: 'Agent', exact: true }).click()
+  await expect(page.locator('.agent-heading h2')).toHaveText('Agent 访问')
+  await page.getByRole('button', { name: 'Provider', exact: true }).click()
+  await expect(page.getByText('实时 Provider', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '告警', exact: true }).click()
+  await expect(page.locator('.notification-heading h2')).toHaveText('关键通知')
+  await page.getByRole('button', { name: '概览', exact: true }).click()
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: '/tmp/gemcp-console-zh-mobile.png', fullPage: true })
+
+  await page.getByRole('button', { name: '切换到英文' }).click()
+  await expect(page.getByRole('heading', { name: 'Overview', exact: true })).toBeVisible()
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en')
+})
+
 test('Self-hosted nodes, Assignments and runtime configuration fit desktop and mobile', async ({ page }) => {
   await mockConsole(page, { providerQueries: 0, selfHosted: true })
   await page.setViewportSize({ width: 1440, height: 1000 })
