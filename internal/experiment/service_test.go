@@ -145,6 +145,30 @@ func TestSubmitIsAtomicAndIdempotent(t *testing.T) {
 	}
 }
 
+func TestArtifactsRegistersAutoDLLaunchDiagnosticsAfterDispatch(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	ctx := context.Background()
+	submitted, err := f.service.Submit(ctx, f.principal, validSubmit(f, "request-artifacts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, err := f.service.Artifacts(ctx, f.principal, submitted.Experiment.ID)
+	if err != nil || len(before.Artifacts) != 0 {
+		t.Fatalf("queued artifacts=%+v err=%v", before, err)
+	}
+	record, err := f.client.Experiment.Query().Only(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := record.Update().SetState("provisioning").SetProviderResourceID("deployment-1").Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	after, err := f.service.Artifacts(ctx, f.principal, submitted.Experiment.ID)
+	if err != nil || len(after.Artifacts) != 1 || after.Artifacts[0] != "gemcp-launch.log" {
+		t.Fatalf("dispatched artifacts=%+v err=%v", after, err)
+	}
+}
+
 func TestSubmitEnforcesHardBudget(t *testing.T) {
 	f := newFixture(t, 7000, 7000)
 	ctx := context.Background()

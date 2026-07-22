@@ -18,6 +18,7 @@ import (
 	"github.com/XR-Lee/Gemcp/internal/runner"
 	"github.com/XR-Lee/Gemcp/internal/secrets"
 	"github.com/XR-Lee/Gemcp/internal/selfhosted"
+	"github.com/google/uuid"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -146,7 +147,9 @@ func (f *executionFixture) addExperimentWithSecrets(t *testing.T, secretNames []
 func (f *executionFixture) addExperimentWithReservation(t *testing.T, secretNames []string, reservation int64) *ent.Experiment {
 	t.Helper()
 	ctx := context.Background()
-	record, err := f.client.Experiment.Create().SetTenantID(f.tenant.ID).SetProjectID(f.project.ID).
+	publicID := uuid.New()
+	outputPath := "/root/autodl-fs/projects/" + f.project.PublicID.String() + "/experiments/" + publicID.String() + "/"
+	record, err := f.client.Experiment.Create().SetPublicID(publicID).SetTenantID(f.tenant.ID).SetProjectID(f.project.ID).
 		SetAgentTokenID(f.agentToken.ID).SetRepositoryID(f.repository.ID).SetEnvironmentID(f.environment.ID).SetResourceProfileID(f.profile.ID).
 		SetCommitSha("0123456789012345678901234567890123456789").SetCommand("echo trained").
 		SetMaxRuntimeSeconds(300).SetTimeoutExtensionSeconds(60).SetTerminationGraceSeconds(5).
@@ -157,7 +160,7 @@ func (f *executionFixture) addExperimentWithReservation(t *testing.T, secretName
 			"cuda_from": 118, "cuda_to": 118, "cpu_from": 1, "cpu_to": 16,
 			"memory_from_gb": 1, "memory_to_gb": 64, "price_from_milli": 100, "price_to_milli": 1000,
 			"reuse_container": true,
-		}).SetSecretNames(secretNames).SetOutputPath("/root/autodl-fs/projects/project/experiments/test/").SetReservedCostMilli(reservation).SetNextAttemptAt(f.now).Save(ctx)
+		}).SetSecretNames(secretNames).SetOutputPath(outputPath).SetReservedCostMilli(reservation).SetNextAttemptAt(f.now).Save(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

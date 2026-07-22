@@ -4,6 +4,8 @@ Gemcp is a private, single-organization control plane for running bounded AutoDL
 
 ## Current release
 
+`v0.11.1` hardens AutoDL Runner startup after an intermittent provisioning timeout: approved runtime prerequisites may initialize for up to five minutes, transient pre-execution Bootstrap downloads are retried without retrying the workload, and credential-free launch-stage markers are written to the durable `gemcp-launch.log` artifact.
+
 `v0.11.0` adds an Owner-only Finance workspace with monthly and Project filters, capacity and charge summaries, daily trends, backend attribution, per-Project analysis, an immutable budget ledger, finance-related audit history, and idempotent internal credit/debit adjustments. These adjustments change Gemcp scheduling capacity only and never transfer AutoDL funds.
 
 `v0.10.5` adds a global Chinese / English console language switch with browser-language defaults, persistent preference, localized operational views and locale-aware dates.

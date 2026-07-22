@@ -335,6 +335,9 @@ func (s *Service) Artifacts(ctx context.Context, principal agentauth.Principal, 
 		return result, err
 	}
 	artifacts := []string{}
+	if strings.HasPrefix(record.OutputPath, "/root/autodl-fs/") && record.ProviderResourceID != nil {
+		artifacts = append(artifacts, "gemcp-launch.log")
+	}
 	if record.StartedAt != nil || record.LogTail != nil {
 		artifacts = append(artifacts, "run.log")
 	}

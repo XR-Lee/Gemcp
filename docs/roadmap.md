@@ -92,6 +92,10 @@ Add an always-available Chinese / English switch to the console, login, and firs
 
 Add an Owner-only Finance workspace with monthly and Project filtering, budget and charge summaries, daily trends, backend attribution, per-Project capacity, an immutable budget ledger, relevant audit history, and append-only idempotent credits and debits. Internal adjustments change Gemcp scheduling capacity without presenting themselves as AutoDL payment, refund, or account-balance operations.
 
+### v0.11.1 - resilient Runner startup diagnostics
+
+Extend the bounded AutoDL runtime-prerequisite wait to five minutes, retry only transient Bootstrap downloads before Runner execution begins, and write credential-free launch stages to `gemcp-launch.log` in the immutable Experiment output path. Keep the Provider command below its 4096-byte boundary and preserve redirect rejection and single-execution semantics.
+
 ## Further validation
 
 The following items still require the target environment or newly authorized paid resources:

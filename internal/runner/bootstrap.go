@@ -4,11 +4,17 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/url"
+	"path"
 	"strconv"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
-const runnerUserAgent = "Gemcp-Runner/1"
+const (
+	runnerUserAgent               = "Gemcp-Runner/1"
+	maxProviderLaunchCommandBytes = 4096
+)
 
 const bootstrapScript = `import ctypes
 import json
@@ -25,7 +31,20 @@ import urllib.request
 
 BASE_URL = os.environ.pop("GEMCP_RUNNER_URL", "").rstrip("/")
 TOKEN = os.environ.pop("GEMCP_RUNNER_TOKEN", "")
+LAUNCH_LOG = os.environ.get("GEMCP_LAUNCH_LOG", "")
 USER_AGENT = "` + runnerUserAgent + `"
+
+def launch_log(message):
+    if not LAUNCH_LOG:
+        return
+    try:
+        os.makedirs(os.path.dirname(LAUNCH_LOG), exist_ok=True)
+        with open(LAUNCH_LOG, "a", encoding="utf-8") as output:
+            output.write(message + "\n")
+    except Exception:
+        pass
+
+launch_log("gemcp-launch-runner-entered")
 try:
     ctypes.CDLL(None).prctl(4, 0, 0, 0, 0)
 except Exception:
@@ -187,6 +206,7 @@ def main():
             environment = dict(os.environ)
             environment.pop("GEMCP_RUNNER_URL", None)
             environment.pop("GEMCP_RUNNER_TOKEN", None)
+            environment.pop("GEMCP_LAUNCH_LOG", None)
             environment["GEMCP_OUTPUT_DIR"] = output_path
             with open(log_path, "ab", buffering=0) as log:
                 process = subprocess.Popen(
@@ -243,15 +263,78 @@ def main():
 try:
     sys.exit(main())
 except Exception as error:
+    launch_log("gemcp-launch-runner-failed-" + type(error).__name__)
     sys.stderr.write("Gemcp Runner bootstrap failed: " + type(error).__name__ + ": " + str(error)[:512] + "\n")
     sys.exit(70)
 `
 
-const downloader = `import os,urllib.request;u=os.environ["GEMCP_RUNNER_URL"].rstrip("/");t=os.environ["GEMCP_RUNNER_TOKEN"];q=urllib.request.Request(u+"/api/v1/runner/bootstrap",headers={"Authorization":"Bearer "+t,"Accept":"application/json","User-Agent":"` + runnerUserAgent + `"});N=type("NoRedirect",(urllib.request.HTTPRedirectHandler,),{"redirect_request":lambda *args:None});o=urllib.request.build_opener(N());c=o.open(q,timeout=30).read(131073);assert len(c)<=131072;exec(compile(c,"gemcp-runner","exec"))`
+const downloader = `import os
+import time
+import urllib.error
+import urllib.request
+
+launch_log_path = os.environ.get("GEMCP_LAUNCH_LOG", "")
+
+def launch_log(message):
+    if not launch_log_path:
+        return
+    try:
+        os.makedirs(os.path.dirname(launch_log_path), exist_ok=True)
+        with open(launch_log_path, "a", encoding="utf-8") as output:
+            output.write(message + "\n")
+    except Exception:
+        pass
+
+origin = os.environ["GEMCP_RUNNER_URL"].rstrip("/")
+token = os.environ["GEMCP_RUNNER_TOKEN"]
+request = urllib.request.Request(origin + "/api/v1/runner/bootstrap", headers={
+    "Authorization": "Bearer " + token,
+    "Accept": "application/json",
+    "User-Agent": "` + runnerUserAgent + `",
+})
+NoRedirect = type("NoRedirect", (urllib.request.HTTPRedirectHandler,), {
+    "redirect_request": lambda *args: None,
+})
+opener = urllib.request.build_opener(NoRedirect())
+content = None
+last_error = None
+launch_log("gemcp-launch-bootstrap-download-started")
+for delay in (0, 1, 2, 4):
+    if delay:
+        time.sleep(delay)
+    try:
+        with opener.open(request, timeout=30) as response:
+            content = response.read(131073)
+        break
+    except urllib.error.HTTPError as error:
+        launch_log("gemcp-launch-bootstrap-http-error-" + str(error.code))
+        raise
+    except Exception as error:
+        last_error = error
+if content is None:
+    launch_log("gemcp-launch-bootstrap-download-failed-" + type(last_error).__name__)
+    raise last_error if last_error is not None else RuntimeError("bootstrap download failed")
+if len(content) > 131072:
+    launch_log("gemcp-launch-bootstrap-download-too-large")
+    raise RuntimeError("bootstrap download exceeded 128 KiB")
+launch_log("gemcp-launch-bootstrap-download-complete")
+exec(compile(content, "gemcp-runner", "exec"))`
 
 func BootstrapScript() string { return bootstrapScript }
 
 func LaunchCommand(publicURL, token string) (string, error) {
+	return launchCommand(publicURL, token, "")
+}
+
+func LaunchCommandForOutput(publicURL, token, outputPath string) (string, error) {
+	logPath, err := launchLogPath(outputPath)
+	if err != nil {
+		return "", err
+	}
+	return launchCommand(publicURL, token, logPath)
+}
+
+func launchCommand(publicURL, token, logPath string) (string, error) {
 	parsed, err := url.Parse(strings.TrimRight(strings.TrimSpace(publicURL), "/"))
 	if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || strings.Trim(parsed.Path, "/") != "" {
 		return "", fmt.Errorf("Runner public URL must be a credential-free HTTPS origin")
@@ -261,13 +344,37 @@ func LaunchCommand(publicURL, token string) (string, error) {
 		return "", fmt.Errorf("Runner token is invalid")
 	}
 	program := `import os;os.environ["GEMCP_RUNNER_URL"]=` + strconv.Quote(parsed.String()) +
-		`;os.environ["GEMCP_RUNNER_TOKEN"]=` + strconv.Quote(token) + `;` + downloader
+		`;os.environ["GEMCP_RUNNER_TOKEN"]=` + strconv.Quote(token)
+	if logPath != "" {
+		program += `;os.environ["GEMCP_LAUNCH_LOG"]=` + strconv.Quote(logPath)
+	}
+	program += ";" + downloader
 	payload := base64.StdEncoding.EncodeToString([]byte(program))
 	python := "/root/miniconda3/bin/python3"
+	base64Command := "/usr/bin/base64"
 	command := "set -eu; "
-	for _, delay := range []int{1, 2, 4, 8, 16, 29} {
-		command += fmt.Sprintf("test -x %s || sleep %d; ", python, delay)
+	for _, delay := range []int{1, 2, 4, 8, 16, 32, 64, 128, 45} {
+		command += fmt.Sprintf("test -x %s && test -x %s || sleep %d; ", python, base64Command, delay)
 	}
-	command += "test -x " + python + "; printf %s " + payload + " | /usr/bin/base64 -d | " + python
+	command += "test -x " + python + "; test -x " + base64Command + "; "
+	command += "printf %s " + payload + " | " + base64Command + " -d | " + python
+	if len(command) > maxProviderLaunchCommandBytes {
+		return "", fmt.Errorf("Runner launch command exceeds the Provider limit")
+	}
 	return command, nil
+}
+
+func launchLogPath(outputPath string) (string, error) {
+	cleaned := path.Clean(strings.TrimSpace(outputPath))
+	parts := strings.Split(strings.TrimPrefix(cleaned, "/"), "/")
+	if len(parts) != 6 || parts[0] != "root" || parts[1] != "autodl-fs" || parts[2] != "projects" || parts[4] != "experiments" {
+		return "", fmt.Errorf("Runner output path is invalid")
+	}
+	if _, err := uuid.Parse(parts[3]); err != nil {
+		return "", fmt.Errorf("Runner output path has an invalid Project ID")
+	}
+	if _, err := uuid.Parse(parts[5]); err != nil {
+		return "", fmt.Errorf("Runner output path has an invalid Experiment ID")
+	}
+	return cleaned + "/gemcp-launch.log", nil
 }

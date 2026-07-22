@@ -290,8 +290,9 @@ func TestBootstrapNormalizesOwnerStopBeforeCompletionCallback(t *testing.T) {
 	if err := os.WriteFile(path, []byte(BootstrapScript()), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	launchLog := filepath.Join(t.TempDir(), "gemcp-launch.log")
 	command := exec.Command(python, path)
-	command.Env = append(os.Environ(), "GEMCP_RUNNER_URL="+server.URL, "GEMCP_RUNNER_TOKEN="+strings.Repeat("t", 40))
+	command.Env = append(os.Environ(), "GEMCP_RUNNER_URL="+server.URL, "GEMCP_RUNNER_TOKEN="+strings.Repeat("t", 40), "GEMCP_LAUNCH_LOG="+launchLog)
 	if output, err := command.CombinedOutput(); err == nil {
 		t.Fatalf("bootstrap exit succeeded, want 143: %s", output)
 	} else if exit, ok := err.(*exec.ExitError); !ok || exit.ExitCode() != 143 {
@@ -305,6 +306,9 @@ func TestBootstrapNormalizesOwnerStopBeforeCompletionCallback(t *testing.T) {
 	default:
 		t.Fatal("bootstrap sent no completion callback")
 	}
+	if content, err := os.ReadFile(launchLog); err != nil || !strings.Contains(string(content), "gemcp-launch-runner-entered") {
+		t.Fatalf("Runner launch log = %q, %v", content, err)
+	}
 }
 
 func TestDownloaderUsesCompleteOpenerAndRejectsRedirects(t *testing.T) {
@@ -314,6 +318,7 @@ func TestDownloaderUsesCompleteOpenerAndRejectsRedirects(t *testing.T) {
 	}
 	token := strings.Repeat("t", 40)
 	marker := filepath.Join(t.TempDir(), "downloaded")
+	launchLog := filepath.Join(t.TempDir(), "gemcp-launch.log")
 	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
 		if request.URL.Path != "/api/v1/runner/bootstrap" || request.Header.Get("Authorization") != "Bearer "+token || request.Header.Get("User-Agent") != runnerUserAgent {
 			http.Error(response, "unauthorized", http.StatusUnauthorized)
@@ -322,7 +327,7 @@ func TestDownloaderUsesCompleteOpenerAndRejectsRedirects(t *testing.T) {
 		_, _ = fmt.Fprintf(response, "import pathlib;pathlib.Path(%q).write_text('ok')", marker)
 	}))
 	command := exec.Command(python, "-c", downloader)
-	command.Env = append(os.Environ(), "GEMCP_RUNNER_URL="+server.URL, "GEMCP_RUNNER_TOKEN="+token)
+	command.Env = append(os.Environ(), "GEMCP_RUNNER_URL="+server.URL, "GEMCP_RUNNER_TOKEN="+token, "GEMCP_LAUNCH_LOG="+launchLog)
 	if output, err := command.CombinedOutput(); err != nil {
 		server.Close()
 		t.Fatalf("downloader failed: %v: %s", err, output)
@@ -331,11 +336,44 @@ func TestDownloaderUsesCompleteOpenerAndRejectsRedirects(t *testing.T) {
 	if content, err := os.ReadFile(marker); err != nil || string(content) != "ok" {
 		t.Fatalf("downloaded bootstrap result = %q, %v", content, err)
 	}
+	if content, err := os.ReadFile(launchLog); err != nil || !strings.Contains(string(content), "gemcp-launch-bootstrap-download-started") || !strings.Contains(string(content), "gemcp-launch-bootstrap-download-complete") || strings.Contains(string(content), token) {
+		t.Fatalf("bootstrap download launch log = %q, %v", content, err)
+	}
+
+	var transientAttempts atomic.Int32
+	retryMarker := filepath.Join(t.TempDir(), "retried")
+	retryServer := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		if transientAttempts.Add(1) < 3 {
+			connection, _, hijackErr := response.(http.Hijacker).Hijack()
+			if hijackErr != nil {
+				t.Errorf("hijack transient response: %v", hijackErr)
+				return
+			}
+			_ = connection.Close()
+			return
+		}
+		_, _ = fmt.Fprintf(response, "import pathlib;pathlib.Path(%q).write_text('retried')", retryMarker)
+	}))
+	command = exec.Command(python, "-c", downloader)
+	command.Env = append(os.Environ(), "GEMCP_RUNNER_URL="+retryServer.URL, "GEMCP_RUNNER_TOKEN="+token)
+	if output, err := command.CombinedOutput(); err != nil {
+		retryServer.Close()
+		t.Fatalf("downloader retry failed: %v: %s", err, output)
+	}
+	retryServer.Close()
+	if transientAttempts.Load() != 3 {
+		t.Fatalf("transient bootstrap attempts = %d, want 3", transientAttempts.Load())
+	}
+	if content, err := os.ReadFile(retryMarker); err != nil || string(content) != "retried" {
+		t.Fatalf("retried bootstrap result = %q, %v", content, err)
+	}
 
 	var redirected atomic.Bool
+	var redirectAttempts atomic.Int32
 	target := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { redirected.Store(true) }))
 	defer target.Close()
 	redirect := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		redirectAttempts.Add(1)
 		http.Redirect(response, request, target.URL, http.StatusFound)
 	}))
 	defer redirect.Close()
@@ -347,6 +385,9 @@ func TestDownloaderUsesCompleteOpenerAndRejectsRedirects(t *testing.T) {
 	if redirected.Load() {
 		t.Fatal("downloader leaked the request to a redirect target")
 	}
+	if redirectAttempts.Load() != 1 {
+		t.Fatalf("redirect response was retried %d times", redirectAttempts.Load())
+	}
 }
 
 func TestBootstrapScriptParsesAndLaunchCommandRequiresHTTPSOrigin(t *testing.T) {
@@ -354,12 +395,19 @@ func TestBootstrapScriptParsesAndLaunchCommandRequiresHTTPSOrigin(t *testing.T) 
 		t.Fatal("LaunchCommand accepted HTTP")
 	}
 	token := strings.Repeat("x", 40)
-	command, err := LaunchCommand("https://gemcp.example.com", token)
-	if err != nil || !strings.HasPrefix(command, "set -eu; ") || !strings.Contains(command, "/root/miniconda3/bin/python3") || strings.ContainsAny(command, `$'"`) || strings.Contains(command, token) || strings.Contains(command, "python train.py") {
+	outputPath := "/root/autodl-fs/projects/11111111-1111-4111-8111-111111111111/experiments/22222222-2222-4222-8222-222222222222/"
+	command, err := LaunchCommandForOutput("https://gemcp.example.com", token, outputPath)
+	if err != nil || !strings.HasPrefix(command, "set -eu; ") || !strings.Contains(command, "/root/miniconda3/bin/python3") || !strings.Contains(command, "sleep 128") || strings.ContainsAny(command, `$'"`) || strings.Contains(command, token) || strings.Contains(command, "python train.py") {
 		t.Fatalf("command=%q err=%v", command, err)
 	}
-	if len(command) > 4096 {
-		t.Fatalf("Provider launch command is %d bytes, want at most 4096", len(command))
+	if _, err := LaunchCommandForOutput("https://gemcp.example.com", token, "/tmp/output"); err == nil {
+		t.Fatal("LaunchCommandForOutput accepted an unmanaged output path")
+	}
+	if len(command) > maxProviderLaunchCommandBytes {
+		t.Fatalf("Provider launch command is %d bytes, want at most %d", len(command), maxProviderLaunchCommandBytes)
+	}
+	if _, err := LaunchCommandForOutput("https://gemcp.example.com", strings.Repeat("x", 4096), outputPath); err == nil {
+		t.Fatal("LaunchCommandForOutput accepted a command above the Provider byte limit")
 	}
 	if output, err := exec.Command("/bin/bash", "-n", "-c", command).CombinedOutput(); err != nil {
 		t.Fatalf("Provider launch command syntax: %v: %s", err, output)
@@ -376,7 +424,7 @@ func TestBootstrapScriptParsesAndLaunchCommandRequiresHTTPSOrigin(t *testing.T) 
 	}
 	payloadEnd += payloadStart
 	program, err := base64.StdEncoding.DecodeString(command[payloadStart:payloadEnd])
-	if err != nil || !strings.Contains(string(program), "https://gemcp.example.com") || !strings.Contains(string(program), token) || !strings.Contains(string(program), downloader) || !strings.Contains(string(program), runnerUserAgent) {
+	if err != nil || !strings.Contains(string(program), "https://gemcp.example.com") || !strings.Contains(string(program), token) || !strings.Contains(string(program), outputPath+"gemcp-launch.log") || !strings.Contains(string(program), downloader) || !strings.Contains(string(program), runnerUserAgent) {
 		t.Fatalf("encoded program is invalid: err=%v program=%q", err, program)
 	}
 	if !strings.Contains(BootstrapScript(), "normalized_stop_reason") || !strings.Contains(BootstrapScript(), `value[-maximum:].decode("utf-8", errors="ignore")`) || !strings.Contains(BootstrapScript(), `"User-Agent": USER_AGENT`) || !strings.Contains(BootstrapScript(), runnerUserAgent) {

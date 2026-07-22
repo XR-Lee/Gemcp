@@ -140,7 +140,7 @@ func (e *Engine) markProvisionTimeout(ctx context.Context, experimentRecord *ent
 		return err
 	}
 	defer tx.Rollback()
-	reason := "Runner did not start before the provisioning deadline"
+	reason := "Runner did not start before the provisioning deadline; inspect gemcp-launch.log in the durable output path if present"
 	if _, err := tx.Attempt.UpdateOneID(attemptRecord.ID).SetState("failed").SetFinishedAt(now).SetRunnerTokenExpiresAt(now).
 		ClearRunnerTokenHash().ClearRunnerTokenCiphertext().SetFailureCode("provision_timeout").SetFailureReason(reason).Save(ctx); err != nil {
 		return err

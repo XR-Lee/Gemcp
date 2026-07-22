@@ -54,7 +54,7 @@ func deploymentSpec(experimentRecord *ent.Experiment, resourceRecord *ent.Provid
 	if resource.PriceFromMilli < 0 || resource.PriceToMilli <= 0 || resource.PriceFromMilli > resource.PriceToMilli {
 		return DeploymentSpec{}, fmt.Errorf("resource snapshot has invalid price bounds")
 	}
-	command, err := runner.LaunchCommand(publicURL, runnerToken)
+	command, err := runner.LaunchCommandForOutput(publicURL, runnerToken, experimentRecord.OutputPath)
 	if err != nil {
 		return DeploymentSpec{}, err
 	}
