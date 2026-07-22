@@ -60,7 +60,7 @@ func New(deps Dependencies) *http.Server {
 	router.GET("/agent/setup", markdownGuide(guides.PiSetup(deps.Config.PublicURL)))
 	router.GET("/agent/setup/install.mjs", staticGuide("text/javascript; charset=utf-8", guides.PiSetupInstaller(deps.Config.PublicURL)))
 	router.GET("/agent/setup/gemcp-tool.mjs", staticGuide("text/javascript; charset=utf-8", guides.GemcpTool()))
-	router.GET("/node/setup", markdownGuide(guides.NodeSetup(deps.Config.PublicURL)))
+	router.GET("/node/setup", markdownGuide(guides.NodeSetup(deps.Config.PublicURL, deps.Build.Version, deps.Build.Commit)))
 
 	api := router.Group("/api/v1")
 	api.GET("/version", func(c *gin.Context) {

@@ -52,6 +52,26 @@ func TestPiSetupAssetsUseTrustedRenderedOrigin(t *testing.T) {
 	}
 }
 
+func TestNodeSetupIsSelfContainedAgentHandoff(t *testing.T) {
+	origin := "https://gemcp.example.com"
+	commit := strings.Repeat("a", 40)
+	setup := NodeSetup(origin, "0.10.3", commit)
+	for _, required := range []string{
+		origin + "/node/setup#code=...", "v0.10.3", commit,
+		"git@github.com:XR-Lee/Gemcp.git", "make build-node", "pending_verification",
+		"Do not install or upgrade the NVIDIA Driver", "/var/lib/gemcp-node/storage",
+	} {
+		if !strings.Contains(setup, required) {
+			t.Fatalf("node setup guide does not contain %q", required)
+		}
+	}
+	for _, placeholder := range []string{"{{GEMCP_PUBLIC_URL}}", "{{GEMCP_VERSION}}", "{{GEMCP_COMMIT}}"} {
+		if strings.Contains(setup, placeholder) {
+			t.Fatalf("node setup guide retained %q", placeholder)
+		}
+	}
+}
+
 func TestPiSetupInstallerRecoversLostCompletionResponse(t *testing.T) {
 	node, err := exec.LookPath("node")
 	if err != nil {

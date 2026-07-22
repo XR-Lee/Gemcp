@@ -36,7 +36,12 @@ func PiSetup(publicURL string) string { return renderPublicURL(piSetup, publicUR
 
 func PiSetupInstaller(publicURL string) string { return renderPublicURL(piSetupInstaller, publicURL) }
 
-func NodeSetup(publicURL string) string { return renderPublicURL(nodeSetup, publicURL) }
+func NodeSetup(publicURL, version, commit string) string {
+	return strings.NewReplacer(
+		"{{GEMCP_VERSION}}", strings.TrimSpace(version),
+		"{{GEMCP_COMMIT}}", strings.TrimSpace(commit),
+	).Replace(renderPublicURL(nodeSetup, publicURL))
+}
 
 func GemcpTool() string { return strings.TrimSpace(gemcpTool) + "\n" }
 

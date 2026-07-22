@@ -398,7 +398,7 @@ onUnmounted(() => timer !== undefined && window.clearTimeout(timer))
       <section class="modal-card node-dialog" role="dialog" aria-modal="true" aria-labelledby="setup-url-heading">
         <div class="modal-heading"><div><p class="eyebrow">Enrollment created</p><h2 id="setup-url-heading">Setup link</h2></div><button class="close-button" type="button" aria-label="Close" @click="reveal = null"><X :size="18" /></button></div>
         <div class="secret-display"><code>{{ reveal.setup_url }}</code><button class="table-command" type="button" :title="copied ? 'Copied' : 'Copy setup link'" aria-label="Copy setup link" @click="copySetupURL"><Check v-if="copied" :size="17" /><Clipboard v-else :size="17" /></button></div>
-        <p class="dialog-note">This link is shown once and expires {{ formatDate(reveal.enrollment.expires_at) }}.</p>
+        <p class="dialog-note">This link is shown once and expires {{ formatDate(reveal.enrollment.expires_at) }}. It opens a self-contained handoff with the exact release, host checks, build, installation, secret-handling, and approval workflow for a trusted coding Agent.</p>
         <div class="modal-actions"><button class="primary-button" type="button" @click="reveal = null">Done</button></div>
       </section>
     </div>

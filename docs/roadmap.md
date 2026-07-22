@@ -76,6 +76,10 @@ Upgrade `golang.org/x/text` to `v0.39.0` to resolve reachable vulnerability `GO-
 
 Treat browser-session rejection from AutoDL Private Cloud's optional `/api/v2/image/list` endpoint as a truncated system-image category while continuing to validate and display the documented Developer API resources.
 
+### v0.10.3 - self-contained Node Agent handoff
+
+Render the hosted Node Setup page with the control plane's exact release and commit, repository checkout verification, host preflight, immutable build, installer, setup-link custody, pairing, and post-install reporting requirements.
+
 ## Further validation
 
 The following items still require the target environment or newly authorized paid resources:

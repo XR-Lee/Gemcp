@@ -4,6 +4,8 @@ Gemcp is a private, single-organization control plane for running bounded AutoDL
 
 ## Current release
 
+`v0.10.3` turns the hosted Node Setup page into a self-contained coding-Agent handoff rendered with the running control plane's exact release and commit.
+
 `v0.10.2` keeps the documented AutoDL Private Cloud Developer API resource view available when the optional Web-console system-image endpoint requires a browser login session.
 
 `v0.10.1` updates `golang.org/x/text` to `v0.39.0`, resolving reachable vulnerability `GO-2026-5970` reported by the release CI vulnerability gate.

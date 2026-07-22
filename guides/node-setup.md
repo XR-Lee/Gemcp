@@ -1,40 +1,74 @@
 # Gemcp Node Setup
 
-This page describes the Owner-approved enrollment flow for a trusted Self-hosted GPU PC. The complete setup link is a short-lived bearer capability. Do not print it, commit it, or send it to a Web-fetch or search service.
+This page is the complete coding-Agent handoff for an Owner-approved trusted Self-hosted GPU PC.
 
-The setup code is stored only in the URL fragment. Opening this public page does not claim the enrollment.
+## Release identity
 
-## Prerequisites
+- Control plane: `{{GEMCP_PUBLIC_URL}}`
+- Required release: `v{{GEMCP_VERSION}}`
+- Required commit: `{{GEMCP_COMMIT}}`
+- Repository: `git@github.com:XR-Lee/Gemcp.git`
+
+The node binary and control plane must use the same release. The repository is private, so the GPU host or its coding Agent needs independent read access to GitHub. The Node Setup Link does not grant repository access.
+
+## Setup-link boundary
+
+The complete `{{GEMCP_PUBLIC_URL}}/node/setup#code=...` link is a short-lived, single-use bearer capability. The setup code is stored only in the URL fragment and is not sent when this Markdown page is fetched.
+
+- Do not send the complete link to Web search, Web fetch, issue trackers, shell history, logs, or command-line arguments.
+- A coding Agent may read this public page before the enrollment exists.
+- After prerequisites and the binary are ready, run the installer and let the Owner paste the complete link into its interactive prompt.
+- If a trusted local Agent is explicitly given the complete link, it may pass it only through installer standard input and must immediately discard it.
+
+## Agent execution contract
+
+Before changing the host, inspect and report the current state. Do not install or upgrade the NVIDIA Driver unless the Owner separately approves that change. The Gemcp installer does not install or modify the GPU Driver, Docker Engine, or NVIDIA Container Toolkit.
+
+Verify all of the following:
 
 - Linux x86_64 with systemd.
 - Exactly one supported NVIDIA GPU in the initial release.
 - A working NVIDIA Driver and `nvidia-smi`.
-- Docker Engine with access for the `gemcp-node` service user.
-- NVIDIA Container Toolkit already configured.
-- A writable managed storage root with sufficient free space.
+- Docker Engine is running.
+- NVIDIA Container Toolkit is configured and Docker can access the GPU.
+- Go 1.26.5 is available to build from source.
+- `/var/lib/gemcp-node/storage` is writable and has sufficient capacity for source trees, outputs, and complete logs.
 
-The Gemcp installer does not install or modify the GPU Driver, Docker, or NVIDIA Container Toolkit.
+If a prerequisite is missing, storage is insufficient, or installing it would require a driver change, stop and report the blocker before continuing.
 
-## Enrollment
+## Build and verify
 
-Use the `gemcp-node` binary from the same Gemcp release as the control plane. The repository includes `deploy/install-gemcp-node.sh`, which installs the binary and systemd unit, creates the dedicated service user, runs diagnostics, and reads the complete setup link without placing it in process arguments.
-
-From a verified Gemcp release checkout:
+From the GPU host:
 
 ```bash
+git clone --branch "v{{GEMCP_VERSION}}" --depth 1 \
+  git@github.com:XR-Lee/Gemcp.git Gemcp
+cd Gemcp
+test "$(git rev-parse HEAD)" = "{{GEMCP_COMMIT}}"
 make build-node
-sudo GEMCP_NODE_STORAGE_ROOT=/mnt/gemcp \
+./bin/gemcp-node version
+file ./bin/gemcp-node
+```
+
+The version output must identify `{{GEMCP_VERSION}}` and the expected commit prefix. The `file` output must report a statically linked Linux x86-64 executable.
+
+## Install and enroll
+
+The installer creates a dedicated system user, installs the static binary and systemd unit, runs diagnostics, and reads the complete Setup Link without placing it in process arguments:
+
+```bash
+sudo GEMCP_NODE_STORAGE_ROOT=/var/lib/gemcp-node/storage \
   GEMCP_NODE_BINARY=./bin/gemcp-node \
   ./deploy/install-gemcp-node.sh
 ```
 
-Paste the complete `{{GEMCP_PUBLIC_URL}}/node/setup#code=...` link only when the installer prompts. It prints a node ID and short pairing code, never the Node Token.
+Paste the complete Setup Link only when the installer prompts. It prints a Node ID and short pairing code, never the Node Token. Report the Node ID, pairing code, hostname, GPU UUID and model, and `systemctl status gemcp-node` to the Owner. Do not report the Node Token.
 
-The Owner must compare the pairing code and reported hardware in the Gemcp console, select the authorized Projects, and approve the node. The daemon remains `pending_verification` until approval.
+The node must remain `pending_verification` until the Owner compares the pairing code and hardware in **Nodes -> Enrollment activity**, selects the authorized Projects, and approves it. After approval, confirm that the daemon becomes active and continues sending heartbeats.
 
 ## Runtime configuration
 
-In **Nodes → Runtime configuration**, select the Project and create a runtime with:
+In **Nodes -> Runtime configuration**, select the Project and create a runtime with:
 
 - A public OCI image reference pinned with `@sha256:<64-hex-digest>`.
 - The exact GPU model names accepted by the profile. Reported node models are prefilled.
@@ -47,7 +81,7 @@ Agents can discover the resulting Environment and Resource Profile IDs through t
 
 ```bash
 sudo -u gemcp-node /usr/local/bin/gemcp-node doctor \
-  --storage-root /mnt/gemcp
+  --storage-root /var/lib/gemcp-node/storage
 
 sudo systemctl status gemcp-node
 sudo journalctl -u gemcp-node
