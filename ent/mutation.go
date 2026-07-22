@@ -16,6 +16,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/auditevent"
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
+	"github.com/XR-Lee/Gemcp/ent/diagnosticrun"
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
@@ -55,6 +56,7 @@ const (
 	TypeAttempt             = "Attempt"
 	TypeAuditEvent          = "AuditEvent"
 	TypeBudgetEntry         = "BudgetEntry"
+	TypeDiagnosticRun       = "DiagnosticRun"
 	TypeEnvironment         = "Environment"
 	TypeExperiment          = "Experiment"
 	TypeIdempotencyRecord   = "IdempotencyRecord"
@@ -6887,6 +6889,1075 @@ func (m *BudgetEntryMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown BudgetEntry edge %s", name)
 }
 
+// DiagnosticRunMutation represents an operation that mutates the DiagnosticRun nodes in the graph.
+type DiagnosticRunMutation struct {
+	config
+	op                   Op
+	typ                  string
+	id                   *int
+	public_id            *uuid.UUID
+	created_at           *time.Time
+	updated_at           *time.Time
+	backend              *diagnosticrun.Backend
+	suite                *diagnosticrun.Suite
+	requested_by         *string
+	idempotency_key_hash *[]byte
+	request_fingerprint  *[]byte
+	preflight            *map[string]interface{}
+	clearedFields        map[string]struct{}
+	tenant               *int
+	clearedtenant        bool
+	project              *int
+	clearedproject       bool
+	experiment           *int
+	clearedexperiment    bool
+	done                 bool
+	oldValue             func(context.Context) (*DiagnosticRun, error)
+	predicates           []predicate.DiagnosticRun
+}
+
+var _ ent.Mutation = (*DiagnosticRunMutation)(nil)
+
+// diagnosticrunOption allows management of the mutation configuration using functional options.
+type diagnosticrunOption func(*DiagnosticRunMutation)
+
+// newDiagnosticRunMutation creates new mutation for the DiagnosticRun entity.
+func newDiagnosticRunMutation(c config, op Op, opts ...diagnosticrunOption) *DiagnosticRunMutation {
+	m := &DiagnosticRunMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeDiagnosticRun,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withDiagnosticRunID sets the ID field of the mutation.
+func withDiagnosticRunID(id int) diagnosticrunOption {
+	return func(m *DiagnosticRunMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *DiagnosticRun
+		)
+		m.oldValue = func(ctx context.Context) (*DiagnosticRun, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().DiagnosticRun.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withDiagnosticRun sets the old DiagnosticRun of the mutation.
+func withDiagnosticRun(node *DiagnosticRun) diagnosticrunOption {
+	return func(m *DiagnosticRunMutation) {
+		m.oldValue = func(context.Context) (*DiagnosticRun, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m DiagnosticRunMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m DiagnosticRunMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *DiagnosticRunMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *DiagnosticRunMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().DiagnosticRun.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetPublicID sets the "public_id" field.
+func (m *DiagnosticRunMutation) SetPublicID(u uuid.UUID) {
+	m.public_id = &u
+}
+
+// PublicID returns the value of the "public_id" field in the mutation.
+func (m *DiagnosticRunMutation) PublicID() (r uuid.UUID, exists bool) {
+	v := m.public_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPublicID returns the old "public_id" field's value of the DiagnosticRun entity.
+// If the DiagnosticRun object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DiagnosticRunMutation) OldPublicID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPublicID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPublicID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPublicID: %w", err)
+	}
+	return oldValue.PublicID, nil
+}
+
+// ResetPublicID resets all changes to the "public_id" field.
+func (m *DiagnosticRunMutation) ResetPublicID() {
+	m.public_id = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *DiagnosticRunMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *DiagnosticRunMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the DiagnosticRun entity.
+// If the DiagnosticRun object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DiagnosticRunMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *DiagnosticRunMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *DiagnosticRunMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *DiagnosticRunMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the DiagnosticRun entity.
+// If the DiagnosticRun object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DiagnosticRunMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *DiagnosticRunMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *DiagnosticRunMutation) SetTenantID(i int) {
+	m.tenant = &i
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *DiagnosticRunMutation) TenantID() (r int, exists bool) {
+	v := m.tenant
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the DiagnosticRun entity.
+// If the DiagnosticRun object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DiagnosticRunMutation) OldTenantID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *DiagnosticRunMutation) ResetTenantID() {
+	m.tenant = nil
+}
+
+// SetProjectID sets the "project_id" field.
+func (m *DiagnosticRunMutation) SetProjectID(i int) {
+	m.project = &i
+}
+
+// ProjectID returns the value of the "project_id" field in the mutation.
+func (m *DiagnosticRunMutation) ProjectID() (r int, exists bool) {
+	v := m.project
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProjectID returns the old "project_id" field's value of the DiagnosticRun entity.
+// If the DiagnosticRun object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DiagnosticRunMutation) OldProjectID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProjectID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProjectID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProjectID: %w", err)
+	}
+	return oldValue.ProjectID, nil
+}
+
+// ResetProjectID resets all changes to the "project_id" field.
+func (m *DiagnosticRunMutation) ResetProjectID() {
+	m.project = nil
+}
+
+// SetExperimentID sets the "experiment_id" field.
+func (m *DiagnosticRunMutation) SetExperimentID(i int) {
+	m.experiment = &i
+}
+
+// ExperimentID returns the value of the "experiment_id" field in the mutation.
+func (m *DiagnosticRunMutation) ExperimentID() (r int, exists bool) {
+	v := m.experiment
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExperimentID returns the old "experiment_id" field's value of the DiagnosticRun entity.
+// If the DiagnosticRun object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DiagnosticRunMutation) OldExperimentID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExperimentID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExperimentID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExperimentID: %w", err)
+	}
+	return oldValue.ExperimentID, nil
+}
+
+// ResetExperimentID resets all changes to the "experiment_id" field.
+func (m *DiagnosticRunMutation) ResetExperimentID() {
+	m.experiment = nil
+}
+
+// SetBackend sets the "backend" field.
+func (m *DiagnosticRunMutation) SetBackend(d diagnosticrun.Backend) {
+	m.backend = &d
+}
+
+// Backend returns the value of the "backend" field in the mutation.
+func (m *DiagnosticRunMutation) Backend() (r diagnosticrun.Backend, exists bool) {
+	v := m.backend
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBackend returns the old "backend" field's value of the DiagnosticRun entity.
+// If the DiagnosticRun object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DiagnosticRunMutation) OldBackend(ctx context.Context) (v diagnosticrun.Backend, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBackend is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBackend requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBackend: %w", err)
+	}
+	return oldValue.Backend, nil
+}
+
+// ResetBackend resets all changes to the "backend" field.
+func (m *DiagnosticRunMutation) ResetBackend() {
+	m.backend = nil
+}
+
+// SetSuite sets the "suite" field.
+func (m *DiagnosticRunMutation) SetSuite(d diagnosticrun.Suite) {
+	m.suite = &d
+}
+
+// Suite returns the value of the "suite" field in the mutation.
+func (m *DiagnosticRunMutation) Suite() (r diagnosticrun.Suite, exists bool) {
+	v := m.suite
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSuite returns the old "suite" field's value of the DiagnosticRun entity.
+// If the DiagnosticRun object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DiagnosticRunMutation) OldSuite(ctx context.Context) (v diagnosticrun.Suite, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSuite is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSuite requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSuite: %w", err)
+	}
+	return oldValue.Suite, nil
+}
+
+// ResetSuite resets all changes to the "suite" field.
+func (m *DiagnosticRunMutation) ResetSuite() {
+	m.suite = nil
+}
+
+// SetRequestedBy sets the "requested_by" field.
+func (m *DiagnosticRunMutation) SetRequestedBy(s string) {
+	m.requested_by = &s
+}
+
+// RequestedBy returns the value of the "requested_by" field in the mutation.
+func (m *DiagnosticRunMutation) RequestedBy() (r string, exists bool) {
+	v := m.requested_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequestedBy returns the old "requested_by" field's value of the DiagnosticRun entity.
+// If the DiagnosticRun object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DiagnosticRunMutation) OldRequestedBy(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequestedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequestedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequestedBy: %w", err)
+	}
+	return oldValue.RequestedBy, nil
+}
+
+// ResetRequestedBy resets all changes to the "requested_by" field.
+func (m *DiagnosticRunMutation) ResetRequestedBy() {
+	m.requested_by = nil
+}
+
+// SetIdempotencyKeyHash sets the "idempotency_key_hash" field.
+func (m *DiagnosticRunMutation) SetIdempotencyKeyHash(b []byte) {
+	m.idempotency_key_hash = &b
+}
+
+// IdempotencyKeyHash returns the value of the "idempotency_key_hash" field in the mutation.
+func (m *DiagnosticRunMutation) IdempotencyKeyHash() (r []byte, exists bool) {
+	v := m.idempotency_key_hash
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIdempotencyKeyHash returns the old "idempotency_key_hash" field's value of the DiagnosticRun entity.
+// If the DiagnosticRun object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DiagnosticRunMutation) OldIdempotencyKeyHash(ctx context.Context) (v []byte, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIdempotencyKeyHash is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIdempotencyKeyHash requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIdempotencyKeyHash: %w", err)
+	}
+	return oldValue.IdempotencyKeyHash, nil
+}
+
+// ResetIdempotencyKeyHash resets all changes to the "idempotency_key_hash" field.
+func (m *DiagnosticRunMutation) ResetIdempotencyKeyHash() {
+	m.idempotency_key_hash = nil
+}
+
+// SetRequestFingerprint sets the "request_fingerprint" field.
+func (m *DiagnosticRunMutation) SetRequestFingerprint(b []byte) {
+	m.request_fingerprint = &b
+}
+
+// RequestFingerprint returns the value of the "request_fingerprint" field in the mutation.
+func (m *DiagnosticRunMutation) RequestFingerprint() (r []byte, exists bool) {
+	v := m.request_fingerprint
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequestFingerprint returns the old "request_fingerprint" field's value of the DiagnosticRun entity.
+// If the DiagnosticRun object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DiagnosticRunMutation) OldRequestFingerprint(ctx context.Context) (v []byte, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequestFingerprint is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequestFingerprint requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequestFingerprint: %w", err)
+	}
+	return oldValue.RequestFingerprint, nil
+}
+
+// ResetRequestFingerprint resets all changes to the "request_fingerprint" field.
+func (m *DiagnosticRunMutation) ResetRequestFingerprint() {
+	m.request_fingerprint = nil
+}
+
+// SetPreflight sets the "preflight" field.
+func (m *DiagnosticRunMutation) SetPreflight(value map[string]interface{}) {
+	m.preflight = &value
+}
+
+// Preflight returns the value of the "preflight" field in the mutation.
+func (m *DiagnosticRunMutation) Preflight() (r map[string]interface{}, exists bool) {
+	v := m.preflight
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPreflight returns the old "preflight" field's value of the DiagnosticRun entity.
+// If the DiagnosticRun object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DiagnosticRunMutation) OldPreflight(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPreflight is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPreflight requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPreflight: %w", err)
+	}
+	return oldValue.Preflight, nil
+}
+
+// ResetPreflight resets all changes to the "preflight" field.
+func (m *DiagnosticRunMutation) ResetPreflight() {
+	m.preflight = nil
+}
+
+// ClearTenant clears the "tenant" edge to the Tenant entity.
+func (m *DiagnosticRunMutation) ClearTenant() {
+	m.clearedtenant = true
+	m.clearedFields[diagnosticrun.FieldTenantID] = struct{}{}
+}
+
+// TenantCleared reports if the "tenant" edge to the Tenant entity was cleared.
+func (m *DiagnosticRunMutation) TenantCleared() bool {
+	return m.clearedtenant
+}
+
+// TenantIDs returns the "tenant" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// TenantID instead. It exists only for internal usage by the builders.
+func (m *DiagnosticRunMutation) TenantIDs() (ids []int) {
+	if id := m.tenant; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetTenant resets all changes to the "tenant" edge.
+func (m *DiagnosticRunMutation) ResetTenant() {
+	m.tenant = nil
+	m.clearedtenant = false
+}
+
+// ClearProject clears the "project" edge to the Project entity.
+func (m *DiagnosticRunMutation) ClearProject() {
+	m.clearedproject = true
+	m.clearedFields[diagnosticrun.FieldProjectID] = struct{}{}
+}
+
+// ProjectCleared reports if the "project" edge to the Project entity was cleared.
+func (m *DiagnosticRunMutation) ProjectCleared() bool {
+	return m.clearedproject
+}
+
+// ProjectIDs returns the "project" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ProjectID instead. It exists only for internal usage by the builders.
+func (m *DiagnosticRunMutation) ProjectIDs() (ids []int) {
+	if id := m.project; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetProject resets all changes to the "project" edge.
+func (m *DiagnosticRunMutation) ResetProject() {
+	m.project = nil
+	m.clearedproject = false
+}
+
+// ClearExperiment clears the "experiment" edge to the Experiment entity.
+func (m *DiagnosticRunMutation) ClearExperiment() {
+	m.clearedexperiment = true
+	m.clearedFields[diagnosticrun.FieldExperimentID] = struct{}{}
+}
+
+// ExperimentCleared reports if the "experiment" edge to the Experiment entity was cleared.
+func (m *DiagnosticRunMutation) ExperimentCleared() bool {
+	return m.clearedexperiment
+}
+
+// ExperimentIDs returns the "experiment" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ExperimentID instead. It exists only for internal usage by the builders.
+func (m *DiagnosticRunMutation) ExperimentIDs() (ids []int) {
+	if id := m.experiment; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetExperiment resets all changes to the "experiment" edge.
+func (m *DiagnosticRunMutation) ResetExperiment() {
+	m.experiment = nil
+	m.clearedexperiment = false
+}
+
+// Where appends a list predicates to the DiagnosticRunMutation builder.
+func (m *DiagnosticRunMutation) Where(ps ...predicate.DiagnosticRun) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the DiagnosticRunMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *DiagnosticRunMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.DiagnosticRun, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *DiagnosticRunMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *DiagnosticRunMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (DiagnosticRun).
+func (m *DiagnosticRunMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *DiagnosticRunMutation) Fields() []string {
+	fields := make([]string, 0, 12)
+	if m.public_id != nil {
+		fields = append(fields, diagnosticrun.FieldPublicID)
+	}
+	if m.created_at != nil {
+		fields = append(fields, diagnosticrun.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, diagnosticrun.FieldUpdatedAt)
+	}
+	if m.tenant != nil {
+		fields = append(fields, diagnosticrun.FieldTenantID)
+	}
+	if m.project != nil {
+		fields = append(fields, diagnosticrun.FieldProjectID)
+	}
+	if m.experiment != nil {
+		fields = append(fields, diagnosticrun.FieldExperimentID)
+	}
+	if m.backend != nil {
+		fields = append(fields, diagnosticrun.FieldBackend)
+	}
+	if m.suite != nil {
+		fields = append(fields, diagnosticrun.FieldSuite)
+	}
+	if m.requested_by != nil {
+		fields = append(fields, diagnosticrun.FieldRequestedBy)
+	}
+	if m.idempotency_key_hash != nil {
+		fields = append(fields, diagnosticrun.FieldIdempotencyKeyHash)
+	}
+	if m.request_fingerprint != nil {
+		fields = append(fields, diagnosticrun.FieldRequestFingerprint)
+	}
+	if m.preflight != nil {
+		fields = append(fields, diagnosticrun.FieldPreflight)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *DiagnosticRunMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case diagnosticrun.FieldPublicID:
+		return m.PublicID()
+	case diagnosticrun.FieldCreatedAt:
+		return m.CreatedAt()
+	case diagnosticrun.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case diagnosticrun.FieldTenantID:
+		return m.TenantID()
+	case diagnosticrun.FieldProjectID:
+		return m.ProjectID()
+	case diagnosticrun.FieldExperimentID:
+		return m.ExperimentID()
+	case diagnosticrun.FieldBackend:
+		return m.Backend()
+	case diagnosticrun.FieldSuite:
+		return m.Suite()
+	case diagnosticrun.FieldRequestedBy:
+		return m.RequestedBy()
+	case diagnosticrun.FieldIdempotencyKeyHash:
+		return m.IdempotencyKeyHash()
+	case diagnosticrun.FieldRequestFingerprint:
+		return m.RequestFingerprint()
+	case diagnosticrun.FieldPreflight:
+		return m.Preflight()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *DiagnosticRunMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case diagnosticrun.FieldPublicID:
+		return m.OldPublicID(ctx)
+	case diagnosticrun.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case diagnosticrun.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case diagnosticrun.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case diagnosticrun.FieldProjectID:
+		return m.OldProjectID(ctx)
+	case diagnosticrun.FieldExperimentID:
+		return m.OldExperimentID(ctx)
+	case diagnosticrun.FieldBackend:
+		return m.OldBackend(ctx)
+	case diagnosticrun.FieldSuite:
+		return m.OldSuite(ctx)
+	case diagnosticrun.FieldRequestedBy:
+		return m.OldRequestedBy(ctx)
+	case diagnosticrun.FieldIdempotencyKeyHash:
+		return m.OldIdempotencyKeyHash(ctx)
+	case diagnosticrun.FieldRequestFingerprint:
+		return m.OldRequestFingerprint(ctx)
+	case diagnosticrun.FieldPreflight:
+		return m.OldPreflight(ctx)
+	}
+	return nil, fmt.Errorf("unknown DiagnosticRun field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *DiagnosticRunMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case diagnosticrun.FieldPublicID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPublicID(v)
+		return nil
+	case diagnosticrun.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case diagnosticrun.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case diagnosticrun.FieldTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case diagnosticrun.FieldProjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProjectID(v)
+		return nil
+	case diagnosticrun.FieldExperimentID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExperimentID(v)
+		return nil
+	case diagnosticrun.FieldBackend:
+		v, ok := value.(diagnosticrun.Backend)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBackend(v)
+		return nil
+	case diagnosticrun.FieldSuite:
+		v, ok := value.(diagnosticrun.Suite)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSuite(v)
+		return nil
+	case diagnosticrun.FieldRequestedBy:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequestedBy(v)
+		return nil
+	case diagnosticrun.FieldIdempotencyKeyHash:
+		v, ok := value.([]byte)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIdempotencyKeyHash(v)
+		return nil
+	case diagnosticrun.FieldRequestFingerprint:
+		v, ok := value.([]byte)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequestFingerprint(v)
+		return nil
+	case diagnosticrun.FieldPreflight:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPreflight(v)
+		return nil
+	}
+	return fmt.Errorf("unknown DiagnosticRun field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *DiagnosticRunMutation) AddedFields() []string {
+	var fields []string
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *DiagnosticRunMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *DiagnosticRunMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown DiagnosticRun numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *DiagnosticRunMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *DiagnosticRunMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *DiagnosticRunMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown DiagnosticRun nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *DiagnosticRunMutation) ResetField(name string) error {
+	switch name {
+	case diagnosticrun.FieldPublicID:
+		m.ResetPublicID()
+		return nil
+	case diagnosticrun.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case diagnosticrun.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case diagnosticrun.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case diagnosticrun.FieldProjectID:
+		m.ResetProjectID()
+		return nil
+	case diagnosticrun.FieldExperimentID:
+		m.ResetExperimentID()
+		return nil
+	case diagnosticrun.FieldBackend:
+		m.ResetBackend()
+		return nil
+	case diagnosticrun.FieldSuite:
+		m.ResetSuite()
+		return nil
+	case diagnosticrun.FieldRequestedBy:
+		m.ResetRequestedBy()
+		return nil
+	case diagnosticrun.FieldIdempotencyKeyHash:
+		m.ResetIdempotencyKeyHash()
+		return nil
+	case diagnosticrun.FieldRequestFingerprint:
+		m.ResetRequestFingerprint()
+		return nil
+	case diagnosticrun.FieldPreflight:
+		m.ResetPreflight()
+		return nil
+	}
+	return fmt.Errorf("unknown DiagnosticRun field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *DiagnosticRunMutation) AddedEdges() []string {
+	edges := make([]string, 0, 3)
+	if m.tenant != nil {
+		edges = append(edges, diagnosticrun.EdgeTenant)
+	}
+	if m.project != nil {
+		edges = append(edges, diagnosticrun.EdgeProject)
+	}
+	if m.experiment != nil {
+		edges = append(edges, diagnosticrun.EdgeExperiment)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *DiagnosticRunMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case diagnosticrun.EdgeTenant:
+		if id := m.tenant; id != nil {
+			return []ent.Value{*id}
+		}
+	case diagnosticrun.EdgeProject:
+		if id := m.project; id != nil {
+			return []ent.Value{*id}
+		}
+	case diagnosticrun.EdgeExperiment:
+		if id := m.experiment; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *DiagnosticRunMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 3)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *DiagnosticRunMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *DiagnosticRunMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 3)
+	if m.clearedtenant {
+		edges = append(edges, diagnosticrun.EdgeTenant)
+	}
+	if m.clearedproject {
+		edges = append(edges, diagnosticrun.EdgeProject)
+	}
+	if m.clearedexperiment {
+		edges = append(edges, diagnosticrun.EdgeExperiment)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *DiagnosticRunMutation) EdgeCleared(name string) bool {
+	switch name {
+	case diagnosticrun.EdgeTenant:
+		return m.clearedtenant
+	case diagnosticrun.EdgeProject:
+		return m.clearedproject
+	case diagnosticrun.EdgeExperiment:
+		return m.clearedexperiment
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *DiagnosticRunMutation) ClearEdge(name string) error {
+	switch name {
+	case diagnosticrun.EdgeTenant:
+		m.ClearTenant()
+		return nil
+	case diagnosticrun.EdgeProject:
+		m.ClearProject()
+		return nil
+	case diagnosticrun.EdgeExperiment:
+		m.ClearExperiment()
+		return nil
+	}
+	return fmt.Errorf("unknown DiagnosticRun unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *DiagnosticRunMutation) ResetEdge(name string) error {
+	switch name {
+	case diagnosticrun.EdgeTenant:
+		m.ResetTenant()
+		return nil
+	case diagnosticrun.EdgeProject:
+		m.ResetProject()
+		return nil
+	case diagnosticrun.EdgeExperiment:
+		m.ResetExperiment()
+		return nil
+	}
+	return fmt.Errorf("unknown DiagnosticRun edge %s", name)
+}
+
 // EnvironmentMutation represents an operation that mutates the Environment nodes in the graph.
 type EnvironmentMutation struct {
 	config
@@ -7937,6 +9008,8 @@ type ExperimentMutation struct {
 	idempotency_records          map[int]struct{}
 	removedidempotency_records   map[int]struct{}
 	clearedidempotency_records   bool
+	diagnostic_run               *int
+	cleareddiagnostic_run        bool
 	done                         bool
 	oldValue                     func(context.Context) (*Experiment, error)
 	predicates                   []predicate.Experiment
@@ -8237,7 +9310,7 @@ func (m *ExperimentMutation) AgentTokenID() (r int, exists bool) {
 // OldAgentTokenID returns the old "agent_token_id" field's value of the Experiment entity.
 // If the Experiment object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *ExperimentMutation) OldAgentTokenID(ctx context.Context) (v int, err error) {
+func (m *ExperimentMutation) OldAgentTokenID(ctx context.Context) (v *int, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldAgentTokenID is only allowed on UpdateOne operations")
 	}
@@ -8251,9 +9324,22 @@ func (m *ExperimentMutation) OldAgentTokenID(ctx context.Context) (v int, err er
 	return oldValue.AgentTokenID, nil
 }
 
+// ClearAgentTokenID clears the value of the "agent_token_id" field.
+func (m *ExperimentMutation) ClearAgentTokenID() {
+	m.agent_token = nil
+	m.clearedFields[experiment.FieldAgentTokenID] = struct{}{}
+}
+
+// AgentTokenIDCleared returns if the "agent_token_id" field was cleared in this mutation.
+func (m *ExperimentMutation) AgentTokenIDCleared() bool {
+	_, ok := m.clearedFields[experiment.FieldAgentTokenID]
+	return ok
+}
+
 // ResetAgentTokenID resets all changes to the "agent_token_id" field.
 func (m *ExperimentMutation) ResetAgentTokenID() {
 	m.agent_token = nil
+	delete(m.clearedFields, experiment.FieldAgentTokenID)
 }
 
 // SetRepositoryID sets the "repository_id" field.
@@ -9824,7 +10910,7 @@ func (m *ExperimentMutation) ClearAgentToken() {
 
 // AgentTokenCleared reports if the "agent_token" edge to the AgentToken entity was cleared.
 func (m *ExperimentMutation) AgentTokenCleared() bool {
-	return m.clearedagent_token
+	return m.AgentTokenIDCleared() || m.clearedagent_token
 }
 
 // AgentTokenIDs returns the "agent_token" edge IDs in the mutation.
@@ -10192,6 +11278,45 @@ func (m *ExperimentMutation) ResetIdempotencyRecords() {
 	m.idempotency_records = nil
 	m.clearedidempotency_records = false
 	m.removedidempotency_records = nil
+}
+
+// SetDiagnosticRunID sets the "diagnostic_run" edge to the DiagnosticRun entity by id.
+func (m *ExperimentMutation) SetDiagnosticRunID(id int) {
+	m.diagnostic_run = &id
+}
+
+// ClearDiagnosticRun clears the "diagnostic_run" edge to the DiagnosticRun entity.
+func (m *ExperimentMutation) ClearDiagnosticRun() {
+	m.cleareddiagnostic_run = true
+}
+
+// DiagnosticRunCleared reports if the "diagnostic_run" edge to the DiagnosticRun entity was cleared.
+func (m *ExperimentMutation) DiagnosticRunCleared() bool {
+	return m.cleareddiagnostic_run
+}
+
+// DiagnosticRunID returns the "diagnostic_run" edge ID in the mutation.
+func (m *ExperimentMutation) DiagnosticRunID() (id int, exists bool) {
+	if m.diagnostic_run != nil {
+		return *m.diagnostic_run, true
+	}
+	return
+}
+
+// DiagnosticRunIDs returns the "diagnostic_run" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// DiagnosticRunID instead. It exists only for internal usage by the builders.
+func (m *ExperimentMutation) DiagnosticRunIDs() (ids []int) {
+	if id := m.diagnostic_run; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetDiagnosticRun resets all changes to the "diagnostic_run" edge.
+func (m *ExperimentMutation) ResetDiagnosticRun() {
+	m.diagnostic_run = nil
+	m.cleareddiagnostic_run = false
 }
 
 // Where appends a list predicates to the ExperimentMutation builder.
@@ -10906,6 +12031,9 @@ func (m *ExperimentMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *ExperimentMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(experiment.FieldAgentTokenID) {
+		fields = append(fields, experiment.FieldAgentTokenID)
+	}
 	if m.FieldCleared(experiment.FieldProviderResourceID) {
 		fields = append(fields, experiment.FieldProviderResourceID)
 	}
@@ -10962,6 +12090,9 @@ func (m *ExperimentMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *ExperimentMutation) ClearField(name string) error {
 	switch name {
+	case experiment.FieldAgentTokenID:
+		m.ClearAgentTokenID()
+		return nil
 	case experiment.FieldProviderResourceID:
 		m.ClearProviderResourceID()
 		return nil
@@ -11135,7 +12266,7 @@ func (m *ExperimentMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *ExperimentMutation) AddedEdges() []string {
-	edges := make([]string, 0, 11)
+	edges := make([]string, 0, 12)
 	if m.tenant != nil {
 		edges = append(edges, experiment.EdgeTenant)
 	}
@@ -11168,6 +12299,9 @@ func (m *ExperimentMutation) AddedEdges() []string {
 	}
 	if m.idempotency_records != nil {
 		edges = append(edges, experiment.EdgeIdempotencyRecords)
+	}
+	if m.diagnostic_run != nil {
+		edges = append(edges, experiment.EdgeDiagnosticRun)
 	}
 	return edges
 }
@@ -11230,13 +12364,17 @@ func (m *ExperimentMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case experiment.EdgeDiagnosticRun:
+		if id := m.diagnostic_run; id != nil {
+			return []ent.Value{*id}
+		}
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *ExperimentMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 11)
+	edges := make([]string, 0, 12)
 	if m.removedattempts != nil {
 		edges = append(edges, experiment.EdgeAttempts)
 	}
@@ -11295,7 +12433,7 @@ func (m *ExperimentMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *ExperimentMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 11)
+	edges := make([]string, 0, 12)
 	if m.clearedtenant {
 		edges = append(edges, experiment.EdgeTenant)
 	}
@@ -11329,6 +12467,9 @@ func (m *ExperimentMutation) ClearedEdges() []string {
 	if m.clearedidempotency_records {
 		edges = append(edges, experiment.EdgeIdempotencyRecords)
 	}
+	if m.cleareddiagnostic_run {
+		edges = append(edges, experiment.EdgeDiagnosticRun)
+	}
 	return edges
 }
 
@@ -11358,6 +12499,8 @@ func (m *ExperimentMutation) EdgeCleared(name string) bool {
 		return m.clearedbudget_entries
 	case experiment.EdgeIdempotencyRecords:
 		return m.clearedidempotency_records
+	case experiment.EdgeDiagnosticRun:
+		return m.cleareddiagnostic_run
 	}
 	return false
 }
@@ -11383,6 +12526,9 @@ func (m *ExperimentMutation) ClearEdge(name string) error {
 		return nil
 	case experiment.EdgeResourceProfile:
 		m.ClearResourceProfile()
+		return nil
+	case experiment.EdgeDiagnosticRun:
+		m.ClearDiagnosticRun()
 		return nil
 	}
 	return fmt.Errorf("unknown Experiment unique edge %s", name)
@@ -11424,6 +12570,9 @@ func (m *ExperimentMutation) ResetEdge(name string) error {
 		return nil
 	case experiment.EdgeIdempotencyRecords:
 		m.ResetIdempotencyRecords()
+		return nil
+	case experiment.EdgeDiagnosticRun:
+		m.ResetDiagnosticRun()
 		return nil
 	}
 	return fmt.Errorf("unknown Experiment edge %s", name)
@@ -21818,6 +22967,9 @@ type ProjectMutation struct {
 	node_assignments             map[int]struct{}
 	removednode_assignments      map[int]struct{}
 	clearednode_assignments      bool
+	diagnostic_runs              map[int]struct{}
+	removeddiagnostic_runs       map[int]struct{}
+	cleareddiagnostic_runs       bool
 	done                         bool
 	oldValue                     func(context.Context) (*Project, error)
 	predicates                   []predicate.Project
@@ -23166,6 +24318,60 @@ func (m *ProjectMutation) ResetNodeAssignments() {
 	m.removednode_assignments = nil
 }
 
+// AddDiagnosticRunIDs adds the "diagnostic_runs" edge to the DiagnosticRun entity by ids.
+func (m *ProjectMutation) AddDiagnosticRunIDs(ids ...int) {
+	if m.diagnostic_runs == nil {
+		m.diagnostic_runs = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.diagnostic_runs[ids[i]] = struct{}{}
+	}
+}
+
+// ClearDiagnosticRuns clears the "diagnostic_runs" edge to the DiagnosticRun entity.
+func (m *ProjectMutation) ClearDiagnosticRuns() {
+	m.cleareddiagnostic_runs = true
+}
+
+// DiagnosticRunsCleared reports if the "diagnostic_runs" edge to the DiagnosticRun entity was cleared.
+func (m *ProjectMutation) DiagnosticRunsCleared() bool {
+	return m.cleareddiagnostic_runs
+}
+
+// RemoveDiagnosticRunIDs removes the "diagnostic_runs" edge to the DiagnosticRun entity by IDs.
+func (m *ProjectMutation) RemoveDiagnosticRunIDs(ids ...int) {
+	if m.removeddiagnostic_runs == nil {
+		m.removeddiagnostic_runs = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.diagnostic_runs, ids[i])
+		m.removeddiagnostic_runs[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedDiagnosticRuns returns the removed IDs of the "diagnostic_runs" edge to the DiagnosticRun entity.
+func (m *ProjectMutation) RemovedDiagnosticRunsIDs() (ids []int) {
+	for id := range m.removeddiagnostic_runs {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// DiagnosticRunsIDs returns the "diagnostic_runs" edge IDs in the mutation.
+func (m *ProjectMutation) DiagnosticRunsIDs() (ids []int) {
+	for id := range m.diagnostic_runs {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetDiagnosticRuns resets all changes to the "diagnostic_runs" edge.
+func (m *ProjectMutation) ResetDiagnosticRuns() {
+	m.diagnostic_runs = nil
+	m.cleareddiagnostic_runs = false
+	m.removeddiagnostic_runs = nil
+}
+
 // Where appends a list predicates to the ProjectMutation builder.
 func (m *ProjectMutation) Where(ps ...predicate.Project) {
 	m.predicates = append(m.predicates, ps...)
@@ -23595,7 +24801,7 @@ func (m *ProjectMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *ProjectMutation) AddedEdges() []string {
-	edges := make([]string, 0, 12)
+	edges := make([]string, 0, 13)
 	if m.tenant != nil {
 		edges = append(edges, project.EdgeTenant)
 	}
@@ -23631,6 +24837,9 @@ func (m *ProjectMutation) AddedEdges() []string {
 	}
 	if m.node_assignments != nil {
 		edges = append(edges, project.EdgeNodeAssignments)
+	}
+	if m.diagnostic_runs != nil {
+		edges = append(edges, project.EdgeDiagnosticRuns)
 	}
 	return edges
 }
@@ -23709,13 +24918,19 @@ func (m *ProjectMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case project.EdgeDiagnosticRuns:
+		ids := make([]ent.Value, 0, len(m.diagnostic_runs))
+		for id := range m.diagnostic_runs {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *ProjectMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 12)
+	edges := make([]string, 0, 13)
 	if m.removedenvironments != nil {
 		edges = append(edges, project.EdgeEnvironments)
 	}
@@ -23748,6 +24963,9 @@ func (m *ProjectMutation) RemovedEdges() []string {
 	}
 	if m.removednode_assignments != nil {
 		edges = append(edges, project.EdgeNodeAssignments)
+	}
+	if m.removeddiagnostic_runs != nil {
+		edges = append(edges, project.EdgeDiagnosticRuns)
 	}
 	return edges
 }
@@ -23822,13 +25040,19 @@ func (m *ProjectMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case project.EdgeDiagnosticRuns:
+		ids := make([]ent.Value, 0, len(m.removeddiagnostic_runs))
+		for id := range m.removeddiagnostic_runs {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *ProjectMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 12)
+	edges := make([]string, 0, 13)
 	if m.clearedtenant {
 		edges = append(edges, project.EdgeTenant)
 	}
@@ -23865,6 +25089,9 @@ func (m *ProjectMutation) ClearedEdges() []string {
 	if m.clearednode_assignments {
 		edges = append(edges, project.EdgeNodeAssignments)
 	}
+	if m.cleareddiagnostic_runs {
+		edges = append(edges, project.EdgeDiagnosticRuns)
+	}
 	return edges
 }
 
@@ -23896,6 +25123,8 @@ func (m *ProjectMutation) EdgeCleared(name string) bool {
 		return m.clearednode_access
 	case project.EdgeNodeAssignments:
 		return m.clearednode_assignments
+	case project.EdgeDiagnosticRuns:
+		return m.cleareddiagnostic_runs
 	}
 	return false
 }
@@ -23950,6 +25179,9 @@ func (m *ProjectMutation) ResetEdge(name string) error {
 		return nil
 	case project.EdgeNodeAssignments:
 		m.ResetNodeAssignments()
+		return nil
+	case project.EdgeDiagnosticRuns:
+		m.ResetDiagnosticRuns()
 		return nil
 	}
 	return fmt.Errorf("unknown Project edge %s", name)
@@ -34353,6 +35585,9 @@ type TenantMutation struct {
 	node_assignments             map[int]struct{}
 	removednode_assignments      map[int]struct{}
 	clearednode_assignments      bool
+	diagnostic_runs              map[int]struct{}
+	removeddiagnostic_runs       map[int]struct{}
+	cleareddiagnostic_runs       bool
 	done                         bool
 	oldValue                     func(context.Context) (*Tenant, error)
 	predicates                   []predicate.Tenant
@@ -35554,6 +36789,60 @@ func (m *TenantMutation) ResetNodeAssignments() {
 	m.removednode_assignments = nil
 }
 
+// AddDiagnosticRunIDs adds the "diagnostic_runs" edge to the DiagnosticRun entity by ids.
+func (m *TenantMutation) AddDiagnosticRunIDs(ids ...int) {
+	if m.diagnostic_runs == nil {
+		m.diagnostic_runs = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.diagnostic_runs[ids[i]] = struct{}{}
+	}
+}
+
+// ClearDiagnosticRuns clears the "diagnostic_runs" edge to the DiagnosticRun entity.
+func (m *TenantMutation) ClearDiagnosticRuns() {
+	m.cleareddiagnostic_runs = true
+}
+
+// DiagnosticRunsCleared reports if the "diagnostic_runs" edge to the DiagnosticRun entity was cleared.
+func (m *TenantMutation) DiagnosticRunsCleared() bool {
+	return m.cleareddiagnostic_runs
+}
+
+// RemoveDiagnosticRunIDs removes the "diagnostic_runs" edge to the DiagnosticRun entity by IDs.
+func (m *TenantMutation) RemoveDiagnosticRunIDs(ids ...int) {
+	if m.removeddiagnostic_runs == nil {
+		m.removeddiagnostic_runs = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.diagnostic_runs, ids[i])
+		m.removeddiagnostic_runs[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedDiagnosticRuns returns the removed IDs of the "diagnostic_runs" edge to the DiagnosticRun entity.
+func (m *TenantMutation) RemovedDiagnosticRunsIDs() (ids []int) {
+	for id := range m.removeddiagnostic_runs {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// DiagnosticRunsIDs returns the "diagnostic_runs" edge IDs in the mutation.
+func (m *TenantMutation) DiagnosticRunsIDs() (ids []int) {
+	for id := range m.diagnostic_runs {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetDiagnosticRuns resets all changes to the "diagnostic_runs" edge.
+func (m *TenantMutation) ResetDiagnosticRuns() {
+	m.diagnostic_runs = nil
+	m.cleareddiagnostic_runs = false
+	m.removeddiagnostic_runs = nil
+}
+
 // Where appends a list predicates to the TenantMutation builder.
 func (m *TenantMutation) Where(ps ...predicate.Tenant) {
 	m.predicates = append(m.predicates, ps...)
@@ -35755,7 +37044,7 @@ func (m *TenantMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *TenantMutation) AddedEdges() []string {
-	edges := make([]string, 0, 17)
+	edges := make([]string, 0, 18)
 	if m.users != nil {
 		edges = append(edges, tenant.EdgeUsers)
 	}
@@ -35806,6 +37095,9 @@ func (m *TenantMutation) AddedEdges() []string {
 	}
 	if m.node_assignments != nil {
 		edges = append(edges, tenant.EdgeNodeAssignments)
+	}
+	if m.diagnostic_runs != nil {
+		edges = append(edges, tenant.EdgeDiagnosticRuns)
 	}
 	return edges
 }
@@ -35916,13 +37208,19 @@ func (m *TenantMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case tenant.EdgeDiagnosticRuns:
+		ids := make([]ent.Value, 0, len(m.diagnostic_runs))
+		for id := range m.diagnostic_runs {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *TenantMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 17)
+	edges := make([]string, 0, 18)
 	if m.removedusers != nil {
 		edges = append(edges, tenant.EdgeUsers)
 	}
@@ -35973,6 +37271,9 @@ func (m *TenantMutation) RemovedEdges() []string {
 	}
 	if m.removednode_assignments != nil {
 		edges = append(edges, tenant.EdgeNodeAssignments)
+	}
+	if m.removeddiagnostic_runs != nil {
+		edges = append(edges, tenant.EdgeDiagnosticRuns)
 	}
 	return edges
 }
@@ -36083,13 +37384,19 @@ func (m *TenantMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case tenant.EdgeDiagnosticRuns:
+		ids := make([]ent.Value, 0, len(m.removeddiagnostic_runs))
+		for id := range m.removeddiagnostic_runs {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *TenantMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 17)
+	edges := make([]string, 0, 18)
 	if m.clearedusers {
 		edges = append(edges, tenant.EdgeUsers)
 	}
@@ -36141,6 +37448,9 @@ func (m *TenantMutation) ClearedEdges() []string {
 	if m.clearednode_assignments {
 		edges = append(edges, tenant.EdgeNodeAssignments)
 	}
+	if m.cleareddiagnostic_runs {
+		edges = append(edges, tenant.EdgeDiagnosticRuns)
+	}
 	return edges
 }
 
@@ -36182,6 +37492,8 @@ func (m *TenantMutation) EdgeCleared(name string) bool {
 		return m.clearednode_events
 	case tenant.EdgeNodeAssignments:
 		return m.clearednode_assignments
+	case tenant.EdgeDiagnosticRuns:
+		return m.cleareddiagnostic_runs
 	}
 	return false
 }
@@ -36248,6 +37560,9 @@ func (m *TenantMutation) ResetEdge(name string) error {
 		return nil
 	case tenant.EdgeNodeAssignments:
 		m.ResetNodeAssignments()
+		return nil
+	case tenant.EdgeDiagnosticRuns:
+		m.ResetDiagnosticRuns()
 		return nil
 	}
 	return fmt.Errorf("unknown Tenant edge %s", name)

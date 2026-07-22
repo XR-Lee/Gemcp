@@ -20,6 +20,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/auditevent"
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
+	"github.com/XR-Lee/Gemcp/ent/diagnosticrun"
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
@@ -58,6 +59,8 @@ type Client struct {
 	AuditEvent *AuditEventClient
 	// BudgetEntry is the client for interacting with the BudgetEntry builders.
 	BudgetEntry *BudgetEntryClient
+	// DiagnosticRun is the client for interacting with the DiagnosticRun builders.
+	DiagnosticRun *DiagnosticRunClient
 	// Environment is the client for interacting with the Environment builders.
 	Environment *EnvironmentClient
 	// Experiment is the client for interacting with the Experiment builders.
@@ -116,6 +119,7 @@ func (c *Client) init() {
 	c.Attempt = NewAttemptClient(c.config)
 	c.AuditEvent = NewAuditEventClient(c.config)
 	c.BudgetEntry = NewBudgetEntryClient(c.config)
+	c.DiagnosticRun = NewDiagnosticRunClient(c.config)
 	c.Environment = NewEnvironmentClient(c.config)
 	c.Experiment = NewExperimentClient(c.config)
 	c.IdempotencyRecord = NewIdempotencyRecordClient(c.config)
@@ -234,6 +238,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Attempt:             NewAttemptClient(cfg),
 		AuditEvent:          NewAuditEventClient(cfg),
 		BudgetEntry:         NewBudgetEntryClient(cfg),
+		DiagnosticRun:       NewDiagnosticRunClient(cfg),
 		Environment:         NewEnvironmentClient(cfg),
 		Experiment:          NewExperimentClient(cfg),
 		IdempotencyRecord:   NewIdempotencyRecordClient(cfg),
@@ -279,6 +284,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Attempt:             NewAttemptClient(cfg),
 		AuditEvent:          NewAuditEventClient(cfg),
 		BudgetEntry:         NewBudgetEntryClient(cfg),
+		DiagnosticRun:       NewDiagnosticRunClient(cfg),
 		Environment:         NewEnvironmentClient(cfg),
 		Experiment:          NewExperimentClient(cfg),
 		IdempotencyRecord:   NewIdempotencyRecordClient(cfg),
@@ -330,11 +336,12 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.AgentEnrollment, c.AgentToken, c.Attempt, c.AuditEvent, c.BudgetEntry,
-		c.Environment, c.Experiment, c.IdempotencyRecord, c.NodeAssignment,
-		c.NodeCommand, c.NodeEnrollment, c.NodeEvent, c.NodeProjectAccess,
-		c.Notification, c.NotificationSetting, c.Project, c.ProviderAccount,
-		c.ProviderResource, c.RecordMixin, c.Repository, c.ResourceProfile,
-		c.SelfHostedNode, c.ServiceHeartbeat, c.Session, c.Tenant, c.User,
+		c.DiagnosticRun, c.Environment, c.Experiment, c.IdempotencyRecord,
+		c.NodeAssignment, c.NodeCommand, c.NodeEnrollment, c.NodeEvent,
+		c.NodeProjectAccess, c.Notification, c.NotificationSetting, c.Project,
+		c.ProviderAccount, c.ProviderResource, c.RecordMixin, c.Repository,
+		c.ResourceProfile, c.SelfHostedNode, c.ServiceHeartbeat, c.Session, c.Tenant,
+		c.User,
 	} {
 		n.Use(hooks...)
 	}
@@ -345,11 +352,12 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.AgentEnrollment, c.AgentToken, c.Attempt, c.AuditEvent, c.BudgetEntry,
-		c.Environment, c.Experiment, c.IdempotencyRecord, c.NodeAssignment,
-		c.NodeCommand, c.NodeEnrollment, c.NodeEvent, c.NodeProjectAccess,
-		c.Notification, c.NotificationSetting, c.Project, c.ProviderAccount,
-		c.ProviderResource, c.RecordMixin, c.Repository, c.ResourceProfile,
-		c.SelfHostedNode, c.ServiceHeartbeat, c.Session, c.Tenant, c.User,
+		c.DiagnosticRun, c.Environment, c.Experiment, c.IdempotencyRecord,
+		c.NodeAssignment, c.NodeCommand, c.NodeEnrollment, c.NodeEvent,
+		c.NodeProjectAccess, c.Notification, c.NotificationSetting, c.Project,
+		c.ProviderAccount, c.ProviderResource, c.RecordMixin, c.Repository,
+		c.ResourceProfile, c.SelfHostedNode, c.ServiceHeartbeat, c.Session, c.Tenant,
+		c.User,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -368,6 +376,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.AuditEvent.mutate(ctx, m)
 	case *BudgetEntryMutation:
 		return c.BudgetEntry.mutate(ctx, m)
+	case *DiagnosticRunMutation:
+		return c.DiagnosticRun.mutate(ctx, m)
 	case *EnvironmentMutation:
 		return c.Environment.mutate(ctx, m)
 	case *ExperimentMutation:
@@ -1304,6 +1314,187 @@ func (c *BudgetEntryClient) mutate(ctx context.Context, m *BudgetEntryMutation) 
 	}
 }
 
+// DiagnosticRunClient is a client for the DiagnosticRun schema.
+type DiagnosticRunClient struct {
+	config
+}
+
+// NewDiagnosticRunClient returns a client for the DiagnosticRun from the given config.
+func NewDiagnosticRunClient(c config) *DiagnosticRunClient {
+	return &DiagnosticRunClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `diagnosticrun.Hooks(f(g(h())))`.
+func (c *DiagnosticRunClient) Use(hooks ...Hook) {
+	c.hooks.DiagnosticRun = append(c.hooks.DiagnosticRun, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `diagnosticrun.Intercept(f(g(h())))`.
+func (c *DiagnosticRunClient) Intercept(interceptors ...Interceptor) {
+	c.inters.DiagnosticRun = append(c.inters.DiagnosticRun, interceptors...)
+}
+
+// Create returns a builder for creating a DiagnosticRun entity.
+func (c *DiagnosticRunClient) Create() *DiagnosticRunCreate {
+	mutation := newDiagnosticRunMutation(c.config, OpCreate)
+	return &DiagnosticRunCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of DiagnosticRun entities.
+func (c *DiagnosticRunClient) CreateBulk(builders ...*DiagnosticRunCreate) *DiagnosticRunCreateBulk {
+	return &DiagnosticRunCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *DiagnosticRunClient) MapCreateBulk(slice any, setFunc func(*DiagnosticRunCreate, int)) *DiagnosticRunCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &DiagnosticRunCreateBulk{err: fmt.Errorf("calling to DiagnosticRunClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*DiagnosticRunCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &DiagnosticRunCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for DiagnosticRun.
+func (c *DiagnosticRunClient) Update() *DiagnosticRunUpdate {
+	mutation := newDiagnosticRunMutation(c.config, OpUpdate)
+	return &DiagnosticRunUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *DiagnosticRunClient) UpdateOne(_m *DiagnosticRun) *DiagnosticRunUpdateOne {
+	mutation := newDiagnosticRunMutation(c.config, OpUpdateOne, withDiagnosticRun(_m))
+	return &DiagnosticRunUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *DiagnosticRunClient) UpdateOneID(id int) *DiagnosticRunUpdateOne {
+	mutation := newDiagnosticRunMutation(c.config, OpUpdateOne, withDiagnosticRunID(id))
+	return &DiagnosticRunUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for DiagnosticRun.
+func (c *DiagnosticRunClient) Delete() *DiagnosticRunDelete {
+	mutation := newDiagnosticRunMutation(c.config, OpDelete)
+	return &DiagnosticRunDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *DiagnosticRunClient) DeleteOne(_m *DiagnosticRun) *DiagnosticRunDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *DiagnosticRunClient) DeleteOneID(id int) *DiagnosticRunDeleteOne {
+	builder := c.Delete().Where(diagnosticrun.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &DiagnosticRunDeleteOne{builder}
+}
+
+// Query returns a query builder for DiagnosticRun.
+func (c *DiagnosticRunClient) Query() *DiagnosticRunQuery {
+	return &DiagnosticRunQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeDiagnosticRun},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a DiagnosticRun entity by its id.
+func (c *DiagnosticRunClient) Get(ctx context.Context, id int) (*DiagnosticRun, error) {
+	return c.Query().Where(diagnosticrun.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *DiagnosticRunClient) GetX(ctx context.Context, id int) *DiagnosticRun {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTenant queries the tenant edge of a DiagnosticRun.
+func (c *DiagnosticRunClient) QueryTenant(_m *DiagnosticRun) *TenantQuery {
+	query := (&TenantClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(diagnosticrun.Table, diagnosticrun.FieldID, id),
+			sqlgraph.To(tenant.Table, tenant.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, diagnosticrun.TenantTable, diagnosticrun.TenantColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryProject queries the project edge of a DiagnosticRun.
+func (c *DiagnosticRunClient) QueryProject(_m *DiagnosticRun) *ProjectQuery {
+	query := (&ProjectClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(diagnosticrun.Table, diagnosticrun.FieldID, id),
+			sqlgraph.To(project.Table, project.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, diagnosticrun.ProjectTable, diagnosticrun.ProjectColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryExperiment queries the experiment edge of a DiagnosticRun.
+func (c *DiagnosticRunClient) QueryExperiment(_m *DiagnosticRun) *ExperimentQuery {
+	query := (&ExperimentClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(diagnosticrun.Table, diagnosticrun.FieldID, id),
+			sqlgraph.To(experiment.Table, experiment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, true, diagnosticrun.ExperimentTable, diagnosticrun.ExperimentColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *DiagnosticRunClient) Hooks() []Hook {
+	return c.hooks.DiagnosticRun
+}
+
+// Interceptors returns the client interceptors.
+func (c *DiagnosticRunClient) Interceptors() []Interceptor {
+	return c.inters.DiagnosticRun
+}
+
+func (c *DiagnosticRunClient) mutate(ctx context.Context, m *DiagnosticRunMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&DiagnosticRunCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&DiagnosticRunUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&DiagnosticRunUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&DiagnosticRunDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown DiagnosticRun mutation op: %q", m.Op())
+	}
+}
+
 // EnvironmentClient is a client for the Environment schema.
 type EnvironmentClient struct {
 	config
@@ -1746,6 +1937,22 @@ func (c *ExperimentClient) QueryIdempotencyRecords(_m *Experiment) *IdempotencyR
 			sqlgraph.From(experiment.Table, experiment.FieldID, id),
 			sqlgraph.To(idempotencyrecord.Table, idempotencyrecord.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, experiment.IdempotencyRecordsTable, experiment.IdempotencyRecordsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryDiagnosticRun queries the diagnostic_run edge of a Experiment.
+func (c *ExperimentClient) QueryDiagnosticRun(_m *Experiment) *DiagnosticRunQuery {
+	query := (&DiagnosticRunClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(experiment.Table, experiment.FieldID, id),
+			sqlgraph.To(diagnosticrun.Table, diagnosticrun.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, experiment.DiagnosticRunTable, experiment.DiagnosticRunColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -3471,6 +3678,22 @@ func (c *ProjectClient) QueryNodeAssignments(_m *Project) *NodeAssignmentQuery {
 			sqlgraph.From(project.Table, project.FieldID, id),
 			sqlgraph.To(nodeassignment.Table, nodeassignment.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, project.NodeAssignmentsTable, project.NodeAssignmentsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryDiagnosticRuns queries the diagnostic_runs edge of a Project.
+func (c *ProjectClient) QueryDiagnosticRuns(_m *Project) *DiagnosticRunQuery {
+	query := (&DiagnosticRunClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, id),
+			sqlgraph.To(diagnosticrun.Table, diagnosticrun.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.DiagnosticRunsTable, project.DiagnosticRunsColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -5219,6 +5442,22 @@ func (c *TenantClient) QueryNodeAssignments(_m *Tenant) *NodeAssignmentQuery {
 	return query
 }
 
+// QueryDiagnosticRuns queries the diagnostic_runs edge of a Tenant.
+func (c *TenantClient) QueryDiagnosticRuns(_m *Tenant) *DiagnosticRunQuery {
+	query := (&DiagnosticRunClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, id),
+			sqlgraph.To(diagnosticrun.Table, diagnosticrun.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.DiagnosticRunsTable, tenant.DiagnosticRunsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *TenantClient) Hooks() []Hook {
 	return c.hooks.Tenant
@@ -5412,17 +5651,19 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		AgentEnrollment, AgentToken, Attempt, AuditEvent, BudgetEntry, Environment,
-		Experiment, IdempotencyRecord, NodeAssignment, NodeCommand, NodeEnrollment,
-		NodeEvent, NodeProjectAccess, Notification, NotificationSetting, Project,
-		ProviderAccount, ProviderResource, RecordMixin, Repository, ResourceProfile,
-		SelfHostedNode, ServiceHeartbeat, Session, Tenant, User []ent.Hook
+		AgentEnrollment, AgentToken, Attempt, AuditEvent, BudgetEntry, DiagnosticRun,
+		Environment, Experiment, IdempotencyRecord, NodeAssignment, NodeCommand,
+		NodeEnrollment, NodeEvent, NodeProjectAccess, Notification,
+		NotificationSetting, Project, ProviderAccount, ProviderResource, RecordMixin,
+		Repository, ResourceProfile, SelfHostedNode, ServiceHeartbeat, Session, Tenant,
+		User []ent.Hook
 	}
 	inters struct {
-		AgentEnrollment, AgentToken, Attempt, AuditEvent, BudgetEntry, Environment,
-		Experiment, IdempotencyRecord, NodeAssignment, NodeCommand, NodeEnrollment,
-		NodeEvent, NodeProjectAccess, Notification, NotificationSetting, Project,
-		ProviderAccount, ProviderResource, RecordMixin, Repository, ResourceProfile,
-		SelfHostedNode, ServiceHeartbeat, Session, Tenant, User []ent.Interceptor
+		AgentEnrollment, AgentToken, Attempt, AuditEvent, BudgetEntry, DiagnosticRun,
+		Environment, Experiment, IdempotencyRecord, NodeAssignment, NodeCommand,
+		NodeEnrollment, NodeEvent, NodeProjectAccess, Notification,
+		NotificationSetting, Project, ProviderAccount, ProviderResource, RecordMixin,
+		Repository, ResourceProfile, SelfHostedNode, ServiceHeartbeat, Session, Tenant,
+		User []ent.Interceptor
 	}
 )

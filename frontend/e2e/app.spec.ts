@@ -209,6 +209,77 @@ const financeDashboard = {
     target_type: 'budget_entry', target_id: 'budget-credit-1', created_at: '2026-07-17T02:00:00Z',
   }],
 }
+const diagnosticOptions = {
+  suites: [
+    { id: 'gpu_connectivity', name: 'GPU connectivity', description: 'Verify GPU visibility and driver access.', runtime_seconds: 180 },
+    { id: 'pytorch_cuda', name: 'PyTorch CUDA compute', description: 'Run a CUDA tensor operation through PyTorch.', runtime_seconds: 300 },
+  ],
+  repositories: [{ id: repositories[0].id, name: repositories[0].name, default_branch: 'main' }],
+  environments: [{ id: 'environment-id', name: 'torch-cuda11.8', backend: 'autodl_private', image_uuid: 'base-image-1', status: 'approved' }],
+  resource_profiles: [{ id: 'profile-id', name: 'one-rtx-3090', backend: 'autodl_private', gpu_names: ['NVIDIA GeForce RTX 3090'], gpu_num: 1, price_to_milli: 1000, status: 'active' }],
+}
+const diagnosticPreflight = {
+  eligible: true, requires_confirmation: true, generated_at: '2026-07-17T02:05:00Z',
+  confirmation_digest: `sha256:${'d'.repeat(64)}`,
+  checks: [
+    { id: 'scheduler', status: 'pass', summary: 'Scheduler is healthy', detail: 'Global concurrency is 2.' },
+    { id: 'watchdog', status: 'pass', summary: 'Watchdog is healthy' },
+    { id: 'source_archive', status: 'pass', summary: 'Commit archive is readable and safe', detail: '495 entries, 966 compressed bytes, 1,024 payload bytes.' },
+    { id: 'gpu_capacity', status: 'pass', summary: 'Selected AutoDL GPU capacity is available', detail: 'NVIDIA GeForce RTX 3090: 2 idle' },
+    { id: 'budget', status: 'pass', summary: 'Project budget can reserve the diagnostic' },
+  ],
+  proposal: {
+    backend: 'autodl_private', suite: 'gpu_connectivity', repository_id: repositories[0].id,
+    environment_id: 'environment-id', resource_profile_id: 'profile-id',
+    commit_sha: '0123456789012345678901234567890123456789', command: 'nvidia-smi --query-gpu=name,uuid --format=csv,noheader',
+    image_uuid: 'base-image-1', gpu_models: ['NVIDIA GeForce RTX 3090'], gpu_num: 1,
+    runtime_seconds: 180, termination_grace_seconds: 30, reserved_cost_milli: 234, billable: true,
+    region: 'private', cuda_from: 118, cuda_to: 118, cpu_from: 1, cpu_to: 8,
+    memory_from_gb: 1, memory_to_gb: 32, price_from_milli: 500, price_to_milli: 1000, reuse_container: false,
+  },
+}
+const completedDiagnostic = {
+  id: 'diagnostic-complete-1', project_id: project.id, backend: 'autodl_private', suite: 'gpu_connectivity', requested_by: 'owner-id',
+  preflight: diagnosticPreflight,
+  experiment: {
+    ...experiments[1], id: 'diagnostic-experiment-complete', state: 'succeeded', desired_state: 'running',
+    failure_code: undefined, failure_reason: undefined, exit_code: 0, estimated_cost_milli: 80,
+    metrics: { diagnostic_passed: true, gpu_count: 1, expected_gpu_count: 1 },
+    runner_source_downloads: 1, runner_stage: 'started', runner_stage_updated_at: '2026-07-17T02:06:10Z',
+    created_at: '2026-07-17T02:05:00Z', updated_at: '2026-07-17T02:07:00Z', finished_at: '2026-07-17T02:07:00Z',
+  },
+  assessment: { status: 'passed', classification: 'diagnostic_passed', summary: 'GPU diagnostic completed successfully.', cleanup_complete: true },
+  attempts: [{
+    id: 'diagnostic-attempt-complete', number: 1, state: 'succeeded', source_downloads: 1, exit_code: 0,
+    log_tail: 'NVIDIA GeForce RTX 3090, GPU-test\n', metrics: { diagnostic_passed: true, gpu_count: 1, expected_gpu_count: 1 },
+    started_at: '2026-07-17T02:06:10Z', finished_at: '2026-07-17T02:06:14Z',
+  }],
+  backend_observation: { kind: 'autodl_private', id: 'diagnostic-resource-1', state: 'deleted', status: 'removed', stop_reason: 'experiment_terminal', finished_at: '2026-07-17T02:07:00Z' },
+  timeline: [
+    { at: '2026-07-17T02:05:00Z', code: 'diagnostic_submitted' },
+    { at: '2026-07-17T02:06:10Z', code: 'runner.bootstrap_stage', detail: 'started' },
+    { at: '2026-07-17T02:07:00Z', code: 'experiment_terminal', detail: 'succeeded' },
+  ],
+  created_at: '2026-07-17T02:05:00Z', updated_at: '2026-07-17T02:07:00Z',
+}
+const queuedDiagnostic = {
+  ...completedDiagnostic, id: 'diagnostic-queued-1',
+  experiment: {
+    ...completedDiagnostic.experiment, id: 'diagnostic-experiment-queued', state: 'queued', runner_source_downloads: undefined,
+    runner_stage: undefined, runner_stage_updated_at: undefined, exit_code: undefined, finished_at: undefined,
+    estimated_cost_milli: 0, created_at: '2026-07-17T02:10:00Z', updated_at: '2026-07-17T02:10:00Z',
+  },
+  assessment: { status: 'running', classification: 'waiting_for_scheduler', summary: 'Diagnostic is queued for an execution slot.', cleanup_complete: false },
+  attempts: [], backend_observation: undefined,
+  timeline: [{ at: '2026-07-17T02:10:00Z', code: 'diagnostic_submitted' }],
+  created_at: '2026-07-17T02:10:00Z', updated_at: '2026-07-17T02:10:00Z',
+}
+const cancelledDiagnostic = {
+  ...queuedDiagnostic,
+  experiment: { ...queuedDiagnostic.experiment, state: 'cancelled', desired_state: 'cancelled', finished_at: '2026-07-17T02:10:05Z' },
+  assessment: { status: 'failed', classification: 'cancelled', summary: 'Diagnostic was cancelled.', cleanup_complete: true },
+  timeline: [...queuedDiagnostic.timeline, { at: '2026-07-17T02:10:05Z', code: 'experiment_terminal', detail: 'cancelled' }],
+}
 
 async function fulfill(route: Route, data: unknown, status = 200) {
   await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(status >= 400 ? data : { data }) })
@@ -234,6 +305,7 @@ async function mockLogin(page: Page) {
 }
 
 async function mockConsole(page: Page, counters?: { providerQueries: number; selfHosted?: boolean }) {
+  let submittedDiagnostic: typeof queuedDiagnostic | typeof cancelledDiagnostic = queuedDiagnostic
   await page.route('**/docs/*.md', async (route) => {
     const path = new URL(route.request().url()).pathname
     const body = path.endsWith('/agent-mcp.md')
@@ -291,6 +363,32 @@ async function mockConsole(page: Page, counters?: { providerQueries: number; sel
       ],
     })
     if (path === '/api/v1/projects') return fulfill(route, [project])
+    if (path === `/api/v1/projects/${project.id}/diagnostics/options`) return fulfill(route, diagnosticOptions)
+    if (path === `/api/v1/projects/${project.id}/diagnostics/preflight` && route.request().method() === 'POST') {
+      expect(route.request().postDataJSON()).toMatchObject({
+        backend: 'autodl_private', suite: 'gpu_connectivity', repository_id: repositories[0].id,
+        environment_id: 'environment-id', resource_profile_id: 'profile-id', commit_sha: diagnosticPreflight.proposal.commit_sha,
+      })
+      return fulfill(route, diagnosticPreflight)
+    }
+    if (path === `/api/v1/projects/${project.id}/diagnostics` && route.request().method() === 'POST') {
+      expect(route.request().postDataJSON()).toMatchObject({
+        confirmed: true, confirmation_digest: diagnosticPreflight.confirmation_digest,
+        backend: 'autodl_private', suite: 'gpu_connectivity',
+      })
+      expect(route.request().postDataJSON().idempotency_key).toMatch(/^diagnostic-/)
+      submittedDiagnostic = queuedDiagnostic
+      return fulfill(route, { run: queuedDiagnostic, idempotent: false }, 201)
+    }
+    if (path === `/api/v1/projects/${project.id}/diagnostics` && route.request().method() === 'GET') {
+      return fulfill(route, { runs: [completedDiagnostic] })
+    }
+    if (path === `/api/v1/projects/${project.id}/diagnostics/${completedDiagnostic.id}`) return fulfill(route, completedDiagnostic)
+    if (path === `/api/v1/projects/${project.id}/diagnostics/${queuedDiagnostic.id}/cancel` && route.request().method() === 'POST') {
+      submittedDiagnostic = cancelledDiagnostic
+      return fulfill(route, cancelledDiagnostic)
+    }
+    if (path === `/api/v1/projects/${project.id}/diagnostics/${queuedDiagnostic.id}`) return fulfill(route, submittedDiagnostic)
     if (path === `/api/v1/projects/${project.id}/agent-tokens` && route.request().method() === 'GET') return fulfill(route, agentTokenList)
     if (path === `/api/v1/projects/${project.id}/agent-enrollments` && route.request().method() === 'POST') {
       expect(route.request().postDataJSON()).toEqual({
@@ -408,6 +506,42 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await page.screenshot({ path: '/tmp/gemcp-experiment-detail.png', fullPage: true })
 })
 
+test('backend diagnostics preflight, execution analysis and cancellation fit desktop and mobile', async ({ page }) => {
+  await mockConsole(page)
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Diagnostics', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Backend diagnostics' })).toBeVisible()
+  await expect(page.getByRole('row').filter({ hasText: 'Passed' })).toBeVisible()
+
+  await page.getByRole('row').filter({ hasText: 'Passed' }).click()
+  await expect(page.getByText('diagnostic_passed', { exact: true })).toBeVisible()
+  await expect(page.getByText('NVIDIA GeForce RTX 3090, GPU-test', { exact: false })).toBeVisible()
+
+  await page.getByLabel('Commit SHA').fill(diagnosticPreflight.proposal.commit_sha)
+  await page.getByRole('button', { name: 'Run preflight' }).click()
+  await expect(page.getByText('Preflight passed', { exact: true })).toBeVisible()
+  await expect(page.getByText('CNY 0.234', { exact: true })).toBeVisible()
+  await expect(page.getByText(diagnosticPreflight.confirmation_digest, { exact: true })).toBeVisible()
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: '/tmp/gemcp-diagnostics-preflight-desktop.png', fullPage: true })
+
+  await page.getByRole('checkbox').check()
+  await page.getByRole('button', { name: 'Start diagnostic' }).click()
+  await expect(page.getByText('waiting_for_scheduler', { exact: true })).toBeVisible()
+  await page.getByTitle('Cancel diagnostic').click()
+  const cancelDialog = page.getByRole('alertdialog', { name: 'Cancel diagnostic' })
+  await expect(cancelDialog).toBeVisible()
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: '/tmp/gemcp-diagnostics-cancel-desktop.png', fullPage: true })
+  await cancelDialog.getByRole('button', { name: 'Cancel diagnostic' }).click()
+  await expect(page.locator('.assessment-band strong')).toHaveText('cancelled')
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: '/tmp/gemcp-diagnostics-mobile.png', fullPage: true })
+})
+
 test('Owner finance analytics and budget adjustments fit desktop and mobile', async ({ page }) => {
   await mockConsole(page)
   await page.setViewportSize({ width: 1440, height: 1000 })
@@ -470,6 +604,12 @@ test('global language toggle switches immediately and persists', async ({ page }
   await expect(page.locator('.notification-heading h2')).toHaveText('关键通知')
   await page.getByRole('button', { name: '财务', exact: true }).click()
   await expect(page.locator('.finance-heading h1')).toHaveText('预算与账本')
+  await page.getByRole('button', { name: '诊断', exact: true }).click()
+  await expect(page.getByRole('heading', { name: '后端诊断', exact: true })).toBeVisible()
+  await expect(page.getByText('GPU 连通性', { exact: true }).first()).toBeVisible()
+  await page.getByLabel('Commit SHA').fill(diagnosticPreflight.proposal.commit_sha)
+  await page.getByRole('button', { name: '运行预检' }).click()
+  await expect(page.getByText('Project 预算可预留本次诊断', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: '概览', exact: true }).click()
 
   await page.setViewportSize({ width: 390, height: 844 })

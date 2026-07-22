@@ -149,6 +149,29 @@ func TestRunnerEndpointsRequireBearerAndDisableCaching(t *testing.T) {
 	}
 }
 
+func TestDiagnosticEndpointsRequireOwnerSession(t *testing.T) {
+	for _, test := range []struct {
+		method string
+		path   string
+	}{
+		{method: http.MethodGet, path: "/api/v1/projects/project-id/diagnostics/options"},
+		{method: http.MethodPost, path: "/api/v1/projects/project-id/diagnostics/preflight"},
+		{method: http.MethodGet, path: "/api/v1/projects/project-id/diagnostics"},
+		{method: http.MethodPost, path: "/api/v1/projects/project-id/diagnostics"},
+		{method: http.MethodGet, path: "/api/v1/projects/project-id/diagnostics/run-id"},
+		{method: http.MethodPost, path: "/api/v1/projects/project-id/diagnostics/run-id/cancel"},
+	} {
+		response := httptest.NewRecorder()
+		testServer(fakeDatabase{}).ServeHTTP(response, httptest.NewRequest(test.method, test.path, nil))
+		if response.Code != http.StatusUnauthorized || !containsAll(response.Body.String(), "UNAUTHENTICATED") {
+			t.Fatalf("%s %s status=%d body=%s", test.method, test.path, response.Code, response.Body.String())
+		}
+		if got := response.Header().Get("Cache-Control"); got != "no-store" {
+			t.Fatalf("%s %s Cache-Control=%q", test.method, test.path, got)
+		}
+	}
+}
+
 func containsAll(value string, parts ...string) bool {
 	for _, part := range parts {
 		found := false

@@ -270,6 +270,60 @@ var (
 			},
 		},
 	}
+	// DiagnosticRunsColumns holds the columns for the "diagnostic_runs" table.
+	DiagnosticRunsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "public_id", Type: field.TypeUUID, Unique: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "backend", Type: field.TypeEnum, Enums: []string{"autodl_private", "self_hosted"}},
+		{Name: "suite", Type: field.TypeEnum, Enums: []string{"gpu_connectivity", "pytorch_cuda"}},
+		{Name: "requested_by", Type: field.TypeString, Size: 120},
+		{Name: "idempotency_key_hash", Type: field.TypeBytes},
+		{Name: "request_fingerprint", Type: field.TypeBytes},
+		{Name: "preflight", Type: field.TypeJSON},
+		{Name: "experiment_id", Type: field.TypeInt, Unique: true},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "tenant_id", Type: field.TypeInt},
+	}
+	// DiagnosticRunsTable holds the schema information for the "diagnostic_runs" table.
+	DiagnosticRunsTable = &schema.Table{
+		Name:       "diagnostic_runs",
+		Columns:    DiagnosticRunsColumns,
+		PrimaryKey: []*schema.Column{DiagnosticRunsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "diagnostic_runs_experiments_diagnostic_run",
+				Columns:    []*schema.Column{DiagnosticRunsColumns[10]},
+				RefColumns: []*schema.Column{ExperimentsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "diagnostic_runs_projects_diagnostic_runs",
+				Columns:    []*schema.Column{DiagnosticRunsColumns[11]},
+				RefColumns: []*schema.Column{ProjectsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "diagnostic_runs_tenants_diagnostic_runs",
+				Columns:    []*schema.Column{DiagnosticRunsColumns[12]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "diagnosticrun_project_id_idempotency_key_hash",
+				Unique:  true,
+				Columns: []*schema.Column{DiagnosticRunsColumns[11], DiagnosticRunsColumns[7]},
+			},
+			{
+				Name:    "diagnosticrun_project_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{DiagnosticRunsColumns[11], DiagnosticRunsColumns[2]},
+			},
+		},
+	}
 	// EnvironmentsColumns holds the columns for the "environments" table.
 	EnvironmentsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -346,7 +400,7 @@ var (
 		{Name: "lease_expires_at", Type: field.TypeTime, Nullable: true},
 		{Name: "lease_owner", Type: field.TypeString, Nullable: true, Size: 255},
 		{Name: "next_attempt_at", Type: field.TypeTime},
-		{Name: "agent_token_id", Type: field.TypeInt},
+		{Name: "agent_token_id", Type: field.TypeInt, Nullable: true},
 		{Name: "environment_id", Type: field.TypeInt},
 		{Name: "project_id", Type: field.TypeInt},
 		{Name: "repository_id", Type: field.TypeInt},
@@ -363,7 +417,7 @@ var (
 				Symbol:     "experiments_agent_tokens_experiments",
 				Columns:    []*schema.Column{ExperimentsColumns[34]},
 				RefColumns: []*schema.Column{AgentTokensColumns[0]},
-				OnDelete:   schema.NoAction,
+				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "experiments_environments_experiments",
@@ -1309,6 +1363,7 @@ var (
 		AttemptsTable,
 		AuditEventsTable,
 		BudgetEntriesTable,
+		DiagnosticRunsTable,
 		EnvironmentsTable,
 		ExperimentsTable,
 		IdempotencyRecordsTable,
@@ -1344,6 +1399,9 @@ func init() {
 	BudgetEntriesTable.ForeignKeys[0].RefTable = ExperimentsTable
 	BudgetEntriesTable.ForeignKeys[1].RefTable = ProjectsTable
 	BudgetEntriesTable.ForeignKeys[2].RefTable = TenantsTable
+	DiagnosticRunsTable.ForeignKeys[0].RefTable = ExperimentsTable
+	DiagnosticRunsTable.ForeignKeys[1].RefTable = ProjectsTable
+	DiagnosticRunsTable.ForeignKeys[2].RefTable = TenantsTable
 	EnvironmentsTable.ForeignKeys[0].RefTable = ProjectsTable
 	ExperimentsTable.ForeignKeys[0].RefTable = AgentTokensTable
 	ExperimentsTable.ForeignKeys[1].RefTable = EnvironmentsTable

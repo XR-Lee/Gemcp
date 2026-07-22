@@ -59,6 +59,8 @@ const (
 	EdgeNodeEvents = "node_events"
 	// EdgeNodeAssignments holds the string denoting the node_assignments edge name in mutations.
 	EdgeNodeAssignments = "node_assignments"
+	// EdgeDiagnosticRuns holds the string denoting the diagnostic_runs edge name in mutations.
+	EdgeDiagnosticRuns = "diagnostic_runs"
 	// Table holds the table name of the tenant in the database.
 	Table = "tenants"
 	// UsersTable is the table that holds the users relation/edge.
@@ -180,6 +182,13 @@ const (
 	NodeAssignmentsInverseTable = "node_assignments"
 	// NodeAssignmentsColumn is the table column denoting the node_assignments relation/edge.
 	NodeAssignmentsColumn = "tenant_id"
+	// DiagnosticRunsTable is the table that holds the diagnostic_runs relation/edge.
+	DiagnosticRunsTable = "diagnostic_runs"
+	// DiagnosticRunsInverseTable is the table name for the DiagnosticRun entity.
+	// It exists in this package in order to avoid circular dependency with the "diagnosticrun" package.
+	DiagnosticRunsInverseTable = "diagnostic_runs"
+	// DiagnosticRunsColumn is the table column denoting the diagnostic_runs relation/edge.
+	DiagnosticRunsColumn = "tenant_id"
 )
 
 // Columns holds all SQL columns for tenant fields.
@@ -489,6 +498,20 @@ func ByNodeAssignments(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newNodeAssignmentsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByDiagnosticRunsCount orders the results by diagnostic_runs count.
+func ByDiagnosticRunsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newDiagnosticRunsStep(), opts...)
+	}
+}
+
+// ByDiagnosticRuns orders the results by diagnostic_runs terms.
+func ByDiagnosticRuns(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newDiagnosticRunsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newUsersStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -606,5 +629,12 @@ func newNodeAssignmentsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(NodeAssignmentsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, NodeAssignmentsTable, NodeAssignmentsColumn),
+	)
+}
+func newDiagnosticRunsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(DiagnosticRunsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, DiagnosticRunsTable, DiagnosticRunsColumn),
 	)
 }

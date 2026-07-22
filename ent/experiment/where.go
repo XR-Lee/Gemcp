@@ -406,6 +406,16 @@ func AgentTokenIDNotIn(vs ...int) predicate.Experiment {
 	return predicate.Experiment(sql.FieldNotIn(FieldAgentTokenID, vs...))
 }
 
+// AgentTokenIDIsNil applies the IsNil predicate on the "agent_token_id" field.
+func AgentTokenIDIsNil() predicate.Experiment {
+	return predicate.Experiment(sql.FieldIsNull(FieldAgentTokenID))
+}
+
+// AgentTokenIDNotNil applies the NotNil predicate on the "agent_token_id" field.
+func AgentTokenIDNotNil() predicate.Experiment {
+	return predicate.Experiment(sql.FieldNotNull(FieldAgentTokenID))
+}
+
 // RepositoryIDEQ applies the EQ predicate on the "repository_id" field.
 func RepositoryIDEQ(v int) predicate.Experiment {
 	return predicate.Experiment(sql.FieldEQ(FieldRepositoryID, v))
@@ -2126,6 +2136,29 @@ func HasIdempotencyRecords() predicate.Experiment {
 func HasIdempotencyRecordsWith(preds ...predicate.IdempotencyRecord) predicate.Experiment {
 	return predicate.Experiment(func(s *sql.Selector) {
 		step := newIdempotencyRecordsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasDiagnosticRun applies the HasEdge predicate on the "diagnostic_run" edge.
+func HasDiagnosticRun() predicate.Experiment {
+	return predicate.Experiment(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, DiagnosticRunTable, DiagnosticRunColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasDiagnosticRunWith applies the HasEdge predicate on the "diagnostic_run" edge with a given conditions (other predicates).
+func HasDiagnosticRunWith(preds ...predicate.DiagnosticRun) predicate.Experiment {
+	return predicate.Experiment(func(s *sql.Selector) {
+		step := newDiagnosticRunStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

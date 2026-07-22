@@ -214,4 +214,36 @@ describe('API security headers', () => {
     const headers = options.headers as Headers
     expect(headers.get('X-CSRF-Token')).toBe('csrf-test-token')
   })
+
+  it('protects diagnostic preflight, submission and cancellation with CSRF', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true, status: 200, json: async () => ({ data: {} }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    setCSRFToken('csrf-diagnostic')
+    const proposal = {
+      backend: 'autodl_private' as const, suite: 'gpu_connectivity' as const,
+      repository_id: 'repository/id', environment_id: 'environment/id', resource_profile_id: 'profile/id',
+      commit_sha: 'a'.repeat(40),
+    }
+
+    await api.diagnosticPreflight('project/id', proposal)
+    await api.submitDiagnostic('project/id', {
+      ...proposal, idempotency_key: 'diagnostic-test-key', confirmation_digest: `sha256:${'b'.repeat(64)}`, confirmed: true,
+    })
+    await api.cancelDiagnostic('project/id', 'run/id')
+
+    expect(fetchMock.mock.calls.map(([path]) => path)).toEqual([
+      '/api/v1/projects/project%2Fid/diagnostics/preflight',
+      '/api/v1/projects/project%2Fid/diagnostics',
+      '/api/v1/projects/project%2Fid/diagnostics/run%2Fid/cancel',
+    ])
+    for (const [, options] of fetchMock.mock.calls) {
+      expect(options.method).toBe('POST')
+      expect((options.headers as Headers).get('X-CSRF-Token')).toBe('csrf-diagnostic')
+    }
+    expect(JSON.parse(String(fetchMock.mock.calls[1][1].body))).toMatchObject({
+      confirmed: true, idempotency_key: 'diagnostic-test-key', confirmation_digest: `sha256:${'b'.repeat(64)}`,
+    })
+  })
 })

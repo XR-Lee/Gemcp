@@ -992,6 +992,29 @@ func HasNodeAssignmentsWith(preds ...predicate.NodeAssignment) predicate.Project
 	})
 }
 
+// HasDiagnosticRuns applies the HasEdge predicate on the "diagnostic_runs" edge.
+func HasDiagnosticRuns() predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, DiagnosticRunsTable, DiagnosticRunsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasDiagnosticRunsWith applies the HasEdge predicate on the "diagnostic_runs" edge with a given conditions (other predicates).
+func HasDiagnosticRunsWith(preds ...predicate.DiagnosticRun) predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := newDiagnosticRunsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.Project) predicate.Project {
 	return predicate.Project(sql.AndPredicates(predicates...))

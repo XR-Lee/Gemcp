@@ -2,6 +2,7 @@ package experiment
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"github.com/XR-Lee/Gemcp/ent"
@@ -25,6 +26,28 @@ func (s *Service) OwnerGet(ctx context.Context, tenantID int, projectPublicID, e
 		return View{}, err
 	}
 	return s.Get(ctx, principal, experimentPublicID)
+}
+
+func (s *Service) OwnerCancel(ctx context.Context, tenantID int, actorID, projectPublicID, experimentPublicID string) (View, error) {
+	principal, err := s.ownerPrincipal(ctx, tenantID, projectPublicID)
+	if err != nil {
+		return View{}, err
+	}
+	publicID, err := uuid.Parse(strings.TrimSpace(experimentPublicID))
+	if err != nil {
+		return View{}, ErrNotFound
+	}
+	for attempt := 0; attempt < 3; attempt++ {
+		view, cancelErr := s.cancelOnce(ctx, principal, publicID, "user", strings.TrimSpace(actorID))
+		if cancelErr == nil {
+			return view, nil
+		}
+		if !isRetryableTransaction(cancelErr) && !errors.Is(cancelErr, errStateChanged) {
+			return View{}, cancelErr
+		}
+		err = cancelErr
+	}
+	return View{}, err
 }
 
 func (s *Service) OwnerAttempts(ctx context.Context, tenantID int, projectPublicID, experimentPublicID string) ([]AttemptView, error) {

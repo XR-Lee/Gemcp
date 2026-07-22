@@ -78,6 +78,12 @@ Gemcp never automatically deletes durable output. `list_artifacts` reports Runne
 
 Approved images must provide the AutoDL `/root/miniconda3/bin/python3` link, `/usr/bin/base64`, and TLS root certificates.
 
+## Backend diagnostics
+
+The Owner Diagnostics workspace creates real Experiments for fixed `gpu_connectivity` and `pytorch_cuda` suites. It does not bypass source delivery, FIFO scheduling, concurrency, Runner callbacks, Node Commands, deadlines, settlement, cancellation, or managed cleanup. AutoDL diagnostics disable stopped-container reuse and require explicit confirmation of the displayed paid reservation. Self-hosted diagnostics use the selected digest-pinned OCI runtime and a zero-CNY reservation.
+
+Preflight checks runtime health, active and queued concurrency, exact commit archive safety, current budget, backend capacity, image policy, and callback/cleanup prerequisites. A proposal digest binds confirmation to execution-relevant repository, image, resource, command, runtime, and cost fields. The service reruns preflight and compares that digest again inside the creation transaction, rejecting configuration drift. Read [Backend diagnostics](diagnostics.md) for result interpretation and API details.
+
 ## Deadline enforcement
 
 Three layers protect shutdown:

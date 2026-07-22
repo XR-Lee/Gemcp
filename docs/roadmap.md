@@ -100,6 +100,10 @@ Extend the bounded AutoDL runtime-prerequisite wait to five minutes, retry only 
 
 Retry transiently interrupted source bodies from a clean temporary file and retry the idempotent first `started` callback within the remaining provisioning window. Persist a controlled Bootstrap-stage vocabulary in the immutable audit log and expose the latest stage through Agent and Owner Experiment details. Preserve non-retryable HTTP and redirect behavior, enforce the existing source-download cap, execute the workload at most once, and clean up immediately when Bootstrap reports a terminal pre-execution failure.
 
+### v0.12.0 - backend diagnostics
+
+Add an Owner-only Diagnostics workspace with fixed GPU-connectivity and PyTorch-CUDA suites for AutoDL and Self-hosted backends. Run diagnostics through normal immutable Experiments, Attempts, source delivery, callbacks, output collection, settlement, cancellation, and cleanup. Gate dispatch on bounded preflight, explicit paid confirmation, a drift-protected proposal digest, Project-scoped hashed idempotency, and cleanup-aware result assessment.
+
 ## Further validation
 
 The following items still require the target environment or newly authorized paid resources:
@@ -111,6 +115,7 @@ The following items still require the target environment or newly authorized pai
 - Operational estimates against the Provider console, including whether `in_cache` containers are billed.
 - SMTP deliverability through the selected production relay.
 - Concurrent scheduling, GPU binding, Docker and daemon restart recovery, external GPU occupancy, node loss, and retry behavior across two physical Self-hosted NVIDIA machines.
+- The fixed diagnostic suites on a paid AutoDL deployment and each authorized physical Self-hosted Node.
 
 ## Later increments
 

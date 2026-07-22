@@ -36,5 +36,6 @@ func (Tenant) Edges() []ent.Edge {
 		edge.To("node_commands", NodeCommand.Type),
 		edge.To("node_events", NodeEvent.Type),
 		edge.To("node_assignments", NodeAssignment.Type),
+		edge.To("diagnostic_runs", DiagnosticRun.Type),
 	}
 }

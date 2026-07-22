@@ -7,6 +7,7 @@ Gemcp is a private single-organization service. The initial data model remains t
 The control plane owns:
 
 - Human configuration and audit through Web.
+- Owner-confirmed, fixed-suite backend diagnostics through the normal Experiment lifecycle.
 - Agent authentication and experiment operations through MCP.
 - Project policy, budget reservation, and cost estimates.
 - Provider reconciliation and resource ownership.
@@ -30,7 +31,7 @@ The FIFO scheduler runs in the controlplane process only when explicitly enabled
 
 PostgreSQL is authoritative for identity, configuration, experiments, attempts, reservations, provider resources, idempotency records, audit events, and leases. In-memory queues may wake workers but never own job state.
 
-A submitted experiment is immutable. Submission verifies a full Git commit SHA before a serializable transaction creates the experiment, budget reservation, Token-scoped idempotency record, and audit event. Infrastructure retries create attempts under the same experiment. A manual rerun creates a new experiment.
+A submitted experiment is immutable. Agent submission verifies a full Git commit SHA before a serializable transaction creates the experiment, budget reservation, Token-scoped idempotency record, and audit event. Owner diagnostics create the same immutable Experiment without fabricating Agent Token attribution; a linked `DiagnosticRun` stores only hashed idempotency material, the fixed suite, Owner identity, and the confirmed preflight snapshot. Infrastructure retries create attempts under the same experiment. A manual rerun creates a new experiment.
 
 The remote MCP endpoint uses the official Go SDK's Streamable HTTP transport. Agent Bearer Tokens are checked against PostgreSQL for each request, and MCP sessions are bound to the authenticated Token identity. Owner-only APIs issue project credentials with bounded scopes and optional expiry, return plaintext once, and generate the canonical MCP URL only from `GEMCP_PUBLIC_URL`.
 

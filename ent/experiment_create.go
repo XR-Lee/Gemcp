@@ -13,6 +13,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/agenttoken"
 	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
+	"github.com/XR-Lee/Gemcp/ent/diagnosticrun"
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
@@ -89,6 +90,14 @@ func (_c *ExperimentCreate) SetProjectID(v int) *ExperimentCreate {
 // SetAgentTokenID sets the "agent_token_id" field.
 func (_c *ExperimentCreate) SetAgentTokenID(v int) *ExperimentCreate {
 	_c.mutation.SetAgentTokenID(v)
+	return _c
+}
+
+// SetNillableAgentTokenID sets the "agent_token_id" field if the given value is not nil.
+func (_c *ExperimentCreate) SetNillableAgentTokenID(v *int) *ExperimentCreate {
+	if v != nil {
+		_c.SetAgentTokenID(*v)
+	}
 	return _c
 }
 
@@ -539,6 +548,25 @@ func (_c *ExperimentCreate) AddIdempotencyRecords(v ...*IdempotencyRecord) *Expe
 	return _c.AddIdempotencyRecordIDs(ids...)
 }
 
+// SetDiagnosticRunID sets the "diagnostic_run" edge to the DiagnosticRun entity by ID.
+func (_c *ExperimentCreate) SetDiagnosticRunID(id int) *ExperimentCreate {
+	_c.mutation.SetDiagnosticRunID(id)
+	return _c
+}
+
+// SetNillableDiagnosticRunID sets the "diagnostic_run" edge to the DiagnosticRun entity by ID if the given value is not nil.
+func (_c *ExperimentCreate) SetNillableDiagnosticRunID(id *int) *ExperimentCreate {
+	if id != nil {
+		_c = _c.SetDiagnosticRunID(*id)
+	}
+	return _c
+}
+
+// SetDiagnosticRun sets the "diagnostic_run" edge to the DiagnosticRun entity.
+func (_c *ExperimentCreate) SetDiagnosticRun(v *DiagnosticRun) *ExperimentCreate {
+	return _c.SetDiagnosticRunID(v.ID)
+}
+
 // Mutation returns the ExperimentMutation object of the builder.
 func (_c *ExperimentCreate) Mutation() *ExperimentMutation {
 	return _c.mutation
@@ -628,9 +656,6 @@ func (_c *ExperimentCreate) check() error {
 	}
 	if _, ok := _c.mutation.ProjectID(); !ok {
 		return &ValidationError{Name: "project_id", err: errors.New(`ent: missing required field "Experiment.project_id"`)}
-	}
-	if _, ok := _c.mutation.AgentTokenID(); !ok {
-		return &ValidationError{Name: "agent_token_id", err: errors.New(`ent: missing required field "Experiment.agent_token_id"`)}
 	}
 	if _, ok := _c.mutation.RepositoryID(); !ok {
 		return &ValidationError{Name: "repository_id", err: errors.New(`ent: missing required field "Experiment.repository_id"`)}
@@ -759,9 +784,6 @@ func (_c *ExperimentCreate) check() error {
 	}
 	if len(_c.mutation.ProjectIDs()) == 0 {
 		return &ValidationError{Name: "project", err: errors.New(`ent: missing required edge "Experiment.project"`)}
-	}
-	if len(_c.mutation.AgentTokenIDs()) == 0 {
-		return &ValidationError{Name: "agent_token", err: errors.New(`ent: missing required edge "Experiment.agent_token"`)}
 	}
 	if len(_c.mutation.RepositoryIDs()) == 0 {
 		return &ValidationError{Name: "repository", err: errors.New(`ent: missing required edge "Experiment.repository"`)}
@@ -978,7 +1000,7 @@ func (_c *ExperimentCreate) createSpec() (*Experiment, *sqlgraph.CreateSpec) {
 		for _, k := range nodes {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.AgentTokenID = nodes[0]
+		_node.AgentTokenID = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	if nodes := _c.mutation.RepositoryIDs(); len(nodes) > 0 {
@@ -1105,6 +1127,22 @@ func (_c *ExperimentCreate) createSpec() (*Experiment, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(idempotencyrecord.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.DiagnosticRunIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   experiment.DiagnosticRunTable,
+			Columns: []string{experiment.DiagnosticRunColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(diagnosticrun.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

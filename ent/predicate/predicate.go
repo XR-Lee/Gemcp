@@ -21,6 +21,9 @@ type AuditEvent func(*sql.Selector)
 // BudgetEntry is the predicate function for budgetentry builders.
 type BudgetEntry func(*sql.Selector)
 
+// DiagnosticRun is the predicate function for diagnosticrun builders.
+type DiagnosticRun func(*sql.Selector)
+
 // Environment is the predicate function for environment builders.
 type Environment func(*sql.Selector)
 

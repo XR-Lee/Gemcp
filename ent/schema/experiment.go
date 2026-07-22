@@ -17,7 +17,7 @@ func (Experiment) Fields() []ent.Field {
 	return []ent.Field{
 		field.Int("tenant_id").Immutable(),
 		field.Int("project_id").Immutable(),
-		field.Int("agent_token_id").Immutable(),
+		field.Int("agent_token_id").Optional().Nillable().Immutable(),
 		field.Int("repository_id").Immutable(),
 		field.Int("environment_id").Immutable(),
 		field.Int("resource_profile_id").Immutable(),
@@ -59,7 +59,7 @@ func (Experiment) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.From("tenant", Tenant.Type).Ref("experiments").Field("tenant_id").Unique().Required().Immutable(),
 		edge.From("project", Project.Type).Ref("experiments").Field("project_id").Unique().Required().Immutable(),
-		edge.From("agent_token", AgentToken.Type).Ref("experiments").Field("agent_token_id").Unique().Required().Immutable(),
+		edge.From("agent_token", AgentToken.Type).Ref("experiments").Field("agent_token_id").Unique().Immutable(),
 		edge.From("repository", Repository.Type).Ref("experiments").Field("repository_id").Unique().Required().Immutable(),
 		edge.From("environment", Environment.Type).Ref("experiments").Field("environment_id").Unique().Required().Immutable(),
 		edge.From("resource_profile", ResourceProfile.Type).Ref("experiments").Field("resource_profile_id").Unique().Required().Immutable(),
@@ -68,6 +68,7 @@ func (Experiment) Edges() []ent.Edge {
 		edge.To("node_assignments", NodeAssignment.Type),
 		edge.To("budget_entries", BudgetEntry.Type),
 		edge.To("idempotency_records", IdempotencyRecord.Type),
+		edge.To("diagnostic_run", DiagnosticRun.Type).Unique(),
 	}
 }
 

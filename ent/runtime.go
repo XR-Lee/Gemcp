@@ -10,6 +10,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/auditevent"
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
+	"github.com/XR-Lee/Gemcp/ent/diagnosticrun"
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
@@ -330,6 +331,47 @@ func init() {
 			return nil
 		}
 	}()
+	diagnosticrunMixin := schema.DiagnosticRun{}.Mixin()
+	diagnosticrunMixinFields0 := diagnosticrunMixin[0].Fields()
+	_ = diagnosticrunMixinFields0
+	diagnosticrunFields := schema.DiagnosticRun{}.Fields()
+	_ = diagnosticrunFields
+	// diagnosticrunDescPublicID is the schema descriptor for public_id field.
+	diagnosticrunDescPublicID := diagnosticrunMixinFields0[0].Descriptor()
+	// diagnosticrun.DefaultPublicID holds the default value on creation for the public_id field.
+	diagnosticrun.DefaultPublicID = diagnosticrunDescPublicID.Default.(func() uuid.UUID)
+	// diagnosticrunDescCreatedAt is the schema descriptor for created_at field.
+	diagnosticrunDescCreatedAt := diagnosticrunMixinFields0[1].Descriptor()
+	// diagnosticrun.DefaultCreatedAt holds the default value on creation for the created_at field.
+	diagnosticrun.DefaultCreatedAt = diagnosticrunDescCreatedAt.Default.(func() time.Time)
+	// diagnosticrunDescUpdatedAt is the schema descriptor for updated_at field.
+	diagnosticrunDescUpdatedAt := diagnosticrunMixinFields0[2].Descriptor()
+	// diagnosticrun.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	diagnosticrun.DefaultUpdatedAt = diagnosticrunDescUpdatedAt.Default.(func() time.Time)
+	// diagnosticrun.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	diagnosticrun.UpdateDefaultUpdatedAt = diagnosticrunDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// diagnosticrunDescRequestedBy is the schema descriptor for requested_by field.
+	diagnosticrunDescRequestedBy := diagnosticrunFields[5].Descriptor()
+	// diagnosticrun.RequestedByValidator is a validator for the "requested_by" field. It is called by the builders before save.
+	diagnosticrun.RequestedByValidator = func() func(string) error {
+		validators := diagnosticrunDescRequestedBy.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(requested_by string) error {
+			for _, fn := range fns {
+				if err := fn(requested_by); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// diagnosticrunDescPreflight is the schema descriptor for preflight field.
+	diagnosticrunDescPreflight := diagnosticrunFields[8].Descriptor()
+	// diagnosticrun.DefaultPreflight holds the default value on creation for the preflight field.
+	diagnosticrun.DefaultPreflight = diagnosticrunDescPreflight.Default.(map[string]interface{})
 	environmentMixin := schema.Environment{}.Mixin()
 	environmentMixinFields0 := environmentMixin[0].Fields()
 	_ = environmentMixinFields0

@@ -4,6 +4,8 @@ Gemcp is a private, single-organization control plane for running bounded AutoDL
 
 ## Current release
 
+`v0.12.0` adds an Owner-only Diagnostics workspace for real, bounded AutoDL and Self-hosted backend tests. Fixed GPU-connectivity and PyTorch-CUDA suites run through the normal Experiment and Attempt lifecycle after source, scheduler, budget, image, capacity, callback, and cleanup preflight checks. Paid AutoDL dispatch requires explicit confirmation of a drift-protected immutable proposal; Self-hosted diagnostics remain zero-CNY. Results combine Runner stages, source downloads, backend ownership, metrics, log tails, timeline, cancellation, and cleanup-aware fault guidance.
+
 `v0.11.2` hardens the remaining AutoDL pre-execution path: interrupted source bodies are downloaded again from a clean temporary file, transient `started` callback failures retry within the provisioning deadline, and controlled Bootstrap stages are persisted for `get_experiment` and the Owner console. HTTP errors and redirects remain non-retryable, user workloads still execute at most once, and a reported terminal Bootstrap failure requests immediate Provider cleanup instead of waiting for `provision_timeout`.
 
 `v0.11.1` hardens initial AutoDL Runner startup after an intermittent provisioning timeout: approved runtime prerequisites may initialize for up to five minutes, transient pre-execution Bootstrap downloads are retried without retrying the workload, and credential-free launch-stage markers are written to the durable `gemcp-launch.log` artifact.
@@ -94,6 +96,11 @@ GET /api/v1/repositories
 GET /api/v1/experiments
 GET /api/v1/experiments/:id/attempts
 GET /api/v1/projects/:id/cost
+GET /api/v1/projects/:id/diagnostics/options
+POST /api/v1/projects/:id/diagnostics/preflight
+GET|POST /api/v1/projects/:id/diagnostics
+GET /api/v1/projects/:id/diagnostics/:runID
+POST /api/v1/projects/:id/diagnostics/:runID/cancel
 GET /api/v1/provider
 POST /api/v1/provider/query
 PUT /api/v1/provider
@@ -131,7 +138,7 @@ Generate both required bootstrap credentials on the deployment host:
 
 Store them only in the protected deployment `.env`. The first-run setup transaction and Session API are documented in [First-run setup](docs/setup-api.md).
 
-After initialization, validate the live credential and inspect resources through [Private Cloud Provider operations](docs/provider-operations.md). Register the private repository using the [Owner Web console](docs/web-console.md) or [Private Git repository API](docs/repositories.md), enroll Pi or issue other client credentials through [Agent Token management](docs/agent-tokens.md), then connect an Agent using the [MCP client guide](docs/mcp.md). The embedded [Owner guide](guides/owner-mcp.md) and [Agent handoff](guides/agent-mcp.md) are also served by the production host and exposed from the Agents page. Review [Finance ledger and internal credits](docs/finance.md) before adjusting Project capacity. Before arming execution, follow [Execution and shutdown enforcement](docs/execution.md) and configure [SMTP notifications](docs/notifications.md).
+After initialization, validate the live credential and inspect resources through [Private Cloud Provider operations](docs/provider-operations.md). Register the private repository using the [Owner Web console](docs/web-console.md) or [Private Git repository API](docs/repositories.md), enroll Pi or issue other client credentials through [Agent Token management](docs/agent-tokens.md), then connect an Agent using the [MCP client guide](docs/mcp.md). The embedded [Owner guide](guides/owner-mcp.md) and [Agent handoff](guides/agent-mcp.md) are also served by the production host and exposed from the Agents page. Review [Backend diagnostics](docs/diagnostics.md) before running a paid or Self-hosted smoke test, and [Finance ledger and internal credits](docs/finance.md) before adjusting Project capacity. Before arming execution, follow [Execution and shutdown enforcement](docs/execution.md) and configure [SMTP notifications](docs/notifications.md).
 
 ## Deployment
 

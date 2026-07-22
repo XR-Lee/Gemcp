@@ -79,9 +79,11 @@ type ProjectEdges struct {
 	NodeAccess []*NodeProjectAccess `json:"node_access,omitempty"`
 	// NodeAssignments holds the value of the node_assignments edge.
 	NodeAssignments []*NodeAssignment `json:"node_assignments,omitempty"`
+	// DiagnosticRuns holds the value of the diagnostic_runs edge.
+	DiagnosticRuns []*DiagnosticRun `json:"diagnostic_runs,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [12]bool
+	loadedTypes [13]bool
 }
 
 // TenantOrErr returns the Tenant value or an error if the edge
@@ -192,6 +194,15 @@ func (e ProjectEdges) NodeAssignmentsOrErr() ([]*NodeAssignment, error) {
 		return e.NodeAssignments, nil
 	}
 	return nil, &NotLoadedError{edge: "node_assignments"}
+}
+
+// DiagnosticRunsOrErr returns the DiagnosticRuns value or an error if the edge
+// was not loaded in eager-loading.
+func (e ProjectEdges) DiagnosticRunsOrErr() ([]*DiagnosticRun, error) {
+	if e.loadedTypes[12] {
+		return e.DiagnosticRuns, nil
+	}
+	return nil, &NotLoadedError{edge: "diagnostic_runs"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -383,6 +394,11 @@ func (_m *Project) QueryNodeAccess() *NodeProjectAccessQuery {
 // QueryNodeAssignments queries the "node_assignments" edge of the Project entity.
 func (_m *Project) QueryNodeAssignments() *NodeAssignmentQuery {
 	return NewProjectClient(_m.config).QueryNodeAssignments(_m)
+}
+
+// QueryDiagnosticRuns queries the "diagnostic_runs" edge of the Project entity.
+func (_m *Project) QueryDiagnosticRuns() *DiagnosticRunQuery {
+	return NewProjectClient(_m.config).QueryDiagnosticRuns(_m)
 }
 
 // Update returns a builder for updating this Project.

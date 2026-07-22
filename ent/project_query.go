@@ -16,6 +16,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/agenttoken"
 	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
+	"github.com/XR-Lee/Gemcp/ent/diagnosticrun"
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
@@ -47,6 +48,7 @@ type ProjectQuery struct {
 	withBudgetEntries     *BudgetEntryQuery
 	withNodeAccess        *NodeProjectAccessQuery
 	withNodeAssignments   *NodeAssignmentQuery
+	withDiagnosticRuns    *DiagnosticRunQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -347,6 +349,28 @@ func (_q *ProjectQuery) QueryNodeAssignments() *NodeAssignmentQuery {
 	return query
 }
 
+// QueryDiagnosticRuns chains the current query on the "diagnostic_runs" edge.
+func (_q *ProjectQuery) QueryDiagnosticRuns() *DiagnosticRunQuery {
+	query := (&DiagnosticRunClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, selector),
+			sqlgraph.To(diagnosticrun.Table, diagnosticrun.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.DiagnosticRunsTable, project.DiagnosticRunsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
 // First returns the first Project entity from the query.
 // Returns a *NotFoundError when no Project was found.
 func (_q *ProjectQuery) First(ctx context.Context) (*Project, error) {
@@ -551,6 +575,7 @@ func (_q *ProjectQuery) Clone() *ProjectQuery {
 		withBudgetEntries:     _q.withBudgetEntries.Clone(),
 		withNodeAccess:        _q.withNodeAccess.Clone(),
 		withNodeAssignments:   _q.withNodeAssignments.Clone(),
+		withDiagnosticRuns:    _q.withDiagnosticRuns.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -689,6 +714,17 @@ func (_q *ProjectQuery) WithNodeAssignments(opts ...func(*NodeAssignmentQuery)) 
 	return _q
 }
 
+// WithDiagnosticRuns tells the query-builder to eager-load the nodes that are connected to
+// the "diagnostic_runs" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ProjectQuery) WithDiagnosticRuns(opts ...func(*DiagnosticRunQuery)) *ProjectQuery {
+	query := (&DiagnosticRunClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withDiagnosticRuns = query
+	return _q
+}
+
 // GroupBy is used to group vertices by one or more fields/columns.
 // It is often used with aggregate functions, like: count, max, mean, min, sum.
 //
@@ -767,7 +803,7 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 	var (
 		nodes       = []*Project{}
 		_spec       = _q.querySpec()
-		loadedTypes = [12]bool{
+		loadedTypes = [13]bool{
 			_q.withTenant != nil,
 			_q.withEnvironments != nil,
 			_q.withResourceProfiles != nil,
@@ -780,6 +816,7 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 			_q.withBudgetEntries != nil,
 			_q.withNodeAccess != nil,
 			_q.withNodeAssignments != nil,
+			_q.withDiagnosticRuns != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -882,6 +919,13 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 		if err := _q.loadNodeAssignments(ctx, query, nodes,
 			func(n *Project) { n.Edges.NodeAssignments = []*NodeAssignment{} },
 			func(n *Project, e *NodeAssignment) { n.Edges.NodeAssignments = append(n.Edges.NodeAssignments, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withDiagnosticRuns; query != nil {
+		if err := _q.loadDiagnosticRuns(ctx, query, nodes,
+			func(n *Project) { n.Edges.DiagnosticRuns = []*DiagnosticRun{} },
+			func(n *Project, e *DiagnosticRun) { n.Edges.DiagnosticRuns = append(n.Edges.DiagnosticRuns, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -1232,6 +1276,36 @@ func (_q *ProjectQuery) loadNodeAssignments(ctx context.Context, query *NodeAssi
 	}
 	query.Where(predicate.NodeAssignment(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(project.NodeAssignmentsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ProjectID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "project_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *ProjectQuery) loadDiagnosticRuns(ctx context.Context, query *DiagnosticRunQuery, nodes []*Project, init func(*Project), assign func(*Project, *DiagnosticRun)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Project)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(diagnosticrun.FieldProjectID)
+	}
+	query.Where(predicate.DiagnosticRun(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(project.DiagnosticRunsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

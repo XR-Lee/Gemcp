@@ -70,9 +70,11 @@ type TenantEdges struct {
 	NodeEvents []*NodeEvent `json:"node_events,omitempty"`
 	// NodeAssignments holds the value of the node_assignments edge.
 	NodeAssignments []*NodeAssignment `json:"node_assignments,omitempty"`
+	// DiagnosticRuns holds the value of the diagnostic_runs edge.
+	DiagnosticRuns []*DiagnosticRun `json:"diagnostic_runs,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [17]bool
+	loadedTypes [18]bool
 }
 
 // UsersOrErr returns the Users value or an error if the edge
@@ -226,6 +228,15 @@ func (e TenantEdges) NodeAssignmentsOrErr() ([]*NodeAssignment, error) {
 		return e.NodeAssignments, nil
 	}
 	return nil, &NotLoadedError{edge: "node_assignments"}
+}
+
+// DiagnosticRunsOrErr returns the DiagnosticRuns value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) DiagnosticRunsOrErr() ([]*DiagnosticRun, error) {
+	if e.loadedTypes[17] {
+		return e.DiagnosticRuns, nil
+	}
+	return nil, &NotLoadedError{edge: "diagnostic_runs"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -388,6 +399,11 @@ func (_m *Tenant) QueryNodeEvents() *NodeEventQuery {
 // QueryNodeAssignments queries the "node_assignments" edge of the Tenant entity.
 func (_m *Tenant) QueryNodeAssignments() *NodeAssignmentQuery {
 	return NewTenantClient(_m.config).QueryNodeAssignments(_m)
+}
+
+// QueryDiagnosticRuns queries the "diagnostic_runs" edge of the Tenant entity.
+func (_m *Tenant) QueryDiagnosticRuns() *DiagnosticRunQuery {
+	return NewTenantClient(_m.config).QueryDiagnosticRuns(_m)
 }
 
 // Update returns a builder for updating this Tenant.

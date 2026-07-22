@@ -115,6 +115,8 @@ const (
 	EdgeBudgetEntries = "budget_entries"
 	// EdgeIdempotencyRecords holds the string denoting the idempotency_records edge name in mutations.
 	EdgeIdempotencyRecords = "idempotency_records"
+	// EdgeDiagnosticRun holds the string denoting the diagnostic_run edge name in mutations.
+	EdgeDiagnosticRun = "diagnostic_run"
 	// Table holds the table name of the experiment in the database.
 	Table = "experiments"
 	// TenantTable is the table that holds the tenant relation/edge.
@@ -194,6 +196,13 @@ const (
 	IdempotencyRecordsInverseTable = "idempotency_records"
 	// IdempotencyRecordsColumn is the table column denoting the idempotency_records relation/edge.
 	IdempotencyRecordsColumn = "experiment_id"
+	// DiagnosticRunTable is the table that holds the diagnostic_run relation/edge.
+	DiagnosticRunTable = "diagnostic_runs"
+	// DiagnosticRunInverseTable is the table name for the DiagnosticRun entity.
+	// It exists in this package in order to avoid circular dependency with the "diagnosticrun" package.
+	DiagnosticRunInverseTable = "diagnostic_runs"
+	// DiagnosticRunColumn is the table column denoting the diagnostic_run relation/edge.
+	DiagnosticRunColumn = "experiment_id"
 )
 
 // Columns holds all SQL columns for experiment fields.
@@ -588,6 +597,13 @@ func ByIdempotencyRecords(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOptio
 		sqlgraph.OrderByNeighborTerms(s, newIdempotencyRecordsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByDiagnosticRunField orders the results by diagnostic_run field.
+func ByDiagnosticRunField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newDiagnosticRunStep(), sql.OrderByField(field, opts...))
+	}
+}
 func newTenantStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -663,5 +679,12 @@ func newIdempotencyRecordsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(IdempotencyRecordsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, IdempotencyRecordsTable, IdempotencyRecordsColumn),
+	)
+}
+func newDiagnosticRunStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(DiagnosticRunInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2O, false, DiagnosticRunTable, DiagnosticRunColumn),
 	)
 }

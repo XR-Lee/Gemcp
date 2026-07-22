@@ -69,6 +69,18 @@ func (f BudgetEntryFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value,
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BudgetEntryMutation", m)
 }
 
+// The DiagnosticRunFunc type is an adapter to allow the use of ordinary
+// function as DiagnosticRun mutator.
+type DiagnosticRunFunc func(context.Context, *ent.DiagnosticRunMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f DiagnosticRunFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.DiagnosticRunMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DiagnosticRunMutation", m)
+}
+
 // The EnvironmentFunc type is an adapter to allow the use of ordinary
 // function as Environment mutator.
 type EnvironmentFunc func(context.Context, *ent.EnvironmentMutation) (ent.Value, error)

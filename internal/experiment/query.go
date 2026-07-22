@@ -133,7 +133,7 @@ func (s *Service) Cancel(ctx context.Context, principal agentauth.Principal, exp
 		return view, ErrNotFound
 	}
 	for attempt := 0; attempt < 3; attempt++ {
-		view, err = s.cancelOnce(ctx, principal, publicID)
+		view, err = s.cancelOnce(ctx, principal, publicID, "agent_token", principal.TokenPublicID)
 		if err == nil {
 			return view, nil
 		}
@@ -146,7 +146,7 @@ func (s *Service) Cancel(ctx context.Context, principal agentauth.Principal, exp
 
 var errStateChanged = errors.New("experiment state changed concurrently")
 
-func (s *Service) cancelOnce(ctx context.Context, principal agentauth.Principal, publicID uuid.UUID) (View, error) {
+func (s *Service) cancelOnce(ctx context.Context, principal agentauth.Principal, publicID uuid.UUID, actorType auditevent.ActorType, actorID string) (View, error) {
 	var view View
 	tx, err := s.client.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
@@ -231,8 +231,8 @@ func (s *Service) cancelOnce(ctx context.Context, principal agentauth.Principal,
 	}
 	if _, err := tx.AuditEvent.Create().
 		SetTenantID(principal.TenantID).
-		SetActorType("agent_token").
-		SetActorID(principal.TokenPublicID).
+		SetActorType(actorType).
+		SetActorID(actorID).
 		SetAction("experiment.cancel_requested").
 		SetTargetType("experiment").
 		SetTargetID(publicID.String()).
@@ -382,6 +382,10 @@ func (s *Service) Artifacts(ctx context.Context, principal agentauth.Principal, 
 	if err != nil {
 		return result, err
 	}
+	isDiagnostic, err := record.QueryDiagnosticRun().Exist(ctx)
+	if err != nil {
+		return result, err
+	}
 	artifacts := []string{}
 	if strings.HasPrefix(record.OutputPath, "/root/autodl-fs/") && record.ProviderResourceID != nil {
 		artifacts = append(artifacts, "gemcp-launch.log")
@@ -394,6 +398,9 @@ func (s *Service) Artifacts(ctx context.Context, principal agentauth.Principal, 
 	}
 	if len(record.Metrics) > 0 {
 		artifacts = append(artifacts, "metrics.json")
+	}
+	if isDiagnostic && record.ExitCode != nil {
+		artifacts = append(artifacts, "diagnostic-report.txt")
 	}
 	return ArtifactView{ExperimentID: record.PublicID.String(), OutputPath: record.OutputPath, Artifacts: artifacts}, nil
 }

@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
+	"github.com/XR-Lee/Gemcp/ent/diagnosticrun"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
@@ -470,6 +471,25 @@ func (_u *ExperimentUpdate) AddIdempotencyRecords(v ...*IdempotencyRecord) *Expe
 	return _u.AddIdempotencyRecordIDs(ids...)
 }
 
+// SetDiagnosticRunID sets the "diagnostic_run" edge to the DiagnosticRun entity by ID.
+func (_u *ExperimentUpdate) SetDiagnosticRunID(id int) *ExperimentUpdate {
+	_u.mutation.SetDiagnosticRunID(id)
+	return _u
+}
+
+// SetNillableDiagnosticRunID sets the "diagnostic_run" edge to the DiagnosticRun entity by ID if the given value is not nil.
+func (_u *ExperimentUpdate) SetNillableDiagnosticRunID(id *int) *ExperimentUpdate {
+	if id != nil {
+		_u = _u.SetDiagnosticRunID(*id)
+	}
+	return _u
+}
+
+// SetDiagnosticRun sets the "diagnostic_run" edge to the DiagnosticRun entity.
+func (_u *ExperimentUpdate) SetDiagnosticRun(v *DiagnosticRun) *ExperimentUpdate {
+	return _u.SetDiagnosticRunID(v.ID)
+}
+
 // Mutation returns the ExperimentMutation object of the builder.
 func (_u *ExperimentUpdate) Mutation() *ExperimentMutation {
 	return _u.mutation
@@ -580,6 +600,12 @@ func (_u *ExperimentUpdate) RemoveIdempotencyRecords(v ...*IdempotencyRecord) *E
 	return _u.RemoveIdempotencyRecordIDs(ids...)
 }
 
+// ClearDiagnosticRun clears the "diagnostic_run" edge to the DiagnosticRun entity.
+func (_u *ExperimentUpdate) ClearDiagnosticRun() *ExperimentUpdate {
+	_u.mutation.ClearDiagnosticRun()
+	return _u
+}
+
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (_u *ExperimentUpdate) Save(ctx context.Context) (int, error) {
 	_u.defaults()
@@ -658,9 +684,6 @@ func (_u *ExperimentUpdate) check() error {
 	}
 	if _u.mutation.ProjectCleared() && len(_u.mutation.ProjectIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "Experiment.project"`)
-	}
-	if _u.mutation.AgentTokenCleared() && len(_u.mutation.AgentTokenIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "Experiment.agent_token"`)
 	}
 	if _u.mutation.RepositoryCleared() && len(_u.mutation.RepositoryIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "Experiment.repository"`)
@@ -1012,6 +1035,35 @@ func (_u *ExperimentUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(idempotencyrecord.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.DiagnosticRunCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   experiment.DiagnosticRunTable,
+			Columns: []string{experiment.DiagnosticRunColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(diagnosticrun.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.DiagnosticRunIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   experiment.DiagnosticRunTable,
+			Columns: []string{experiment.DiagnosticRunColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(diagnosticrun.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -1476,6 +1528,25 @@ func (_u *ExperimentUpdateOne) AddIdempotencyRecords(v ...*IdempotencyRecord) *E
 	return _u.AddIdempotencyRecordIDs(ids...)
 }
 
+// SetDiagnosticRunID sets the "diagnostic_run" edge to the DiagnosticRun entity by ID.
+func (_u *ExperimentUpdateOne) SetDiagnosticRunID(id int) *ExperimentUpdateOne {
+	_u.mutation.SetDiagnosticRunID(id)
+	return _u
+}
+
+// SetNillableDiagnosticRunID sets the "diagnostic_run" edge to the DiagnosticRun entity by ID if the given value is not nil.
+func (_u *ExperimentUpdateOne) SetNillableDiagnosticRunID(id *int) *ExperimentUpdateOne {
+	if id != nil {
+		_u = _u.SetDiagnosticRunID(*id)
+	}
+	return _u
+}
+
+// SetDiagnosticRun sets the "diagnostic_run" edge to the DiagnosticRun entity.
+func (_u *ExperimentUpdateOne) SetDiagnosticRun(v *DiagnosticRun) *ExperimentUpdateOne {
+	return _u.SetDiagnosticRunID(v.ID)
+}
+
 // Mutation returns the ExperimentMutation object of the builder.
 func (_u *ExperimentUpdateOne) Mutation() *ExperimentMutation {
 	return _u.mutation
@@ -1586,6 +1657,12 @@ func (_u *ExperimentUpdateOne) RemoveIdempotencyRecords(v ...*IdempotencyRecord)
 	return _u.RemoveIdempotencyRecordIDs(ids...)
 }
 
+// ClearDiagnosticRun clears the "diagnostic_run" edge to the DiagnosticRun entity.
+func (_u *ExperimentUpdateOne) ClearDiagnosticRun() *ExperimentUpdateOne {
+	_u.mutation.ClearDiagnosticRun()
+	return _u
+}
+
 // Where appends a list predicates to the ExperimentUpdate builder.
 func (_u *ExperimentUpdateOne) Where(ps ...predicate.Experiment) *ExperimentUpdateOne {
 	_u.mutation.Where(ps...)
@@ -1677,9 +1754,6 @@ func (_u *ExperimentUpdateOne) check() error {
 	}
 	if _u.mutation.ProjectCleared() && len(_u.mutation.ProjectIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "Experiment.project"`)
-	}
-	if _u.mutation.AgentTokenCleared() && len(_u.mutation.AgentTokenIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "Experiment.agent_token"`)
 	}
 	if _u.mutation.RepositoryCleared() && len(_u.mutation.RepositoryIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "Experiment.repository"`)
@@ -2048,6 +2122,35 @@ func (_u *ExperimentUpdateOne) sqlSave(ctx context.Context) (_node *Experiment, 
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(idempotencyrecord.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.DiagnosticRunCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   experiment.DiagnosticRunTable,
+			Columns: []string{experiment.DiagnosticRunColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(diagnosticrun.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.DiagnosticRunIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   experiment.DiagnosticRunTable,
+			Columns: []string{experiment.DiagnosticRunColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(diagnosticrun.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

@@ -135,3 +135,38 @@ func TestBudgetAdjustmentsCanBeProjectScopedAndIdempotent(t *testing.T) {
 		t.Fatal("budget adjustment Project/idempotency key unique index is missing")
 	}
 }
+
+func TestOwnerDiagnosticsUseNullableAgentAttributionAndHashedIdempotency(t *testing.T) {
+	agentTokenNullable := false
+	for _, column := range entmigrate.ExperimentsColumns {
+		if column.Name == "agent_token_id" {
+			agentTokenNullable = column.Nullable
+			break
+		}
+	}
+	if !agentTokenNullable {
+		t.Fatal("Experiment agent_token_id must be nullable for Owner-attributed diagnostic runs")
+	}
+	columns := map[string]*schema.Column{}
+	for _, column := range entmigrate.DiagnosticRunsColumns {
+		columns[column.Name] = column
+		name := strings.ToLower(column.Name)
+		if name == "token" || name == "credential" || name == "idempotency_key" || strings.Contains(name, "ciphertext") || strings.Contains(name, "secret") {
+			t.Fatalf("diagnostic_runs contains recoverable credential-like column %q", column.Name)
+		}
+	}
+	for _, required := range []string{"experiment_id", "backend", "suite", "requested_by", "idempotency_key_hash", "request_fingerprint", "preflight"} {
+		if columns[required] == nil {
+			t.Fatalf("diagnostic_runs column %s is missing", required)
+		}
+	}
+	foundUnique := false
+	for _, index := range entmigrate.DiagnosticRunsTable.Indexes {
+		if index.Name == "diagnosticrun_project_id_idempotency_key_hash" {
+			foundUnique = index.Unique
+		}
+	}
+	if !foundUnique {
+		t.Fatal("diagnostic Project/idempotency digest unique index is missing")
+	}
+}

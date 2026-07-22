@@ -14,6 +14,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/auditevent"
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
+	"github.com/XR-Lee/Gemcp/ent/diagnosticrun"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
@@ -332,6 +333,21 @@ func (_u *TenantUpdate) AddNodeAssignments(v ...*NodeAssignment) *TenantUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.AddNodeAssignmentIDs(ids...)
+}
+
+// AddDiagnosticRunIDs adds the "diagnostic_runs" edge to the DiagnosticRun entity by IDs.
+func (_u *TenantUpdate) AddDiagnosticRunIDs(ids ...int) *TenantUpdate {
+	_u.mutation.AddDiagnosticRunIDs(ids...)
+	return _u
+}
+
+// AddDiagnosticRuns adds the "diagnostic_runs" edges to the DiagnosticRun entity.
+func (_u *TenantUpdate) AddDiagnosticRuns(v ...*DiagnosticRun) *TenantUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddDiagnosticRunIDs(ids...)
 }
 
 // Mutation returns the TenantMutation object of the builder.
@@ -694,6 +710,27 @@ func (_u *TenantUpdate) RemoveNodeAssignments(v ...*NodeAssignment) *TenantUpdat
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveNodeAssignmentIDs(ids...)
+}
+
+// ClearDiagnosticRuns clears all "diagnostic_runs" edges to the DiagnosticRun entity.
+func (_u *TenantUpdate) ClearDiagnosticRuns() *TenantUpdate {
+	_u.mutation.ClearDiagnosticRuns()
+	return _u
+}
+
+// RemoveDiagnosticRunIDs removes the "diagnostic_runs" edge to DiagnosticRun entities by IDs.
+func (_u *TenantUpdate) RemoveDiagnosticRunIDs(ids ...int) *TenantUpdate {
+	_u.mutation.RemoveDiagnosticRunIDs(ids...)
+	return _u
+}
+
+// RemoveDiagnosticRuns removes "diagnostic_runs" edges to DiagnosticRun entities.
+func (_u *TenantUpdate) RemoveDiagnosticRuns(v ...*DiagnosticRun) *TenantUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveDiagnosticRunIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -1533,6 +1570,51 @@ func (_u *TenantUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.DiagnosticRunsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.DiagnosticRunsTable,
+			Columns: []string{tenant.DiagnosticRunsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(diagnosticrun.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedDiagnosticRunsIDs(); len(nodes) > 0 && !_u.mutation.DiagnosticRunsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.DiagnosticRunsTable,
+			Columns: []string{tenant.DiagnosticRunsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(diagnosticrun.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.DiagnosticRunsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.DiagnosticRunsTable,
+			Columns: []string{tenant.DiagnosticRunsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(diagnosticrun.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{tenant.Label}
@@ -1840,6 +1922,21 @@ func (_u *TenantUpdateOne) AddNodeAssignments(v ...*NodeAssignment) *TenantUpdat
 		ids[i] = v[i].ID
 	}
 	return _u.AddNodeAssignmentIDs(ids...)
+}
+
+// AddDiagnosticRunIDs adds the "diagnostic_runs" edge to the DiagnosticRun entity by IDs.
+func (_u *TenantUpdateOne) AddDiagnosticRunIDs(ids ...int) *TenantUpdateOne {
+	_u.mutation.AddDiagnosticRunIDs(ids...)
+	return _u
+}
+
+// AddDiagnosticRuns adds the "diagnostic_runs" edges to the DiagnosticRun entity.
+func (_u *TenantUpdateOne) AddDiagnosticRuns(v ...*DiagnosticRun) *TenantUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddDiagnosticRunIDs(ids...)
 }
 
 // Mutation returns the TenantMutation object of the builder.
@@ -2202,6 +2299,27 @@ func (_u *TenantUpdateOne) RemoveNodeAssignments(v ...*NodeAssignment) *TenantUp
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveNodeAssignmentIDs(ids...)
+}
+
+// ClearDiagnosticRuns clears all "diagnostic_runs" edges to the DiagnosticRun entity.
+func (_u *TenantUpdateOne) ClearDiagnosticRuns() *TenantUpdateOne {
+	_u.mutation.ClearDiagnosticRuns()
+	return _u
+}
+
+// RemoveDiagnosticRunIDs removes the "diagnostic_runs" edge to DiagnosticRun entities by IDs.
+func (_u *TenantUpdateOne) RemoveDiagnosticRunIDs(ids ...int) *TenantUpdateOne {
+	_u.mutation.RemoveDiagnosticRunIDs(ids...)
+	return _u
+}
+
+// RemoveDiagnosticRuns removes "diagnostic_runs" edges to DiagnosticRun entities.
+func (_u *TenantUpdateOne) RemoveDiagnosticRuns(v ...*DiagnosticRun) *TenantUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveDiagnosticRunIDs(ids...)
 }
 
 // Where appends a list predicates to the TenantUpdate builder.
@@ -3064,6 +3182,51 @@ func (_u *TenantUpdateOne) sqlSave(ctx context.Context) (_node *Tenant, err erro
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(nodeassignment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.DiagnosticRunsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.DiagnosticRunsTable,
+			Columns: []string{tenant.DiagnosticRunsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(diagnosticrun.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedDiagnosticRunsIDs(); len(nodes) > 0 && !_u.mutation.DiagnosticRunsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.DiagnosticRunsTable,
+			Columns: []string{tenant.DiagnosticRunsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(diagnosticrun.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.DiagnosticRunsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.DiagnosticRunsTable,
+			Columns: []string{tenant.DiagnosticRunsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(diagnosticrun.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

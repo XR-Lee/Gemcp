@@ -154,6 +154,108 @@ export type Attempt = {
   updated_at: string
 }
 
+export type DiagnosticBackend = 'autodl_private' | 'self_hosted'
+export type DiagnosticSuite = 'gpu_connectivity' | 'pytorch_cuda'
+
+export type DiagnosticRepositoryOption = { id: string; name: string; default_branch: string }
+export type DiagnosticEnvironmentOption = { id: string; name: string; backend: DiagnosticBackend; image_uuid: string }
+export type DiagnosticProfileOption = {
+  id: string; name: string; backend: DiagnosticBackend; gpu_names: string[]; gpu_num: number; price_to_milli: number;
+}
+export type DiagnosticSuiteOption = {
+  id: DiagnosticSuite; runtime_seconds: number; requires_pytorch: boolean; checks_cuda_compute: boolean;
+}
+export type DiagnosticOptions = {
+  project_id: string
+  repositories: DiagnosticRepositoryOption[]
+  environments: DiagnosticEnvironmentOption[]
+  resource_profiles: DiagnosticProfileOption[]
+  suites: DiagnosticSuiteOption[]
+  generated_at: string
+}
+export type DiagnosticInput = {
+  backend: DiagnosticBackend
+  suite: DiagnosticSuite
+  repository_id: string
+  environment_id: string
+  resource_profile_id: string
+  commit_sha: string
+}
+export type DiagnosticCheck = { id: string; status: 'pass' | 'warn' | 'fail'; summary: string; detail?: string }
+export type DiagnosticProposal = DiagnosticInput & {
+  command: string
+  runtime_seconds: number
+  termination_grace_seconds: number
+  reserved_cost_milli: number
+  billable: boolean
+  gpu_models: string[]
+  gpu_num: number
+  image_uuid: string
+  region: string
+  cuda_from: number
+  cuda_to: number
+  cpu_from: number
+  cpu_to: number
+  memory_from_gb: number
+  memory_to_gb: number
+  price_from_milli: number
+  price_to_milli: number
+  reuse_container: boolean
+}
+export type DiagnosticPreflight = {
+  eligible: boolean
+  requires_confirmation: boolean
+  checks: DiagnosticCheck[]
+  proposal: DiagnosticProposal
+  confirmation_digest: string
+  generated_at: string
+}
+export type DiagnosticAssessment = {
+  status: 'running' | 'passed' | 'failed'
+  classification: string
+  summary: string
+  recommendations?: string[]
+  cleanup_complete: boolean
+}
+export type DiagnosticAttempt = Attempt & { source_downloads: number }
+export type DiagnosticBackendObservation = {
+  kind: DiagnosticBackend
+  id: string
+  state: string
+  status?: string
+  stop_reason?: string
+  last_error?: string
+  stop_requested_at?: string
+  finished_at?: string
+}
+export type DiagnosticTimelineEvent = { at: string; code: string; detail?: string }
+export type DiagnosticRunSummary = {
+  id: string
+  project_id: string
+  backend: DiagnosticBackend
+  suite: DiagnosticSuite
+  requested_by: string
+  experiment: { id: string; state: string }
+  assessment: DiagnosticAssessment
+  created_at: string
+  updated_at: string
+}
+export type DiagnosticRun = {
+  id: string
+  project_id: string
+  backend: DiagnosticBackend
+  suite: DiagnosticSuite
+  requested_by: string
+  preflight: DiagnosticPreflight
+  experiment: Experiment
+  assessment: DiagnosticAssessment
+  attempts: DiagnosticAttempt[]
+  backend_observation?: DiagnosticBackendObservation
+  timeline: DiagnosticTimelineEvent[]
+  created_at: string
+  updated_at: string
+}
+
 export type Cost = {
   period: string
   monthly_budget_milli: number
@@ -654,6 +756,22 @@ export const api = {
       `/api/v1/experiments/${encodeURIComponent(experimentID)}/attempts?project_id=${encodeURIComponent(projectID)}`,
     ),
   cost: (projectID: string) => request<Cost>(`/api/v1/projects/${encodeURIComponent(projectID)}/cost`),
+  diagnosticOptions: (projectID: string) =>
+    request<DiagnosticOptions>(`/api/v1/projects/${encodeURIComponent(projectID)}/diagnostics/options`),
+  diagnosticPreflight: (projectID: string, payload: DiagnosticInput) =>
+    request<DiagnosticPreflight>(`/api/v1/projects/${encodeURIComponent(projectID)}/diagnostics/preflight`, {
+      method: 'POST', body: JSON.stringify(payload),
+    }),
+  submitDiagnostic: (projectID: string, payload: DiagnosticInput & { idempotency_key: string; confirmation_digest: string; confirmed: boolean }) =>
+    request<{ run: DiagnosticRun; idempotent: boolean }>(`/api/v1/projects/${encodeURIComponent(projectID)}/diagnostics`, {
+      method: 'POST', body: JSON.stringify(payload),
+    }),
+  diagnostics: (projectID: string) =>
+    request<{ runs: DiagnosticRunSummary[] }>(`/api/v1/projects/${encodeURIComponent(projectID)}/diagnostics?limit=50`),
+  diagnostic: (projectID: string, runID: string) =>
+    request<DiagnosticRun>(`/api/v1/projects/${encodeURIComponent(projectID)}/diagnostics/${encodeURIComponent(runID)}`),
+  cancelDiagnostic: (projectID: string, runID: string) =>
+    request<DiagnosticRun>(`/api/v1/projects/${encodeURIComponent(projectID)}/diagnostics/${encodeURIComponent(runID)}/cancel`, { method: 'POST' }),
   finance: (period: string, projectID = '') => {
     const params = new URLSearchParams({ period })
     if (projectID) params.set('project_id', projectID)

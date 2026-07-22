@@ -19,6 +19,7 @@ import {
   RefreshCw,
   Server,
   ShieldCheck,
+  Stethoscope,
   WalletCards,
   X,
 } from '@lucide/vue'
@@ -31,11 +32,12 @@ import ProviderView from './ProviderView.vue'
 import NotificationView from './NotificationView.vue'
 import AgentView from './AgentView.vue'
 import NodeView from './NodeView.vue'
+import DiagnosticsView from './DiagnosticsView.vue'
 
 const props = defineProps<{ build: BuildInfo | null; user: User }>()
 const emit = defineEmits<{ signedOut: [] }>()
 
-type ViewName = 'overview' | 'experiments' | 'finance' | 'projects' | 'agents' | 'nodes' | 'provider' | 'notifications'
+type ViewName = 'overview' | 'experiments' | 'diagnostics' | 'finance' | 'projects' | 'agents' | 'nodes' | 'provider' | 'notifications'
 const activeView = ref<ViewName>('overview')
 const projects = ref<Project[]>([])
 const selectedProjectID = ref('')
@@ -68,6 +70,7 @@ const latestAttempt = computed(() => attempts.value.at(-1) ?? null)
 const viewTitle = computed(() => ({
   overview: t('Overview', '概览'),
   experiments: t('Experiments', '实验'),
+  diagnostics: t('Diagnostics', '诊断'),
   finance: t('Budget and ledger', '预算与账本'),
   projects: t('Project configuration', 'Project 配置'),
   agents: t('Agent access', 'Agent 访问'),
@@ -264,6 +267,7 @@ onMounted(refreshAll)
       <nav :aria-label="t('Primary navigation', '主导航')">
         <button class="nav-item" :class="{ active: activeView === 'overview' }" type="button" :aria-label="t('Overview', '概览')" :title="t('Overview', '概览')" @click="activeView = 'overview'"><Activity :size="17" /><span>{{ t('Overview', '概览') }}</span></button>
         <button class="nav-item" :class="{ active: activeView === 'experiments' }" type="button" :aria-label="t('Experiments', '实验')" :title="t('Experiments', '实验')" @click="activeView = 'experiments'"><FlaskConical :size="17" /><span>{{ t('Experiments', '实验') }}</span></button>
+        <button class="nav-item" :class="{ active: activeView === 'diagnostics' }" type="button" :aria-label="t('Diagnostics', '诊断')" :title="t('Diagnostics', '诊断')" @click="activeView = 'diagnostics'"><Stethoscope :size="17" /><span>{{ t('Diagnostics', '诊断') }}</span></button>
         <button class="nav-item" :class="{ active: activeView === 'finance' }" type="button" :aria-label="t('Finance', '财务')" :title="t('Finance', '财务')" @click="activeView = 'finance'"><WalletCards :size="17" /><span>{{ t('Finance', '财务') }}</span></button>
         <button class="nav-item" :class="{ active: activeView === 'projects' }" type="button" aria-label="Project" title="Project" @click="activeView = 'projects'"><Boxes :size="17" /><span>Project</span></button>
         <button class="nav-item" :class="{ active: activeView === 'agents' }" type="button" :aria-label="t('Agents', 'Agent')" :title="t('Agents', 'Agent')" @click="activeView = 'agents'"><Bot :size="17" /><span>Agent</span></button>
@@ -316,6 +320,8 @@ onMounted(refreshAll)
         <div class="section-heading page-section-heading"><div><h2>{{ t('Experiments', '实验') }}</h2><p>{{ t('Immutable specifications and current lifecycle state.', '不可变规格和当前生命周期状态。') }}</p></div><div class="segmented-control" :aria-label="t('Experiment state filter', '实验状态筛选')"><button v-for="filter in ['all', 'queued', 'running', 'succeeded', 'failed']" :key="filter" type="button" :class="{ active: stateFilter === filter }" @click="stateFilter = filter">{{ filter === 'all' ? t('all', '全部') : stateLabel(filter) }}</button></div></div>
         <ExperimentTable :experiments="filteredExperiments" @select="openExperiment" />
       </section>
+
+      <DiagnosticsView v-else-if="activeView === 'diagnostics'" :active="true" :project="selectedProject" @unauthorized="emit('signedOut')" />
 
       <section v-else-if="activeView === 'projects'" class="page-workspace project-workspace">
         <div class="section-heading page-section-heading"><div><h2>{{ selectedProject?.name ?? 'Project' }}</h2><p>{{ selectedProject?.slug }} / {{ selectedProject?.status }}</p></div><span class="version-chip">{{ selectedProject?.timezone }}</span></div>

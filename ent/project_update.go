@@ -15,6 +15,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/agenttoken"
 	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
+	"github.com/XR-Lee/Gemcp/ent/diagnosticrun"
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
@@ -392,6 +393,21 @@ func (_u *ProjectUpdate) AddNodeAssignments(v ...*NodeAssignment) *ProjectUpdate
 	return _u.AddNodeAssignmentIDs(ids...)
 }
 
+// AddDiagnosticRunIDs adds the "diagnostic_runs" edge to the DiagnosticRun entity by IDs.
+func (_u *ProjectUpdate) AddDiagnosticRunIDs(ids ...int) *ProjectUpdate {
+	_u.mutation.AddDiagnosticRunIDs(ids...)
+	return _u
+}
+
+// AddDiagnosticRuns adds the "diagnostic_runs" edges to the DiagnosticRun entity.
+func (_u *ProjectUpdate) AddDiagnosticRuns(v ...*DiagnosticRun) *ProjectUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddDiagnosticRunIDs(ids...)
+}
+
 // Mutation returns the ProjectMutation object of the builder.
 func (_u *ProjectUpdate) Mutation() *ProjectMutation {
 	return _u.mutation
@@ -626,6 +642,27 @@ func (_u *ProjectUpdate) RemoveNodeAssignments(v ...*NodeAssignment) *ProjectUpd
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveNodeAssignmentIDs(ids...)
+}
+
+// ClearDiagnosticRuns clears all "diagnostic_runs" edges to the DiagnosticRun entity.
+func (_u *ProjectUpdate) ClearDiagnosticRuns() *ProjectUpdate {
+	_u.mutation.ClearDiagnosticRuns()
+	return _u
+}
+
+// RemoveDiagnosticRunIDs removes the "diagnostic_runs" edge to DiagnosticRun entities by IDs.
+func (_u *ProjectUpdate) RemoveDiagnosticRunIDs(ids ...int) *ProjectUpdate {
+	_u.mutation.RemoveDiagnosticRunIDs(ids...)
+	return _u
+}
+
+// RemoveDiagnosticRuns removes "diagnostic_runs" edges to DiagnosticRun entities.
+func (_u *ProjectUpdate) RemoveDiagnosticRuns(v ...*DiagnosticRun) *ProjectUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveDiagnosticRunIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -1280,6 +1317,51 @@ func (_u *ProjectUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.DiagnosticRunsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.DiagnosticRunsTable,
+			Columns: []string{project.DiagnosticRunsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(diagnosticrun.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedDiagnosticRunsIDs(); len(nodes) > 0 && !_u.mutation.DiagnosticRunsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.DiagnosticRunsTable,
+			Columns: []string{project.DiagnosticRunsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(diagnosticrun.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.DiagnosticRunsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.DiagnosticRunsTable,
+			Columns: []string{project.DiagnosticRunsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(diagnosticrun.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{project.Label}
@@ -1653,6 +1735,21 @@ func (_u *ProjectUpdateOne) AddNodeAssignments(v ...*NodeAssignment) *ProjectUpd
 	return _u.AddNodeAssignmentIDs(ids...)
 }
 
+// AddDiagnosticRunIDs adds the "diagnostic_runs" edge to the DiagnosticRun entity by IDs.
+func (_u *ProjectUpdateOne) AddDiagnosticRunIDs(ids ...int) *ProjectUpdateOne {
+	_u.mutation.AddDiagnosticRunIDs(ids...)
+	return _u
+}
+
+// AddDiagnosticRuns adds the "diagnostic_runs" edges to the DiagnosticRun entity.
+func (_u *ProjectUpdateOne) AddDiagnosticRuns(v ...*DiagnosticRun) *ProjectUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddDiagnosticRunIDs(ids...)
+}
+
 // Mutation returns the ProjectMutation object of the builder.
 func (_u *ProjectUpdateOne) Mutation() *ProjectMutation {
 	return _u.mutation
@@ -1887,6 +1984,27 @@ func (_u *ProjectUpdateOne) RemoveNodeAssignments(v ...*NodeAssignment) *Project
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveNodeAssignmentIDs(ids...)
+}
+
+// ClearDiagnosticRuns clears all "diagnostic_runs" edges to the DiagnosticRun entity.
+func (_u *ProjectUpdateOne) ClearDiagnosticRuns() *ProjectUpdateOne {
+	_u.mutation.ClearDiagnosticRuns()
+	return _u
+}
+
+// RemoveDiagnosticRunIDs removes the "diagnostic_runs" edge to DiagnosticRun entities by IDs.
+func (_u *ProjectUpdateOne) RemoveDiagnosticRunIDs(ids ...int) *ProjectUpdateOne {
+	_u.mutation.RemoveDiagnosticRunIDs(ids...)
+	return _u
+}
+
+// RemoveDiagnosticRuns removes "diagnostic_runs" edges to DiagnosticRun entities.
+func (_u *ProjectUpdateOne) RemoveDiagnosticRuns(v ...*DiagnosticRun) *ProjectUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveDiagnosticRunIDs(ids...)
 }
 
 // Where appends a list predicates to the ProjectUpdate builder.
@@ -2564,6 +2682,51 @@ func (_u *ProjectUpdateOne) sqlSave(ctx context.Context) (_node *Project, err er
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(nodeassignment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.DiagnosticRunsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.DiagnosticRunsTable,
+			Columns: []string{project.DiagnosticRunsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(diagnosticrun.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedDiagnosticRunsIDs(); len(nodes) > 0 && !_u.mutation.DiagnosticRunsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.DiagnosticRunsTable,
+			Columns: []string{project.DiagnosticRunsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(diagnosticrun.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.DiagnosticRunsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.DiagnosticRunsTable,
+			Columns: []string{project.DiagnosticRunsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(diagnosticrun.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

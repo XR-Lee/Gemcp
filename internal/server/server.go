@@ -15,6 +15,7 @@ import (
 	"github.com/XR-Lee/Gemcp/internal/auth"
 	"github.com/XR-Lee/Gemcp/internal/buildinfo"
 	"github.com/XR-Lee/Gemcp/internal/config"
+	"github.com/XR-Lee/Gemcp/internal/diagnostic"
 	"github.com/XR-Lee/Gemcp/internal/execution"
 	"github.com/XR-Lee/Gemcp/internal/experiment"
 	"github.com/XR-Lee/Gemcp/internal/finance"
@@ -125,10 +126,11 @@ func New(deps Dependencies) *http.Server {
 	protected.POST("/provider/query", providerHandlers.Query)
 	protected.PUT("/provider", providerHandlers.Configure)
 	protected.GET("/provider/deployments/:id", providerHandlers.Deployment)
-	runtimeHandlers := httpapi.NewRuntimeHandlers(execution.NewOperations(
+	runtimeOperations := execution.NewOperations(
 		deps.Ent, execution.WithRuntimeConfiguration(deps.Config.SchedulerEnabled, deps.Config.GlobalConcurrency, deps.Config.PublicURL != ""),
 		execution.WithSelfHostedEnabled(deps.Config.SelfHostedEnabled),
-	))
+	)
+	runtimeHandlers := httpapi.NewRuntimeHandlers(runtimeOperations)
 	protected.GET("/runtime/status", runtimeHandlers.Status)
 	protected.GET("/provider/managed-resources", runtimeHandlers.List)
 	protected.POST("/provider/deployments/:id/stop", runtimeHandlers.Stop)
@@ -151,6 +153,17 @@ func New(deps Dependencies) *http.Server {
 	protected.GET("/experiments/:id", experimentHandlers.Get)
 	protected.GET("/experiments/:id/attempts", experimentHandlers.Attempts)
 	protected.GET("/projects/:id/cost", experimentHandlers.Cost)
+	diagnosticService := diagnostic.NewService(
+		deps.Ent, deps.Secrets, repositoryService, providerService, runtimeOperations, experimentService,
+		diagnostic.Config{SourceMaxBytes: deps.Config.RunnerSourceMaxBytes, SelfHostedEnabled: deps.Config.SelfHostedEnabled},
+	)
+	diagnosticHandlers := httpapi.NewDiagnosticHandlers(diagnosticService)
+	protected.GET("/projects/:id/diagnostics/options", diagnosticHandlers.Options)
+	protected.POST("/projects/:id/diagnostics/preflight", diagnosticHandlers.Preflight)
+	protected.GET("/projects/:id/diagnostics", diagnosticHandlers.List)
+	protected.POST("/projects/:id/diagnostics", diagnosticHandlers.Submit)
+	protected.GET("/projects/:id/diagnostics/:runID", diagnosticHandlers.Get)
+	protected.POST("/projects/:id/diagnostics/:runID/cancel", diagnosticHandlers.Cancel)
 
 	agentAuthService := agentauth.NewService(deps.Ent, deps.Secrets)
 	mcpHandler := mcpserver.New(agentAuthService, experimentService, deps.Build.Version, nil).Handler()

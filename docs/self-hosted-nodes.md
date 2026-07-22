@@ -63,6 +63,8 @@ Containers may run as root, but never use privileged mode, host namespaces, Host
 
 The daemon enforces the extended runtime deadline locally even when Gemcp is unreachable. Container state is reconciled from bbolt and Docker labels after restart. Complete output and logs stay in managed node storage; Gemcp receives a 64 KiB log tail, bounded `metrics.json`, exit status, and an opaque output reference.
 
+The Owner can validate this path from the [Backend diagnostics](diagnostics.md) workspace. A Self-hosted diagnostic uses a fixed built-in command but otherwise follows normal source download, Assignment, Docker, GPU, output, Event, cancellation, and cleanup behavior. It requires an online authorized Node that exactly matches the selected Resource Profile and records a zero-CNY reservation.
+
 ## Build Sessions and assets
 
 The capabilities in this section are the next delivery stage and are not exposed by the current implementation.

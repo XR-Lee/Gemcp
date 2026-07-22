@@ -17,6 +17,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/auditevent"
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
+	"github.com/XR-Lee/Gemcp/ent/diagnosticrun"
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
@@ -103,6 +104,7 @@ func checkColumn(t, c string) error {
 			attempt.Table:             attempt.ValidColumn,
 			auditevent.Table:          auditevent.ValidColumn,
 			budgetentry.Table:         budgetentry.ValidColumn,
+			diagnosticrun.Table:       diagnosticrun.ValidColumn,
 			environment.Table:         environment.ValidColumn,
 			experiment.Table:          experiment.ValidColumn,
 			idempotencyrecord.Table:   idempotencyrecord.ValidColumn,

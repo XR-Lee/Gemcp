@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/XR-Lee/Gemcp/ent/agenttoken"
+	"github.com/XR-Lee/Gemcp/ent/diagnosticrun"
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/project"
@@ -36,7 +37,7 @@ type Experiment struct {
 	// ProjectID holds the value of the "project_id" field.
 	ProjectID int `json:"project_id,omitempty"`
 	// AgentTokenID holds the value of the "agent_token_id" field.
-	AgentTokenID int `json:"agent_token_id,omitempty"`
+	AgentTokenID *int `json:"agent_token_id,omitempty"`
 	// RepositoryID holds the value of the "repository_id" field.
 	RepositoryID int `json:"repository_id,omitempty"`
 	// EnvironmentID holds the value of the "environment_id" field.
@@ -133,9 +134,11 @@ type ExperimentEdges struct {
 	BudgetEntries []*BudgetEntry `json:"budget_entries,omitempty"`
 	// IdempotencyRecords holds the value of the idempotency_records edge.
 	IdempotencyRecords []*IdempotencyRecord `json:"idempotency_records,omitempty"`
+	// DiagnosticRun holds the value of the diagnostic_run edge.
+	DiagnosticRun *DiagnosticRun `json:"diagnostic_run,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [11]bool
+	loadedTypes [12]bool
 }
 
 // TenantOrErr returns the Tenant value or an error if the edge
@@ -249,6 +252,17 @@ func (e ExperimentEdges) IdempotencyRecordsOrErr() ([]*IdempotencyRecord, error)
 	return nil, &NotLoadedError{edge: "idempotency_records"}
 }
 
+// DiagnosticRunOrErr returns the DiagnosticRun value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e ExperimentEdges) DiagnosticRunOrErr() (*DiagnosticRun, error) {
+	if e.DiagnosticRun != nil {
+		return e.DiagnosticRun, nil
+	} else if e.loadedTypes[11] {
+		return nil, &NotFoundError{label: diagnosticrun.Label}
+	}
+	return nil, &NotLoadedError{edge: "diagnostic_run"}
+}
+
 // scanValues returns the types for scanning values from sql.Rows.
 func (*Experiment) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
@@ -319,7 +333,8 @@ func (_m *Experiment) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field agent_token_id", values[i])
 			} else if value.Valid {
-				_m.AgentTokenID = int(value.Int64)
+				_m.AgentTokenID = new(int)
+				*_m.AgentTokenID = int(value.Int64)
 			}
 		case experiment.FieldRepositoryID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -611,6 +626,11 @@ func (_m *Experiment) QueryIdempotencyRecords() *IdempotencyRecordQuery {
 	return NewExperimentClient(_m.config).QueryIdempotencyRecords(_m)
 }
 
+// QueryDiagnosticRun queries the "diagnostic_run" edge of the Experiment entity.
+func (_m *Experiment) QueryDiagnosticRun() *DiagnosticRunQuery {
+	return NewExperimentClient(_m.config).QueryDiagnosticRun(_m)
+}
+
 // Update returns a builder for updating this Experiment.
 // Note that you need to call Experiment.Unwrap() before calling this method if this Experiment
 // was returned from a transaction, and the transaction was committed or rolled back.
@@ -649,8 +669,10 @@ func (_m *Experiment) String() string {
 	builder.WriteString("project_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ProjectID))
 	builder.WriteString(", ")
-	builder.WriteString("agent_token_id=")
-	builder.WriteString(fmt.Sprintf("%v", _m.AgentTokenID))
+	if v := _m.AgentTokenID; v != nil {
+		builder.WriteString("agent_token_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("repository_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RepositoryID))
