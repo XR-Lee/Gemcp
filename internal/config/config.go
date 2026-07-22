@@ -24,6 +24,7 @@ type Config struct {
 	AutoMigrate              bool
 	SecureCookies            bool
 	PublicURL                string
+	SelfHostedEnabled        bool
 	SchedulerEnabled         bool
 	GlobalConcurrency        int
 	SchedulerPollInterval    time.Duration
@@ -46,6 +47,10 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	secureCookies, err := boolOrDefault("GEMCP_SECURE_COOKIES", environment == "production")
+	if err != nil {
+		return Config{}, err
+	}
+	selfHostedEnabled, err := boolOrDefault("GEMCP_SELF_HOSTED_ENABLED", false)
 	if err != nil {
 		return Config{}, err
 	}
@@ -121,6 +126,7 @@ func Load() (Config, error) {
 		AutoMigrate:              autoMigrate,
 		SecureCookies:            secureCookies,
 		PublicURL:                strings.TrimRight(strings.TrimSpace(os.Getenv("GEMCP_PUBLIC_URL")), "/"),
+		SelfHostedEnabled:        selfHostedEnabled,
 		SchedulerEnabled:         schedulerEnabled,
 		GlobalConcurrency:        globalConcurrency,
 		SchedulerPollInterval:    schedulerPollInterval,
@@ -169,10 +175,10 @@ func Load() (Config, error) {
 	if cfg.NotificationPollInterval <= 0 {
 		return Config{}, fmt.Errorf("GEMCP_NOTIFICATION_POLL_INTERVAL must be positive")
 	}
-	if cfg.SchedulerEnabled {
+	if cfg.SchedulerEnabled || cfg.SelfHostedEnabled {
 		parsed, err := url.Parse(cfg.PublicURL)
 		if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || strings.Trim(parsed.Path, "/") != "" {
-			return Config{}, fmt.Errorf("GEMCP_PUBLIC_URL must be a credential-free HTTPS origin when scheduling is enabled")
+			return Config{}, fmt.Errorf("GEMCP_PUBLIC_URL must be a credential-free HTTPS origin when scheduling or Self-hosted nodes are enabled")
 		}
 	}
 	return cfg, nil

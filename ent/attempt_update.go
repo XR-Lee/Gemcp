@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/XR-Lee/Gemcp/ent/attempt"
+	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
 )
@@ -373,6 +374,25 @@ func (_u *AttemptUpdate) SetOwnedResource(v *ProviderResource) *AttemptUpdate {
 	return _u.SetOwnedResourceID(v.ID)
 }
 
+// SetNodeAssignmentID sets the "node_assignment" edge to the NodeAssignment entity by ID.
+func (_u *AttemptUpdate) SetNodeAssignmentID(id int) *AttemptUpdate {
+	_u.mutation.SetNodeAssignmentID(id)
+	return _u
+}
+
+// SetNillableNodeAssignmentID sets the "node_assignment" edge to the NodeAssignment entity by ID if the given value is not nil.
+func (_u *AttemptUpdate) SetNillableNodeAssignmentID(id *int) *AttemptUpdate {
+	if id != nil {
+		_u = _u.SetNodeAssignmentID(*id)
+	}
+	return _u
+}
+
+// SetNodeAssignment sets the "node_assignment" edge to the NodeAssignment entity.
+func (_u *AttemptUpdate) SetNodeAssignment(v *NodeAssignment) *AttemptUpdate {
+	return _u.SetNodeAssignmentID(v.ID)
+}
+
 // Mutation returns the AttemptMutation object of the builder.
 func (_u *AttemptUpdate) Mutation() *AttemptMutation {
 	return _u.mutation
@@ -381,6 +401,12 @@ func (_u *AttemptUpdate) Mutation() *AttemptMutation {
 // ClearOwnedResource clears the "owned_resource" edge to the ProviderResource entity.
 func (_u *AttemptUpdate) ClearOwnedResource() *AttemptUpdate {
 	_u.mutation.ClearOwnedResource()
+	return _u
+}
+
+// ClearNodeAssignment clears the "node_assignment" edge to the NodeAssignment entity.
+func (_u *AttemptUpdate) ClearNodeAssignment() *AttemptUpdate {
+	_u.mutation.ClearNodeAssignment()
 	return _u
 }
 
@@ -603,6 +629,35 @@ func (_u *AttemptUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(providerresource.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.NodeAssignmentCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   attempt.NodeAssignmentTable,
+			Columns: []string{attempt.NodeAssignmentColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nodeassignment.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.NodeAssignmentIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   attempt.NodeAssignmentTable,
+			Columns: []string{attempt.NodeAssignmentColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nodeassignment.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -974,6 +1029,25 @@ func (_u *AttemptUpdateOne) SetOwnedResource(v *ProviderResource) *AttemptUpdate
 	return _u.SetOwnedResourceID(v.ID)
 }
 
+// SetNodeAssignmentID sets the "node_assignment" edge to the NodeAssignment entity by ID.
+func (_u *AttemptUpdateOne) SetNodeAssignmentID(id int) *AttemptUpdateOne {
+	_u.mutation.SetNodeAssignmentID(id)
+	return _u
+}
+
+// SetNillableNodeAssignmentID sets the "node_assignment" edge to the NodeAssignment entity by ID if the given value is not nil.
+func (_u *AttemptUpdateOne) SetNillableNodeAssignmentID(id *int) *AttemptUpdateOne {
+	if id != nil {
+		_u = _u.SetNodeAssignmentID(*id)
+	}
+	return _u
+}
+
+// SetNodeAssignment sets the "node_assignment" edge to the NodeAssignment entity.
+func (_u *AttemptUpdateOne) SetNodeAssignment(v *NodeAssignment) *AttemptUpdateOne {
+	return _u.SetNodeAssignmentID(v.ID)
+}
+
 // Mutation returns the AttemptMutation object of the builder.
 func (_u *AttemptUpdateOne) Mutation() *AttemptMutation {
 	return _u.mutation
@@ -982,6 +1056,12 @@ func (_u *AttemptUpdateOne) Mutation() *AttemptMutation {
 // ClearOwnedResource clears the "owned_resource" edge to the ProviderResource entity.
 func (_u *AttemptUpdateOne) ClearOwnedResource() *AttemptUpdateOne {
 	_u.mutation.ClearOwnedResource()
+	return _u
+}
+
+// ClearNodeAssignment clears the "node_assignment" edge to the NodeAssignment entity.
+func (_u *AttemptUpdateOne) ClearNodeAssignment() *AttemptUpdateOne {
+	_u.mutation.ClearNodeAssignment()
 	return _u
 }
 
@@ -1234,6 +1314,35 @@ func (_u *AttemptUpdateOne) sqlSave(ctx context.Context) (_node *Attempt, err er
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(providerresource.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.NodeAssignmentCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   attempt.NodeAssignmentTable,
+			Columns: []string{attempt.NodeAssignmentColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nodeassignment.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.NodeAssignmentIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   attempt.NodeAssignmentTable,
+			Columns: []string{attempt.NodeAssignmentColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nodeassignment.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

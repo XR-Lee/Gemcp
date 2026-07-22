@@ -139,6 +139,66 @@ describe('API security headers', () => {
     expect((revokeOptions.headers as Headers).get('X-CSRF-Token')).toBe('csrf-setup-link')
   })
 
+  it('protects Self-hosted node enrollment mutations with CSRF', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true, status: 201,
+        json: async () => ({ data: { enrollment: { id: 'enrollment/id' }, setup_url: 'https://gemcp.example/node/setup#code=secret' } }),
+      })
+      .mockResolvedValueOnce({
+        ok: true, status: 200,
+        json: async () => ({ data: { id: 'node-id', status: 'active' } }),
+      })
+      .mockResolvedValueOnce({
+        ok: true, status: 200,
+        json: async () => ({ data: { id: 'enrollment/id', status: 'revoked' } }),
+      })
+    vi.stubGlobal('fetch', fetchMock)
+    setCSRFToken('csrf-node-enrollment')
+
+    await api.issueNodeEnrollment({ label: 'lab-gpu-01', setup_expires_in_minutes: 30 })
+    await api.approveNodeEnrollment('enrollment/id', { pairing_code: 'ABCD-1234', project_ids: ['project-id'] })
+    await api.revokeNodeEnrollment('enrollment/id')
+
+    const [issuePath, issueOptions] = fetchMock.mock.calls[0]
+    expect(issuePath).toBe('/api/v1/node-enrollments')
+    expect(issueOptions.method).toBe('POST')
+    expect((issueOptions.headers as Headers).get('X-CSRF-Token')).toBe('csrf-node-enrollment')
+    expect(JSON.parse(String(issueOptions.body))).toEqual({ label: 'lab-gpu-01', setup_expires_in_minutes: 30 })
+
+    const [approvePath, approveOptions] = fetchMock.mock.calls[1]
+    expect(approvePath).toBe('/api/v1/node-enrollments/enrollment%2Fid/approve')
+    expect(approveOptions.method).toBe('POST')
+    expect((approveOptions.headers as Headers).get('X-CSRF-Token')).toBe('csrf-node-enrollment')
+    expect(JSON.parse(String(approveOptions.body))).toEqual({ pairing_code: 'ABCD-1234', project_ids: ['project-id'] })
+
+    const [revokePath, revokeOptions] = fetchMock.mock.calls[2]
+    expect(revokePath).toBe('/api/v1/node-enrollments/enrollment%2Fid')
+    expect(revokeOptions.method).toBe('DELETE')
+    expect((revokeOptions.headers as Headers).get('X-CSRF-Token')).toBe('csrf-node-enrollment')
+  })
+
+  it('creates Self-hosted runtime configuration through a CSRF-protected Project endpoint', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true, status: 201,
+      json: async () => ({ data: { environment: { id: 'environment-id' }, resource_profile: { id: 'profile-id' } } }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    setCSRFToken('csrf-runtime')
+    const payload = {
+      name: 'local-3090', image: `registry.example/train@sha256:${'a'.repeat(64)}`,
+      gpu_names: ['NVIDIA GeForce RTX 3090'], cpu_limit: 8, memory_gb: 32, make_default: true,
+    }
+
+    await api.createSelfHostedRuntime('project/id', payload)
+
+    const [path, options] = fetchMock.mock.calls[0]
+    expect(path).toBe('/api/v1/projects/project%2Fid/self-hosted-runtimes')
+    expect(options.method).toBe('POST')
+    expect((options.headers as Headers).get('X-CSRF-Token')).toBe('csrf-runtime')
+    expect(JSON.parse(String(options.body))).toEqual(payload)
+  })
+
   it('adds the current CSRF token to state-changing Owner requests', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

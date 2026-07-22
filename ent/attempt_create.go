@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
@@ -339,6 +340,25 @@ func (_c *AttemptCreate) SetOwnedResource(v *ProviderResource) *AttemptCreate {
 	return _c.SetOwnedResourceID(v.ID)
 }
 
+// SetNodeAssignmentID sets the "node_assignment" edge to the NodeAssignment entity by ID.
+func (_c *AttemptCreate) SetNodeAssignmentID(id int) *AttemptCreate {
+	_c.mutation.SetNodeAssignmentID(id)
+	return _c
+}
+
+// SetNillableNodeAssignmentID sets the "node_assignment" edge to the NodeAssignment entity by ID if the given value is not nil.
+func (_c *AttemptCreate) SetNillableNodeAssignmentID(id *int) *AttemptCreate {
+	if id != nil {
+		_c = _c.SetNodeAssignmentID(*id)
+	}
+	return _c
+}
+
+// SetNodeAssignment sets the "node_assignment" edge to the NodeAssignment entity.
+func (_c *AttemptCreate) SetNodeAssignment(v *NodeAssignment) *AttemptCreate {
+	return _c.SetNodeAssignmentID(v.ID)
+}
+
 // Mutation returns the AttemptMutation object of the builder.
 func (_c *AttemptCreate) Mutation() *AttemptMutation {
 	return _c.mutation
@@ -654,6 +674,22 @@ func (_c *AttemptCreate) createSpec() (*Attempt, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(providerresource.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.NodeAssignmentIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   attempt.NodeAssignmentTable,
+			Columns: []string{attempt.NodeAssignmentColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nodeassignment.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

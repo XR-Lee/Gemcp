@@ -43,6 +43,7 @@ func (Attempt) Edges() []ent.Edge {
 		edge.From("project", Project.Type).Ref("attempts").Field("project_id").Unique().Required().Immutable(),
 		edge.From("experiment", Experiment.Type).Ref("attempts").Field("experiment_id").Unique().Required().Immutable(),
 		edge.To("owned_resource", ProviderResource.Type).Unique(),
+		edge.To("node_assignment", NodeAssignment.Type).Unique(),
 	}
 }
 

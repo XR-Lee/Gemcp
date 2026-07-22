@@ -58,9 +58,21 @@ type TenantEdges struct {
 	NotificationSettings []*NotificationSetting `json:"notification_settings,omitempty"`
 	// Notifications holds the value of the notifications edge.
 	Notifications []*Notification `json:"notifications,omitempty"`
+	// SelfHostedNodes holds the value of the self_hosted_nodes edge.
+	SelfHostedNodes []*SelfHostedNode `json:"self_hosted_nodes,omitempty"`
+	// NodeEnrollments holds the value of the node_enrollments edge.
+	NodeEnrollments []*NodeEnrollment `json:"node_enrollments,omitempty"`
+	// NodeProjectAccess holds the value of the node_project_access edge.
+	NodeProjectAccess []*NodeProjectAccess `json:"node_project_access,omitempty"`
+	// NodeCommands holds the value of the node_commands edge.
+	NodeCommands []*NodeCommand `json:"node_commands,omitempty"`
+	// NodeEvents holds the value of the node_events edge.
+	NodeEvents []*NodeEvent `json:"node_events,omitempty"`
+	// NodeAssignments holds the value of the node_assignments edge.
+	NodeAssignments []*NodeAssignment `json:"node_assignments,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [11]bool
+	loadedTypes [17]bool
 }
 
 // UsersOrErr returns the Users value or an error if the edge
@@ -160,6 +172,60 @@ func (e TenantEdges) NotificationsOrErr() ([]*Notification, error) {
 		return e.Notifications, nil
 	}
 	return nil, &NotLoadedError{edge: "notifications"}
+}
+
+// SelfHostedNodesOrErr returns the SelfHostedNodes value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) SelfHostedNodesOrErr() ([]*SelfHostedNode, error) {
+	if e.loadedTypes[11] {
+		return e.SelfHostedNodes, nil
+	}
+	return nil, &NotLoadedError{edge: "self_hosted_nodes"}
+}
+
+// NodeEnrollmentsOrErr returns the NodeEnrollments value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) NodeEnrollmentsOrErr() ([]*NodeEnrollment, error) {
+	if e.loadedTypes[12] {
+		return e.NodeEnrollments, nil
+	}
+	return nil, &NotLoadedError{edge: "node_enrollments"}
+}
+
+// NodeProjectAccessOrErr returns the NodeProjectAccess value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) NodeProjectAccessOrErr() ([]*NodeProjectAccess, error) {
+	if e.loadedTypes[13] {
+		return e.NodeProjectAccess, nil
+	}
+	return nil, &NotLoadedError{edge: "node_project_access"}
+}
+
+// NodeCommandsOrErr returns the NodeCommands value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) NodeCommandsOrErr() ([]*NodeCommand, error) {
+	if e.loadedTypes[14] {
+		return e.NodeCommands, nil
+	}
+	return nil, &NotLoadedError{edge: "node_commands"}
+}
+
+// NodeEventsOrErr returns the NodeEvents value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) NodeEventsOrErr() ([]*NodeEvent, error) {
+	if e.loadedTypes[15] {
+		return e.NodeEvents, nil
+	}
+	return nil, &NotLoadedError{edge: "node_events"}
+}
+
+// NodeAssignmentsOrErr returns the NodeAssignments value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) NodeAssignmentsOrErr() ([]*NodeAssignment, error) {
+	if e.loadedTypes[16] {
+		return e.NodeAssignments, nil
+	}
+	return nil, &NotLoadedError{edge: "node_assignments"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -292,6 +358,36 @@ func (_m *Tenant) QueryNotificationSettings() *NotificationSettingQuery {
 // QueryNotifications queries the "notifications" edge of the Tenant entity.
 func (_m *Tenant) QueryNotifications() *NotificationQuery {
 	return NewTenantClient(_m.config).QueryNotifications(_m)
+}
+
+// QuerySelfHostedNodes queries the "self_hosted_nodes" edge of the Tenant entity.
+func (_m *Tenant) QuerySelfHostedNodes() *SelfHostedNodeQuery {
+	return NewTenantClient(_m.config).QuerySelfHostedNodes(_m)
+}
+
+// QueryNodeEnrollments queries the "node_enrollments" edge of the Tenant entity.
+func (_m *Tenant) QueryNodeEnrollments() *NodeEnrollmentQuery {
+	return NewTenantClient(_m.config).QueryNodeEnrollments(_m)
+}
+
+// QueryNodeProjectAccess queries the "node_project_access" edge of the Tenant entity.
+func (_m *Tenant) QueryNodeProjectAccess() *NodeProjectAccessQuery {
+	return NewTenantClient(_m.config).QueryNodeProjectAccess(_m)
+}
+
+// QueryNodeCommands queries the "node_commands" edge of the Tenant entity.
+func (_m *Tenant) QueryNodeCommands() *NodeCommandQuery {
+	return NewTenantClient(_m.config).QueryNodeCommands(_m)
+}
+
+// QueryNodeEvents queries the "node_events" edge of the Tenant entity.
+func (_m *Tenant) QueryNodeEvents() *NodeEventQuery {
+	return NewTenantClient(_m.config).QueryNodeEvents(_m)
+}
+
+// QueryNodeAssignments queries the "node_assignments" edge of the Tenant entity.
+func (_m *Tenant) QueryNodeAssignments() *NodeAssignmentQuery {
+	return NewTenantClient(_m.config).QueryNodeAssignments(_m)
 }
 
 // Update returns a builder for updating this Tenant.

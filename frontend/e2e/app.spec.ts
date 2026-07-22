@@ -122,12 +122,32 @@ const cachedProviderContainer = {
   started_at: '2026-07-16T10:00:00Z', stopped_at: '2026-07-16T10:30:00Z', created_at: '2026-07-16T09:59:00Z',
 }
 const runtimeStatus = {
-  scheduler_enabled: true, global_concurrency: 2, public_url_configured: true,
+  scheduler_enabled: true, self_hosted_enabled: false, global_concurrency: 2, public_url_configured: true,
   scheduler_healthy: true, watchdog_healthy: true, notification_worker_healthy: true,
   scheduler_heartbeat: { role: 'scheduler', instance_id: 'controlplane-test', status: 'running', last_seen_at: '2026-07-17T02:00:00Z' },
   watchdog_heartbeat: { role: 'watchdog', instance_id: 'watchdog-test', status: 'running', last_seen_at: '2026-07-17T02:00:00Z' },
   notification_heartbeat: { role: 'notification', instance_id: 'notification-test', status: 'running', last_seen_at: '2026-07-17T02:00:00Z' },
   generated_at: '2026-07-17T02:00:01Z',
+}
+const selfHostedNode = {
+  id: 'node-11111111-2222-4333-8444-555555555555', label: 'lab-gpu-01', token_prefix: 'gmn_test',
+  status: 'active', observed_state: 'online', installation_id: 'installation-id', machine_fingerprint: 'a'.repeat(64),
+  hostname: 'gpu-workstation', operating_system: 'linux', architecture: 'amd64', agent_version: '0.9.0', protocol_version: '1',
+  capabilities: { cpu_count: 16, memory_bytes: 68719476736, gpus: [{ uuid: 'GPU-test', name: 'NVIDIA GeForce RTX 3090', memory_bytes: 25769803776 }] },
+  storage: { root: '/var/lib/gemcp-node/storage', total_bytes: 1099511627776, available_bytes: 824633720832, managed_bytes: 21474836480 },
+  project_ids: [project.id], last_seen_at: '2026-07-17T02:00:00Z', approved_at: '2026-07-17T01:00:00Z',
+  created_at: '2026-07-17T00:30:00Z', updated_at: '2026-07-17T02:00:00Z',
+}
+const selfHostedAssignment = {
+  id: 'assignment-id', node_id: selfHostedNode.id, node_label: selfHostedNode.label, project_id: project.id,
+  experiment_id: experiments[0].id, attempt_id: 'attempt-self-hosted-1', attempt_number: 1, state: 'running',
+  output_ref: `experiments/${experiments[0].id}/attempts/attempt-self-hosted-1/outputs`,
+  started_at: '2026-07-17T01:56:00Z', last_heartbeat_at: '2026-07-17T02:00:00Z', metrics: { loss: 0.42 },
+  created_at: '2026-07-17T01:55:00Z', updated_at: '2026-07-17T02:00:00Z',
+}
+const selfHostedRuntimes = {
+  environments: [{ id: 'environment-self-hosted', name: 'local-3090', image: `registry.example/train@sha256:${'b'.repeat(64)}`, is_default: true }],
+  resource_profiles: [{ id: 'profile-self-hosted', name: 'local-3090', gpu_names: ['NVIDIA GeForce RTX 3090'], cpu_limit: 8, memory_gb: 32, is_default: true }],
 }
 const notificationSetting = {
   configured: true, enabled: true, host: 'smtp.example.com', port: 587, tls_mode: 'starttls',
@@ -172,7 +192,7 @@ async function mockLogin(page: Page) {
   })
 }
 
-async function mockConsole(page: Page, counters?: { providerQueries: number }) {
+async function mockConsole(page: Page, counters?: { providerQueries: number; selfHosted?: boolean }) {
   await page.route('**/docs/*.md', async (route) => {
     const path = new URL(route.request().url()).pathname
     const body = path.endsWith('/agent-mcp.md')
@@ -186,7 +206,11 @@ async function mockConsole(page: Page, counters?: { providerQueries: number }) {
     if (path === '/api/v1/version') return fulfill(route, build)
     if (path === '/api/v1/setup/status') return fulfill(route, { initialized: true })
     if (path === '/api/v1/auth/me') return fulfill(route, { user_id: 'owner-id', tenant_id: 'tenant-id', email: 'owner@example.com', role: 'owner' })
-    if (path === '/api/v1/runtime/status') return fulfill(route, runtimeStatus)
+    if (path === '/api/v1/runtime/status') return fulfill(route, { ...runtimeStatus, self_hosted_enabled: Boolean(counters?.selfHosted) })
+    if (path === '/api/v1/nodes' && counters?.selfHosted) return fulfill(route, {
+      nodes: [selfHostedNode], enrollments: [], assignments: [selfHostedAssignment],
+    })
+    if (path === `/api/v1/projects/${project.id}/self-hosted-runtimes` && counters?.selfHosted) return fulfill(route, selfHostedRuntimes)
     if (path === '/api/v1/provider' && route.request().method() === 'GET') return fulfill(route, provider)
     if (path === '/api/v1/provider' && route.request().method() === 'PUT') return fulfill(route, { provider, resources: providerResources })
     if (path === '/api/v1/provider/query') {
@@ -324,6 +348,35 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await expect(page.getByText('epoch 3 loss=0.42')).toBeVisible()
   await expectNoPageOverflow(page)
   await page.screenshot({ path: '/tmp/gemcp-experiment-detail.png', fullPage: true })
+})
+
+test('Self-hosted nodes, Assignments and runtime configuration fit desktop and mobile', async ({ page }) => {
+  await mockConsole(page, { providerQueries: 0, selfHosted: true })
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Nodes', exact: true }).click()
+  await expect(page.getByText('gpu-workstation', { exact: false })).toBeVisible()
+  await expect(page.getByText('local-3090', { exact: true })).toBeVisible()
+  await expect(page.getByText('ec29dc68-967', { exact: true })).toBeVisible()
+  await expect(page.getByText('gmn_test', { exact: true })).toHaveCount(0)
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: '/tmp/gemcp-nodes-desktop.png', fullPage: true })
+
+  await page.getByRole('button', { name: 'Add runtime', exact: true }).click()
+  const runtimeDialog = page.locator('.runtime-dialog')
+  await expect(runtimeDialog.getByRole('heading', { name: 'Add Self-hosted runtime' })).toBeVisible()
+  await expect(runtimeDialog.getByLabel('Accepted GPU models')).toHaveValue('NVIDIA GeForce RTX 3090')
+  await runtimeDialog.getByLabel('Runtime name').fill('second-node-runtime')
+  await runtimeDialog.getByLabel('OCI image pinned by digest').fill(`registry.example/second@sha256:${'c'.repeat(64)}`)
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: '/tmp/gemcp-runtime-dialog-desktop.png', fullPage: true })
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: '/tmp/gemcp-runtime-dialog-mobile.png', fullPage: true })
+  await runtimeDialog.getByRole('button', { name: 'Close' }).click()
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: '/tmp/gemcp-nodes-mobile.png', fullPage: true })
 })
 
 test('Pi setup links, MCP guidance and advanced token controls fit desktop and mobile', async ({ page }) => {

@@ -75,9 +75,13 @@ type ProjectEdges struct {
 	ProviderResources []*ProviderResource `json:"provider_resources,omitempty"`
 	// BudgetEntries holds the value of the budget_entries edge.
 	BudgetEntries []*BudgetEntry `json:"budget_entries,omitempty"`
+	// NodeAccess holds the value of the node_access edge.
+	NodeAccess []*NodeProjectAccess `json:"node_access,omitempty"`
+	// NodeAssignments holds the value of the node_assignments edge.
+	NodeAssignments []*NodeAssignment `json:"node_assignments,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [10]bool
+	loadedTypes [12]bool
 }
 
 // TenantOrErr returns the Tenant value or an error if the edge
@@ -170,6 +174,24 @@ func (e ProjectEdges) BudgetEntriesOrErr() ([]*BudgetEntry, error) {
 		return e.BudgetEntries, nil
 	}
 	return nil, &NotLoadedError{edge: "budget_entries"}
+}
+
+// NodeAccessOrErr returns the NodeAccess value or an error if the edge
+// was not loaded in eager-loading.
+func (e ProjectEdges) NodeAccessOrErr() ([]*NodeProjectAccess, error) {
+	if e.loadedTypes[10] {
+		return e.NodeAccess, nil
+	}
+	return nil, &NotLoadedError{edge: "node_access"}
+}
+
+// NodeAssignmentsOrErr returns the NodeAssignments value or an error if the edge
+// was not loaded in eager-loading.
+func (e ProjectEdges) NodeAssignmentsOrErr() ([]*NodeAssignment, error) {
+	if e.loadedTypes[11] {
+		return e.NodeAssignments, nil
+	}
+	return nil, &NotLoadedError{edge: "node_assignments"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -351,6 +373,16 @@ func (_m *Project) QueryProviderResources() *ProviderResourceQuery {
 // QueryBudgetEntries queries the "budget_entries" edge of the Project entity.
 func (_m *Project) QueryBudgetEntries() *BudgetEntryQuery {
 	return NewProjectClient(_m.config).QueryBudgetEntries(_m)
+}
+
+// QueryNodeAccess queries the "node_access" edge of the Project entity.
+func (_m *Project) QueryNodeAccess() *NodeProjectAccessQuery {
+	return NewProjectClient(_m.config).QueryNodeAccess(_m)
+}
+
+// QueryNodeAssignments queries the "node_assignments" edge of the Project entity.
+func (_m *Project) QueryNodeAssignments() *NodeAssignmentQuery {
+	return NewProjectClient(_m.config).QueryNodeAssignments(_m)
 }
 
 // Update returns a builder for updating this Project.

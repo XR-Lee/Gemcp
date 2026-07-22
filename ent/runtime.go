@@ -13,6 +13,11 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
+	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
+	"github.com/XR-Lee/Gemcp/ent/nodecommand"
+	"github.com/XR-Lee/Gemcp/ent/nodeenrollment"
+	"github.com/XR-Lee/Gemcp/ent/nodeevent"
+	"github.com/XR-Lee/Gemcp/ent/nodeprojectaccess"
 	"github.com/XR-Lee/Gemcp/ent/notification"
 	"github.com/XR-Lee/Gemcp/ent/notificationsetting"
 	"github.com/XR-Lee/Gemcp/ent/project"
@@ -22,6 +27,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/repository"
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
 	"github.com/XR-Lee/Gemcp/ent/schema"
+	"github.com/XR-Lee/Gemcp/ent/selfhostednode"
 	"github.com/XR-Lee/Gemcp/ent/serviceheartbeat"
 	"github.com/XR-Lee/Gemcp/ent/session"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
@@ -326,7 +332,7 @@ func init() {
 	// environment.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	environment.UpdateDefaultUpdatedAt = environmentDescUpdatedAt.UpdateDefault.(func() time.Time)
 	// environmentDescName is the schema descriptor for name field.
-	environmentDescName := environmentFields[1].Descriptor()
+	environmentDescName := environmentFields[2].Descriptor()
 	// environment.NameValidator is a validator for the "name" field. It is called by the builders before save.
 	environment.NameValidator = func() func(string) error {
 		validators := environmentDescName.Validators
@@ -344,7 +350,7 @@ func init() {
 		}
 	}()
 	// environmentDescImageUUID is the schema descriptor for image_uuid field.
-	environmentDescImageUUID := environmentFields[2].Descriptor()
+	environmentDescImageUUID := environmentFields[3].Descriptor()
 	// environment.ImageUUIDValidator is a validator for the "image_uuid" field. It is called by the builders before save.
 	environment.ImageUUIDValidator = func() func(string) error {
 		validators := environmentDescImageUUID.Validators
@@ -362,11 +368,11 @@ func init() {
 		}
 	}()
 	// environmentDescRecipeRef is the schema descriptor for recipe_ref field.
-	environmentDescRecipeRef := environmentFields[3].Descriptor()
+	environmentDescRecipeRef := environmentFields[4].Descriptor()
 	// environment.RecipeRefValidator is a validator for the "recipe_ref" field. It is called by the builders before save.
 	environment.RecipeRefValidator = environmentDescRecipeRef.Validators[0].(func(string) error)
 	// environmentDescIsDefault is the schema descriptor for is_default field.
-	environmentDescIsDefault := environmentFields[5].Descriptor()
+	environmentDescIsDefault := environmentFields[6].Descriptor()
 	// environment.DefaultIsDefault holds the default value on creation for the is_default field.
 	environment.DefaultIsDefault = environmentDescIsDefault.Default.(bool)
 	experimentMixin := schema.Experiment{}.Mixin()
@@ -477,6 +483,253 @@ func init() {
 	idempotencyrecord.DefaultUpdatedAt = idempotencyrecordDescUpdatedAt.Default.(func() time.Time)
 	// idempotencyrecord.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	idempotencyrecord.UpdateDefaultUpdatedAt = idempotencyrecordDescUpdatedAt.UpdateDefault.(func() time.Time)
+	nodeassignmentMixin := schema.NodeAssignment{}.Mixin()
+	nodeassignmentMixinFields0 := nodeassignmentMixin[0].Fields()
+	_ = nodeassignmentMixinFields0
+	nodeassignmentFields := schema.NodeAssignment{}.Fields()
+	_ = nodeassignmentFields
+	// nodeassignmentDescPublicID is the schema descriptor for public_id field.
+	nodeassignmentDescPublicID := nodeassignmentMixinFields0[0].Descriptor()
+	// nodeassignment.DefaultPublicID holds the default value on creation for the public_id field.
+	nodeassignment.DefaultPublicID = nodeassignmentDescPublicID.Default.(func() uuid.UUID)
+	// nodeassignmentDescCreatedAt is the schema descriptor for created_at field.
+	nodeassignmentDescCreatedAt := nodeassignmentMixinFields0[1].Descriptor()
+	// nodeassignment.DefaultCreatedAt holds the default value on creation for the created_at field.
+	nodeassignment.DefaultCreatedAt = nodeassignmentDescCreatedAt.Default.(func() time.Time)
+	// nodeassignmentDescUpdatedAt is the schema descriptor for updated_at field.
+	nodeassignmentDescUpdatedAt := nodeassignmentMixinFields0[2].Descriptor()
+	// nodeassignment.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	nodeassignment.DefaultUpdatedAt = nodeassignmentDescUpdatedAt.Default.(func() time.Time)
+	// nodeassignment.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	nodeassignment.UpdateDefaultUpdatedAt = nodeassignmentDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// nodeassignmentDescOutputRef is the schema descriptor for output_ref field.
+	nodeassignmentDescOutputRef := nodeassignmentFields[6].Descriptor()
+	// nodeassignment.OutputRefValidator is a validator for the "output_ref" field. It is called by the builders before save.
+	nodeassignment.OutputRefValidator = func() func(string) error {
+		validators := nodeassignmentDescOutputRef.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(output_ref string) error {
+			for _, fn := range fns {
+				if err := fn(output_ref); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// nodeassignmentDescStartCommandID is the schema descriptor for start_command_id field.
+	nodeassignmentDescStartCommandID := nodeassignmentFields[7].Descriptor()
+	// nodeassignment.StartCommandIDValidator is a validator for the "start_command_id" field. It is called by the builders before save.
+	nodeassignment.StartCommandIDValidator = nodeassignmentDescStartCommandID.Validators[0].(func(string) error)
+	// nodeassignmentDescStopCommandID is the schema descriptor for stop_command_id field.
+	nodeassignmentDescStopCommandID := nodeassignmentFields[8].Descriptor()
+	// nodeassignment.StopCommandIDValidator is a validator for the "stop_command_id" field. It is called by the builders before save.
+	nodeassignment.StopCommandIDValidator = nodeassignmentDescStopCommandID.Validators[0].(func(string) error)
+	// nodeassignmentDescWorkloadID is the schema descriptor for workload_id field.
+	nodeassignmentDescWorkloadID := nodeassignmentFields[9].Descriptor()
+	// nodeassignment.WorkloadIDValidator is a validator for the "workload_id" field. It is called by the builders before save.
+	nodeassignment.WorkloadIDValidator = nodeassignmentDescWorkloadID.Validators[0].(func(string) error)
+	// nodeassignmentDescStopReason is the schema descriptor for stop_reason field.
+	nodeassignmentDescStopReason := nodeassignmentFields[15].Descriptor()
+	// nodeassignment.StopReasonValidator is a validator for the "stop_reason" field. It is called by the builders before save.
+	nodeassignment.StopReasonValidator = nodeassignmentDescStopReason.Validators[0].(func(string) error)
+	// nodeassignmentDescMetrics is the schema descriptor for metrics field.
+	nodeassignmentDescMetrics := nodeassignmentFields[19].Descriptor()
+	// nodeassignment.DefaultMetrics holds the default value on creation for the metrics field.
+	nodeassignment.DefaultMetrics = nodeassignmentDescMetrics.Default.(map[string]interface{})
+	// nodeassignmentDescFailureCode is the schema descriptor for failure_code field.
+	nodeassignmentDescFailureCode := nodeassignmentFields[20].Descriptor()
+	// nodeassignment.FailureCodeValidator is a validator for the "failure_code" field. It is called by the builders before save.
+	nodeassignment.FailureCodeValidator = nodeassignmentDescFailureCode.Validators[0].(func(string) error)
+	nodecommandMixin := schema.NodeCommand{}.Mixin()
+	nodecommandMixinFields0 := nodecommandMixin[0].Fields()
+	_ = nodecommandMixinFields0
+	nodecommandFields := schema.NodeCommand{}.Fields()
+	_ = nodecommandFields
+	// nodecommandDescPublicID is the schema descriptor for public_id field.
+	nodecommandDescPublicID := nodecommandMixinFields0[0].Descriptor()
+	// nodecommand.DefaultPublicID holds the default value on creation for the public_id field.
+	nodecommand.DefaultPublicID = nodecommandDescPublicID.Default.(func() uuid.UUID)
+	// nodecommandDescCreatedAt is the schema descriptor for created_at field.
+	nodecommandDescCreatedAt := nodecommandMixinFields0[1].Descriptor()
+	// nodecommand.DefaultCreatedAt holds the default value on creation for the created_at field.
+	nodecommand.DefaultCreatedAt = nodecommandDescCreatedAt.Default.(func() time.Time)
+	// nodecommandDescUpdatedAt is the schema descriptor for updated_at field.
+	nodecommandDescUpdatedAt := nodecommandMixinFields0[2].Descriptor()
+	// nodecommand.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	nodecommand.DefaultUpdatedAt = nodecommandDescUpdatedAt.Default.(func() time.Time)
+	// nodecommand.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	nodecommand.UpdateDefaultUpdatedAt = nodecommandDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// nodecommandDescSequence is the schema descriptor for sequence field.
+	nodecommandDescSequence := nodecommandFields[3].Descriptor()
+	// nodecommand.SequenceValidator is a validator for the "sequence" field. It is called by the builders before save.
+	nodecommand.SequenceValidator = nodecommandDescSequence.Validators[0].(func(int64) error)
+	// nodecommandDescKind is the schema descriptor for kind field.
+	nodecommandDescKind := nodecommandFields[4].Descriptor()
+	// nodecommand.KindValidator is a validator for the "kind" field. It is called by the builders before save.
+	nodecommand.KindValidator = func() func(string) error {
+		validators := nodecommandDescKind.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(kind string) error {
+			for _, fn := range fns {
+				if err := fn(kind); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// nodecommandDescIdempotencyKey is the schema descriptor for idempotency_key field.
+	nodecommandDescIdempotencyKey := nodecommandFields[5].Descriptor()
+	// nodecommand.IdempotencyKeyValidator is a validator for the "idempotency_key" field. It is called by the builders before save.
+	nodecommand.IdempotencyKeyValidator = func() func(string) error {
+		validators := nodecommandDescIdempotencyKey.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(idempotency_key string) error {
+			for _, fn := range fns {
+				if err := fn(idempotency_key); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	nodeenrollmentMixin := schema.NodeEnrollment{}.Mixin()
+	nodeenrollmentMixinFields0 := nodeenrollmentMixin[0].Fields()
+	_ = nodeenrollmentMixinFields0
+	nodeenrollmentFields := schema.NodeEnrollment{}.Fields()
+	_ = nodeenrollmentFields
+	// nodeenrollmentDescPublicID is the schema descriptor for public_id field.
+	nodeenrollmentDescPublicID := nodeenrollmentMixinFields0[0].Descriptor()
+	// nodeenrollment.DefaultPublicID holds the default value on creation for the public_id field.
+	nodeenrollment.DefaultPublicID = nodeenrollmentDescPublicID.Default.(func() uuid.UUID)
+	// nodeenrollmentDescCreatedAt is the schema descriptor for created_at field.
+	nodeenrollmentDescCreatedAt := nodeenrollmentMixinFields0[1].Descriptor()
+	// nodeenrollment.DefaultCreatedAt holds the default value on creation for the created_at field.
+	nodeenrollment.DefaultCreatedAt = nodeenrollmentDescCreatedAt.Default.(func() time.Time)
+	// nodeenrollmentDescUpdatedAt is the schema descriptor for updated_at field.
+	nodeenrollmentDescUpdatedAt := nodeenrollmentMixinFields0[2].Descriptor()
+	// nodeenrollment.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	nodeenrollment.DefaultUpdatedAt = nodeenrollmentDescUpdatedAt.Default.(func() time.Time)
+	// nodeenrollment.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	nodeenrollment.UpdateDefaultUpdatedAt = nodeenrollmentDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// nodeenrollmentDescLabel is the schema descriptor for label field.
+	nodeenrollmentDescLabel := nodeenrollmentFields[1].Descriptor()
+	// nodeenrollment.LabelValidator is a validator for the "label" field. It is called by the builders before save.
+	nodeenrollment.LabelValidator = func() func(string) error {
+		validators := nodeenrollmentDescLabel.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(label string) error {
+			for _, fn := range fns {
+				if err := fn(label); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// nodeenrollmentDescPairingCode is the schema descriptor for pairing_code field.
+	nodeenrollmentDescPairingCode := nodeenrollmentFields[5].Descriptor()
+	// nodeenrollment.PairingCodeValidator is a validator for the "pairing_code" field. It is called by the builders before save.
+	nodeenrollment.PairingCodeValidator = nodeenrollmentDescPairingCode.Validators[0].(func(string) error)
+	// nodeenrollmentDescInstallationID is the schema descriptor for installation_id field.
+	nodeenrollmentDescInstallationID := nodeenrollmentFields[6].Descriptor()
+	// nodeenrollment.InstallationIDValidator is a validator for the "installation_id" field. It is called by the builders before save.
+	nodeenrollment.InstallationIDValidator = nodeenrollmentDescInstallationID.Validators[0].(func(string) error)
+	// nodeenrollmentDescMachineFingerprint is the schema descriptor for machine_fingerprint field.
+	nodeenrollmentDescMachineFingerprint := nodeenrollmentFields[7].Descriptor()
+	// nodeenrollment.MachineFingerprintValidator is a validator for the "machine_fingerprint" field. It is called by the builders before save.
+	nodeenrollment.MachineFingerprintValidator = nodeenrollmentDescMachineFingerprint.Validators[0].(func(string) error)
+	nodeeventMixin := schema.NodeEvent{}.Mixin()
+	nodeeventMixinFields0 := nodeeventMixin[0].Fields()
+	_ = nodeeventMixinFields0
+	nodeeventFields := schema.NodeEvent{}.Fields()
+	_ = nodeeventFields
+	// nodeeventDescPublicID is the schema descriptor for public_id field.
+	nodeeventDescPublicID := nodeeventMixinFields0[0].Descriptor()
+	// nodeevent.DefaultPublicID holds the default value on creation for the public_id field.
+	nodeevent.DefaultPublicID = nodeeventDescPublicID.Default.(func() uuid.UUID)
+	// nodeeventDescCreatedAt is the schema descriptor for created_at field.
+	nodeeventDescCreatedAt := nodeeventMixinFields0[1].Descriptor()
+	// nodeevent.DefaultCreatedAt holds the default value on creation for the created_at field.
+	nodeevent.DefaultCreatedAt = nodeeventDescCreatedAt.Default.(func() time.Time)
+	// nodeeventDescUpdatedAt is the schema descriptor for updated_at field.
+	nodeeventDescUpdatedAt := nodeeventMixinFields0[2].Descriptor()
+	// nodeevent.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	nodeevent.DefaultUpdatedAt = nodeeventDescUpdatedAt.Default.(func() time.Time)
+	// nodeevent.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	nodeevent.UpdateDefaultUpdatedAt = nodeeventDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// nodeeventDescEventID is the schema descriptor for event_id field.
+	nodeeventDescEventID := nodeeventFields[2].Descriptor()
+	// nodeevent.EventIDValidator is a validator for the "event_id" field. It is called by the builders before save.
+	nodeevent.EventIDValidator = func() func(string) error {
+		validators := nodeeventDescEventID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(event_id string) error {
+			for _, fn := range fns {
+				if err := fn(event_id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// nodeeventDescSequence is the schema descriptor for sequence field.
+	nodeeventDescSequence := nodeeventFields[3].Descriptor()
+	// nodeevent.SequenceValidator is a validator for the "sequence" field. It is called by the builders before save.
+	nodeevent.SequenceValidator = nodeeventDescSequence.Validators[0].(func(int64) error)
+	// nodeeventDescKind is the schema descriptor for kind field.
+	nodeeventDescKind := nodeeventFields[4].Descriptor()
+	// nodeevent.KindValidator is a validator for the "kind" field. It is called by the builders before save.
+	nodeevent.KindValidator = func() func(string) error {
+		validators := nodeeventDescKind.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(kind string) error {
+			for _, fn := range fns {
+				if err := fn(kind); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	nodeprojectaccessMixin := schema.NodeProjectAccess{}.Mixin()
+	nodeprojectaccessMixinFields0 := nodeprojectaccessMixin[0].Fields()
+	_ = nodeprojectaccessMixinFields0
+	nodeprojectaccessFields := schema.NodeProjectAccess{}.Fields()
+	_ = nodeprojectaccessFields
+	// nodeprojectaccessDescPublicID is the schema descriptor for public_id field.
+	nodeprojectaccessDescPublicID := nodeprojectaccessMixinFields0[0].Descriptor()
+	// nodeprojectaccess.DefaultPublicID holds the default value on creation for the public_id field.
+	nodeprojectaccess.DefaultPublicID = nodeprojectaccessDescPublicID.Default.(func() uuid.UUID)
+	// nodeprojectaccessDescCreatedAt is the schema descriptor for created_at field.
+	nodeprojectaccessDescCreatedAt := nodeprojectaccessMixinFields0[1].Descriptor()
+	// nodeprojectaccess.DefaultCreatedAt holds the default value on creation for the created_at field.
+	nodeprojectaccess.DefaultCreatedAt = nodeprojectaccessDescCreatedAt.Default.(func() time.Time)
+	// nodeprojectaccessDescUpdatedAt is the schema descriptor for updated_at field.
+	nodeprojectaccessDescUpdatedAt := nodeprojectaccessMixinFields0[2].Descriptor()
+	// nodeprojectaccess.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	nodeprojectaccess.DefaultUpdatedAt = nodeprojectaccessDescUpdatedAt.Default.(func() time.Time)
+	// nodeprojectaccess.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	nodeprojectaccess.UpdateDefaultUpdatedAt = nodeprojectaccessDescUpdatedAt.UpdateDefault.(func() time.Time)
 	notificationMixin := schema.Notification{}.Mixin()
 	notificationMixinFields0 := notificationMixin[0].Fields()
 	_ = notificationMixinFields0
@@ -981,7 +1234,7 @@ func init() {
 	// resourceprofile.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	resourceprofile.UpdateDefaultUpdatedAt = resourceprofileDescUpdatedAt.UpdateDefault.(func() time.Time)
 	// resourceprofileDescName is the schema descriptor for name field.
-	resourceprofileDescName := resourceprofileFields[1].Descriptor()
+	resourceprofileDescName := resourceprofileFields[2].Descriptor()
 	// resourceprofile.NameValidator is a validator for the "name" field. It is called by the builders before save.
 	resourceprofile.NameValidator = func() func(string) error {
 		validators := resourceprofileDescName.Validators
@@ -999,7 +1252,7 @@ func init() {
 		}
 	}()
 	// resourceprofileDescRegion is the schema descriptor for region field.
-	resourceprofileDescRegion := resourceprofileFields[2].Descriptor()
+	resourceprofileDescRegion := resourceprofileFields[3].Descriptor()
 	// resourceprofile.RegionValidator is a validator for the "region" field. It is called by the builders before save.
 	resourceprofile.RegionValidator = func() func(string) error {
 		validators := resourceprofileDescRegion.Validators
@@ -1017,51 +1270,232 @@ func init() {
 		}
 	}()
 	// resourceprofileDescGpuNum is the schema descriptor for gpu_num field.
-	resourceprofileDescGpuNum := resourceprofileFields[4].Descriptor()
+	resourceprofileDescGpuNum := resourceprofileFields[5].Descriptor()
 	// resourceprofile.DefaultGpuNum holds the default value on creation for the gpu_num field.
 	resourceprofile.DefaultGpuNum = resourceprofileDescGpuNum.Default.(int)
 	// resourceprofile.GpuNumValidator is a validator for the "gpu_num" field. It is called by the builders before save.
 	resourceprofile.GpuNumValidator = resourceprofileDescGpuNum.Validators[0].(func(int) error)
 	// resourceprofileDescCudaFrom is the schema descriptor for cuda_from field.
-	resourceprofileDescCudaFrom := resourceprofileFields[5].Descriptor()
+	resourceprofileDescCudaFrom := resourceprofileFields[6].Descriptor()
 	// resourceprofile.CudaFromValidator is a validator for the "cuda_from" field. It is called by the builders before save.
 	resourceprofile.CudaFromValidator = resourceprofileDescCudaFrom.Validators[0].(func(int) error)
 	// resourceprofileDescCudaTo is the schema descriptor for cuda_to field.
-	resourceprofileDescCudaTo := resourceprofileFields[6].Descriptor()
+	resourceprofileDescCudaTo := resourceprofileFields[7].Descriptor()
 	// resourceprofile.CudaToValidator is a validator for the "cuda_to" field. It is called by the builders before save.
 	resourceprofile.CudaToValidator = resourceprofileDescCudaTo.Validators[0].(func(int) error)
 	// resourceprofileDescCPUFrom is the schema descriptor for cpu_from field.
-	resourceprofileDescCPUFrom := resourceprofileFields[7].Descriptor()
+	resourceprofileDescCPUFrom := resourceprofileFields[8].Descriptor()
 	// resourceprofile.CPUFromValidator is a validator for the "cpu_from" field. It is called by the builders before save.
 	resourceprofile.CPUFromValidator = resourceprofileDescCPUFrom.Validators[0].(func(int) error)
 	// resourceprofileDescCPUTo is the schema descriptor for cpu_to field.
-	resourceprofileDescCPUTo := resourceprofileFields[8].Descriptor()
+	resourceprofileDescCPUTo := resourceprofileFields[9].Descriptor()
 	// resourceprofile.CPUToValidator is a validator for the "cpu_to" field. It is called by the builders before save.
 	resourceprofile.CPUToValidator = resourceprofileDescCPUTo.Validators[0].(func(int) error)
 	// resourceprofileDescMemoryFromGB is the schema descriptor for memory_from_gb field.
-	resourceprofileDescMemoryFromGB := resourceprofileFields[9].Descriptor()
+	resourceprofileDescMemoryFromGB := resourceprofileFields[10].Descriptor()
 	// resourceprofile.MemoryFromGBValidator is a validator for the "memory_from_gb" field. It is called by the builders before save.
 	resourceprofile.MemoryFromGBValidator = resourceprofileDescMemoryFromGB.Validators[0].(func(int) error)
 	// resourceprofileDescMemoryToGB is the schema descriptor for memory_to_gb field.
-	resourceprofileDescMemoryToGB := resourceprofileFields[10].Descriptor()
+	resourceprofileDescMemoryToGB := resourceprofileFields[11].Descriptor()
 	// resourceprofile.MemoryToGBValidator is a validator for the "memory_to_gb" field. It is called by the builders before save.
 	resourceprofile.MemoryToGBValidator = resourceprofileDescMemoryToGB.Validators[0].(func(int) error)
 	// resourceprofileDescPriceFromMilli is the schema descriptor for price_from_milli field.
-	resourceprofileDescPriceFromMilli := resourceprofileFields[11].Descriptor()
+	resourceprofileDescPriceFromMilli := resourceprofileFields[12].Descriptor()
 	// resourceprofile.PriceFromMilliValidator is a validator for the "price_from_milli" field. It is called by the builders before save.
 	resourceprofile.PriceFromMilliValidator = resourceprofileDescPriceFromMilli.Validators[0].(func(int64) error)
 	// resourceprofileDescPriceToMilli is the schema descriptor for price_to_milli field.
-	resourceprofileDescPriceToMilli := resourceprofileFields[12].Descriptor()
+	resourceprofileDescPriceToMilli := resourceprofileFields[13].Descriptor()
 	// resourceprofile.PriceToMilliValidator is a validator for the "price_to_milli" field. It is called by the builders before save.
 	resourceprofile.PriceToMilliValidator = resourceprofileDescPriceToMilli.Validators[0].(func(int64) error)
 	// resourceprofileDescReuseContainer is the schema descriptor for reuse_container field.
-	resourceprofileDescReuseContainer := resourceprofileFields[13].Descriptor()
+	resourceprofileDescReuseContainer := resourceprofileFields[14].Descriptor()
 	// resourceprofile.DefaultReuseContainer holds the default value on creation for the reuse_container field.
 	resourceprofile.DefaultReuseContainer = resourceprofileDescReuseContainer.Default.(bool)
 	// resourceprofileDescIsDefault is the schema descriptor for is_default field.
-	resourceprofileDescIsDefault := resourceprofileFields[14].Descriptor()
+	resourceprofileDescIsDefault := resourceprofileFields[15].Descriptor()
 	// resourceprofile.DefaultIsDefault holds the default value on creation for the is_default field.
 	resourceprofile.DefaultIsDefault = resourceprofileDescIsDefault.Default.(bool)
+	selfhostednodeMixin := schema.SelfHostedNode{}.Mixin()
+	selfhostednodeMixinFields0 := selfhostednodeMixin[0].Fields()
+	_ = selfhostednodeMixinFields0
+	selfhostednodeFields := schema.SelfHostedNode{}.Fields()
+	_ = selfhostednodeFields
+	// selfhostednodeDescPublicID is the schema descriptor for public_id field.
+	selfhostednodeDescPublicID := selfhostednodeMixinFields0[0].Descriptor()
+	// selfhostednode.DefaultPublicID holds the default value on creation for the public_id field.
+	selfhostednode.DefaultPublicID = selfhostednodeDescPublicID.Default.(func() uuid.UUID)
+	// selfhostednodeDescCreatedAt is the schema descriptor for created_at field.
+	selfhostednodeDescCreatedAt := selfhostednodeMixinFields0[1].Descriptor()
+	// selfhostednode.DefaultCreatedAt holds the default value on creation for the created_at field.
+	selfhostednode.DefaultCreatedAt = selfhostednodeDescCreatedAt.Default.(func() time.Time)
+	// selfhostednodeDescUpdatedAt is the schema descriptor for updated_at field.
+	selfhostednodeDescUpdatedAt := selfhostednodeMixinFields0[2].Descriptor()
+	// selfhostednode.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	selfhostednode.DefaultUpdatedAt = selfhostednodeDescUpdatedAt.Default.(func() time.Time)
+	// selfhostednode.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	selfhostednode.UpdateDefaultUpdatedAt = selfhostednodeDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// selfhostednodeDescLabel is the schema descriptor for label field.
+	selfhostednodeDescLabel := selfhostednodeFields[1].Descriptor()
+	// selfhostednode.LabelValidator is a validator for the "label" field. It is called by the builders before save.
+	selfhostednode.LabelValidator = func() func(string) error {
+		validators := selfhostednodeDescLabel.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(label string) error {
+			for _, fn := range fns {
+				if err := fn(label); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// selfhostednodeDescTokenPrefix is the schema descriptor for token_prefix field.
+	selfhostednodeDescTokenPrefix := selfhostednodeFields[2].Descriptor()
+	// selfhostednode.TokenPrefixValidator is a validator for the "token_prefix" field. It is called by the builders before save.
+	selfhostednode.TokenPrefixValidator = func() func(string) error {
+		validators := selfhostednodeDescTokenPrefix.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(token_prefix string) error {
+			for _, fn := range fns {
+				if err := fn(token_prefix); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// selfhostednodeDescInstallationID is the schema descriptor for installation_id field.
+	selfhostednodeDescInstallationID := selfhostednodeFields[6].Descriptor()
+	// selfhostednode.InstallationIDValidator is a validator for the "installation_id" field. It is called by the builders before save.
+	selfhostednode.InstallationIDValidator = func() func(string) error {
+		validators := selfhostednodeDescInstallationID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(installation_id string) error {
+			for _, fn := range fns {
+				if err := fn(installation_id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// selfhostednodeDescMachineFingerprint is the schema descriptor for machine_fingerprint field.
+	selfhostednodeDescMachineFingerprint := selfhostednodeFields[7].Descriptor()
+	// selfhostednode.MachineFingerprintValidator is a validator for the "machine_fingerprint" field. It is called by the builders before save.
+	selfhostednode.MachineFingerprintValidator = func() func(string) error {
+		validators := selfhostednodeDescMachineFingerprint.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(machine_fingerprint string) error {
+			for _, fn := range fns {
+				if err := fn(machine_fingerprint); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// selfhostednodeDescHostname is the schema descriptor for hostname field.
+	selfhostednodeDescHostname := selfhostednodeFields[8].Descriptor()
+	// selfhostednode.HostnameValidator is a validator for the "hostname" field. It is called by the builders before save.
+	selfhostednode.HostnameValidator = func() func(string) error {
+		validators := selfhostednodeDescHostname.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(hostname string) error {
+			for _, fn := range fns {
+				if err := fn(hostname); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// selfhostednodeDescOperatingSystem is the schema descriptor for operating_system field.
+	selfhostednodeDescOperatingSystem := selfhostednodeFields[9].Descriptor()
+	// selfhostednode.OperatingSystemValidator is a validator for the "operating_system" field. It is called by the builders before save.
+	selfhostednode.OperatingSystemValidator = func() func(string) error {
+		validators := selfhostednodeDescOperatingSystem.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(operating_system string) error {
+			for _, fn := range fns {
+				if err := fn(operating_system); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// selfhostednodeDescArchitecture is the schema descriptor for architecture field.
+	selfhostednodeDescArchitecture := selfhostednodeFields[10].Descriptor()
+	// selfhostednode.ArchitectureValidator is a validator for the "architecture" field. It is called by the builders before save.
+	selfhostednode.ArchitectureValidator = func() func(string) error {
+		validators := selfhostednodeDescArchitecture.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(architecture string) error {
+			for _, fn := range fns {
+				if err := fn(architecture); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// selfhostednodeDescAgentVersion is the schema descriptor for agent_version field.
+	selfhostednodeDescAgentVersion := selfhostednodeFields[11].Descriptor()
+	// selfhostednode.AgentVersionValidator is a validator for the "agent_version" field. It is called by the builders before save.
+	selfhostednode.AgentVersionValidator = func() func(string) error {
+		validators := selfhostednodeDescAgentVersion.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(agent_version string) error {
+			for _, fn := range fns {
+				if err := fn(agent_version); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// selfhostednodeDescProtocolVersion is the schema descriptor for protocol_version field.
+	selfhostednodeDescProtocolVersion := selfhostednodeFields[12].Descriptor()
+	// selfhostednode.ProtocolVersionValidator is a validator for the "protocol_version" field. It is called by the builders before save.
+	selfhostednode.ProtocolVersionValidator = func() func(string) error {
+		validators := selfhostednodeDescProtocolVersion.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(protocol_version string) error {
+			for _, fn := range fns {
+				if err := fn(protocol_version); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
 	serviceheartbeatMixin := schema.ServiceHeartbeat{}.Mixin()
 	serviceheartbeatMixinFields0 := serviceheartbeatMixin[0].Fields()
 	_ = serviceheartbeatMixinFields0

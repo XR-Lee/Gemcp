@@ -10,10 +10,12 @@ import (
 )
 
 type environmentSnapshot struct {
+	Backend   string `json:"backend"`
 	ImageUUID string `json:"image_uuid"`
 }
 
 type resourceSnapshot struct {
+	Backend        string   `json:"backend"`
 	Region         string   `json:"region"`
 	GPUNames       []string `json:"gpu_names"`
 	GPUNum         int      `json:"gpu_num"`

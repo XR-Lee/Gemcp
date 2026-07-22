@@ -9,6 +9,7 @@ import {
   CircleDollarSign,
   Clipboard,
   Clock3,
+  Cpu,
   FlaskConical,
   GitBranch,
   KeyRound,
@@ -25,11 +26,12 @@ import ExperimentTable from './ExperimentTable.vue'
 import ProviderView from './ProviderView.vue'
 import NotificationView from './NotificationView.vue'
 import AgentView from './AgentView.vue'
+import NodeView from './NodeView.vue'
 
 const props = defineProps<{ build: BuildInfo | null; user: User }>()
 const emit = defineEmits<{ signedOut: [] }>()
 
-type ViewName = 'overview' | 'experiments' | 'projects' | 'agents' | 'provider' | 'notifications'
+type ViewName = 'overview' | 'experiments' | 'projects' | 'agents' | 'nodes' | 'provider' | 'notifications'
 const activeView = ref<ViewName>('overview')
 const projects = ref<Project[]>([])
 const selectedProjectID = ref('')
@@ -63,6 +65,7 @@ const viewTitle = computed(() => ({
   experiments: 'Experiments',
   projects: 'Project configuration',
   agents: 'Agent access',
+  nodes: 'Self-hosted nodes',
   provider: 'Private Cloud resources',
   notifications: 'Notifications',
 })[activeView.value])
@@ -250,13 +253,14 @@ onMounted(refreshAll)
     <aside class="sidebar">
       <div class="brand">
         <span class="brand-mark"><FlaskConical :size="19" /></span>
-        <div><strong>Gemcp</strong><span>AutoDL control plane</span></div>
+        <div><strong>Gemcp</strong><span>GPU control plane</span></div>
       </div>
       <nav aria-label="Primary navigation">
         <button class="nav-item" :class="{ active: activeView === 'overview' }" type="button" aria-label="Overview" title="Overview" @click="activeView = 'overview'"><Activity :size="17" /><span>Overview</span></button>
         <button class="nav-item" :class="{ active: activeView === 'experiments' }" type="button" aria-label="Experiments" title="Experiments" @click="activeView = 'experiments'"><FlaskConical :size="17" /><span>Experiments</span></button>
         <button class="nav-item" :class="{ active: activeView === 'projects' }" type="button" aria-label="Project" title="Project" @click="activeView = 'projects'"><Boxes :size="17" /><span>Project</span></button>
         <button class="nav-item" :class="{ active: activeView === 'agents' }" type="button" aria-label="Agents" title="Agents" @click="activeView = 'agents'"><Bot :size="17" /><span>Agents</span></button>
+        <button v-if="runtimeStatus?.self_hosted_enabled" class="nav-item" :class="{ active: activeView === 'nodes' }" type="button" aria-label="Nodes" title="Nodes" @click="activeView = 'nodes'"><Cpu :size="17" /><span>Nodes</span></button>
         <button class="nav-item" :class="{ active: activeView === 'provider' }" type="button" aria-label="Provider" title="Provider" @click="activeView = 'provider'"><Server :size="17" /><span>Provider</span></button>
         <button class="nav-item" :class="{ active: activeView === 'notifications' }" type="button" aria-label="Alerts" title="Alerts" @click="activeView = 'notifications'"><Bell :size="17" /><span>Alerts</span></button>
         <button class="nav-item nav-bottom" type="button" aria-label="Sign out" title="Sign out" :disabled="signingOut" @click="signOut"><LogOut :size="17" /><span>Sign out</span></button>
@@ -271,9 +275,9 @@ onMounted(refreshAll)
           <h1>{{ viewTitle }}</h1>
         </div>
         <div class="topbar-actions">
-          <label v-if="!['provider', 'notifications'].includes(activeView)" class="project-select"><span>Project</span><select v-model="selectedProjectID" @change="refreshProject()"><option v-for="project in projects" :key="project.id" :value="project.id">{{ project.name }}</option></select></label>
+          <label v-if="!['nodes', 'provider', 'notifications'].includes(activeView)" class="project-select"><span>Project</span><select v-model="selectedProjectID" @change="refreshProject()"><option v-for="project in projects" :key="project.id" :value="project.id">{{ project.name }}</option></select></label>
           <span class="status online"><span class="status-dot" />Online</span>
-          <button v-if="!['provider', 'notifications'].includes(activeView)" class="icon-button" type="button" title="Refresh project" :disabled="loading" @click="refreshAll"><RefreshCw :size="17" :class="{ spinning: loading }" /></button>
+          <button v-if="!['nodes', 'provider', 'notifications'].includes(activeView)" class="icon-button" type="button" title="Refresh project" :disabled="loading" @click="refreshAll"><RefreshCw :size="17" :class="{ spinning: loading }" /></button>
         </div>
       </header>
 
@@ -324,6 +328,7 @@ onMounted(refreshAll)
       </section>
 
       <AgentView v-if="activeView === 'agents'" :active="true" :project="selectedProject" @unauthorized="emit('signedOut')" />
+      <NodeView v-if="activeView === 'nodes'" :active="true" :projects="projects" @unauthorized="emit('signedOut')" />
       <div v-show="activeView === 'provider'" class="persistent-view"><ProviderView :active="activeView === 'provider'" @unauthorized="emit('signedOut')" /></div>
       <NotificationView v-if="activeView === 'notifications'" :active="true" @unauthorized="emit('signedOut')" />
 

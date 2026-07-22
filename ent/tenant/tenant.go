@@ -47,6 +47,18 @@ const (
 	EdgeNotificationSettings = "notification_settings"
 	// EdgeNotifications holds the string denoting the notifications edge name in mutations.
 	EdgeNotifications = "notifications"
+	// EdgeSelfHostedNodes holds the string denoting the self_hosted_nodes edge name in mutations.
+	EdgeSelfHostedNodes = "self_hosted_nodes"
+	// EdgeNodeEnrollments holds the string denoting the node_enrollments edge name in mutations.
+	EdgeNodeEnrollments = "node_enrollments"
+	// EdgeNodeProjectAccess holds the string denoting the node_project_access edge name in mutations.
+	EdgeNodeProjectAccess = "node_project_access"
+	// EdgeNodeCommands holds the string denoting the node_commands edge name in mutations.
+	EdgeNodeCommands = "node_commands"
+	// EdgeNodeEvents holds the string denoting the node_events edge name in mutations.
+	EdgeNodeEvents = "node_events"
+	// EdgeNodeAssignments holds the string denoting the node_assignments edge name in mutations.
+	EdgeNodeAssignments = "node_assignments"
 	// Table holds the table name of the tenant in the database.
 	Table = "tenants"
 	// UsersTable is the table that holds the users relation/edge.
@@ -126,6 +138,48 @@ const (
 	NotificationsInverseTable = "notifications"
 	// NotificationsColumn is the table column denoting the notifications relation/edge.
 	NotificationsColumn = "tenant_id"
+	// SelfHostedNodesTable is the table that holds the self_hosted_nodes relation/edge.
+	SelfHostedNodesTable = "self_hosted_nodes"
+	// SelfHostedNodesInverseTable is the table name for the SelfHostedNode entity.
+	// It exists in this package in order to avoid circular dependency with the "selfhostednode" package.
+	SelfHostedNodesInverseTable = "self_hosted_nodes"
+	// SelfHostedNodesColumn is the table column denoting the self_hosted_nodes relation/edge.
+	SelfHostedNodesColumn = "tenant_id"
+	// NodeEnrollmentsTable is the table that holds the node_enrollments relation/edge.
+	NodeEnrollmentsTable = "node_enrollments"
+	// NodeEnrollmentsInverseTable is the table name for the NodeEnrollment entity.
+	// It exists in this package in order to avoid circular dependency with the "nodeenrollment" package.
+	NodeEnrollmentsInverseTable = "node_enrollments"
+	// NodeEnrollmentsColumn is the table column denoting the node_enrollments relation/edge.
+	NodeEnrollmentsColumn = "tenant_id"
+	// NodeProjectAccessTable is the table that holds the node_project_access relation/edge.
+	NodeProjectAccessTable = "node_project_accesses"
+	// NodeProjectAccessInverseTable is the table name for the NodeProjectAccess entity.
+	// It exists in this package in order to avoid circular dependency with the "nodeprojectaccess" package.
+	NodeProjectAccessInverseTable = "node_project_accesses"
+	// NodeProjectAccessColumn is the table column denoting the node_project_access relation/edge.
+	NodeProjectAccessColumn = "tenant_id"
+	// NodeCommandsTable is the table that holds the node_commands relation/edge.
+	NodeCommandsTable = "node_commands"
+	// NodeCommandsInverseTable is the table name for the NodeCommand entity.
+	// It exists in this package in order to avoid circular dependency with the "nodecommand" package.
+	NodeCommandsInverseTable = "node_commands"
+	// NodeCommandsColumn is the table column denoting the node_commands relation/edge.
+	NodeCommandsColumn = "tenant_id"
+	// NodeEventsTable is the table that holds the node_events relation/edge.
+	NodeEventsTable = "node_events"
+	// NodeEventsInverseTable is the table name for the NodeEvent entity.
+	// It exists in this package in order to avoid circular dependency with the "nodeevent" package.
+	NodeEventsInverseTable = "node_events"
+	// NodeEventsColumn is the table column denoting the node_events relation/edge.
+	NodeEventsColumn = "tenant_id"
+	// NodeAssignmentsTable is the table that holds the node_assignments relation/edge.
+	NodeAssignmentsTable = "node_assignments"
+	// NodeAssignmentsInverseTable is the table name for the NodeAssignment entity.
+	// It exists in this package in order to avoid circular dependency with the "nodeassignment" package.
+	NodeAssignmentsInverseTable = "node_assignments"
+	// NodeAssignmentsColumn is the table column denoting the node_assignments relation/edge.
+	NodeAssignmentsColumn = "tenant_id"
 )
 
 // Columns holds all SQL columns for tenant fields.
@@ -351,6 +405,90 @@ func ByNotifications(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newNotificationsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// BySelfHostedNodesCount orders the results by self_hosted_nodes count.
+func BySelfHostedNodesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newSelfHostedNodesStep(), opts...)
+	}
+}
+
+// BySelfHostedNodes orders the results by self_hosted_nodes terms.
+func BySelfHostedNodes(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newSelfHostedNodesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByNodeEnrollmentsCount orders the results by node_enrollments count.
+func ByNodeEnrollmentsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newNodeEnrollmentsStep(), opts...)
+	}
+}
+
+// ByNodeEnrollments orders the results by node_enrollments terms.
+func ByNodeEnrollments(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newNodeEnrollmentsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByNodeProjectAccessCount orders the results by node_project_access count.
+func ByNodeProjectAccessCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newNodeProjectAccessStep(), opts...)
+	}
+}
+
+// ByNodeProjectAccess orders the results by node_project_access terms.
+func ByNodeProjectAccess(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newNodeProjectAccessStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByNodeCommandsCount orders the results by node_commands count.
+func ByNodeCommandsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newNodeCommandsStep(), opts...)
+	}
+}
+
+// ByNodeCommands orders the results by node_commands terms.
+func ByNodeCommands(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newNodeCommandsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByNodeEventsCount orders the results by node_events count.
+func ByNodeEventsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newNodeEventsStep(), opts...)
+	}
+}
+
+// ByNodeEvents orders the results by node_events terms.
+func ByNodeEvents(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newNodeEventsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByNodeAssignmentsCount orders the results by node_assignments count.
+func ByNodeAssignmentsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newNodeAssignmentsStep(), opts...)
+	}
+}
+
+// ByNodeAssignments orders the results by node_assignments terms.
+func ByNodeAssignments(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newNodeAssignmentsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newUsersStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -426,5 +564,47 @@ func newNotificationsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(NotificationsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, NotificationsTable, NotificationsColumn),
+	)
+}
+func newSelfHostedNodesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(SelfHostedNodesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, SelfHostedNodesTable, SelfHostedNodesColumn),
+	)
+}
+func newNodeEnrollmentsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(NodeEnrollmentsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, NodeEnrollmentsTable, NodeEnrollmentsColumn),
+	)
+}
+func newNodeProjectAccessStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(NodeProjectAccessInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, NodeProjectAccessTable, NodeProjectAccessColumn),
+	)
+}
+func newNodeCommandsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(NodeCommandsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, NodeCommandsTable, NodeCommandsColumn),
+	)
+}
+func newNodeEventsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(NodeEventsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, NodeEventsTable, NodeEventsColumn),
+	)
+}
+func newNodeAssignmentsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(NodeAssignmentsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, NodeAssignmentsTable, NodeAssignmentsColumn),
 	)
 }

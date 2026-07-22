@@ -13,6 +13,7 @@ import (
 	entexperiment "github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/provideraccount"
+	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
 	"github.com/XR-Lee/Gemcp/internal/notification"
 	"github.com/XR-Lee/Gemcp/internal/runner"
 	"github.com/XR-Lee/Gemcp/internal/secrets"
@@ -86,6 +87,23 @@ func (e *Engine) dispatchOne(ctx context.Context, experimentID int, now time.Tim
 	}
 	if globalActive >= e.config.GlobalConcurrency || projectActive >= projectRecord.MaxConcurrency {
 		return false, nil
+	}
+	profileRecord, err := tx.ResourceProfile.Query().Where(resourceprofile.IDEQ(record.ResourceProfileID)).Only(ctx)
+	if err != nil {
+		return false, err
+	}
+	if profileRecord.Backend == resourceprofile.BackendSelfHosted {
+		if e.selfHosted == nil || !e.selfHosted.Enabled() {
+			return false, nil
+		}
+		dispatched, err := e.selfHosted.Dispatch(ctx, tx, record, now)
+		if err != nil || !dispatched {
+			return false, err
+		}
+		if err := tx.Commit(); err != nil {
+			return false, err
+		}
+		return true, nil
 	}
 	providerRecord, err := tx.ProviderAccount.Query().Where(
 		provideraccount.TenantIDEQ(record.TenantID), provideraccount.BackendEQ(provideraccount.BackendPrivate),

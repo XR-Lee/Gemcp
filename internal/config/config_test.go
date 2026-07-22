@@ -27,6 +27,9 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.AutoMigrate {
 		t.Fatal("AutoMigrate defaulted to true")
 	}
+	if cfg.SelfHostedEnabled {
+		t.Fatal("Self-hosted nodes defaulted to enabled")
+	}
 }
 
 func TestLoadRejectsShortBootstrapToken(t *testing.T) {
@@ -40,6 +43,19 @@ func TestLoadRejectsInvalidBoolean(t *testing.T) {
 	t.Setenv("GEMCP_AUTO_MIGRATE", "sometimes")
 	if _, err := Load(); err == nil {
 		t.Fatal("Load() accepted invalid boolean")
+	}
+}
+
+func TestSelfHostedNodesAreOptInAndRequireHTTPSPublicOrigin(t *testing.T) {
+	t.Setenv("GEMCP_SELF_HOSTED_ENABLED", "true")
+	t.Setenv("GEMCP_PUBLIC_URL", "")
+	if _, err := Load(); err == nil {
+		t.Fatal("Load() accepted Self-hosted nodes without a public HTTPS origin")
+	}
+	t.Setenv("GEMCP_PUBLIC_URL", "https://gemcp.example.com")
+	cfg, err := Load()
+	if err != nil || !cfg.SelfHostedEnabled {
+		t.Fatalf("Self-hosted config=%+v err=%v", cfg, err)
 	}
 }
 

@@ -64,6 +64,10 @@ const (
 	EdgeProviderResources = "provider_resources"
 	// EdgeBudgetEntries holds the string denoting the budget_entries edge name in mutations.
 	EdgeBudgetEntries = "budget_entries"
+	// EdgeNodeAccess holds the string denoting the node_access edge name in mutations.
+	EdgeNodeAccess = "node_access"
+	// EdgeNodeAssignments holds the string denoting the node_assignments edge name in mutations.
+	EdgeNodeAssignments = "node_assignments"
 	// Table holds the table name of the project in the database.
 	Table = "projects"
 	// TenantTable is the table that holds the tenant relation/edge.
@@ -136,6 +140,20 @@ const (
 	BudgetEntriesInverseTable = "budget_entries"
 	// BudgetEntriesColumn is the table column denoting the budget_entries relation/edge.
 	BudgetEntriesColumn = "project_id"
+	// NodeAccessTable is the table that holds the node_access relation/edge.
+	NodeAccessTable = "node_project_accesses"
+	// NodeAccessInverseTable is the table name for the NodeProjectAccess entity.
+	// It exists in this package in order to avoid circular dependency with the "nodeprojectaccess" package.
+	NodeAccessInverseTable = "node_project_accesses"
+	// NodeAccessColumn is the table column denoting the node_access relation/edge.
+	NodeAccessColumn = "project_id"
+	// NodeAssignmentsTable is the table that holds the node_assignments relation/edge.
+	NodeAssignmentsTable = "node_assignments"
+	// NodeAssignmentsInverseTable is the table name for the NodeAssignment entity.
+	// It exists in this package in order to avoid circular dependency with the "nodeassignment" package.
+	NodeAssignmentsInverseTable = "node_assignments"
+	// NodeAssignmentsColumn is the table column denoting the node_assignments relation/edge.
+	NodeAssignmentsColumn = "project_id"
 )
 
 // Columns holds all SQL columns for project fields.
@@ -443,6 +461,34 @@ func ByBudgetEntries(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newBudgetEntriesStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByNodeAccessCount orders the results by node_access count.
+func ByNodeAccessCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newNodeAccessStep(), opts...)
+	}
+}
+
+// ByNodeAccess orders the results by node_access terms.
+func ByNodeAccess(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newNodeAccessStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByNodeAssignmentsCount orders the results by node_assignments count.
+func ByNodeAssignmentsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newNodeAssignmentsStep(), opts...)
+	}
+}
+
+// ByNodeAssignments orders the results by node_assignments terms.
+func ByNodeAssignments(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newNodeAssignmentsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newTenantStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -511,5 +557,19 @@ func newBudgetEntriesStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(BudgetEntriesInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, BudgetEntriesTable, BudgetEntriesColumn),
+	)
+}
+func newNodeAccessStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(NodeAccessInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, NodeAccessTable, NodeAccessColumn),
+	)
+}
+func newNodeAssignmentsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(NodeAssignmentsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, NodeAssignmentsTable, NodeAssignmentsColumn),
 	)
 }

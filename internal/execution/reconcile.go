@@ -15,6 +15,12 @@ import (
 )
 
 func (e *Engine) step(ctx context.Context, experimentID int) error {
+	if e.selfHosted != nil {
+		handled, err := e.selfHosted.Reconcile(ctx, experimentID, e.now().UTC())
+		if handled || err != nil {
+			return err
+		}
+	}
 	experimentRecord, err := e.client.Experiment.Get(ctx, experimentID)
 	if err != nil {
 		return err

@@ -17,12 +17,18 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
+	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
+	"github.com/XR-Lee/Gemcp/ent/nodecommand"
+	"github.com/XR-Lee/Gemcp/ent/nodeenrollment"
+	"github.com/XR-Lee/Gemcp/ent/nodeevent"
+	"github.com/XR-Lee/Gemcp/ent/nodeprojectaccess"
 	"github.com/XR-Lee/Gemcp/ent/notification"
 	"github.com/XR-Lee/Gemcp/ent/notificationsetting"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/provideraccount"
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
+	"github.com/XR-Lee/Gemcp/ent/selfhostednode"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
 	"github.com/XR-Lee/Gemcp/ent/user"
 )
@@ -45,6 +51,12 @@ type TenantQuery struct {
 	withAuditEvents          *AuditEventQuery
 	withNotificationSettings *NotificationSettingQuery
 	withNotifications        *NotificationQuery
+	withSelfHostedNodes      *SelfHostedNodeQuery
+	withNodeEnrollments      *NodeEnrollmentQuery
+	withNodeProjectAccess    *NodeProjectAccessQuery
+	withNodeCommands         *NodeCommandQuery
+	withNodeEvents           *NodeEventQuery
+	withNodeAssignments      *NodeAssignmentQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -323,6 +335,138 @@ func (_q *TenantQuery) QueryNotifications() *NotificationQuery {
 	return query
 }
 
+// QuerySelfHostedNodes chains the current query on the "self_hosted_nodes" edge.
+func (_q *TenantQuery) QuerySelfHostedNodes() *SelfHostedNodeQuery {
+	query := (&SelfHostedNodeClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(selfhostednode.Table, selfhostednode.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.SelfHostedNodesTable, tenant.SelfHostedNodesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryNodeEnrollments chains the current query on the "node_enrollments" edge.
+func (_q *TenantQuery) QueryNodeEnrollments() *NodeEnrollmentQuery {
+	query := (&NodeEnrollmentClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(nodeenrollment.Table, nodeenrollment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.NodeEnrollmentsTable, tenant.NodeEnrollmentsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryNodeProjectAccess chains the current query on the "node_project_access" edge.
+func (_q *TenantQuery) QueryNodeProjectAccess() *NodeProjectAccessQuery {
+	query := (&NodeProjectAccessClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(nodeprojectaccess.Table, nodeprojectaccess.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.NodeProjectAccessTable, tenant.NodeProjectAccessColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryNodeCommands chains the current query on the "node_commands" edge.
+func (_q *TenantQuery) QueryNodeCommands() *NodeCommandQuery {
+	query := (&NodeCommandClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(nodecommand.Table, nodecommand.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.NodeCommandsTable, tenant.NodeCommandsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryNodeEvents chains the current query on the "node_events" edge.
+func (_q *TenantQuery) QueryNodeEvents() *NodeEventQuery {
+	query := (&NodeEventClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(nodeevent.Table, nodeevent.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.NodeEventsTable, tenant.NodeEventsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryNodeAssignments chains the current query on the "node_assignments" edge.
+func (_q *TenantQuery) QueryNodeAssignments() *NodeAssignmentQuery {
+	query := (&NodeAssignmentClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(nodeassignment.Table, nodeassignment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.NodeAssignmentsTable, tenant.NodeAssignmentsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
 // First returns the first Tenant entity from the query.
 // Returns a *NotFoundError when no Tenant was found.
 func (_q *TenantQuery) First(ctx context.Context) (*Tenant, error) {
@@ -526,6 +670,12 @@ func (_q *TenantQuery) Clone() *TenantQuery {
 		withAuditEvents:          _q.withAuditEvents.Clone(),
 		withNotificationSettings: _q.withNotificationSettings.Clone(),
 		withNotifications:        _q.withNotifications.Clone(),
+		withSelfHostedNodes:      _q.withSelfHostedNodes.Clone(),
+		withNodeEnrollments:      _q.withNodeEnrollments.Clone(),
+		withNodeProjectAccess:    _q.withNodeProjectAccess.Clone(),
+		withNodeCommands:         _q.withNodeCommands.Clone(),
+		withNodeEvents:           _q.withNodeEvents.Clone(),
+		withNodeAssignments:      _q.withNodeAssignments.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -653,6 +803,72 @@ func (_q *TenantQuery) WithNotifications(opts ...func(*NotificationQuery)) *Tena
 	return _q
 }
 
+// WithSelfHostedNodes tells the query-builder to eager-load the nodes that are connected to
+// the "self_hosted_nodes" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithSelfHostedNodes(opts ...func(*SelfHostedNodeQuery)) *TenantQuery {
+	query := (&SelfHostedNodeClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withSelfHostedNodes = query
+	return _q
+}
+
+// WithNodeEnrollments tells the query-builder to eager-load the nodes that are connected to
+// the "node_enrollments" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithNodeEnrollments(opts ...func(*NodeEnrollmentQuery)) *TenantQuery {
+	query := (&NodeEnrollmentClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withNodeEnrollments = query
+	return _q
+}
+
+// WithNodeProjectAccess tells the query-builder to eager-load the nodes that are connected to
+// the "node_project_access" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithNodeProjectAccess(opts ...func(*NodeProjectAccessQuery)) *TenantQuery {
+	query := (&NodeProjectAccessClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withNodeProjectAccess = query
+	return _q
+}
+
+// WithNodeCommands tells the query-builder to eager-load the nodes that are connected to
+// the "node_commands" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithNodeCommands(opts ...func(*NodeCommandQuery)) *TenantQuery {
+	query := (&NodeCommandClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withNodeCommands = query
+	return _q
+}
+
+// WithNodeEvents tells the query-builder to eager-load the nodes that are connected to
+// the "node_events" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithNodeEvents(opts ...func(*NodeEventQuery)) *TenantQuery {
+	query := (&NodeEventClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withNodeEvents = query
+	return _q
+}
+
+// WithNodeAssignments tells the query-builder to eager-load the nodes that are connected to
+// the "node_assignments" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithNodeAssignments(opts ...func(*NodeAssignmentQuery)) *TenantQuery {
+	query := (&NodeAssignmentClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withNodeAssignments = query
+	return _q
+}
+
 // GroupBy is used to group vertices by one or more fields/columns.
 // It is often used with aggregate functions, like: count, max, mean, min, sum.
 //
@@ -731,7 +947,7 @@ func (_q *TenantQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Tenan
 	var (
 		nodes       = []*Tenant{}
 		_spec       = _q.querySpec()
-		loadedTypes = [11]bool{
+		loadedTypes = [17]bool{
 			_q.withUsers != nil,
 			_q.withProviderAccounts != nil,
 			_q.withProjects != nil,
@@ -743,6 +959,12 @@ func (_q *TenantQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Tenan
 			_q.withAuditEvents != nil,
 			_q.withNotificationSettings != nil,
 			_q.withNotifications != nil,
+			_q.withSelfHostedNodes != nil,
+			_q.withNodeEnrollments != nil,
+			_q.withNodeProjectAccess != nil,
+			_q.withNodeCommands != nil,
+			_q.withNodeEvents != nil,
+			_q.withNodeAssignments != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -841,6 +1063,50 @@ func (_q *TenantQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Tenan
 		if err := _q.loadNotifications(ctx, query, nodes,
 			func(n *Tenant) { n.Edges.Notifications = []*Notification{} },
 			func(n *Tenant, e *Notification) { n.Edges.Notifications = append(n.Edges.Notifications, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withSelfHostedNodes; query != nil {
+		if err := _q.loadSelfHostedNodes(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.SelfHostedNodes = []*SelfHostedNode{} },
+			func(n *Tenant, e *SelfHostedNode) { n.Edges.SelfHostedNodes = append(n.Edges.SelfHostedNodes, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withNodeEnrollments; query != nil {
+		if err := _q.loadNodeEnrollments(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.NodeEnrollments = []*NodeEnrollment{} },
+			func(n *Tenant, e *NodeEnrollment) { n.Edges.NodeEnrollments = append(n.Edges.NodeEnrollments, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withNodeProjectAccess; query != nil {
+		if err := _q.loadNodeProjectAccess(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.NodeProjectAccess = []*NodeProjectAccess{} },
+			func(n *Tenant, e *NodeProjectAccess) {
+				n.Edges.NodeProjectAccess = append(n.Edges.NodeProjectAccess, e)
+			}); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withNodeCommands; query != nil {
+		if err := _q.loadNodeCommands(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.NodeCommands = []*NodeCommand{} },
+			func(n *Tenant, e *NodeCommand) { n.Edges.NodeCommands = append(n.Edges.NodeCommands, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withNodeEvents; query != nil {
+		if err := _q.loadNodeEvents(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.NodeEvents = []*NodeEvent{} },
+			func(n *Tenant, e *NodeEvent) { n.Edges.NodeEvents = append(n.Edges.NodeEvents, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withNodeAssignments; query != nil {
+		if err := _q.loadNodeAssignments(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.NodeAssignments = []*NodeAssignment{} },
+			func(n *Tenant, e *NodeAssignment) { n.Edges.NodeAssignments = append(n.Edges.NodeAssignments, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -1162,6 +1428,186 @@ func (_q *TenantQuery) loadNotifications(ctx context.Context, query *Notificatio
 	}
 	query.Where(predicate.Notification(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(tenant.NotificationsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TenantQuery) loadSelfHostedNodes(ctx context.Context, query *SelfHostedNodeQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *SelfHostedNode)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(selfhostednode.FieldTenantID)
+	}
+	query.Where(predicate.SelfHostedNode(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.SelfHostedNodesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TenantQuery) loadNodeEnrollments(ctx context.Context, query *NodeEnrollmentQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *NodeEnrollment)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(nodeenrollment.FieldTenantID)
+	}
+	query.Where(predicate.NodeEnrollment(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.NodeEnrollmentsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TenantQuery) loadNodeProjectAccess(ctx context.Context, query *NodeProjectAccessQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *NodeProjectAccess)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(nodeprojectaccess.FieldTenantID)
+	}
+	query.Where(predicate.NodeProjectAccess(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.NodeProjectAccessColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TenantQuery) loadNodeCommands(ctx context.Context, query *NodeCommandQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *NodeCommand)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(nodecommand.FieldTenantID)
+	}
+	query.Where(predicate.NodeCommand(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.NodeCommandsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TenantQuery) loadNodeEvents(ctx context.Context, query *NodeEventQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *NodeEvent)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(nodeevent.FieldTenantID)
+	}
+	query.Where(predicate.NodeEvent(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.NodeEventsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TenantQuery) loadNodeAssignments(ctx context.Context, query *NodeAssignmentQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *NodeAssignment)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(nodeassignment.FieldTenantID)
+	}
+	query.Where(predicate.NodeAssignment(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.NodeAssignmentsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

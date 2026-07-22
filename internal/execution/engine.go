@@ -13,6 +13,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/serviceheartbeat"
 	"github.com/XR-Lee/Gemcp/internal/runner"
 	"github.com/XR-Lee/Gemcp/internal/secrets"
+	"github.com/XR-Lee/Gemcp/internal/selfhosted"
 	"github.com/XR-Lee/Gemcp/internal/servicehealth"
 )
 
@@ -49,14 +50,21 @@ func DefaultConfig() Config {
 }
 
 type Engine struct {
-	client   *ent.Client
-	box      *secrets.Box
-	provider LifecycleProvider
-	config   Config
-	now      func() time.Time
+	client     *ent.Client
+	box        *secrets.Box
+	provider   LifecycleProvider
+	selfHosted *selfhosted.Service
+	config     Config
+	now        func() time.Time
 }
 
-func NewEngine(client *ent.Client, box *secrets.Box, provider LifecycleProvider, config Config) (*Engine, error) {
+type EngineOption func(*Engine)
+
+func WithSelfHostedService(service *selfhosted.Service) EngineOption {
+	return func(engine *Engine) { engine.selfHosted = service }
+}
+
+func NewEngine(client *ent.Client, box *secrets.Box, provider LifecycleProvider, config Config, options ...EngineOption) (*Engine, error) {
 	if client == nil || box == nil || provider == nil {
 		return nil, fmt.Errorf("execution engine dependencies are required")
 	}
@@ -80,7 +88,11 @@ func NewEngine(client *ent.Client, box *secrets.Box, provider LifecycleProvider,
 			return nil, err
 		}
 	}
-	return &Engine{client: client, box: box, provider: provider, config: config, now: time.Now}, nil
+	engine := &Engine{client: client, box: box, provider: provider, config: config, now: time.Now}
+	for _, option := range options {
+		option(engine)
+	}
+	return engine, nil
 }
 
 func (e *Engine) Run(ctx context.Context) error {

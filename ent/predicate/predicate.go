@@ -30,6 +30,21 @@ type Experiment func(*sql.Selector)
 // IdempotencyRecord is the predicate function for idempotencyrecord builders.
 type IdempotencyRecord func(*sql.Selector)
 
+// NodeAssignment is the predicate function for nodeassignment builders.
+type NodeAssignment func(*sql.Selector)
+
+// NodeCommand is the predicate function for nodecommand builders.
+type NodeCommand func(*sql.Selector)
+
+// NodeEnrollment is the predicate function for nodeenrollment builders.
+type NodeEnrollment func(*sql.Selector)
+
+// NodeEvent is the predicate function for nodeevent builders.
+type NodeEvent func(*sql.Selector)
+
+// NodeProjectAccess is the predicate function for nodeprojectaccess builders.
+type NodeProjectAccess func(*sql.Selector)
+
 // Notification is the predicate function for notification builders.
 type Notification func(*sql.Selector)
 
@@ -53,6 +68,9 @@ type Repository func(*sql.Selector)
 
 // ResourceProfile is the predicate function for resourceprofile builders.
 type ResourceProfile func(*sql.Selector)
+
+// SelfHostedNode is the predicate function for selfhostednode builders.
+type SelfHostedNode func(*sql.Selector)
 
 // ServiceHeartbeat is the predicate function for serviceheartbeat builders.
 type ServiceHeartbeat func(*sql.Selector)

@@ -16,6 +16,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
+	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/repository"
@@ -491,6 +492,21 @@ func (_c *ExperimentCreate) AddProviderResources(v ...*ProviderResource) *Experi
 		ids[i] = v[i].ID
 	}
 	return _c.AddProviderResourceIDs(ids...)
+}
+
+// AddNodeAssignmentIDs adds the "node_assignments" edge to the NodeAssignment entity by IDs.
+func (_c *ExperimentCreate) AddNodeAssignmentIDs(ids ...int) *ExperimentCreate {
+	_c.mutation.AddNodeAssignmentIDs(ids...)
+	return _c
+}
+
+// AddNodeAssignments adds the "node_assignments" edges to the NodeAssignment entity.
+func (_c *ExperimentCreate) AddNodeAssignments(v ...*NodeAssignment) *ExperimentCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddNodeAssignmentIDs(ids...)
 }
 
 // AddBudgetEntryIDs adds the "budget_entries" edge to the BudgetEntry entity by IDs.
@@ -1041,6 +1057,22 @@ func (_c *ExperimentCreate) createSpec() (*Experiment, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(providerresource.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.NodeAssignmentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   experiment.NodeAssignmentsTable,
+			Columns: []string{experiment.NodeAssignmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nodeassignment.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

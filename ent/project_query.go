@@ -18,6 +18,8 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
+	"github.com/XR-Lee/Gemcp/ent/nodeprojectaccess"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
@@ -43,6 +45,8 @@ type ProjectQuery struct {
 	withAttempts          *AttemptQuery
 	withProviderResources *ProviderResourceQuery
 	withBudgetEntries     *BudgetEntryQuery
+	withNodeAccess        *NodeProjectAccessQuery
+	withNodeAssignments   *NodeAssignmentQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -299,6 +303,50 @@ func (_q *ProjectQuery) QueryBudgetEntries() *BudgetEntryQuery {
 	return query
 }
 
+// QueryNodeAccess chains the current query on the "node_access" edge.
+func (_q *ProjectQuery) QueryNodeAccess() *NodeProjectAccessQuery {
+	query := (&NodeProjectAccessClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, selector),
+			sqlgraph.To(nodeprojectaccess.Table, nodeprojectaccess.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.NodeAccessTable, project.NodeAccessColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryNodeAssignments chains the current query on the "node_assignments" edge.
+func (_q *ProjectQuery) QueryNodeAssignments() *NodeAssignmentQuery {
+	query := (&NodeAssignmentClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, selector),
+			sqlgraph.To(nodeassignment.Table, nodeassignment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.NodeAssignmentsTable, project.NodeAssignmentsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
 // First returns the first Project entity from the query.
 // Returns a *NotFoundError when no Project was found.
 func (_q *ProjectQuery) First(ctx context.Context) (*Project, error) {
@@ -501,6 +549,8 @@ func (_q *ProjectQuery) Clone() *ProjectQuery {
 		withAttempts:          _q.withAttempts.Clone(),
 		withProviderResources: _q.withProviderResources.Clone(),
 		withBudgetEntries:     _q.withBudgetEntries.Clone(),
+		withNodeAccess:        _q.withNodeAccess.Clone(),
+		withNodeAssignments:   _q.withNodeAssignments.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -617,6 +667,28 @@ func (_q *ProjectQuery) WithBudgetEntries(opts ...func(*BudgetEntryQuery)) *Proj
 	return _q
 }
 
+// WithNodeAccess tells the query-builder to eager-load the nodes that are connected to
+// the "node_access" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ProjectQuery) WithNodeAccess(opts ...func(*NodeProjectAccessQuery)) *ProjectQuery {
+	query := (&NodeProjectAccessClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withNodeAccess = query
+	return _q
+}
+
+// WithNodeAssignments tells the query-builder to eager-load the nodes that are connected to
+// the "node_assignments" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ProjectQuery) WithNodeAssignments(opts ...func(*NodeAssignmentQuery)) *ProjectQuery {
+	query := (&NodeAssignmentClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withNodeAssignments = query
+	return _q
+}
+
 // GroupBy is used to group vertices by one or more fields/columns.
 // It is often used with aggregate functions, like: count, max, mean, min, sum.
 //
@@ -695,7 +767,7 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 	var (
 		nodes       = []*Project{}
 		_spec       = _q.querySpec()
-		loadedTypes = [10]bool{
+		loadedTypes = [12]bool{
 			_q.withTenant != nil,
 			_q.withEnvironments != nil,
 			_q.withResourceProfiles != nil,
@@ -706,6 +778,8 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 			_q.withAttempts != nil,
 			_q.withProviderResources != nil,
 			_q.withBudgetEntries != nil,
+			_q.withNodeAccess != nil,
+			_q.withNodeAssignments != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -794,6 +868,20 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 		if err := _q.loadBudgetEntries(ctx, query, nodes,
 			func(n *Project) { n.Edges.BudgetEntries = []*BudgetEntry{} },
 			func(n *Project, e *BudgetEntry) { n.Edges.BudgetEntries = append(n.Edges.BudgetEntries, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withNodeAccess; query != nil {
+		if err := _q.loadNodeAccess(ctx, query, nodes,
+			func(n *Project) { n.Edges.NodeAccess = []*NodeProjectAccess{} },
+			func(n *Project, e *NodeProjectAccess) { n.Edges.NodeAccess = append(n.Edges.NodeAccess, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withNodeAssignments; query != nil {
+		if err := _q.loadNodeAssignments(ctx, query, nodes,
+			func(n *Project) { n.Edges.NodeAssignments = []*NodeAssignment{} },
+			func(n *Project, e *NodeAssignment) { n.Edges.NodeAssignments = append(n.Edges.NodeAssignments, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -1084,6 +1172,66 @@ func (_q *ProjectQuery) loadBudgetEntries(ctx context.Context, query *BudgetEntr
 	}
 	query.Where(predicate.BudgetEntry(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(project.BudgetEntriesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ProjectID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "project_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *ProjectQuery) loadNodeAccess(ctx context.Context, query *NodeProjectAccessQuery, nodes []*Project, init func(*Project), assign func(*Project, *NodeProjectAccess)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Project)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(nodeprojectaccess.FieldProjectID)
+	}
+	query.Where(predicate.NodeProjectAccess(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(project.NodeAccessColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ProjectID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "project_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *ProjectQuery) loadNodeAssignments(ctx context.Context, query *NodeAssignmentQuery, nodes []*Project, init func(*Project), assign func(*Project, *NodeAssignment)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Project)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(nodeassignment.FieldProjectID)
+	}
+	query.Where(predicate.NodeAssignment(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(project.NodeAssignmentsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

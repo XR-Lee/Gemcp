@@ -84,6 +84,7 @@ func TestPiSetupAssets(t *testing.T) {
 		{path: "/agent/setup", contentType: "text/markdown; charset=utf-8", want: []string{"Gemcp Pi Agent Setup", "https://gemcp.example.com/agent/setup/install.mjs"}},
 		{path: "/agent/setup/install.mjs", contentType: "text/javascript; charset=utf-8", want: []string{"GEMCP_PI_SETUP_INSTALLER_V1", "const trustedOrigin = 'https://gemcp.example.com'"}},
 		{path: "/agent/setup/gemcp-tool.mjs", contentType: "text/javascript; charset=utf-8", want: []string{"GEMCP_TOOL_HELPER_V1", "verifyConfiguredServer"}},
+		{path: "/node/setup", contentType: "text/markdown; charset=utf-8", want: []string{"Gemcp Node Setup", "https://gemcp.example.com/node/setup#code="}},
 	} {
 		response := httptest.NewRecorder()
 		testServer(fakeDatabase{}).ServeHTTP(response, httptest.NewRequest(http.MethodGet, test.path, nil))

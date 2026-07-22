@@ -127,13 +127,15 @@ type ExperimentEdges struct {
 	Attempts []*Attempt `json:"attempts,omitempty"`
 	// ProviderResources holds the value of the provider_resources edge.
 	ProviderResources []*ProviderResource `json:"provider_resources,omitempty"`
+	// NodeAssignments holds the value of the node_assignments edge.
+	NodeAssignments []*NodeAssignment `json:"node_assignments,omitempty"`
 	// BudgetEntries holds the value of the budget_entries edge.
 	BudgetEntries []*BudgetEntry `json:"budget_entries,omitempty"`
 	// IdempotencyRecords holds the value of the idempotency_records edge.
 	IdempotencyRecords []*IdempotencyRecord `json:"idempotency_records,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [10]bool
+	loadedTypes [11]bool
 }
 
 // TenantOrErr returns the Tenant value or an error if the edge
@@ -220,10 +222,19 @@ func (e ExperimentEdges) ProviderResourcesOrErr() ([]*ProviderResource, error) {
 	return nil, &NotLoadedError{edge: "provider_resources"}
 }
 
+// NodeAssignmentsOrErr returns the NodeAssignments value or an error if the edge
+// was not loaded in eager-loading.
+func (e ExperimentEdges) NodeAssignmentsOrErr() ([]*NodeAssignment, error) {
+	if e.loadedTypes[8] {
+		return e.NodeAssignments, nil
+	}
+	return nil, &NotLoadedError{edge: "node_assignments"}
+}
+
 // BudgetEntriesOrErr returns the BudgetEntries value or an error if the edge
 // was not loaded in eager-loading.
 func (e ExperimentEdges) BudgetEntriesOrErr() ([]*BudgetEntry, error) {
-	if e.loadedTypes[8] {
+	if e.loadedTypes[9] {
 		return e.BudgetEntries, nil
 	}
 	return nil, &NotLoadedError{edge: "budget_entries"}
@@ -232,7 +243,7 @@ func (e ExperimentEdges) BudgetEntriesOrErr() ([]*BudgetEntry, error) {
 // IdempotencyRecordsOrErr returns the IdempotencyRecords value or an error if the edge
 // was not loaded in eager-loading.
 func (e ExperimentEdges) IdempotencyRecordsOrErr() ([]*IdempotencyRecord, error) {
-	if e.loadedTypes[9] {
+	if e.loadedTypes[10] {
 		return e.IdempotencyRecords, nil
 	}
 	return nil, &NotLoadedError{edge: "idempotency_records"}
@@ -583,6 +594,11 @@ func (_m *Experiment) QueryAttempts() *AttemptQuery {
 // QueryProviderResources queries the "provider_resources" edge of the Experiment entity.
 func (_m *Experiment) QueryProviderResources() *ProviderResourceQuery {
 	return NewExperimentClient(_m.config).QueryProviderResources(_m)
+}
+
+// QueryNodeAssignments queries the "node_assignments" edge of the Experiment entity.
+func (_m *Experiment) QueryNodeAssignments() *NodeAssignmentQuery {
+	return NewExperimentClient(_m.config).QueryNodeAssignments(_m)
 }
 
 // QueryBudgetEntries queries the "budget_entries" edge of the Experiment entity.

@@ -236,6 +236,26 @@ func ProjectIDNotIn(vs ...int) predicate.Environment {
 	return predicate.Environment(sql.FieldNotIn(FieldProjectID, vs...))
 }
 
+// BackendEQ applies the EQ predicate on the "backend" field.
+func BackendEQ(v Backend) predicate.Environment {
+	return predicate.Environment(sql.FieldEQ(FieldBackend, v))
+}
+
+// BackendNEQ applies the NEQ predicate on the "backend" field.
+func BackendNEQ(v Backend) predicate.Environment {
+	return predicate.Environment(sql.FieldNEQ(FieldBackend, v))
+}
+
+// BackendIn applies the In predicate on the "backend" field.
+func BackendIn(vs ...Backend) predicate.Environment {
+	return predicate.Environment(sql.FieldIn(FieldBackend, vs...))
+}
+
+// BackendNotIn applies the NotIn predicate on the "backend" field.
+func BackendNotIn(vs ...Backend) predicate.Environment {
+	return predicate.Environment(sql.FieldNotIn(FieldBackend, vs...))
+}
+
 // NameEQ applies the EQ predicate on the "name" field.
 func NameEQ(v string) predicate.Environment {
 	return predicate.Environment(sql.FieldEQ(FieldName, v))

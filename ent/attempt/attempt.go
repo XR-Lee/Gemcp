@@ -71,6 +71,8 @@ const (
 	EdgeExperiment = "experiment"
 	// EdgeOwnedResource holds the string denoting the owned_resource edge name in mutations.
 	EdgeOwnedResource = "owned_resource"
+	// EdgeNodeAssignment holds the string denoting the node_assignment edge name in mutations.
+	EdgeNodeAssignment = "node_assignment"
 	// Table holds the table name of the attempt in the database.
 	Table = "attempts"
 	// TenantTable is the table that holds the tenant relation/edge.
@@ -101,6 +103,13 @@ const (
 	OwnedResourceInverseTable = "provider_resources"
 	// OwnedResourceColumn is the table column denoting the owned_resource relation/edge.
 	OwnedResourceColumn = "attempt_id"
+	// NodeAssignmentTable is the table that holds the node_assignment relation/edge.
+	NodeAssignmentTable = "node_assignments"
+	// NodeAssignmentInverseTable is the table name for the NodeAssignment entity.
+	// It exists in this package in order to avoid circular dependency with the "nodeassignment" package.
+	NodeAssignmentInverseTable = "node_assignments"
+	// NodeAssignmentColumn is the table column denoting the node_assignment relation/edge.
+	NodeAssignmentColumn = "attempt_id"
 )
 
 // Columns holds all SQL columns for attempt fields.
@@ -317,6 +326,13 @@ func ByOwnedResourceField(field string, opts ...sql.OrderTermOption) OrderOption
 		sqlgraph.OrderByNeighborTerms(s, newOwnedResourceStep(), sql.OrderByField(field, opts...))
 	}
 }
+
+// ByNodeAssignmentField orders the results by node_assignment field.
+func ByNodeAssignmentField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newNodeAssignmentStep(), sql.OrderByField(field, opts...))
+	}
+}
 func newTenantStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -343,5 +359,12 @@ func newOwnedResourceStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(OwnedResourceInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2O, false, OwnedResourceTable, OwnedResourceColumn),
+	)
+}
+func newNodeAssignmentStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(NodeAssignmentInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2O, false, NodeAssignmentTable, NodeAssignmentColumn),
 	)
 }

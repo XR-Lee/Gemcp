@@ -27,6 +27,8 @@ type Environment struct {
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 	// ProjectID holds the value of the "project_id" field.
 	ProjectID int `json:"project_id,omitempty"`
+	// Backend holds the value of the "backend" field.
+	Backend environment.Backend `json:"backend,omitempty"`
 	// Name holds the value of the "name" field.
 	Name string `json:"name,omitempty"`
 	// ImageUUID holds the value of the "image_uuid" field.
@@ -83,7 +85,7 @@ func (*Environment) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case environment.FieldID, environment.FieldProjectID:
 			values[i] = new(sql.NullInt64)
-		case environment.FieldName, environment.FieldImageUUID, environment.FieldRecipeRef, environment.FieldStatus:
+		case environment.FieldBackend, environment.FieldName, environment.FieldImageUUID, environment.FieldRecipeRef, environment.FieldStatus:
 			values[i] = new(sql.NullString)
 		case environment.FieldCreatedAt, environment.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -133,6 +135,12 @@ func (_m *Environment) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field project_id", values[i])
 			} else if value.Valid {
 				_m.ProjectID = int(value.Int64)
+			}
+		case environment.FieldBackend:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field backend", values[i])
+			} else if value.Valid {
+				_m.Backend = environment.Backend(value.String)
 			}
 		case environment.FieldName:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -221,6 +229,9 @@ func (_m *Environment) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("project_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ProjectID))
+	builder.WriteString(", ")
+	builder.WriteString("backend=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Backend))
 	builder.WriteString(", ")
 	builder.WriteString("name=")
 	builder.WriteString(_m.Name)

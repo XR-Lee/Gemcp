@@ -1,0 +1,30 @@
+[Unit]
+Description=Gemcp Self-hosted GPU node
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=gemcp-node
+Group=gemcp-node
+SupplementaryGroups=docker
+ExecStart=/usr/local/bin/gemcp-node run
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=30s
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/var/lib/gemcp-node
+
+[Install]
+WantedBy=multi-user.target

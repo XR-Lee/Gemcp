@@ -110,6 +110,7 @@ type RepositoryOption struct {
 type EnvironmentOption struct {
 	ID        string `json:"id"`
 	Name      string `json:"name"`
+	Backend   string `json:"backend"`
 	ImageUUID string `json:"image_uuid"`
 	IsDefault bool   `json:"is_default"`
 }
@@ -117,6 +118,7 @@ type EnvironmentOption struct {
 type ResourceProfileOption struct {
 	ID             string   `json:"id"`
 	Name           string   `json:"name"`
+	Backend        string   `json:"backend"`
 	Region         string   `json:"region"`
 	GPUNames       []string `json:"gpu_names"`
 	GPUNum         int      `json:"gpu_num"`

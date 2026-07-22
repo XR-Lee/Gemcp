@@ -28,6 +28,8 @@ type ResourceProfile struct {
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 	// ProjectID holds the value of the "project_id" field.
 	ProjectID int `json:"project_id,omitempty"`
+	// Backend holds the value of the "backend" field.
+	Backend resourceprofile.Backend `json:"backend,omitempty"`
 	// Name holds the value of the "name" field.
 	Name string `json:"name,omitempty"`
 	// Region holds the value of the "region" field.
@@ -106,7 +108,7 @@ func (*ResourceProfile) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case resourceprofile.FieldID, resourceprofile.FieldProjectID, resourceprofile.FieldGpuNum, resourceprofile.FieldCudaFrom, resourceprofile.FieldCudaTo, resourceprofile.FieldCPUFrom, resourceprofile.FieldCPUTo, resourceprofile.FieldMemoryFromGB, resourceprofile.FieldMemoryToGB, resourceprofile.FieldPriceFromMilli, resourceprofile.FieldPriceToMilli:
 			values[i] = new(sql.NullInt64)
-		case resourceprofile.FieldName, resourceprofile.FieldRegion, resourceprofile.FieldStatus:
+		case resourceprofile.FieldBackend, resourceprofile.FieldName, resourceprofile.FieldRegion, resourceprofile.FieldStatus:
 			values[i] = new(sql.NullString)
 		case resourceprofile.FieldCreatedAt, resourceprofile.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -156,6 +158,12 @@ func (_m *ResourceProfile) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field project_id", values[i])
 			} else if value.Valid {
 				_m.ProjectID = int(value.Int64)
+			}
+		case resourceprofile.FieldBackend:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field backend", values[i])
+			} else if value.Valid {
+				_m.Backend = resourceprofile.Backend(value.String)
 			}
 		case resourceprofile.FieldName:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -306,6 +314,9 @@ func (_m *ResourceProfile) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("project_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ProjectID))
+	builder.WriteString(", ")
+	builder.WriteString("backend=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Backend))
 	builder.WriteString(", ")
 	builder.WriteString("name=")
 	builder.WriteString(_m.Name)

@@ -14,6 +14,7 @@ func (ResourceProfile) Mixin() []ent.Mixin { return []ent.Mixin{RecordMixin{}} }
 func (ResourceProfile) Fields() []ent.Field {
 	return []ent.Field{
 		field.Int("project_id").Immutable(),
+		field.Enum("backend").Values("autodl_private", "self_hosted").Default("autodl_private").Immutable(),
 		field.String("name").NotEmpty().MaxLen(120),
 		field.String("region").NotEmpty().MaxLen(80),
 		field.Strings("gpu_names"),
@@ -25,7 +26,7 @@ func (ResourceProfile) Fields() []ent.Field {
 		field.Int("memory_from_gb").Positive(),
 		field.Int("memory_to_gb").Positive(),
 		field.Int64("price_from_milli").NonNegative(),
-		field.Int64("price_to_milli").Positive(),
+		field.Int64("price_to_milli").NonNegative(),
 		field.Bool("reuse_container").Default(false),
 		field.Bool("is_default").Default(false),
 		field.Enum("status").Values("active", "disabled").Default("active"),

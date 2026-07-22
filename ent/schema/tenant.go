@@ -30,5 +30,11 @@ func (Tenant) Edges() []ent.Edge {
 		edge.To("audit_events", AuditEvent.Type),
 		edge.To("notification_settings", NotificationSetting.Type),
 		edge.To("notifications", Notification.Type),
+		edge.To("self_hosted_nodes", SelfHostedNode.Type),
+		edge.To("node_enrollments", NodeEnrollment.Type),
+		edge.To("node_project_access", NodeProjectAccess.Type),
+		edge.To("node_commands", NodeCommand.Type),
+		edge.To("node_events", NodeEvent.Type),
+		edge.To("node_assignments", NodeAssignment.Type),
 	}
 }

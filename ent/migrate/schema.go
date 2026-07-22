@@ -177,7 +177,7 @@ var (
 		{Name: "public_id", Type: field.TypeUUID, Unique: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
-		{Name: "actor_type", Type: field.TypeEnum, Enums: []string{"system", "user", "agent_token", "agent_enrollment"}, Default: "system"},
+		{Name: "actor_type", Type: field.TypeEnum, Enums: []string{"system", "user", "agent_token", "agent_enrollment", "node_enrollment", "self_hosted_node"}, Default: "system"},
 		{Name: "actor_id", Type: field.TypeString, Nullable: true, Size: 120},
 		{Name: "action", Type: field.TypeString, Size: 160},
 		{Name: "target_type", Type: field.TypeString, Size: 80},
@@ -270,8 +270,9 @@ var (
 		{Name: "public_id", Type: field.TypeUUID, Unique: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "backend", Type: field.TypeEnum, Enums: []string{"autodl_private", "self_hosted"}, Default: "autodl_private"},
 		{Name: "name", Type: field.TypeString, Size: 120},
-		{Name: "image_uuid", Type: field.TypeString, Size: 160},
+		{Name: "image_uuid", Type: field.TypeString, Size: 512},
 		{Name: "recipe_ref", Type: field.TypeString, Nullable: true, Size: 512},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "approved", "disabled"}, Default: "approved"},
 		{Name: "is_default", Type: field.TypeBool, Default: false},
@@ -285,7 +286,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "environments_projects_environments",
-				Columns:    []*schema.Column{EnvironmentsColumns[9]},
+				Columns:    []*schema.Column{EnvironmentsColumns[10]},
 				RefColumns: []*schema.Column{ProjectsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -294,12 +295,12 @@ var (
 			{
 				Name:    "environment_project_id_name",
 				Unique:  true,
-				Columns: []*schema.Column{EnvironmentsColumns[9], EnvironmentsColumns[4]},
+				Columns: []*schema.Column{EnvironmentsColumns[10], EnvironmentsColumns[5]},
 			},
 			{
 				Name:    "environment_project_id_image_uuid",
 				Unique:  false,
-				Columns: []*schema.Column{EnvironmentsColumns[9], EnvironmentsColumns[5]},
+				Columns: []*schema.Column{EnvironmentsColumns[10], EnvironmentsColumns[6]},
 			},
 		},
 	}
@@ -455,6 +456,312 @@ var (
 				Name:    "idempotencyrecord_expires_at",
 				Unique:  false,
 				Columns: []*schema.Column{IdempotencyRecordsColumns[6]},
+			},
+		},
+	}
+	// NodeAssignmentsColumns holds the columns for the "node_assignments" table.
+	NodeAssignmentsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "public_id", Type: field.TypeUUID, Unique: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "state", Type: field.TypeEnum, Enums: []string{"starting", "running", "stopping", "collecting", "succeeded", "failed", "cancelled", "timed_out", "lost"}, Default: "starting"},
+		{Name: "output_ref", Type: field.TypeString, Size: 512},
+		{Name: "start_command_id", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "stop_command_id", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "workload_id", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "started_at", Type: field.TypeTime, Nullable: true},
+		{Name: "last_heartbeat_at", Type: field.TypeTime, Nullable: true},
+		{Name: "deadline_at", Type: field.TypeTime, Nullable: true},
+		{Name: "hard_deadline_at", Type: field.TypeTime, Nullable: true},
+		{Name: "stop_requested_at", Type: field.TypeTime, Nullable: true},
+		{Name: "stop_reason", Type: field.TypeString, Nullable: true, Size: 80},
+		{Name: "finished_at", Type: field.TypeTime, Nullable: true},
+		{Name: "exit_code", Type: field.TypeInt, Nullable: true},
+		{Name: "log_tail", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "metrics", Type: field.TypeJSON},
+		{Name: "failure_code", Type: field.TypeString, Nullable: true, Size: 100},
+		{Name: "failure_reason", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "last_error", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "attempt_id", Type: field.TypeInt, Unique: true},
+		{Name: "experiment_id", Type: field.TypeInt},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "node_id", Type: field.TypeInt},
+		{Name: "tenant_id", Type: field.TypeInt},
+	}
+	// NodeAssignmentsTable holds the schema information for the "node_assignments" table.
+	NodeAssignmentsTable = &schema.Table{
+		Name:       "node_assignments",
+		Columns:    NodeAssignmentsColumns,
+		PrimaryKey: []*schema.Column{NodeAssignmentsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "node_assignments_attempts_node_assignment",
+				Columns:    []*schema.Column{NodeAssignmentsColumns[22]},
+				RefColumns: []*schema.Column{AttemptsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "node_assignments_experiments_node_assignments",
+				Columns:    []*schema.Column{NodeAssignmentsColumns[23]},
+				RefColumns: []*schema.Column{ExperimentsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "node_assignments_projects_node_assignments",
+				Columns:    []*schema.Column{NodeAssignmentsColumns[24]},
+				RefColumns: []*schema.Column{ProjectsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "node_assignments_self_hosted_nodes_assignments",
+				Columns:    []*schema.Column{NodeAssignmentsColumns[25]},
+				RefColumns: []*schema.Column{SelfHostedNodesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "node_assignments_tenants_node_assignments",
+				Columns:    []*schema.Column{NodeAssignmentsColumns[26]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "nodeassignment_attempt_id",
+				Unique:  true,
+				Columns: []*schema.Column{NodeAssignmentsColumns[22]},
+			},
+			{
+				Name:    "nodeassignment_experiment_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{NodeAssignmentsColumns[23], NodeAssignmentsColumns[2]},
+			},
+			{
+				Name:    "nodeassignment_node_id_state_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{NodeAssignmentsColumns[25], NodeAssignmentsColumns[4], NodeAssignmentsColumns[2]},
+			},
+			{
+				Name:    "nodeassignment_state_hard_deadline_at",
+				Unique:  false,
+				Columns: []*schema.Column{NodeAssignmentsColumns[4], NodeAssignmentsColumns[12]},
+			},
+		},
+	}
+	// NodeCommandsColumns holds the columns for the "node_commands" table.
+	NodeCommandsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "public_id", Type: field.TypeUUID, Unique: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "sequence", Type: field.TypeInt64},
+		{Name: "kind", Type: field.TypeString, Size: 80},
+		{Name: "idempotency_key", Type: field.TypeString, Size: 160},
+		{Name: "payload", Type: field.TypeJSON, Nullable: true},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "delivered", "acknowledged", "completed", "failed", "cancelled"}, Default: "pending"},
+		{Name: "available_at", Type: field.TypeTime},
+		{Name: "delivered_at", Type: field.TypeTime, Nullable: true},
+		{Name: "acknowledged_at", Type: field.TypeTime, Nullable: true},
+		{Name: "completed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "result", Type: field.TypeJSON, Nullable: true},
+		{Name: "last_error", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "assignment_id", Type: field.TypeInt, Nullable: true},
+		{Name: "node_id", Type: field.TypeInt},
+		{Name: "tenant_id", Type: field.TypeInt},
+	}
+	// NodeCommandsTable holds the schema information for the "node_commands" table.
+	NodeCommandsTable = &schema.Table{
+		Name:       "node_commands",
+		Columns:    NodeCommandsColumns,
+		PrimaryKey: []*schema.Column{NodeCommandsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "node_commands_node_assignments_commands",
+				Columns:    []*schema.Column{NodeCommandsColumns[15]},
+				RefColumns: []*schema.Column{NodeAssignmentsColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+			{
+				Symbol:     "node_commands_self_hosted_nodes_commands",
+				Columns:    []*schema.Column{NodeCommandsColumns[16]},
+				RefColumns: []*schema.Column{SelfHostedNodesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "node_commands_tenants_node_commands",
+				Columns:    []*schema.Column{NodeCommandsColumns[17]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "nodecommand_node_id_sequence",
+				Unique:  true,
+				Columns: []*schema.Column{NodeCommandsColumns[16], NodeCommandsColumns[4]},
+			},
+			{
+				Name:    "nodecommand_node_id_idempotency_key",
+				Unique:  true,
+				Columns: []*schema.Column{NodeCommandsColumns[16], NodeCommandsColumns[6]},
+			},
+			{
+				Name:    "nodecommand_node_id_status_available_at",
+				Unique:  false,
+				Columns: []*schema.Column{NodeCommandsColumns[16], NodeCommandsColumns[8], NodeCommandsColumns[9]},
+			},
+		},
+	}
+	// NodeEnrollmentsColumns holds the columns for the "node_enrollments" table.
+	NodeEnrollmentsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "public_id", Type: field.TypeUUID, Unique: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "label", Type: field.TypeString, Size: 120},
+		{Name: "code_hash", Type: field.TypeBytes, Unique: true},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "claimed", "approved", "completed", "revoked"}, Default: "pending"},
+		{Name: "expires_at", Type: field.TypeTime},
+		{Name: "pairing_code", Type: field.TypeString, Nullable: true, Size: 16},
+		{Name: "installation_id", Type: field.TypeString, Nullable: true, Size: 120},
+		{Name: "machine_fingerprint", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "report", Type: field.TypeJSON, Nullable: true},
+		{Name: "claimed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "approved_at", Type: field.TypeTime, Nullable: true},
+		{Name: "completed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "node_id", Type: field.TypeInt, Nullable: true},
+		{Name: "tenant_id", Type: field.TypeInt},
+	}
+	// NodeEnrollmentsTable holds the schema information for the "node_enrollments" table.
+	NodeEnrollmentsTable = &schema.Table{
+		Name:       "node_enrollments",
+		Columns:    NodeEnrollmentsColumns,
+		PrimaryKey: []*schema.Column{NodeEnrollmentsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "node_enrollments_self_hosted_nodes_node",
+				Columns:    []*schema.Column{NodeEnrollmentsColumns[15]},
+				RefColumns: []*schema.Column{SelfHostedNodesColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+			{
+				Symbol:     "node_enrollments_tenants_node_enrollments",
+				Columns:    []*schema.Column{NodeEnrollmentsColumns[16]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "nodeenrollment_tenant_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{NodeEnrollmentsColumns[16], NodeEnrollmentsColumns[6]},
+			},
+			{
+				Name:    "nodeenrollment_expires_at",
+				Unique:  false,
+				Columns: []*schema.Column{NodeEnrollmentsColumns[7]},
+			},
+		},
+	}
+	// NodeEventsColumns holds the columns for the "node_events" table.
+	NodeEventsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "public_id", Type: field.TypeUUID, Unique: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "event_id", Type: field.TypeString, Size: 120},
+		{Name: "sequence", Type: field.TypeInt64},
+		{Name: "kind", Type: field.TypeString, Size: 80},
+		{Name: "payload", Type: field.TypeJSON, Nullable: true},
+		{Name: "occurred_at", Type: field.TypeTime},
+		{Name: "node_id", Type: field.TypeInt},
+		{Name: "tenant_id", Type: field.TypeInt},
+	}
+	// NodeEventsTable holds the schema information for the "node_events" table.
+	NodeEventsTable = &schema.Table{
+		Name:       "node_events",
+		Columns:    NodeEventsColumns,
+		PrimaryKey: []*schema.Column{NodeEventsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "node_events_self_hosted_nodes_events",
+				Columns:    []*schema.Column{NodeEventsColumns[9]},
+				RefColumns: []*schema.Column{SelfHostedNodesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "node_events_tenants_node_events",
+				Columns:    []*schema.Column{NodeEventsColumns[10]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "nodeevent_node_id_event_id",
+				Unique:  true,
+				Columns: []*schema.Column{NodeEventsColumns[9], NodeEventsColumns[4]},
+			},
+			{
+				Name:    "nodeevent_node_id_sequence",
+				Unique:  true,
+				Columns: []*schema.Column{NodeEventsColumns[9], NodeEventsColumns[5]},
+			},
+			{
+				Name:    "nodeevent_node_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{NodeEventsColumns[9], NodeEventsColumns[2]},
+			},
+		},
+	}
+	// NodeProjectAccessesColumns holds the columns for the "node_project_accesses" table.
+	NodeProjectAccessesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "public_id", Type: field.TypeUUID, Unique: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "revoked"}, Default: "active"},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "node_id", Type: field.TypeInt},
+		{Name: "tenant_id", Type: field.TypeInt},
+	}
+	// NodeProjectAccessesTable holds the schema information for the "node_project_accesses" table.
+	NodeProjectAccessesTable = &schema.Table{
+		Name:       "node_project_accesses",
+		Columns:    NodeProjectAccessesColumns,
+		PrimaryKey: []*schema.Column{NodeProjectAccessesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "node_project_accesses_projects_node_access",
+				Columns:    []*schema.Column{NodeProjectAccessesColumns[5]},
+				RefColumns: []*schema.Column{ProjectsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "node_project_accesses_self_hosted_nodes_project_access",
+				Columns:    []*schema.Column{NodeProjectAccessesColumns[6]},
+				RefColumns: []*schema.Column{SelfHostedNodesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "node_project_accesses_tenants_node_project_access",
+				Columns:    []*schema.Column{NodeProjectAccessesColumns[7]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "nodeprojectaccess_node_id_project_id",
+				Unique:  true,
+				Columns: []*schema.Column{NodeProjectAccessesColumns[6], NodeProjectAccessesColumns[5]},
+			},
+			{
+				Name:    "nodeprojectaccess_project_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{NodeProjectAccessesColumns[5], NodeProjectAccessesColumns[4]},
 			},
 		},
 	}
@@ -772,6 +1079,7 @@ var (
 		{Name: "public_id", Type: field.TypeUUID, Unique: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "backend", Type: field.TypeEnum, Enums: []string{"autodl_private", "self_hosted"}, Default: "autodl_private"},
 		{Name: "name", Type: field.TypeString, Size: 120},
 		{Name: "region", Type: field.TypeString, Size: 80},
 		{Name: "gpu_names", Type: field.TypeJSON},
@@ -797,7 +1105,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "resource_profiles_projects_resource_profiles",
-				Columns:    []*schema.Column{ResourceProfilesColumns[19]},
+				Columns:    []*schema.Column{ResourceProfilesColumns[20]},
 				RefColumns: []*schema.Column{ProjectsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -806,7 +1114,68 @@ var (
 			{
 				Name:    "resourceprofile_project_id_name",
 				Unique:  true,
-				Columns: []*schema.Column{ResourceProfilesColumns[19], ResourceProfilesColumns[4]},
+				Columns: []*schema.Column{ResourceProfilesColumns[20], ResourceProfilesColumns[5]},
+			},
+		},
+	}
+	// SelfHostedNodesColumns holds the columns for the "self_hosted_nodes" table.
+	SelfHostedNodesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "public_id", Type: field.TypeUUID, Unique: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "label", Type: field.TypeString, Size: 120},
+		{Name: "token_prefix", Type: field.TypeString, Size: 24},
+		{Name: "token_hash", Type: field.TypeBytes, Unique: true},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending_verification", "active", "draining", "disabled", "verification_required", "revoked"}, Default: "pending_verification"},
+		{Name: "observed_state", Type: field.TypeEnum, Enums: []string{"unknown", "online", "unavailable", "offline", "lost", "externally_busy", "reconciling", "incompatible"}, Default: "unknown"},
+		{Name: "installation_id", Type: field.TypeString, Size: 120},
+		{Name: "machine_fingerprint", Type: field.TypeString, Size: 128},
+		{Name: "hostname", Type: field.TypeString, Size: 255},
+		{Name: "operating_system", Type: field.TypeString, Size: 120},
+		{Name: "architecture", Type: field.TypeString, Size: 32},
+		{Name: "agent_version", Type: field.TypeString, Size: 64},
+		{Name: "protocol_version", Type: field.TypeString, Size: 32},
+		{Name: "capabilities", Type: field.TypeJSON, Nullable: true},
+		{Name: "storage", Type: field.TypeJSON, Nullable: true},
+		{Name: "last_seen_at", Type: field.TypeTime, Nullable: true},
+		{Name: "approved_at", Type: field.TypeTime, Nullable: true},
+		{Name: "revoked_at", Type: field.TypeTime, Nullable: true},
+		{Name: "tenant_id", Type: field.TypeInt},
+	}
+	// SelfHostedNodesTable holds the schema information for the "self_hosted_nodes" table.
+	SelfHostedNodesTable = &schema.Table{
+		Name:       "self_hosted_nodes",
+		Columns:    SelfHostedNodesColumns,
+		PrimaryKey: []*schema.Column{SelfHostedNodesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "self_hosted_nodes_tenants_self_hosted_nodes",
+				Columns:    []*schema.Column{SelfHostedNodesColumns[21]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "selfhostednode_token_prefix",
+				Unique:  false,
+				Columns: []*schema.Column{SelfHostedNodesColumns[5]},
+			},
+			{
+				Name:    "selfhostednode_tenant_id_installation_id",
+				Unique:  true,
+				Columns: []*schema.Column{SelfHostedNodesColumns[21], SelfHostedNodesColumns[9]},
+			},
+			{
+				Name:    "selfhostednode_tenant_id_status_observed_state",
+				Unique:  false,
+				Columns: []*schema.Column{SelfHostedNodesColumns[21], SelfHostedNodesColumns[7], SelfHostedNodesColumns[8]},
+			},
+			{
+				Name:    "selfhostednode_last_seen_at",
+				Unique:  false,
+				Columns: []*schema.Column{SelfHostedNodesColumns[18]},
 			},
 		},
 	}
@@ -937,6 +1306,11 @@ var (
 		EnvironmentsTable,
 		ExperimentsTable,
 		IdempotencyRecordsTable,
+		NodeAssignmentsTable,
+		NodeCommandsTable,
+		NodeEnrollmentsTable,
+		NodeEventsTable,
+		NodeProjectAccessesTable,
 		NotificationsTable,
 		NotificationSettingsTable,
 		ProjectsTable,
@@ -945,6 +1319,7 @@ var (
 		RecordMixinsTable,
 		RepositoriesTable,
 		ResourceProfilesTable,
+		SelfHostedNodesTable,
 		ServiceHeartbeatsTable,
 		SessionsTable,
 		TenantsTable,
@@ -973,6 +1348,21 @@ func init() {
 	IdempotencyRecordsTable.ForeignKeys[0].RefTable = AgentTokensTable
 	IdempotencyRecordsTable.ForeignKeys[1].RefTable = ExperimentsTable
 	IdempotencyRecordsTable.ForeignKeys[2].RefTable = TenantsTable
+	NodeAssignmentsTable.ForeignKeys[0].RefTable = AttemptsTable
+	NodeAssignmentsTable.ForeignKeys[1].RefTable = ExperimentsTable
+	NodeAssignmentsTable.ForeignKeys[2].RefTable = ProjectsTable
+	NodeAssignmentsTable.ForeignKeys[3].RefTable = SelfHostedNodesTable
+	NodeAssignmentsTable.ForeignKeys[4].RefTable = TenantsTable
+	NodeCommandsTable.ForeignKeys[0].RefTable = NodeAssignmentsTable
+	NodeCommandsTable.ForeignKeys[1].RefTable = SelfHostedNodesTable
+	NodeCommandsTable.ForeignKeys[2].RefTable = TenantsTable
+	NodeEnrollmentsTable.ForeignKeys[0].RefTable = SelfHostedNodesTable
+	NodeEnrollmentsTable.ForeignKeys[1].RefTable = TenantsTable
+	NodeEventsTable.ForeignKeys[0].RefTable = SelfHostedNodesTable
+	NodeEventsTable.ForeignKeys[1].RefTable = TenantsTable
+	NodeProjectAccessesTable.ForeignKeys[0].RefTable = ProjectsTable
+	NodeProjectAccessesTable.ForeignKeys[1].RefTable = SelfHostedNodesTable
+	NodeProjectAccessesTable.ForeignKeys[2].RefTable = TenantsTable
 	NotificationsTable.ForeignKeys[0].RefTable = TenantsTable
 	NotificationSettingsTable.ForeignKeys[0].RefTable = TenantsTable
 	ProjectsTable.ForeignKeys[0].RefTable = TenantsTable
@@ -984,6 +1374,7 @@ func init() {
 	ProviderResourcesTable.ForeignKeys[4].RefTable = TenantsTable
 	RepositoriesTable.ForeignKeys[0].RefTable = ProjectsTable
 	ResourceProfilesTable.ForeignKeys[0].RefTable = ProjectsTable
+	SelfHostedNodesTable.ForeignKeys[0].RefTable = TenantsTable
 	SessionsTable.ForeignKeys[0].RefTable = UsersTable
 	UsersTable.ForeignKeys[0].RefTable = TenantsTable
 }

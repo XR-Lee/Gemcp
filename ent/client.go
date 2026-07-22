@@ -23,6 +23,11 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
+	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
+	"github.com/XR-Lee/Gemcp/ent/nodecommand"
+	"github.com/XR-Lee/Gemcp/ent/nodeenrollment"
+	"github.com/XR-Lee/Gemcp/ent/nodeevent"
+	"github.com/XR-Lee/Gemcp/ent/nodeprojectaccess"
 	"github.com/XR-Lee/Gemcp/ent/notification"
 	"github.com/XR-Lee/Gemcp/ent/notificationsetting"
 	"github.com/XR-Lee/Gemcp/ent/project"
@@ -31,6 +36,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/recordmixin"
 	"github.com/XR-Lee/Gemcp/ent/repository"
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
+	"github.com/XR-Lee/Gemcp/ent/selfhostednode"
 	"github.com/XR-Lee/Gemcp/ent/serviceheartbeat"
 	"github.com/XR-Lee/Gemcp/ent/session"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
@@ -58,6 +64,16 @@ type Client struct {
 	Experiment *ExperimentClient
 	// IdempotencyRecord is the client for interacting with the IdempotencyRecord builders.
 	IdempotencyRecord *IdempotencyRecordClient
+	// NodeAssignment is the client for interacting with the NodeAssignment builders.
+	NodeAssignment *NodeAssignmentClient
+	// NodeCommand is the client for interacting with the NodeCommand builders.
+	NodeCommand *NodeCommandClient
+	// NodeEnrollment is the client for interacting with the NodeEnrollment builders.
+	NodeEnrollment *NodeEnrollmentClient
+	// NodeEvent is the client for interacting with the NodeEvent builders.
+	NodeEvent *NodeEventClient
+	// NodeProjectAccess is the client for interacting with the NodeProjectAccess builders.
+	NodeProjectAccess *NodeProjectAccessClient
 	// Notification is the client for interacting with the Notification builders.
 	Notification *NotificationClient
 	// NotificationSetting is the client for interacting with the NotificationSetting builders.
@@ -74,6 +90,8 @@ type Client struct {
 	Repository *RepositoryClient
 	// ResourceProfile is the client for interacting with the ResourceProfile builders.
 	ResourceProfile *ResourceProfileClient
+	// SelfHostedNode is the client for interacting with the SelfHostedNode builders.
+	SelfHostedNode *SelfHostedNodeClient
 	// ServiceHeartbeat is the client for interacting with the ServiceHeartbeat builders.
 	ServiceHeartbeat *ServiceHeartbeatClient
 	// Session is the client for interacting with the Session builders.
@@ -101,6 +119,11 @@ func (c *Client) init() {
 	c.Environment = NewEnvironmentClient(c.config)
 	c.Experiment = NewExperimentClient(c.config)
 	c.IdempotencyRecord = NewIdempotencyRecordClient(c.config)
+	c.NodeAssignment = NewNodeAssignmentClient(c.config)
+	c.NodeCommand = NewNodeCommandClient(c.config)
+	c.NodeEnrollment = NewNodeEnrollmentClient(c.config)
+	c.NodeEvent = NewNodeEventClient(c.config)
+	c.NodeProjectAccess = NewNodeProjectAccessClient(c.config)
 	c.Notification = NewNotificationClient(c.config)
 	c.NotificationSetting = NewNotificationSettingClient(c.config)
 	c.Project = NewProjectClient(c.config)
@@ -109,6 +132,7 @@ func (c *Client) init() {
 	c.RecordMixin = NewRecordMixinClient(c.config)
 	c.Repository = NewRepositoryClient(c.config)
 	c.ResourceProfile = NewResourceProfileClient(c.config)
+	c.SelfHostedNode = NewSelfHostedNodeClient(c.config)
 	c.ServiceHeartbeat = NewServiceHeartbeatClient(c.config)
 	c.Session = NewSessionClient(c.config)
 	c.Tenant = NewTenantClient(c.config)
@@ -213,6 +237,11 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Environment:         NewEnvironmentClient(cfg),
 		Experiment:          NewExperimentClient(cfg),
 		IdempotencyRecord:   NewIdempotencyRecordClient(cfg),
+		NodeAssignment:      NewNodeAssignmentClient(cfg),
+		NodeCommand:         NewNodeCommandClient(cfg),
+		NodeEnrollment:      NewNodeEnrollmentClient(cfg),
+		NodeEvent:           NewNodeEventClient(cfg),
+		NodeProjectAccess:   NewNodeProjectAccessClient(cfg),
 		Notification:        NewNotificationClient(cfg),
 		NotificationSetting: NewNotificationSettingClient(cfg),
 		Project:             NewProjectClient(cfg),
@@ -221,6 +250,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		RecordMixin:         NewRecordMixinClient(cfg),
 		Repository:          NewRepositoryClient(cfg),
 		ResourceProfile:     NewResourceProfileClient(cfg),
+		SelfHostedNode:      NewSelfHostedNodeClient(cfg),
 		ServiceHeartbeat:    NewServiceHeartbeatClient(cfg),
 		Session:             NewSessionClient(cfg),
 		Tenant:              NewTenantClient(cfg),
@@ -252,6 +282,11 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Environment:         NewEnvironmentClient(cfg),
 		Experiment:          NewExperimentClient(cfg),
 		IdempotencyRecord:   NewIdempotencyRecordClient(cfg),
+		NodeAssignment:      NewNodeAssignmentClient(cfg),
+		NodeCommand:         NewNodeCommandClient(cfg),
+		NodeEnrollment:      NewNodeEnrollmentClient(cfg),
+		NodeEvent:           NewNodeEventClient(cfg),
+		NodeProjectAccess:   NewNodeProjectAccessClient(cfg),
 		Notification:        NewNotificationClient(cfg),
 		NotificationSetting: NewNotificationSettingClient(cfg),
 		Project:             NewProjectClient(cfg),
@@ -260,6 +295,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		RecordMixin:         NewRecordMixinClient(cfg),
 		Repository:          NewRepositoryClient(cfg),
 		ResourceProfile:     NewResourceProfileClient(cfg),
+		SelfHostedNode:      NewSelfHostedNodeClient(cfg),
 		ServiceHeartbeat:    NewServiceHeartbeatClient(cfg),
 		Session:             NewSessionClient(cfg),
 		Tenant:              NewTenantClient(cfg),
@@ -294,10 +330,11 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.AgentEnrollment, c.AgentToken, c.Attempt, c.AuditEvent, c.BudgetEntry,
-		c.Environment, c.Experiment, c.IdempotencyRecord, c.Notification,
-		c.NotificationSetting, c.Project, c.ProviderAccount, c.ProviderResource,
-		c.RecordMixin, c.Repository, c.ResourceProfile, c.ServiceHeartbeat, c.Session,
-		c.Tenant, c.User,
+		c.Environment, c.Experiment, c.IdempotencyRecord, c.NodeAssignment,
+		c.NodeCommand, c.NodeEnrollment, c.NodeEvent, c.NodeProjectAccess,
+		c.Notification, c.NotificationSetting, c.Project, c.ProviderAccount,
+		c.ProviderResource, c.RecordMixin, c.Repository, c.ResourceProfile,
+		c.SelfHostedNode, c.ServiceHeartbeat, c.Session, c.Tenant, c.User,
 	} {
 		n.Use(hooks...)
 	}
@@ -308,10 +345,11 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.AgentEnrollment, c.AgentToken, c.Attempt, c.AuditEvent, c.BudgetEntry,
-		c.Environment, c.Experiment, c.IdempotencyRecord, c.Notification,
-		c.NotificationSetting, c.Project, c.ProviderAccount, c.ProviderResource,
-		c.RecordMixin, c.Repository, c.ResourceProfile, c.ServiceHeartbeat, c.Session,
-		c.Tenant, c.User,
+		c.Environment, c.Experiment, c.IdempotencyRecord, c.NodeAssignment,
+		c.NodeCommand, c.NodeEnrollment, c.NodeEvent, c.NodeProjectAccess,
+		c.Notification, c.NotificationSetting, c.Project, c.ProviderAccount,
+		c.ProviderResource, c.RecordMixin, c.Repository, c.ResourceProfile,
+		c.SelfHostedNode, c.ServiceHeartbeat, c.Session, c.Tenant, c.User,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -336,6 +374,16 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Experiment.mutate(ctx, m)
 	case *IdempotencyRecordMutation:
 		return c.IdempotencyRecord.mutate(ctx, m)
+	case *NodeAssignmentMutation:
+		return c.NodeAssignment.mutate(ctx, m)
+	case *NodeCommandMutation:
+		return c.NodeCommand.mutate(ctx, m)
+	case *NodeEnrollmentMutation:
+		return c.NodeEnrollment.mutate(ctx, m)
+	case *NodeEventMutation:
+		return c.NodeEvent.mutate(ctx, m)
+	case *NodeProjectAccessMutation:
+		return c.NodeProjectAccess.mutate(ctx, m)
 	case *NotificationMutation:
 		return c.Notification.mutate(ctx, m)
 	case *NotificationSettingMutation:
@@ -352,6 +400,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Repository.mutate(ctx, m)
 	case *ResourceProfileMutation:
 		return c.ResourceProfile.mutate(ctx, m)
+	case *SelfHostedNodeMutation:
+		return c.SelfHostedNode.mutate(ctx, m)
 	case *ServiceHeartbeatMutation:
 		return c.ServiceHeartbeat.mutate(ctx, m)
 	case *SessionMutation:
@@ -876,6 +926,22 @@ func (c *AttemptClient) QueryOwnedResource(_m *Attempt) *ProviderResourceQuery {
 			sqlgraph.From(attempt.Table, attempt.FieldID, id),
 			sqlgraph.To(providerresource.Table, providerresource.FieldID),
 			sqlgraph.Edge(sqlgraph.O2O, false, attempt.OwnedResourceTable, attempt.OwnedResourceColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryNodeAssignment queries the node_assignment edge of a Attempt.
+func (c *AttemptClient) QueryNodeAssignment(_m *Attempt) *NodeAssignmentQuery {
+	query := (&NodeAssignmentClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(attempt.Table, attempt.FieldID, id),
+			sqlgraph.To(nodeassignment.Table, nodeassignment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, attempt.NodeAssignmentTable, attempt.NodeAssignmentColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -1639,6 +1705,22 @@ func (c *ExperimentClient) QueryProviderResources(_m *Experiment) *ProviderResou
 	return query
 }
 
+// QueryNodeAssignments queries the node_assignments edge of a Experiment.
+func (c *ExperimentClient) QueryNodeAssignments(_m *Experiment) *NodeAssignmentQuery {
+	query := (&NodeAssignmentClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(experiment.Table, experiment.FieldID, id),
+			sqlgraph.To(nodeassignment.Table, nodeassignment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, experiment.NodeAssignmentsTable, experiment.NodeAssignmentsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryBudgetEntries queries the budget_entries edge of a Experiment.
 func (c *ExperimentClient) QueryBudgetEntries(_m *Experiment) *BudgetEntryQuery {
 	query := (&BudgetEntryClient{config: c.config}).Query()
@@ -1874,6 +1956,927 @@ func (c *IdempotencyRecordClient) mutate(ctx context.Context, m *IdempotencyReco
 		return (&IdempotencyRecordDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown IdempotencyRecord mutation op: %q", m.Op())
+	}
+}
+
+// NodeAssignmentClient is a client for the NodeAssignment schema.
+type NodeAssignmentClient struct {
+	config
+}
+
+// NewNodeAssignmentClient returns a client for the NodeAssignment from the given config.
+func NewNodeAssignmentClient(c config) *NodeAssignmentClient {
+	return &NodeAssignmentClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `nodeassignment.Hooks(f(g(h())))`.
+func (c *NodeAssignmentClient) Use(hooks ...Hook) {
+	c.hooks.NodeAssignment = append(c.hooks.NodeAssignment, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `nodeassignment.Intercept(f(g(h())))`.
+func (c *NodeAssignmentClient) Intercept(interceptors ...Interceptor) {
+	c.inters.NodeAssignment = append(c.inters.NodeAssignment, interceptors...)
+}
+
+// Create returns a builder for creating a NodeAssignment entity.
+func (c *NodeAssignmentClient) Create() *NodeAssignmentCreate {
+	mutation := newNodeAssignmentMutation(c.config, OpCreate)
+	return &NodeAssignmentCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of NodeAssignment entities.
+func (c *NodeAssignmentClient) CreateBulk(builders ...*NodeAssignmentCreate) *NodeAssignmentCreateBulk {
+	return &NodeAssignmentCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *NodeAssignmentClient) MapCreateBulk(slice any, setFunc func(*NodeAssignmentCreate, int)) *NodeAssignmentCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &NodeAssignmentCreateBulk{err: fmt.Errorf("calling to NodeAssignmentClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*NodeAssignmentCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &NodeAssignmentCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for NodeAssignment.
+func (c *NodeAssignmentClient) Update() *NodeAssignmentUpdate {
+	mutation := newNodeAssignmentMutation(c.config, OpUpdate)
+	return &NodeAssignmentUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *NodeAssignmentClient) UpdateOne(_m *NodeAssignment) *NodeAssignmentUpdateOne {
+	mutation := newNodeAssignmentMutation(c.config, OpUpdateOne, withNodeAssignment(_m))
+	return &NodeAssignmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *NodeAssignmentClient) UpdateOneID(id int) *NodeAssignmentUpdateOne {
+	mutation := newNodeAssignmentMutation(c.config, OpUpdateOne, withNodeAssignmentID(id))
+	return &NodeAssignmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for NodeAssignment.
+func (c *NodeAssignmentClient) Delete() *NodeAssignmentDelete {
+	mutation := newNodeAssignmentMutation(c.config, OpDelete)
+	return &NodeAssignmentDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *NodeAssignmentClient) DeleteOne(_m *NodeAssignment) *NodeAssignmentDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *NodeAssignmentClient) DeleteOneID(id int) *NodeAssignmentDeleteOne {
+	builder := c.Delete().Where(nodeassignment.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &NodeAssignmentDeleteOne{builder}
+}
+
+// Query returns a query builder for NodeAssignment.
+func (c *NodeAssignmentClient) Query() *NodeAssignmentQuery {
+	return &NodeAssignmentQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeNodeAssignment},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a NodeAssignment entity by its id.
+func (c *NodeAssignmentClient) Get(ctx context.Context, id int) (*NodeAssignment, error) {
+	return c.Query().Where(nodeassignment.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *NodeAssignmentClient) GetX(ctx context.Context, id int) *NodeAssignment {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTenant queries the tenant edge of a NodeAssignment.
+func (c *NodeAssignmentClient) QueryTenant(_m *NodeAssignment) *TenantQuery {
+	query := (&TenantClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(nodeassignment.Table, nodeassignment.FieldID, id),
+			sqlgraph.To(tenant.Table, tenant.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, nodeassignment.TenantTable, nodeassignment.TenantColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryProject queries the project edge of a NodeAssignment.
+func (c *NodeAssignmentClient) QueryProject(_m *NodeAssignment) *ProjectQuery {
+	query := (&ProjectClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(nodeassignment.Table, nodeassignment.FieldID, id),
+			sqlgraph.To(project.Table, project.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, nodeassignment.ProjectTable, nodeassignment.ProjectColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryExperiment queries the experiment edge of a NodeAssignment.
+func (c *NodeAssignmentClient) QueryExperiment(_m *NodeAssignment) *ExperimentQuery {
+	query := (&ExperimentClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(nodeassignment.Table, nodeassignment.FieldID, id),
+			sqlgraph.To(experiment.Table, experiment.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, nodeassignment.ExperimentTable, nodeassignment.ExperimentColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryAttempt queries the attempt edge of a NodeAssignment.
+func (c *NodeAssignmentClient) QueryAttempt(_m *NodeAssignment) *AttemptQuery {
+	query := (&AttemptClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(nodeassignment.Table, nodeassignment.FieldID, id),
+			sqlgraph.To(attempt.Table, attempt.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, true, nodeassignment.AttemptTable, nodeassignment.AttemptColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryNode queries the node edge of a NodeAssignment.
+func (c *NodeAssignmentClient) QueryNode(_m *NodeAssignment) *SelfHostedNodeQuery {
+	query := (&SelfHostedNodeClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(nodeassignment.Table, nodeassignment.FieldID, id),
+			sqlgraph.To(selfhostednode.Table, selfhostednode.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, nodeassignment.NodeTable, nodeassignment.NodeColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryCommands queries the commands edge of a NodeAssignment.
+func (c *NodeAssignmentClient) QueryCommands(_m *NodeAssignment) *NodeCommandQuery {
+	query := (&NodeCommandClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(nodeassignment.Table, nodeassignment.FieldID, id),
+			sqlgraph.To(nodecommand.Table, nodecommand.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, nodeassignment.CommandsTable, nodeassignment.CommandsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *NodeAssignmentClient) Hooks() []Hook {
+	return c.hooks.NodeAssignment
+}
+
+// Interceptors returns the client interceptors.
+func (c *NodeAssignmentClient) Interceptors() []Interceptor {
+	return c.inters.NodeAssignment
+}
+
+func (c *NodeAssignmentClient) mutate(ctx context.Context, m *NodeAssignmentMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&NodeAssignmentCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&NodeAssignmentUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&NodeAssignmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&NodeAssignmentDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown NodeAssignment mutation op: %q", m.Op())
+	}
+}
+
+// NodeCommandClient is a client for the NodeCommand schema.
+type NodeCommandClient struct {
+	config
+}
+
+// NewNodeCommandClient returns a client for the NodeCommand from the given config.
+func NewNodeCommandClient(c config) *NodeCommandClient {
+	return &NodeCommandClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `nodecommand.Hooks(f(g(h())))`.
+func (c *NodeCommandClient) Use(hooks ...Hook) {
+	c.hooks.NodeCommand = append(c.hooks.NodeCommand, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `nodecommand.Intercept(f(g(h())))`.
+func (c *NodeCommandClient) Intercept(interceptors ...Interceptor) {
+	c.inters.NodeCommand = append(c.inters.NodeCommand, interceptors...)
+}
+
+// Create returns a builder for creating a NodeCommand entity.
+func (c *NodeCommandClient) Create() *NodeCommandCreate {
+	mutation := newNodeCommandMutation(c.config, OpCreate)
+	return &NodeCommandCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of NodeCommand entities.
+func (c *NodeCommandClient) CreateBulk(builders ...*NodeCommandCreate) *NodeCommandCreateBulk {
+	return &NodeCommandCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *NodeCommandClient) MapCreateBulk(slice any, setFunc func(*NodeCommandCreate, int)) *NodeCommandCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &NodeCommandCreateBulk{err: fmt.Errorf("calling to NodeCommandClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*NodeCommandCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &NodeCommandCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for NodeCommand.
+func (c *NodeCommandClient) Update() *NodeCommandUpdate {
+	mutation := newNodeCommandMutation(c.config, OpUpdate)
+	return &NodeCommandUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *NodeCommandClient) UpdateOne(_m *NodeCommand) *NodeCommandUpdateOne {
+	mutation := newNodeCommandMutation(c.config, OpUpdateOne, withNodeCommand(_m))
+	return &NodeCommandUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *NodeCommandClient) UpdateOneID(id int) *NodeCommandUpdateOne {
+	mutation := newNodeCommandMutation(c.config, OpUpdateOne, withNodeCommandID(id))
+	return &NodeCommandUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for NodeCommand.
+func (c *NodeCommandClient) Delete() *NodeCommandDelete {
+	mutation := newNodeCommandMutation(c.config, OpDelete)
+	return &NodeCommandDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *NodeCommandClient) DeleteOne(_m *NodeCommand) *NodeCommandDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *NodeCommandClient) DeleteOneID(id int) *NodeCommandDeleteOne {
+	builder := c.Delete().Where(nodecommand.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &NodeCommandDeleteOne{builder}
+}
+
+// Query returns a query builder for NodeCommand.
+func (c *NodeCommandClient) Query() *NodeCommandQuery {
+	return &NodeCommandQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeNodeCommand},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a NodeCommand entity by its id.
+func (c *NodeCommandClient) Get(ctx context.Context, id int) (*NodeCommand, error) {
+	return c.Query().Where(nodecommand.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *NodeCommandClient) GetX(ctx context.Context, id int) *NodeCommand {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTenant queries the tenant edge of a NodeCommand.
+func (c *NodeCommandClient) QueryTenant(_m *NodeCommand) *TenantQuery {
+	query := (&TenantClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(nodecommand.Table, nodecommand.FieldID, id),
+			sqlgraph.To(tenant.Table, tenant.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, nodecommand.TenantTable, nodecommand.TenantColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryNode queries the node edge of a NodeCommand.
+func (c *NodeCommandClient) QueryNode(_m *NodeCommand) *SelfHostedNodeQuery {
+	query := (&SelfHostedNodeClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(nodecommand.Table, nodecommand.FieldID, id),
+			sqlgraph.To(selfhostednode.Table, selfhostednode.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, nodecommand.NodeTable, nodecommand.NodeColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryAssignment queries the assignment edge of a NodeCommand.
+func (c *NodeCommandClient) QueryAssignment(_m *NodeCommand) *NodeAssignmentQuery {
+	query := (&NodeAssignmentClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(nodecommand.Table, nodecommand.FieldID, id),
+			sqlgraph.To(nodeassignment.Table, nodeassignment.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, nodecommand.AssignmentTable, nodecommand.AssignmentColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *NodeCommandClient) Hooks() []Hook {
+	return c.hooks.NodeCommand
+}
+
+// Interceptors returns the client interceptors.
+func (c *NodeCommandClient) Interceptors() []Interceptor {
+	return c.inters.NodeCommand
+}
+
+func (c *NodeCommandClient) mutate(ctx context.Context, m *NodeCommandMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&NodeCommandCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&NodeCommandUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&NodeCommandUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&NodeCommandDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown NodeCommand mutation op: %q", m.Op())
+	}
+}
+
+// NodeEnrollmentClient is a client for the NodeEnrollment schema.
+type NodeEnrollmentClient struct {
+	config
+}
+
+// NewNodeEnrollmentClient returns a client for the NodeEnrollment from the given config.
+func NewNodeEnrollmentClient(c config) *NodeEnrollmentClient {
+	return &NodeEnrollmentClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `nodeenrollment.Hooks(f(g(h())))`.
+func (c *NodeEnrollmentClient) Use(hooks ...Hook) {
+	c.hooks.NodeEnrollment = append(c.hooks.NodeEnrollment, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `nodeenrollment.Intercept(f(g(h())))`.
+func (c *NodeEnrollmentClient) Intercept(interceptors ...Interceptor) {
+	c.inters.NodeEnrollment = append(c.inters.NodeEnrollment, interceptors...)
+}
+
+// Create returns a builder for creating a NodeEnrollment entity.
+func (c *NodeEnrollmentClient) Create() *NodeEnrollmentCreate {
+	mutation := newNodeEnrollmentMutation(c.config, OpCreate)
+	return &NodeEnrollmentCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of NodeEnrollment entities.
+func (c *NodeEnrollmentClient) CreateBulk(builders ...*NodeEnrollmentCreate) *NodeEnrollmentCreateBulk {
+	return &NodeEnrollmentCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *NodeEnrollmentClient) MapCreateBulk(slice any, setFunc func(*NodeEnrollmentCreate, int)) *NodeEnrollmentCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &NodeEnrollmentCreateBulk{err: fmt.Errorf("calling to NodeEnrollmentClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*NodeEnrollmentCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &NodeEnrollmentCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for NodeEnrollment.
+func (c *NodeEnrollmentClient) Update() *NodeEnrollmentUpdate {
+	mutation := newNodeEnrollmentMutation(c.config, OpUpdate)
+	return &NodeEnrollmentUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *NodeEnrollmentClient) UpdateOne(_m *NodeEnrollment) *NodeEnrollmentUpdateOne {
+	mutation := newNodeEnrollmentMutation(c.config, OpUpdateOne, withNodeEnrollment(_m))
+	return &NodeEnrollmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *NodeEnrollmentClient) UpdateOneID(id int) *NodeEnrollmentUpdateOne {
+	mutation := newNodeEnrollmentMutation(c.config, OpUpdateOne, withNodeEnrollmentID(id))
+	return &NodeEnrollmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for NodeEnrollment.
+func (c *NodeEnrollmentClient) Delete() *NodeEnrollmentDelete {
+	mutation := newNodeEnrollmentMutation(c.config, OpDelete)
+	return &NodeEnrollmentDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *NodeEnrollmentClient) DeleteOne(_m *NodeEnrollment) *NodeEnrollmentDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *NodeEnrollmentClient) DeleteOneID(id int) *NodeEnrollmentDeleteOne {
+	builder := c.Delete().Where(nodeenrollment.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &NodeEnrollmentDeleteOne{builder}
+}
+
+// Query returns a query builder for NodeEnrollment.
+func (c *NodeEnrollmentClient) Query() *NodeEnrollmentQuery {
+	return &NodeEnrollmentQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeNodeEnrollment},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a NodeEnrollment entity by its id.
+func (c *NodeEnrollmentClient) Get(ctx context.Context, id int) (*NodeEnrollment, error) {
+	return c.Query().Where(nodeenrollment.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *NodeEnrollmentClient) GetX(ctx context.Context, id int) *NodeEnrollment {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTenant queries the tenant edge of a NodeEnrollment.
+func (c *NodeEnrollmentClient) QueryTenant(_m *NodeEnrollment) *TenantQuery {
+	query := (&TenantClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(nodeenrollment.Table, nodeenrollment.FieldID, id),
+			sqlgraph.To(tenant.Table, tenant.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, nodeenrollment.TenantTable, nodeenrollment.TenantColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryNode queries the node edge of a NodeEnrollment.
+func (c *NodeEnrollmentClient) QueryNode(_m *NodeEnrollment) *SelfHostedNodeQuery {
+	query := (&SelfHostedNodeClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(nodeenrollment.Table, nodeenrollment.FieldID, id),
+			sqlgraph.To(selfhostednode.Table, selfhostednode.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, nodeenrollment.NodeTable, nodeenrollment.NodeColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *NodeEnrollmentClient) Hooks() []Hook {
+	return c.hooks.NodeEnrollment
+}
+
+// Interceptors returns the client interceptors.
+func (c *NodeEnrollmentClient) Interceptors() []Interceptor {
+	return c.inters.NodeEnrollment
+}
+
+func (c *NodeEnrollmentClient) mutate(ctx context.Context, m *NodeEnrollmentMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&NodeEnrollmentCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&NodeEnrollmentUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&NodeEnrollmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&NodeEnrollmentDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown NodeEnrollment mutation op: %q", m.Op())
+	}
+}
+
+// NodeEventClient is a client for the NodeEvent schema.
+type NodeEventClient struct {
+	config
+}
+
+// NewNodeEventClient returns a client for the NodeEvent from the given config.
+func NewNodeEventClient(c config) *NodeEventClient {
+	return &NodeEventClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `nodeevent.Hooks(f(g(h())))`.
+func (c *NodeEventClient) Use(hooks ...Hook) {
+	c.hooks.NodeEvent = append(c.hooks.NodeEvent, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `nodeevent.Intercept(f(g(h())))`.
+func (c *NodeEventClient) Intercept(interceptors ...Interceptor) {
+	c.inters.NodeEvent = append(c.inters.NodeEvent, interceptors...)
+}
+
+// Create returns a builder for creating a NodeEvent entity.
+func (c *NodeEventClient) Create() *NodeEventCreate {
+	mutation := newNodeEventMutation(c.config, OpCreate)
+	return &NodeEventCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of NodeEvent entities.
+func (c *NodeEventClient) CreateBulk(builders ...*NodeEventCreate) *NodeEventCreateBulk {
+	return &NodeEventCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *NodeEventClient) MapCreateBulk(slice any, setFunc func(*NodeEventCreate, int)) *NodeEventCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &NodeEventCreateBulk{err: fmt.Errorf("calling to NodeEventClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*NodeEventCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &NodeEventCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for NodeEvent.
+func (c *NodeEventClient) Update() *NodeEventUpdate {
+	mutation := newNodeEventMutation(c.config, OpUpdate)
+	return &NodeEventUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *NodeEventClient) UpdateOne(_m *NodeEvent) *NodeEventUpdateOne {
+	mutation := newNodeEventMutation(c.config, OpUpdateOne, withNodeEvent(_m))
+	return &NodeEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *NodeEventClient) UpdateOneID(id int) *NodeEventUpdateOne {
+	mutation := newNodeEventMutation(c.config, OpUpdateOne, withNodeEventID(id))
+	return &NodeEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for NodeEvent.
+func (c *NodeEventClient) Delete() *NodeEventDelete {
+	mutation := newNodeEventMutation(c.config, OpDelete)
+	return &NodeEventDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *NodeEventClient) DeleteOne(_m *NodeEvent) *NodeEventDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *NodeEventClient) DeleteOneID(id int) *NodeEventDeleteOne {
+	builder := c.Delete().Where(nodeevent.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &NodeEventDeleteOne{builder}
+}
+
+// Query returns a query builder for NodeEvent.
+func (c *NodeEventClient) Query() *NodeEventQuery {
+	return &NodeEventQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeNodeEvent},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a NodeEvent entity by its id.
+func (c *NodeEventClient) Get(ctx context.Context, id int) (*NodeEvent, error) {
+	return c.Query().Where(nodeevent.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *NodeEventClient) GetX(ctx context.Context, id int) *NodeEvent {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTenant queries the tenant edge of a NodeEvent.
+func (c *NodeEventClient) QueryTenant(_m *NodeEvent) *TenantQuery {
+	query := (&TenantClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(nodeevent.Table, nodeevent.FieldID, id),
+			sqlgraph.To(tenant.Table, tenant.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, nodeevent.TenantTable, nodeevent.TenantColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryNode queries the node edge of a NodeEvent.
+func (c *NodeEventClient) QueryNode(_m *NodeEvent) *SelfHostedNodeQuery {
+	query := (&SelfHostedNodeClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(nodeevent.Table, nodeevent.FieldID, id),
+			sqlgraph.To(selfhostednode.Table, selfhostednode.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, nodeevent.NodeTable, nodeevent.NodeColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *NodeEventClient) Hooks() []Hook {
+	return c.hooks.NodeEvent
+}
+
+// Interceptors returns the client interceptors.
+func (c *NodeEventClient) Interceptors() []Interceptor {
+	return c.inters.NodeEvent
+}
+
+func (c *NodeEventClient) mutate(ctx context.Context, m *NodeEventMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&NodeEventCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&NodeEventUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&NodeEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&NodeEventDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown NodeEvent mutation op: %q", m.Op())
+	}
+}
+
+// NodeProjectAccessClient is a client for the NodeProjectAccess schema.
+type NodeProjectAccessClient struct {
+	config
+}
+
+// NewNodeProjectAccessClient returns a client for the NodeProjectAccess from the given config.
+func NewNodeProjectAccessClient(c config) *NodeProjectAccessClient {
+	return &NodeProjectAccessClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `nodeprojectaccess.Hooks(f(g(h())))`.
+func (c *NodeProjectAccessClient) Use(hooks ...Hook) {
+	c.hooks.NodeProjectAccess = append(c.hooks.NodeProjectAccess, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `nodeprojectaccess.Intercept(f(g(h())))`.
+func (c *NodeProjectAccessClient) Intercept(interceptors ...Interceptor) {
+	c.inters.NodeProjectAccess = append(c.inters.NodeProjectAccess, interceptors...)
+}
+
+// Create returns a builder for creating a NodeProjectAccess entity.
+func (c *NodeProjectAccessClient) Create() *NodeProjectAccessCreate {
+	mutation := newNodeProjectAccessMutation(c.config, OpCreate)
+	return &NodeProjectAccessCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of NodeProjectAccess entities.
+func (c *NodeProjectAccessClient) CreateBulk(builders ...*NodeProjectAccessCreate) *NodeProjectAccessCreateBulk {
+	return &NodeProjectAccessCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *NodeProjectAccessClient) MapCreateBulk(slice any, setFunc func(*NodeProjectAccessCreate, int)) *NodeProjectAccessCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &NodeProjectAccessCreateBulk{err: fmt.Errorf("calling to NodeProjectAccessClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*NodeProjectAccessCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &NodeProjectAccessCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for NodeProjectAccess.
+func (c *NodeProjectAccessClient) Update() *NodeProjectAccessUpdate {
+	mutation := newNodeProjectAccessMutation(c.config, OpUpdate)
+	return &NodeProjectAccessUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *NodeProjectAccessClient) UpdateOne(_m *NodeProjectAccess) *NodeProjectAccessUpdateOne {
+	mutation := newNodeProjectAccessMutation(c.config, OpUpdateOne, withNodeProjectAccess(_m))
+	return &NodeProjectAccessUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *NodeProjectAccessClient) UpdateOneID(id int) *NodeProjectAccessUpdateOne {
+	mutation := newNodeProjectAccessMutation(c.config, OpUpdateOne, withNodeProjectAccessID(id))
+	return &NodeProjectAccessUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for NodeProjectAccess.
+func (c *NodeProjectAccessClient) Delete() *NodeProjectAccessDelete {
+	mutation := newNodeProjectAccessMutation(c.config, OpDelete)
+	return &NodeProjectAccessDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *NodeProjectAccessClient) DeleteOne(_m *NodeProjectAccess) *NodeProjectAccessDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *NodeProjectAccessClient) DeleteOneID(id int) *NodeProjectAccessDeleteOne {
+	builder := c.Delete().Where(nodeprojectaccess.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &NodeProjectAccessDeleteOne{builder}
+}
+
+// Query returns a query builder for NodeProjectAccess.
+func (c *NodeProjectAccessClient) Query() *NodeProjectAccessQuery {
+	return &NodeProjectAccessQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeNodeProjectAccess},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a NodeProjectAccess entity by its id.
+func (c *NodeProjectAccessClient) Get(ctx context.Context, id int) (*NodeProjectAccess, error) {
+	return c.Query().Where(nodeprojectaccess.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *NodeProjectAccessClient) GetX(ctx context.Context, id int) *NodeProjectAccess {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTenant queries the tenant edge of a NodeProjectAccess.
+func (c *NodeProjectAccessClient) QueryTenant(_m *NodeProjectAccess) *TenantQuery {
+	query := (&TenantClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(nodeprojectaccess.Table, nodeprojectaccess.FieldID, id),
+			sqlgraph.To(tenant.Table, tenant.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, nodeprojectaccess.TenantTable, nodeprojectaccess.TenantColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryNode queries the node edge of a NodeProjectAccess.
+func (c *NodeProjectAccessClient) QueryNode(_m *NodeProjectAccess) *SelfHostedNodeQuery {
+	query := (&SelfHostedNodeClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(nodeprojectaccess.Table, nodeprojectaccess.FieldID, id),
+			sqlgraph.To(selfhostednode.Table, selfhostednode.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, nodeprojectaccess.NodeTable, nodeprojectaccess.NodeColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryProject queries the project edge of a NodeProjectAccess.
+func (c *NodeProjectAccessClient) QueryProject(_m *NodeProjectAccess) *ProjectQuery {
+	query := (&ProjectClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(nodeprojectaccess.Table, nodeprojectaccess.FieldID, id),
+			sqlgraph.To(project.Table, project.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, nodeprojectaccess.ProjectTable, nodeprojectaccess.ProjectColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *NodeProjectAccessClient) Hooks() []Hook {
+	return c.hooks.NodeProjectAccess
+}
+
+// Interceptors returns the client interceptors.
+func (c *NodeProjectAccessClient) Interceptors() []Interceptor {
+	return c.inters.NodeProjectAccess
+}
+
+func (c *NodeProjectAccessClient) mutate(ctx context.Context, m *NodeProjectAccessMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&NodeProjectAccessCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&NodeProjectAccessUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&NodeProjectAccessUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&NodeProjectAccessDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown NodeProjectAccess mutation op: %q", m.Op())
 	}
 }
 
@@ -2436,6 +3439,38 @@ func (c *ProjectClient) QueryBudgetEntries(_m *Project) *BudgetEntryQuery {
 			sqlgraph.From(project.Table, project.FieldID, id),
 			sqlgraph.To(budgetentry.Table, budgetentry.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, project.BudgetEntriesTable, project.BudgetEntriesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryNodeAccess queries the node_access edge of a Project.
+func (c *ProjectClient) QueryNodeAccess(_m *Project) *NodeProjectAccessQuery {
+	query := (&NodeProjectAccessClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, id),
+			sqlgraph.To(nodeprojectaccess.Table, nodeprojectaccess.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.NodeAccessTable, project.NodeAccessColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryNodeAssignments queries the node_assignments edge of a Project.
+func (c *ProjectClient) QueryNodeAssignments(_m *Project) *NodeAssignmentQuery {
+	query := (&NodeAssignmentClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, id),
+			sqlgraph.To(nodeassignment.Table, nodeassignment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.NodeAssignmentsTable, project.NodeAssignmentsColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -3309,6 +4344,219 @@ func (c *ResourceProfileClient) mutate(ctx context.Context, m *ResourceProfileMu
 	}
 }
 
+// SelfHostedNodeClient is a client for the SelfHostedNode schema.
+type SelfHostedNodeClient struct {
+	config
+}
+
+// NewSelfHostedNodeClient returns a client for the SelfHostedNode from the given config.
+func NewSelfHostedNodeClient(c config) *SelfHostedNodeClient {
+	return &SelfHostedNodeClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `selfhostednode.Hooks(f(g(h())))`.
+func (c *SelfHostedNodeClient) Use(hooks ...Hook) {
+	c.hooks.SelfHostedNode = append(c.hooks.SelfHostedNode, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `selfhostednode.Intercept(f(g(h())))`.
+func (c *SelfHostedNodeClient) Intercept(interceptors ...Interceptor) {
+	c.inters.SelfHostedNode = append(c.inters.SelfHostedNode, interceptors...)
+}
+
+// Create returns a builder for creating a SelfHostedNode entity.
+func (c *SelfHostedNodeClient) Create() *SelfHostedNodeCreate {
+	mutation := newSelfHostedNodeMutation(c.config, OpCreate)
+	return &SelfHostedNodeCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of SelfHostedNode entities.
+func (c *SelfHostedNodeClient) CreateBulk(builders ...*SelfHostedNodeCreate) *SelfHostedNodeCreateBulk {
+	return &SelfHostedNodeCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *SelfHostedNodeClient) MapCreateBulk(slice any, setFunc func(*SelfHostedNodeCreate, int)) *SelfHostedNodeCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &SelfHostedNodeCreateBulk{err: fmt.Errorf("calling to SelfHostedNodeClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*SelfHostedNodeCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &SelfHostedNodeCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for SelfHostedNode.
+func (c *SelfHostedNodeClient) Update() *SelfHostedNodeUpdate {
+	mutation := newSelfHostedNodeMutation(c.config, OpUpdate)
+	return &SelfHostedNodeUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *SelfHostedNodeClient) UpdateOne(_m *SelfHostedNode) *SelfHostedNodeUpdateOne {
+	mutation := newSelfHostedNodeMutation(c.config, OpUpdateOne, withSelfHostedNode(_m))
+	return &SelfHostedNodeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *SelfHostedNodeClient) UpdateOneID(id int) *SelfHostedNodeUpdateOne {
+	mutation := newSelfHostedNodeMutation(c.config, OpUpdateOne, withSelfHostedNodeID(id))
+	return &SelfHostedNodeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for SelfHostedNode.
+func (c *SelfHostedNodeClient) Delete() *SelfHostedNodeDelete {
+	mutation := newSelfHostedNodeMutation(c.config, OpDelete)
+	return &SelfHostedNodeDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *SelfHostedNodeClient) DeleteOne(_m *SelfHostedNode) *SelfHostedNodeDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *SelfHostedNodeClient) DeleteOneID(id int) *SelfHostedNodeDeleteOne {
+	builder := c.Delete().Where(selfhostednode.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &SelfHostedNodeDeleteOne{builder}
+}
+
+// Query returns a query builder for SelfHostedNode.
+func (c *SelfHostedNodeClient) Query() *SelfHostedNodeQuery {
+	return &SelfHostedNodeQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeSelfHostedNode},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a SelfHostedNode entity by its id.
+func (c *SelfHostedNodeClient) Get(ctx context.Context, id int) (*SelfHostedNode, error) {
+	return c.Query().Where(selfhostednode.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *SelfHostedNodeClient) GetX(ctx context.Context, id int) *SelfHostedNode {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTenant queries the tenant edge of a SelfHostedNode.
+func (c *SelfHostedNodeClient) QueryTenant(_m *SelfHostedNode) *TenantQuery {
+	query := (&TenantClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(selfhostednode.Table, selfhostednode.FieldID, id),
+			sqlgraph.To(tenant.Table, tenant.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, selfhostednode.TenantTable, selfhostednode.TenantColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryProjectAccess queries the project_access edge of a SelfHostedNode.
+func (c *SelfHostedNodeClient) QueryProjectAccess(_m *SelfHostedNode) *NodeProjectAccessQuery {
+	query := (&NodeProjectAccessClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(selfhostednode.Table, selfhostednode.FieldID, id),
+			sqlgraph.To(nodeprojectaccess.Table, nodeprojectaccess.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, selfhostednode.ProjectAccessTable, selfhostednode.ProjectAccessColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryCommands queries the commands edge of a SelfHostedNode.
+func (c *SelfHostedNodeClient) QueryCommands(_m *SelfHostedNode) *NodeCommandQuery {
+	query := (&NodeCommandClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(selfhostednode.Table, selfhostednode.FieldID, id),
+			sqlgraph.To(nodecommand.Table, nodecommand.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, selfhostednode.CommandsTable, selfhostednode.CommandsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryEvents queries the events edge of a SelfHostedNode.
+func (c *SelfHostedNodeClient) QueryEvents(_m *SelfHostedNode) *NodeEventQuery {
+	query := (&NodeEventClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(selfhostednode.Table, selfhostednode.FieldID, id),
+			sqlgraph.To(nodeevent.Table, nodeevent.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, selfhostednode.EventsTable, selfhostednode.EventsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryAssignments queries the assignments edge of a SelfHostedNode.
+func (c *SelfHostedNodeClient) QueryAssignments(_m *SelfHostedNode) *NodeAssignmentQuery {
+	query := (&NodeAssignmentClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(selfhostednode.Table, selfhostednode.FieldID, id),
+			sqlgraph.To(nodeassignment.Table, nodeassignment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, selfhostednode.AssignmentsTable, selfhostednode.AssignmentsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *SelfHostedNodeClient) Hooks() []Hook {
+	return c.hooks.SelfHostedNode
+}
+
+// Interceptors returns the client interceptors.
+func (c *SelfHostedNodeClient) Interceptors() []Interceptor {
+	return c.inters.SelfHostedNode
+}
+
+func (c *SelfHostedNodeClient) mutate(ctx context.Context, m *SelfHostedNodeMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&SelfHostedNodeCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&SelfHostedNodeUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&SelfHostedNodeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&SelfHostedNodeDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown SelfHostedNode mutation op: %q", m.Op())
+	}
+}
+
 // ServiceHeartbeatClient is a client for the ServiceHeartbeat schema.
 type ServiceHeartbeatClient struct {
 	config
@@ -3875,6 +5123,102 @@ func (c *TenantClient) QueryNotifications(_m *Tenant) *NotificationQuery {
 	return query
 }
 
+// QuerySelfHostedNodes queries the self_hosted_nodes edge of a Tenant.
+func (c *TenantClient) QuerySelfHostedNodes(_m *Tenant) *SelfHostedNodeQuery {
+	query := (&SelfHostedNodeClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, id),
+			sqlgraph.To(selfhostednode.Table, selfhostednode.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.SelfHostedNodesTable, tenant.SelfHostedNodesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryNodeEnrollments queries the node_enrollments edge of a Tenant.
+func (c *TenantClient) QueryNodeEnrollments(_m *Tenant) *NodeEnrollmentQuery {
+	query := (&NodeEnrollmentClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, id),
+			sqlgraph.To(nodeenrollment.Table, nodeenrollment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.NodeEnrollmentsTable, tenant.NodeEnrollmentsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryNodeProjectAccess queries the node_project_access edge of a Tenant.
+func (c *TenantClient) QueryNodeProjectAccess(_m *Tenant) *NodeProjectAccessQuery {
+	query := (&NodeProjectAccessClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, id),
+			sqlgraph.To(nodeprojectaccess.Table, nodeprojectaccess.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.NodeProjectAccessTable, tenant.NodeProjectAccessColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryNodeCommands queries the node_commands edge of a Tenant.
+func (c *TenantClient) QueryNodeCommands(_m *Tenant) *NodeCommandQuery {
+	query := (&NodeCommandClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, id),
+			sqlgraph.To(nodecommand.Table, nodecommand.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.NodeCommandsTable, tenant.NodeCommandsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryNodeEvents queries the node_events edge of a Tenant.
+func (c *TenantClient) QueryNodeEvents(_m *Tenant) *NodeEventQuery {
+	query := (&NodeEventClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, id),
+			sqlgraph.To(nodeevent.Table, nodeevent.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.NodeEventsTable, tenant.NodeEventsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryNodeAssignments queries the node_assignments edge of a Tenant.
+func (c *TenantClient) QueryNodeAssignments(_m *Tenant) *NodeAssignmentQuery {
+	query := (&NodeAssignmentClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, id),
+			sqlgraph.To(nodeassignment.Table, nodeassignment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.NodeAssignmentsTable, tenant.NodeAssignmentsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *TenantClient) Hooks() []Hook {
 	return c.hooks.Tenant
@@ -4069,14 +5413,16 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 type (
 	hooks struct {
 		AgentEnrollment, AgentToken, Attempt, AuditEvent, BudgetEntry, Environment,
-		Experiment, IdempotencyRecord, Notification, NotificationSetting, Project,
+		Experiment, IdempotencyRecord, NodeAssignment, NodeCommand, NodeEnrollment,
+		NodeEvent, NodeProjectAccess, Notification, NotificationSetting, Project,
 		ProviderAccount, ProviderResource, RecordMixin, Repository, ResourceProfile,
-		ServiceHeartbeat, Session, Tenant, User []ent.Hook
+		SelfHostedNode, ServiceHeartbeat, Session, Tenant, User []ent.Hook
 	}
 	inters struct {
 		AgentEnrollment, AgentToken, Attempt, AuditEvent, BudgetEntry, Environment,
-		Experiment, IdempotencyRecord, Notification, NotificationSetting, Project,
+		Experiment, IdempotencyRecord, NodeAssignment, NodeCommand, NodeEnrollment,
+		NodeEvent, NodeProjectAccess, Notification, NotificationSetting, Project,
 		ProviderAccount, ProviderResource, RecordMixin, Repository, ResourceProfile,
-		ServiceHeartbeat, Session, Tenant, User []ent.Interceptor
+		SelfHostedNode, ServiceHeartbeat, Session, Tenant, User []ent.Interceptor
 	}
 )

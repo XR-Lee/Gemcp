@@ -14,6 +14,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
@@ -23,14 +24,15 @@ import (
 // AttemptQuery is the builder for querying Attempt entities.
 type AttemptQuery struct {
 	config
-	ctx               *QueryContext
-	order             []attempt.OrderOption
-	inters            []Interceptor
-	predicates        []predicate.Attempt
-	withTenant        *TenantQuery
-	withProject       *ProjectQuery
-	withExperiment    *ExperimentQuery
-	withOwnedResource *ProviderResourceQuery
+	ctx                *QueryContext
+	order              []attempt.OrderOption
+	inters             []Interceptor
+	predicates         []predicate.Attempt
+	withTenant         *TenantQuery
+	withProject        *ProjectQuery
+	withExperiment     *ExperimentQuery
+	withOwnedResource  *ProviderResourceQuery
+	withNodeAssignment *NodeAssignmentQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -148,6 +150,28 @@ func (_q *AttemptQuery) QueryOwnedResource() *ProviderResourceQuery {
 			sqlgraph.From(attempt.Table, attempt.FieldID, selector),
 			sqlgraph.To(providerresource.Table, providerresource.FieldID),
 			sqlgraph.Edge(sqlgraph.O2O, false, attempt.OwnedResourceTable, attempt.OwnedResourceColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryNodeAssignment chains the current query on the "node_assignment" edge.
+func (_q *AttemptQuery) QueryNodeAssignment() *NodeAssignmentQuery {
+	query := (&NodeAssignmentClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(attempt.Table, attempt.FieldID, selector),
+			sqlgraph.To(nodeassignment.Table, nodeassignment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, attempt.NodeAssignmentTable, attempt.NodeAssignmentColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -342,15 +366,16 @@ func (_q *AttemptQuery) Clone() *AttemptQuery {
 		return nil
 	}
 	return &AttemptQuery{
-		config:            _q.config,
-		ctx:               _q.ctx.Clone(),
-		order:             append([]attempt.OrderOption{}, _q.order...),
-		inters:            append([]Interceptor{}, _q.inters...),
-		predicates:        append([]predicate.Attempt{}, _q.predicates...),
-		withTenant:        _q.withTenant.Clone(),
-		withProject:       _q.withProject.Clone(),
-		withExperiment:    _q.withExperiment.Clone(),
-		withOwnedResource: _q.withOwnedResource.Clone(),
+		config:             _q.config,
+		ctx:                _q.ctx.Clone(),
+		order:              append([]attempt.OrderOption{}, _q.order...),
+		inters:             append([]Interceptor{}, _q.inters...),
+		predicates:         append([]predicate.Attempt{}, _q.predicates...),
+		withTenant:         _q.withTenant.Clone(),
+		withProject:        _q.withProject.Clone(),
+		withExperiment:     _q.withExperiment.Clone(),
+		withOwnedResource:  _q.withOwnedResource.Clone(),
+		withNodeAssignment: _q.withNodeAssignment.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -398,6 +423,17 @@ func (_q *AttemptQuery) WithOwnedResource(opts ...func(*ProviderResourceQuery)) 
 		opt(query)
 	}
 	_q.withOwnedResource = query
+	return _q
+}
+
+// WithNodeAssignment tells the query-builder to eager-load the nodes that are connected to
+// the "node_assignment" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *AttemptQuery) WithNodeAssignment(opts ...func(*NodeAssignmentQuery)) *AttemptQuery {
+	query := (&NodeAssignmentClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withNodeAssignment = query
 	return _q
 }
 
@@ -479,11 +515,12 @@ func (_q *AttemptQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Atte
 	var (
 		nodes       = []*Attempt{}
 		_spec       = _q.querySpec()
-		loadedTypes = [4]bool{
+		loadedTypes = [5]bool{
 			_q.withTenant != nil,
 			_q.withProject != nil,
 			_q.withExperiment != nil,
 			_q.withOwnedResource != nil,
+			_q.withNodeAssignment != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -525,6 +562,12 @@ func (_q *AttemptQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Atte
 	if query := _q.withOwnedResource; query != nil {
 		if err := _q.loadOwnedResource(ctx, query, nodes, nil,
 			func(n *Attempt, e *ProviderResource) { n.Edges.OwnedResource = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withNodeAssignment; query != nil {
+		if err := _q.loadNodeAssignment(ctx, query, nodes, nil,
+			func(n *Attempt, e *NodeAssignment) { n.Edges.NodeAssignment = e }); err != nil {
 			return nil, err
 		}
 	}
@@ -630,6 +673,33 @@ func (_q *AttemptQuery) loadOwnedResource(ctx context.Context, query *ProviderRe
 	}
 	query.Where(predicate.ProviderResource(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(attempt.OwnedResourceColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.AttemptID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "attempt_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *AttemptQuery) loadNodeAssignment(ctx context.Context, query *NodeAssignmentQuery, nodes []*Attempt, init func(*Attempt), assign func(*Attempt, *NodeAssignment)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Attempt)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(nodeassignment.FieldAttemptID)
+	}
+	query.Where(predicate.NodeAssignment(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(attempt.NodeAssignmentColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

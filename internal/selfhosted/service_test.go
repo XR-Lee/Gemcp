@@ -1,0 +1,193 @@
+package selfhosted
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"strings"
+	"testing"
+	"time"
+
+	"entgo.io/ent/dialect"
+	"github.com/XR-Lee/Gemcp/ent"
+	"github.com/XR-Lee/Gemcp/ent/enttest"
+	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
+	"github.com/XR-Lee/Gemcp/ent/nodecommand"
+	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
+	"github.com/XR-Lee/Gemcp/internal/nodeprotocol"
+	"github.com/google/uuid"
+	_ "github.com/mattn/go-sqlite3"
+)
+
+type serviceFixture struct {
+	client     *ent.Client
+	service    *Service
+	node       *ent.SelfHostedNode
+	experiment *ent.Experiment
+	now        time.Time
+}
+
+func newServiceFixture(t *testing.T) serviceFixture {
+	t.Helper()
+	client := enttest.Open(t, dialect.SQLite, "file:"+t.Name()+"?mode=memory&cache=shared&_fk=1")
+	t.Cleanup(func() { _ = client.Close() })
+	ctx := context.Background()
+	now := time.Now().UTC().Truncate(time.Second)
+	tenant, _ := client.Tenant.Create().SetName("tenant").Save(ctx)
+	project, _ := client.Project.Create().SetTenantID(tenant.ID).SetName("project").SetSlug("project").
+		SetMonthlyBudgetMilli(1).SetMaxExperimentMilli(1).SetMaxRuntimeSeconds(3600).SetTimeoutExtensionSeconds(60).SetTerminationGraceSeconds(5).Save(ctx)
+	repository, _ := client.Repository.Create().SetProjectID(project.ID).SetName("repository").SetSSHURL("git@github.com:o/r.git").
+		SetSSHHost("github.com").SetDefaultBranch("main").SetHostKeyFingerprint("SHA256:test").SetStatus("active").Save(ctx)
+	environment, _ := client.Environment.Create().SetProjectID(project.ID).SetBackend("self_hosted").SetName("environment").
+		SetImageUUID("registry.example/train@sha256:" + strings.Repeat("a", 64)).Save(ctx)
+	profile, _ := client.ResourceProfile.Create().SetProjectID(project.ID).SetBackend("self_hosted").SetName("profile").SetRegion("self_hosted").
+		SetGpuNames([]string{"NVIDIA GeForce RTX 3090"}).SetGpuNum(1).SetCudaFrom(118).SetCudaTo(128).
+		SetCPUFrom(1).SetCPUTo(8).SetMemoryFromGB(1).SetMemoryToGB(32).SetPriceFromMilli(0).SetPriceToMilli(0).Save(ctx)
+	agent, _ := client.AgentToken.Create().SetProjectID(project.ID).SetLabel("agent").SetPrefix("gmc_test").SetTokenHash([]byte("agent-hash")).Save(ctx)
+	node, _ := client.SelfHostedNode.Create().SetTenantID(tenant.ID).SetLabel("gpu-node").SetTokenPrefix("gmn_test").SetTokenHash([]byte("node-hash")).
+		SetStatus("active").SetObservedState("online").SetInstallationID(uuid.NewString()).SetMachineFingerprint(strings.Repeat("b", 64)).
+		SetHostname("gpu-node").SetOperatingSystem("linux").SetArchitecture("amd64").SetAgentVersion("test").SetProtocolVersion(nodeprotocol.Version).
+		SetCapabilities(map[string]any{"gpus": []any{map[string]any{"uuid": "GPU-test", "name": "NVIDIA GeForce RTX 3090", "memory_bytes": float64(24 << 30)}}}).
+		SetStorage(map[string]any{"available_bytes": float64(1 << 40)}).SetLastSeenAt(now).Save(ctx)
+	_, _ = client.NodeProjectAccess.Create().SetTenantID(tenant.ID).SetNodeID(node.ID).SetProjectID(project.ID).Save(ctx)
+	experimentID := uuid.New()
+	experiment, _ := client.Experiment.Create().SetPublicID(experimentID).SetTenantID(tenant.ID).SetProjectID(project.ID).SetAgentTokenID(agent.ID).
+		SetRepositoryID(repository.ID).SetEnvironmentID(environment.ID).SetResourceProfileID(profile.ID).SetCommitSha(strings.Repeat("0", 40)).
+		SetCommand("python train.py").SetMaxRuntimeSeconds(300).SetTimeoutExtensionSeconds(60).SetTerminationGraceSeconds(5).
+		SetRepositorySnapshot(map[string]any{"id": repository.PublicID.String(), "project_id": project.PublicID.String()}).
+		SetEnvironmentSnapshot(map[string]any{"id": environment.PublicID.String(), "backend": Backend, "image_uuid": environment.ImageUUID}).
+		SetResourceSnapshot(map[string]any{"id": profile.PublicID.String(), "backend": Backend}).SetOutputPath("managed://experiments/" + experimentID.String() + "/outputs").
+		SetReservedCostMilli(0).Save(ctx)
+	_, _ = client.BudgetEntry.Create().SetTenantID(tenant.ID).SetProjectID(project.ID).SetExperimentID(experiment.ID).
+		SetPeriod("2026-07").SetKind("reservation").SetAmountMilli(0).SetDescription("unmetered").Save(ctx)
+	config := DefaultConfig()
+	config.Enabled = true
+	config.InstanceID = "scheduler-test"
+	service, err := NewService(client, nil, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	service.now = func() time.Time { return now }
+	return serviceFixture{client: client, service: service, node: node, experiment: experiment, now: now}
+}
+
+func (f serviceFixture) dispatch(t *testing.T) *ent.NodeAssignment {
+	t.Helper()
+	ctx := context.Background()
+	tx, err := f.client.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		t.Fatal(err)
+	}
+	record, _ := tx.Experiment.Get(ctx, f.experiment.ID)
+	dispatched, err := f.service.Dispatch(ctx, tx, record, f.now)
+	if err != nil || !dispatched {
+		_ = tx.Rollback()
+		t.Fatalf("Dispatch() dispatched=%t err=%v", dispatched, err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	assignment, err := f.client.NodeAssignment.Query().Only(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return assignment
+}
+
+func TestAssignmentLifecycleIsUnmeteredAndTokenless(t *testing.T) {
+	f := newServiceFixture(t)
+	assignment := f.dispatch(t)
+	ctx := context.Background()
+	command, _ := f.client.NodeCommand.Query().Where(nodecommand.AssignmentIDEQ(assignment.ID), nodecommand.KindEQ("start_workload")).Only(ctx)
+	attempt, _ := f.client.Attempt.Query().Only(ctx)
+	if len(attempt.RunnerTokenHash) != 0 || attempt.RunnerTokenCiphertext != "" || strings.Contains(strings.ToLower(fmt.Sprint(command.Payload)), "token") {
+		t.Fatalf("Self-hosted command or Attempt contains Runner credentials: attempt=%+v payload=%v", attempt, command.Payload)
+	}
+	if count, _ := f.client.ProviderResource.Query().Count(ctx); count != 0 {
+		t.Fatalf("Self-hosted dispatch created %d Provider resources", count)
+	}
+
+	tx, _ := f.client.Tx(ctx)
+	node, _ := tx.SelfHostedNode.Get(ctx, f.node.ID)
+	started := nodeprotocol.Event{ID: uuid.NewString(), Sequence: 1, Kind: "workload_started", OccurredAt: f.now, Payload: map[string]any{
+		"assignment_id": assignment.PublicID.String(), "workload_id": "container-id",
+	}}
+	if err := f.service.ProjectNodeEvent(ctx, tx, node, started, f.now.Add(time.Second)); err != nil {
+		_ = tx.Rollback()
+		t.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	experiment, _ := f.client.Experiment.Get(ctx, f.experiment.ID)
+	if experiment.State != "running" || experiment.DeadlineAt == nil {
+		t.Fatalf("started experiment=%+v", experiment)
+	}
+
+	tx, _ = f.client.Tx(ctx)
+	node, _ = tx.SelfHostedNode.Get(ctx, f.node.ID)
+	finished := nodeprotocol.Event{ID: uuid.NewString(), Sequence: 2, Kind: "workload_finished", OccurredAt: f.now, Payload: map[string]any{
+		"assignment_id": assignment.PublicID.String(), "exit_code": float64(0), "reason": "completed", "log_tail": "done\n",
+		"metrics": map[string]any{"accuracy": 0.9},
+	}}
+	if err := f.service.ProjectNodeEvent(ctx, tx, node, finished, f.now.Add(2*time.Second)); err != nil {
+		_ = tx.Rollback()
+		t.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	experiment, _ = f.client.Experiment.Get(ctx, f.experiment.ID)
+	attempt, _ = f.client.Attempt.Query().Only(ctx)
+	assignment, _ = f.client.NodeAssignment.Query().Only(ctx)
+	if experiment.State != "succeeded" || experiment.EstimatedCostMilli != 0 || attempt.State != "succeeded" || assignment.State != nodeassignment.StateSucceeded {
+		t.Fatalf("final experiment=%+v attempt=%+v assignment=%+v", experiment, attempt, assignment)
+	}
+	if entries, _ := f.client.BudgetEntry.Query().All(ctx); len(entries) != 2 || entries[1].AmountMilli != 0 || entries[1].Kind != "release" {
+		t.Fatalf("budget entries=%+v", entries)
+	}
+}
+
+func TestReconcileCancellationCreatesDurableStopCommand(t *testing.T) {
+	f := newServiceFixture(t)
+	assignment := f.dispatch(t)
+	ctx := context.Background()
+	_, _ = f.client.Experiment.UpdateOneID(f.experiment.ID).SetDesiredState("cancelled").SetState("cancelling").Save(ctx)
+	handled, err := f.service.Reconcile(ctx, f.experiment.ID, f.now.Add(time.Second))
+	if err != nil || !handled {
+		t.Fatalf("Reconcile() handled=%t err=%v", handled, err)
+	}
+	stop, err := f.client.NodeCommand.Query().Where(nodecommand.AssignmentIDEQ(assignment.ID), nodecommand.KindEQ("stop_workload")).Only(ctx)
+	if err != nil || stop.Payload["reason"] != "cancelled" {
+		t.Fatalf("stop command=%+v err=%v", stop, err)
+	}
+	assignment, _ = f.client.NodeAssignment.Get(ctx, assignment.ID)
+	if assignment.State != nodeassignment.StateStopping || assignment.StopRequestedAt == nil {
+		t.Fatalf("stopping assignment=%+v", assignment)
+	}
+}
+
+func TestRuntimeConfigCreatesPinnedUnmeteredPair(t *testing.T) {
+	f := newServiceFixture(t)
+	ctx := context.Background()
+	project, _ := f.client.Project.Query().Only(ctx)
+	result, err := f.service.CreateRuntimeConfig(ctx, project.TenantID, "owner-1", project.PublicID.String(), RuntimeConfigInput{
+		Name: "training", Image: "registry.example/training@sha256:" + strings.Repeat("c", 64),
+		GPUNames: []string{"RTX 4090", "RTX 3090"}, CPULimit: 16, MemoryGB: 64, MakeDefault: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Environment.IsDefault || !result.Profile.IsDefault || result.Profile.CPULimit != 16 || result.Profile.MemoryGB != 64 {
+		t.Fatalf("runtime config=%+v", result)
+	}
+	profile, err := f.client.ResourceProfile.Query().Where(resourceprofile.PublicIDEQ(uuid.MustParse(result.Profile.ID))).Only(ctx)
+	if err != nil || profile.PriceToMilli != 0 || profile.Backend != resourceprofile.BackendSelfHosted {
+		t.Fatalf("profile=%+v err=%v", profile, err)
+	}
+	if _, err := f.service.CreateRuntimeConfig(ctx, project.TenantID, "owner-1", project.PublicID.String(), RuntimeConfigInput{
+		Name: "tagged", Image: "registry.example/training:latest", GPUNames: []string{"RTX 3090"}, CPULimit: 8, MemoryGB: 32,
+	}); err == nil {
+		t.Fatal("runtime config accepted a mutable image tag")
+	}
+}

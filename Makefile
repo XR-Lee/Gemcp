@@ -5,7 +5,7 @@ COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 BUILT_AT := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.builtAt=$(BUILT_AT)
 
-.PHONY: fmt test vet vuln frontend-install frontend-test frontend-e2e frontend-build stage-frontend build check
+.PHONY: fmt test vet vuln frontend-install frontend-test frontend-e2e frontend-build stage-frontend build build-node check
 
 fmt:
 	$(GO) fmt ./...
@@ -37,5 +37,10 @@ stage-frontend: frontend-build
 build: stage-frontend
 	mkdir -p bin
 	$(GO) build -tags webembed -trimpath -ldflags "$(LDFLAGS)" -o bin/gemcp ./cmd/gemcp
+	CGO_ENABLED=0 $(GO) build -trimpath -ldflags "$(LDFLAGS)" -o bin/gemcp-node ./cmd/gemcp-node
+
+build-node:
+	mkdir -p bin
+	CGO_ENABLED=0 $(GO) build -trimpath -ldflags "$(LDFLAGS)" -o bin/gemcp-node ./cmd/gemcp-node
 
 check: fmt vet test vuln frontend-test frontend-build

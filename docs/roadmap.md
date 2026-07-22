@@ -59,6 +59,15 @@ Authenticated standalone MCP SSE streams begin with a standard comment, ensuring
 
 Owners create a short-lived one-time link instead of manually transferring a long-lived Token or editing Pi JSON. The Pi Agent claims a read-only provisional credential, atomically merges a mode-`0600` global adapter config, discovers all bounded tools, verifies guide/options/cost, and only then activates the Owner-selected scopes and lifetime. Setup codes and Agent Tokens remain digest-only in PostgreSQL, and completion plus the local installer are retry-safe.
 
+### v0.10.0 - Self-hosted NVIDIA nodes
+
+- Feature-gated Linux NVIDIA node enrollment through outbound HTTPS, Owner pairing approval, Project authorization, revocable digest-only credentials, and hardware identity quarantine.
+- Durable single-GPU Assignments, at-least-once Commands and Events, transactional result projection, bounded infrastructure retry, cancellation, Emergency Stop, and lost-node reconciliation.
+- Digest-pinned OCI execution under a dedicated `gemcp-node` daemon with fixed Docker isolation, local deadline enforcement, external GPU-use detection, restart recovery, and complete node-local logs.
+- Zero-CNY Self-hosted runtime profiles, Node-authenticated verified source archives, Assignment observability, and an Owner Nodes console for enrollment, authorization, runtime configuration, and workload history.
+
+Build Sessions, Environment and Dataset Snapshots, cross-node asset placement, and full historical output transfer remain later increments.
+
 ## Further validation
 
 The following items still require the target environment or newly authorized paid resources:
@@ -69,6 +78,7 @@ The following items still require the target environment or newly authorized pai
 - Private Cloud permission, capacity, invalid-image, and ambiguous-create behavior.
 - Operational estimates against the Provider console, including whether `in_cache` containers are billed.
 - SMTP deliverability through the selected production relay.
+- Concurrent scheduling, GPU binding, Docker and daemon restart recovery, external GPU occupancy, node loss, and retry behavior across two physical Self-hosted NVIDIA machines.
 
 ## Later increments
 

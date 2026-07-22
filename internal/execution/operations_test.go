@@ -2,6 +2,7 @@ package execution
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -21,12 +22,12 @@ func TestRuntimeStatusReportsIndependentHeartbeats(t *testing.T) {
 	if err := servicehealth.Beat(ctx, f.client, serviceheartbeat.RoleNotification, "notification-test", map[string]any{"poll_interval_seconds": 10.0}); err != nil {
 		t.Fatal(err)
 	}
-	operations := NewOperations(f.client, WithRuntimeConfiguration(false, 2, true))
+	operations := NewOperations(f.client, WithRuntimeConfiguration(false, 2, true), WithSelfHostedEnabled(true))
 	status, err := operations.Status(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !status.SchedulerHealthy || !status.WatchdogHealthy || !status.NotificationWorkerHealthy || status.GlobalConcurrency != 2 || !status.PublicURLConfigured {
+	if !status.SchedulerHealthy || !status.WatchdogHealthy || !status.NotificationWorkerHealthy || status.GlobalConcurrency != 2 || !status.PublicURLConfigured || !status.SelfHostedEnabled {
 		t.Fatalf("status = %+v", status)
 	}
 }
@@ -53,6 +54,39 @@ func TestOperationsListsAndStopsOnlyManagedResource(t *testing.T) {
 	}
 	if _, err := operations.RequestStop(ctx, f.tenant.ID, "owner-1", "unmanaged-deployment"); err != ErrManagedResourceNotFound {
 		t.Fatalf("unmanaged stop error=%v", err)
+	}
+}
+
+func TestEmergencyStopIncludesSelfHostedAssignments(t *testing.T) {
+	f := newExecutionFixture(t)
+	ctx := context.Background()
+	experimentRecord := f.addExperiment(t)
+	attemptRecord, err := f.client.Attempt.Create().SetTenantID(f.tenant.ID).SetProjectID(f.project.ID).
+		SetExperimentID(experimentRecord.ID).SetNumber(1).SetState("running").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	node, err := f.client.SelfHostedNode.Create().SetTenantID(f.tenant.ID).SetLabel("node").SetTokenPrefix("gmn_node").SetTokenHash([]byte("node-emergency")).
+		SetStatus("active").SetObservedState("online").SetInstallationID("installation").SetMachineFingerprint(strings.Repeat("a", 64)).
+		SetHostname("node").SetOperatingSystem("linux").SetArchitecture("amd64").SetAgentVersion("test").SetProtocolVersion("1").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assignmentRecord, err := f.client.NodeAssignment.Create().SetTenantID(f.tenant.ID).SetProjectID(f.project.ID).
+		SetExperimentID(experimentRecord.ID).SetAttemptID(attemptRecord.ID).SetNodeID(node.ID).SetState("running").SetOutputRef("experiments/test/outputs").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	operations := NewOperations(f.client)
+	result, err := operations.EmergencyStop(ctx, f.tenant.ID, "owner-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	experimentRecord, _ = f.client.Experiment.Get(ctx, experimentRecord.ID)
+	assignmentRecord, _ = f.client.NodeAssignment.Get(ctx, assignmentRecord.ID)
+	if result.Requested != 1 || experimentRecord.DesiredState != "cancelled" || experimentRecord.FailureCode == nil || *experimentRecord.FailureCode != "emergency_stop" ||
+		assignmentRecord.StopReason == nil || *assignmentRecord.StopReason != "emergency" {
+		t.Fatalf("result=%+v experiment=%+v assignment=%+v", result, experimentRecord, assignmentRecord)
 	}
 }
 

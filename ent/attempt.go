@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
@@ -87,9 +88,11 @@ type AttemptEdges struct {
 	Experiment *Experiment `json:"experiment,omitempty"`
 	// OwnedResource holds the value of the owned_resource edge.
 	OwnedResource *ProviderResource `json:"owned_resource,omitempty"`
+	// NodeAssignment holds the value of the node_assignment edge.
+	NodeAssignment *NodeAssignment `json:"node_assignment,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [4]bool
+	loadedTypes [5]bool
 }
 
 // TenantOrErr returns the Tenant value or an error if the edge
@@ -134,6 +137,17 @@ func (e AttemptEdges) OwnedResourceOrErr() (*ProviderResource, error) {
 		return nil, &NotFoundError{label: providerresource.Label}
 	}
 	return nil, &NotLoadedError{edge: "owned_resource"}
+}
+
+// NodeAssignmentOrErr returns the NodeAssignment value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e AttemptEdges) NodeAssignmentOrErr() (*NodeAssignment, error) {
+	if e.NodeAssignment != nil {
+		return e.NodeAssignment, nil
+	} else if e.loadedTypes[4] {
+		return nil, &NotFoundError{label: nodeassignment.Label}
+	}
+	return nil, &NotLoadedError{edge: "node_assignment"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -361,6 +375,11 @@ func (_m *Attempt) QueryExperiment() *ExperimentQuery {
 // QueryOwnedResource queries the "owned_resource" edge of the Attempt entity.
 func (_m *Attempt) QueryOwnedResource() *ProviderResourceQuery {
 	return NewAttemptClient(_m.config).QueryOwnedResource(_m)
+}
+
+// QueryNodeAssignment queries the "node_assignment" edge of the Attempt entity.
+func (_m *Attempt) QueryNodeAssignment() *NodeAssignmentQuery {
+	return NewAttemptClient(_m.config).QueryNodeAssignment(_m)
 }
 
 // Update returns a builder for updating this Attempt.

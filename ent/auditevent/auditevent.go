@@ -110,6 +110,8 @@ const (
 	ActorTypeUser            ActorType = "user"
 	ActorTypeAgentToken      ActorType = "agent_token"
 	ActorTypeAgentEnrollment ActorType = "agent_enrollment"
+	ActorTypeNodeEnrollment  ActorType = "node_enrollment"
+	ActorTypeSelfHostedNode  ActorType = "self_hosted_node"
 )
 
 func (at ActorType) String() string {
@@ -119,7 +121,7 @@ func (at ActorType) String() string {
 // ActorTypeValidator is a validator for the "actor_type" field enum values. It is called by the builders before save.
 func ActorTypeValidator(at ActorType) error {
 	switch at {
-	case ActorTypeSystem, ActorTypeUser, ActorTypeAgentToken, ActorTypeAgentEnrollment:
+	case ActorTypeSystem, ActorTypeUser, ActorTypeAgentToken, ActorTypeAgentEnrollment, ActorTypeNodeEnrollment, ActorTypeSelfHostedNode:
 		return nil
 	default:
 		return fmt.Errorf("auditevent: invalid enum value for actor_type field: %q", at)

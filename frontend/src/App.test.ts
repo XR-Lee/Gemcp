@@ -64,7 +64,7 @@ describe('App', () => {
       if (path.endsWith('/api/v1/auth/me')) return response({ data: { user_id: 'user-id', tenant_id: 'tenant-id', email: 'owner@example.com', role: 'owner' } })
       if (path.endsWith('/api/v1/projects')) return response({ data: [project] })
       if (path.endsWith('/api/v1/runtime/status')) return response({ data: {
-        scheduler_enabled: false, global_concurrency: 1, public_url_configured: false,
+        scheduler_enabled: false, self_hosted_enabled: false, global_concurrency: 1, public_url_configured: false,
         scheduler_healthy: true, watchdog_healthy: false, notification_worker_healthy: false,
         generated_at: '2026-07-17T00:00:00Z',
       } })
@@ -80,7 +80,7 @@ describe('App', () => {
     const wrapper = mount(App)
     await flushPromises()
 
-    expect(wrapper.text()).toContain('AutoDL control plane')
+    expect(wrapper.text()).toContain('GPU control plane')
     expect(wrapper.text()).toContain('Research')
     expect(wrapper.text()).toContain('CNY 100.00')
     expect(wrapper.text()).toContain('owner@example.com')

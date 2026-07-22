@@ -24,6 +24,8 @@ const (
 	FieldUpdatedAt = "updated_at"
 	// FieldProjectID holds the string denoting the project_id field in the database.
 	FieldProjectID = "project_id"
+	// FieldBackend holds the string denoting the backend field in the database.
+	FieldBackend = "backend"
 	// FieldName holds the string denoting the name field in the database.
 	FieldName = "name"
 	// FieldRegion holds the string denoting the region field in the database.
@@ -83,6 +85,7 @@ var Columns = []string{
 	FieldCreatedAt,
 	FieldUpdatedAt,
 	FieldProjectID,
+	FieldBackend,
 	FieldName,
 	FieldRegion,
 	FieldGpuNames,
@@ -149,6 +152,32 @@ var (
 	DefaultIsDefault bool
 )
 
+// Backend defines the type for the "backend" enum field.
+type Backend string
+
+// BackendAutodlPrivate is the default value of the Backend enum.
+const DefaultBackend = BackendAutodlPrivate
+
+// Backend values.
+const (
+	BackendAutodlPrivate Backend = "autodl_private"
+	BackendSelfHosted    Backend = "self_hosted"
+)
+
+func (b Backend) String() string {
+	return string(b)
+}
+
+// BackendValidator is a validator for the "backend" field enum values. It is called by the builders before save.
+func BackendValidator(b Backend) error {
+	switch b {
+	case BackendAutodlPrivate, BackendSelfHosted:
+		return nil
+	default:
+		return fmt.Errorf("resourceprofile: invalid enum value for backend field: %q", b)
+	}
+}
+
 // Status defines the type for the "status" enum field.
 type Status string
 
@@ -201,6 +230,11 @@ func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByProjectID orders the results by the project_id field.
 func ByProjectID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldProjectID, opts...).ToFunc()
+}
+
+// ByBackend orders the results by the backend field.
+func ByBackend(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBackend, opts...).ToFunc()
 }
 
 // ByName orders the results by the name field.

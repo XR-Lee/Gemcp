@@ -170,6 +170,9 @@ func (s *Service) createSubmission(ctx context.Context, principal agentauth.Prin
 	if err != nil {
 		return result, optionError(err)
 	}
+	if string(environmentRecord.Backend) != string(profileRecord.Backend) {
+		return result, &ValidationError{Message: "environment and resource profile must use the same backend"}
+	}
 	runtimeSeconds := input.MaxRuntimeSeconds
 	if runtimeSeconds == 0 {
 		runtimeSeconds = projectRecord.MaxRuntimeSeconds
@@ -177,31 +180,40 @@ func (s *Service) createSubmission(ctx context.Context, principal agentauth.Prin
 	if runtimeSeconds <= 0 || runtimeSeconds > projectRecord.MaxRuntimeSeconds {
 		return result, &ValidationError{Message: fmt.Sprintf("max_runtime_seconds must be between 1 and %d", projectRecord.MaxRuntimeSeconds)}
 	}
-	billableSeconds, err := billableRuntimeSeconds(runtimeSeconds, projectRecord.TimeoutExtensionSeconds, projectRecord.TerminationGraceSeconds)
-	if err != nil {
-		return result, err
-	}
-	reservation, err := reserveCost(profileRecord.PriceToMilli, profileRecord.GpuNum, billableSeconds)
-	if err != nil {
-		return result, err
-	}
-	if reservation > projectRecord.MaxExperimentMilli {
-		return result, ErrExperimentCap
+	selfHosted := profileRecord.Backend == resourceprofile.BackendSelfHosted
+	reservation := int64(0)
+	if !selfHosted {
+		billableSeconds, err := billableRuntimeSeconds(runtimeSeconds, projectRecord.TimeoutExtensionSeconds, projectRecord.TerminationGraceSeconds)
+		if err != nil {
+			return result, err
+		}
+		reservation, err = reserveCost(profileRecord.PriceToMilli, profileRecord.GpuNum, billableSeconds)
+		if err != nil {
+			return result, err
+		}
+		if reservation > projectRecord.MaxExperimentMilli {
+			return result, ErrExperimentCap
+		}
 	}
 	period, err := budgetPeriod(s.now().UTC(), projectRecord.Timezone)
 	if err != nil {
 		return result, err
 	}
-	committed, err := ledgerTotal(ctx, tx, projectRecord.ID, period)
-	if err != nil {
-		return result, err
-	}
-	if reservation > projectRecord.MonthlyBudgetMilli || committed > projectRecord.MonthlyBudgetMilli-reservation {
-		return result, ErrBudgetExceeded
+	if !selfHosted {
+		committed, err := ledgerTotal(ctx, tx, projectRecord.ID, period)
+		if err != nil {
+			return result, err
+		}
+		if reservation > projectRecord.MonthlyBudgetMilli || committed > projectRecord.MonthlyBudgetMilli-reservation {
+			return result, ErrBudgetExceeded
+		}
 	}
 
 	publicID := uuid.New()
 	outputPath := "/root/autodl-fs/projects/" + projectRecord.PublicID.String() + "/experiments/" + publicID.String() + "/"
+	if selfHosted {
+		outputPath = "managed://experiments/" + publicID.String() + "/outputs"
+	}
 	record, err := tx.Experiment.Create().
 		SetPublicID(publicID).
 		SetTenantID(principal.TenantID).
@@ -232,7 +244,7 @@ func (s *Service) createSubmission(ctx context.Context, principal agentauth.Prin
 		SetPeriod(period).
 		SetKind("reservation").
 		SetAmountMilli(reservation).
-		SetDescription("experiment budget reservation").
+		SetDescription(map[bool]string{true: "unmetered Self-hosted reservation", false: "experiment budget reservation"}[selfHosted]).
 		Save(ctx); err != nil {
 		return result, err
 	}
@@ -253,7 +265,7 @@ func (s *Service) createSubmission(ctx context.Context, principal agentauth.Prin
 		SetAction("experiment.submitted").
 		SetTargetType("experiment").
 		SetTargetID(publicID.String()).
-		SetMetadata(map[string]any{"project_id": projectRecord.PublicID.String(), "reserved_cost_milli": reservation}).
+		SetMetadata(map[string]any{"project_id": projectRecord.PublicID.String(), "backend": profileRecord.Backend, "reserved_cost_milli": reservation}).
 		Save(ctx); err != nil {
 		return result, err
 	}
@@ -461,12 +473,12 @@ func repositorySnapshot(record *ent.Repository, projectID string) map[string]any
 }
 
 func environmentSnapshot(record *ent.Environment) map[string]any {
-	return map[string]any{"id": record.PublicID.String(), "name": record.Name, "image_uuid": record.ImageUUID}
+	return map[string]any{"id": record.PublicID.String(), "name": record.Name, "backend": record.Backend, "image_uuid": record.ImageUUID}
 }
 
 func resourceSnapshot(record *ent.ResourceProfile) map[string]any {
 	return map[string]any{
-		"id": record.PublicID.String(), "name": record.Name, "region": record.Region,
+		"id": record.PublicID.String(), "name": record.Name, "backend": record.Backend, "region": record.Region,
 		"gpu_names": record.GpuNames, "gpu_num": record.GpuNum, "cuda_from": record.CudaFrom, "cuda_to": record.CudaTo,
 		"cpu_from": record.CPUFrom, "cpu_to": record.CPUTo, "memory_from_gb": record.MemoryFromGB, "memory_to_gb": record.MemoryToGB,
 		"price_from_milli": record.PriceFromMilli, "price_to_milli": record.PriceToMilli, "reuse_container": record.ReuseContainer,

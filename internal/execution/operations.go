@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/XR-Lee/Gemcp/ent"
+	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/serviceheartbeat"
 	"github.com/XR-Lee/Gemcp/internal/notification"
@@ -44,6 +45,7 @@ type EmergencyStopResult struct {
 
 type RuntimeStatus struct {
 	SchedulerEnabled          bool                     `json:"scheduler_enabled"`
+	SelfHostedEnabled         bool                     `json:"self_hosted_enabled"`
 	GlobalConcurrency         int                      `json:"global_concurrency"`
 	PublicURLConfigured       bool                     `json:"public_url_configured"`
 	SchedulerHealthy          bool                     `json:"scheduler_healthy"`
@@ -58,6 +60,7 @@ type RuntimeStatus struct {
 type Operations struct {
 	client              *ent.Client
 	schedulerEnabled    bool
+	selfHostedEnabled   bool
 	globalConcurrency   int
 	publicURLConfigured bool
 	now                 func() time.Time
@@ -73,6 +76,12 @@ func WithRuntimeConfiguration(schedulerEnabled bool, globalConcurrency int, publ
 	}
 }
 
+func WithSelfHostedEnabled(enabled bool) OperationsOption {
+	return func(operations *Operations) {
+		operations.selfHostedEnabled = enabled
+	}
+}
+
 func NewOperations(client *ent.Client, options ...OperationsOption) *Operations {
 	operations := &Operations{client: client, globalConcurrency: 1, now: time.Now}
 	for _, option := range options {
@@ -83,7 +92,7 @@ func NewOperations(client *ent.Client, options ...OperationsOption) *Operations 
 
 func (s *Operations) Status(ctx context.Context) (RuntimeStatus, error) {
 	result := RuntimeStatus{
-		SchedulerEnabled: s.schedulerEnabled, GlobalConcurrency: s.globalConcurrency,
+		SchedulerEnabled: s.schedulerEnabled, SelfHostedEnabled: s.selfHostedEnabled, GlobalConcurrency: s.globalConcurrency,
 		PublicURLConfigured: s.publicURLConfigured, GeneratedAt: s.now().UTC(),
 	}
 	var err error
@@ -216,6 +225,35 @@ func (s *Operations) EmergencyStop(ctx context.Context, tenantID int, actorID st
 		}
 		result.Requested++
 	}
+	assignments, err := tx.NodeAssignment.Query().Where(
+		nodeassignment.TenantIDEQ(tenantID),
+		nodeassignment.StateIn(nodeassignment.StateStarting, nodeassignment.StateRunning, nodeassignment.StateStopping, nodeassignment.StateCollecting),
+	).WithExperiment().All(ctx)
+	if err != nil {
+		return result, err
+	}
+	for _, assignment := range assignments {
+		experimentRecord, err := assignment.Edges.ExperimentOrErr()
+		if err != nil {
+			return result, err
+		}
+		if assignment.StopRequestedAt == nil {
+			if _, err := tx.NodeAssignment.UpdateOneID(assignment.ID).SetStopRequestedAt(result.At).SetStopReason("emergency").Save(ctx); err != nil {
+				return result, err
+			}
+		}
+		if !isTerminalExperiment(experimentRecord.State) {
+			update := tx.Experiment.UpdateOneID(experimentRecord.ID).SetDesiredState("cancelled").SetState("cancelling").
+				SetFailureCode("emergency_stop").SetFailureReason("Owner requested emergency shutdown")
+			if experimentRecord.CancelRequestedAt == nil {
+				update.SetCancelRequestedAt(result.At)
+			}
+			if _, err := update.Save(ctx); err != nil {
+				return result, err
+			}
+		}
+		result.Requested++
+	}
 	if _, err := tx.AuditEvent.Create().SetTenantID(tenantID).SetActorType("user").SetActorID(strings.TrimSpace(actorID)).
 		SetAction("provider.emergency_stop_requested").SetTargetType("provider_account").
 		SetMetadata(map[string]any{"resource_count": result.Requested}).Save(ctx); err != nil {
@@ -225,7 +263,7 @@ func (s *Operations) EmergencyStop(ctx context.Context, tenantID int, actorID st
 		if err := notification.Enqueue(ctx, tx.Notification, notification.EnqueueInput{
 			TenantID: tenantID, DedupKey: "emergency-stop:" + result.At.Format("20060102T150405.000000000Z"),
 			Kind: "emergency_stop", Severity: "critical", Subject: "[Gemcp] Emergency stop requested",
-			Body: fmt.Sprintf("The Owner requested emergency shutdown for %d managed Provider resources at %s.", result.Requested, result.At.Format(time.RFC3339)),
+			Body: fmt.Sprintf("The Owner requested emergency shutdown for %d managed compute resources at %s.", result.Requested, result.At.Format(time.RFC3339)),
 		}); err != nil {
 			return result, err
 		}

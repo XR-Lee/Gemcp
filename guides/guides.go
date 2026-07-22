@@ -22,6 +22,9 @@ var piSetup string
 //go:embed pi-setup-installer.mjs
 var piSetupInstaller string
 
+//go:embed node-setup.md
+var nodeSetup string
+
 //go:embed gemcp-tool.mjs
 var gemcpTool string
 
@@ -32,6 +35,8 @@ func OwnerMCP() string { return strings.TrimSpace(ownerMCP) + "\n" }
 func PiSetup(publicURL string) string { return renderPublicURL(piSetup, publicURL) }
 
 func PiSetupInstaller(publicURL string) string { return renderPublicURL(piSetupInstaller, publicURL) }
+
+func NodeSetup(publicURL string) string { return renderPublicURL(nodeSetup, publicURL) }
 
 func GemcpTool() string { return strings.TrimSpace(gemcpTool) + "\n" }
 

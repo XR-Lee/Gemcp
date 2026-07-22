@@ -3,6 +3,7 @@ package execution
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	providerservice "github.com/XR-Lee/Gemcp/internal/provider"
 	"github.com/XR-Lee/Gemcp/internal/runner"
 	"github.com/XR-Lee/Gemcp/internal/secrets"
+	"github.com/XR-Lee/Gemcp/internal/selfhosted"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -192,6 +194,67 @@ func TestDisabledDispatchStillRunsReconcilerHeartbeat(t *testing.T) {
 	}
 	if count, _ := f.client.ServiceHeartbeat.Query().Count(context.Background()); count != 1 {
 		t.Fatalf("scheduler heartbeats = %d", count)
+	}
+}
+
+func TestEngineDispatchesSelfHostedProfileWithoutAutoDL(t *testing.T) {
+	f := newExecutionFixture(t)
+	ctx := context.Background()
+	environment, err := f.client.Environment.Create().SetProjectID(f.project.ID).SetBackend("self_hosted").SetName("node-env").
+		SetImageUUID("registry.example/train@sha256:" + strings.Repeat("a", 64)).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	profile, err := f.client.ResourceProfile.Create().SetProjectID(f.project.ID).SetBackend("self_hosted").SetName("node-profile").
+		SetRegion("self_hosted").SetGpuNames([]string{"RTX 3090"}).SetGpuNum(1).SetCudaFrom(118).SetCudaTo(128).
+		SetCPUFrom(1).SetCPUTo(8).SetMemoryFromGB(1).SetMemoryToGB(32).SetPriceFromMilli(0).SetPriceToMilli(0).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	node, err := f.client.SelfHostedNode.Create().SetTenantID(f.tenant.ID).SetLabel("node").SetTokenPrefix("gmn_node").SetTokenHash([]byte("node-hash")).
+		SetStatus("active").SetObservedState("online").SetInstallationID("installation").SetMachineFingerprint(strings.Repeat("b", 64)).
+		SetHostname("node").SetOperatingSystem("linux").SetArchitecture("amd64").SetAgentVersion("test").SetProtocolVersion("1").
+		SetCapabilities(map[string]any{"gpus": []any{map[string]any{"uuid": "GPU-test", "name": "RTX 3090"}}}).SetLastSeenAt(f.now).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.client.NodeProjectAccess.Create().SetTenantID(f.tenant.ID).SetNodeID(node.ID).SetProjectID(f.project.ID).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	config := selfhosted.DefaultConfig()
+	config.Enabled = true
+	config.InstanceID = "scheduler-test"
+	service, err := selfhosted.NewService(f.client, nil, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.engine.selfHosted = service
+	record, err := f.client.Experiment.Create().SetTenantID(f.tenant.ID).SetProjectID(f.project.ID).SetAgentTokenID(f.agentToken.ID).
+		SetRepositoryID(f.repository.ID).SetEnvironmentID(environment.ID).SetResourceProfileID(profile.ID).SetCommitSha(strings.Repeat("0", 40)).
+		SetCommand("echo trained").SetMaxRuntimeSeconds(300).SetTimeoutExtensionSeconds(60).SetTerminationGraceSeconds(5).
+		SetRepositorySnapshot(map[string]any{"project_id": f.project.PublicID.String()}).
+		SetEnvironmentSnapshot(map[string]any{"backend": "self_hosted", "image_uuid": environment.ImageUUID}).
+		SetResourceSnapshot(map[string]any{"backend": "self_hosted"}).SetOutputPath("managed://experiments/test/outputs").
+		SetReservedCostMilli(0).SetNextAttemptAt(f.now).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.client.BudgetEntry.Create().SetTenantID(f.tenant.ID).SetProjectID(f.project.ID).SetExperimentID(record.ID).
+		SetPeriod("2026-07").SetKind("reservation").SetAmountMilli(0).SetDescription("unmetered").Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.engine.Tick(ctx); err != nil {
+		t.Fatal(err)
+	}
+	record, _ = f.client.Experiment.Get(ctx, record.ID)
+	if record.State != "provisioning" || f.provider.createCalls != 0 {
+		t.Fatalf("experiment=%+v AutoDL create calls=%d", record, f.provider.createCalls)
+	}
+	if assignments, _ := f.client.NodeAssignment.Query().Count(ctx); assignments != 1 {
+		t.Fatalf("Node Assignments=%d", assignments)
+	}
+	if commands, _ := f.client.NodeCommand.Query().Count(ctx); commands != 1 {
+		t.Fatalf("Node Commands=%d", commands)
 	}
 }
 

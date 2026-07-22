@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"entgo.io/ent/dialect/sql/schema"
 	entmigrate "github.com/XR-Lee/Gemcp/ent/migrate"
 )
 
@@ -50,6 +51,45 @@ func TestAgentEnrollmentSchemaStoresNoRecoverableCredential(t *testing.T) {
 	}
 	if !digestFound {
 		t.Fatal("Agent enrollment code_hash column is missing")
+	}
+}
+
+func TestNodeCredentialSchemasStoreOnlyDigests(t *testing.T) {
+	check := func(table string, columns []*schema.Column) {
+		t.Helper()
+		digestFound := false
+		for _, column := range columns {
+			if strings.Contains(column.Name, "ciphertext") || strings.Contains(column.Name, "secret") || column.Name == "token" || column.Name == "code" {
+				t.Fatalf("%s contains recoverable credential column %q", table, column.Name)
+			}
+			if column.Name == "code_hash" || column.Name == "token_hash" {
+				digestFound = true
+				if !column.Unique {
+					t.Fatalf("%s digest column %s must be unique", table, column.Name)
+				}
+			}
+		}
+		if !digestFound {
+			t.Fatalf("%s has no credential digest column", table)
+		}
+	}
+	check("node_enrollments", entmigrate.NodeEnrollmentsColumns)
+	check("self_hosted_nodes", entmigrate.SelfHostedNodesColumns)
+}
+
+func TestNodeAssignmentSchemaContainsNoCredentialMaterial(t *testing.T) {
+	outputRefFound := false
+	for _, column := range entmigrate.NodeAssignmentsColumns {
+		name := strings.ToLower(column.Name)
+		if strings.Contains(name, "token") || strings.Contains(name, "credential") || strings.Contains(name, "ciphertext") || strings.Contains(name, "secret") {
+			t.Fatalf("node_assignments contains credential-like column %q", column.Name)
+		}
+		if column.Name == "output_ref" {
+			outputRefFound = true
+		}
+	}
+	if !outputRefFound {
+		t.Fatal("node_assignments output_ref column is missing")
 	}
 }
 

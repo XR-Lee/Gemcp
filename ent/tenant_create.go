@@ -15,11 +15,17 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
+	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
+	"github.com/XR-Lee/Gemcp/ent/nodecommand"
+	"github.com/XR-Lee/Gemcp/ent/nodeenrollment"
+	"github.com/XR-Lee/Gemcp/ent/nodeevent"
+	"github.com/XR-Lee/Gemcp/ent/nodeprojectaccess"
 	"github.com/XR-Lee/Gemcp/ent/notification"
 	"github.com/XR-Lee/Gemcp/ent/notificationsetting"
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/provideraccount"
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
+	"github.com/XR-Lee/Gemcp/ent/selfhostednode"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
 	"github.com/XR-Lee/Gemcp/ent/user"
 	"github.com/google/uuid"
@@ -257,6 +263,96 @@ func (_c *TenantCreate) AddNotifications(v ...*Notification) *TenantCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddNotificationIDs(ids...)
+}
+
+// AddSelfHostedNodeIDs adds the "self_hosted_nodes" edge to the SelfHostedNode entity by IDs.
+func (_c *TenantCreate) AddSelfHostedNodeIDs(ids ...int) *TenantCreate {
+	_c.mutation.AddSelfHostedNodeIDs(ids...)
+	return _c
+}
+
+// AddSelfHostedNodes adds the "self_hosted_nodes" edges to the SelfHostedNode entity.
+func (_c *TenantCreate) AddSelfHostedNodes(v ...*SelfHostedNode) *TenantCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddSelfHostedNodeIDs(ids...)
+}
+
+// AddNodeEnrollmentIDs adds the "node_enrollments" edge to the NodeEnrollment entity by IDs.
+func (_c *TenantCreate) AddNodeEnrollmentIDs(ids ...int) *TenantCreate {
+	_c.mutation.AddNodeEnrollmentIDs(ids...)
+	return _c
+}
+
+// AddNodeEnrollments adds the "node_enrollments" edges to the NodeEnrollment entity.
+func (_c *TenantCreate) AddNodeEnrollments(v ...*NodeEnrollment) *TenantCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddNodeEnrollmentIDs(ids...)
+}
+
+// AddNodeProjectAccesIDs adds the "node_project_access" edge to the NodeProjectAccess entity by IDs.
+func (_c *TenantCreate) AddNodeProjectAccesIDs(ids ...int) *TenantCreate {
+	_c.mutation.AddNodeProjectAccesIDs(ids...)
+	return _c
+}
+
+// AddNodeProjectAccess adds the "node_project_access" edges to the NodeProjectAccess entity.
+func (_c *TenantCreate) AddNodeProjectAccess(v ...*NodeProjectAccess) *TenantCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddNodeProjectAccesIDs(ids...)
+}
+
+// AddNodeCommandIDs adds the "node_commands" edge to the NodeCommand entity by IDs.
+func (_c *TenantCreate) AddNodeCommandIDs(ids ...int) *TenantCreate {
+	_c.mutation.AddNodeCommandIDs(ids...)
+	return _c
+}
+
+// AddNodeCommands adds the "node_commands" edges to the NodeCommand entity.
+func (_c *TenantCreate) AddNodeCommands(v ...*NodeCommand) *TenantCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddNodeCommandIDs(ids...)
+}
+
+// AddNodeEventIDs adds the "node_events" edge to the NodeEvent entity by IDs.
+func (_c *TenantCreate) AddNodeEventIDs(ids ...int) *TenantCreate {
+	_c.mutation.AddNodeEventIDs(ids...)
+	return _c
+}
+
+// AddNodeEvents adds the "node_events" edges to the NodeEvent entity.
+func (_c *TenantCreate) AddNodeEvents(v ...*NodeEvent) *TenantCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddNodeEventIDs(ids...)
+}
+
+// AddNodeAssignmentIDs adds the "node_assignments" edge to the NodeAssignment entity by IDs.
+func (_c *TenantCreate) AddNodeAssignmentIDs(ids ...int) *TenantCreate {
+	_c.mutation.AddNodeAssignmentIDs(ids...)
+	return _c
+}
+
+// AddNodeAssignments adds the "node_assignments" edges to the NodeAssignment entity.
+func (_c *TenantCreate) AddNodeAssignments(v ...*NodeAssignment) *TenantCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddNodeAssignmentIDs(ids...)
 }
 
 // Mutation returns the TenantMutation object of the builder.
@@ -554,6 +650,102 @@ func (_c *TenantCreate) createSpec() (*Tenant, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(notification.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.SelfHostedNodesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.SelfHostedNodesTable,
+			Columns: []string{tenant.SelfHostedNodesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(selfhostednode.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.NodeEnrollmentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.NodeEnrollmentsTable,
+			Columns: []string{tenant.NodeEnrollmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nodeenrollment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.NodeProjectAccessIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.NodeProjectAccessTable,
+			Columns: []string{tenant.NodeProjectAccessColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nodeprojectaccess.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.NodeCommandsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.NodeCommandsTable,
+			Columns: []string{tenant.NodeCommandsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nodecommand.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.NodeEventsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.NodeEventsTable,
+			Columns: []string{tenant.NodeEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nodeevent.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.NodeAssignmentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.NodeAssignmentsTable,
+			Columns: []string{tenant.NodeAssignmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nodeassignment.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

@@ -18,6 +18,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
+	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
@@ -41,6 +42,7 @@ type ExperimentQuery struct {
 	withResourceProfile    *ResourceProfileQuery
 	withAttempts           *AttemptQuery
 	withProviderResources  *ProviderResourceQuery
+	withNodeAssignments    *NodeAssignmentQuery
 	withBudgetEntries      *BudgetEntryQuery
 	withIdempotencyRecords *IdempotencyRecordQuery
 	// intermediate query (i.e. traversal path).
@@ -248,6 +250,28 @@ func (_q *ExperimentQuery) QueryProviderResources() *ProviderResourceQuery {
 			sqlgraph.From(experiment.Table, experiment.FieldID, selector),
 			sqlgraph.To(providerresource.Table, providerresource.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, experiment.ProviderResourcesTable, experiment.ProviderResourcesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryNodeAssignments chains the current query on the "node_assignments" edge.
+func (_q *ExperimentQuery) QueryNodeAssignments() *NodeAssignmentQuery {
+	query := (&NodeAssignmentClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(experiment.Table, experiment.FieldID, selector),
+			sqlgraph.To(nodeassignment.Table, nodeassignment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, experiment.NodeAssignmentsTable, experiment.NodeAssignmentsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -499,6 +523,7 @@ func (_q *ExperimentQuery) Clone() *ExperimentQuery {
 		withResourceProfile:    _q.withResourceProfile.Clone(),
 		withAttempts:           _q.withAttempts.Clone(),
 		withProviderResources:  _q.withProviderResources.Clone(),
+		withNodeAssignments:    _q.withNodeAssignments.Clone(),
 		withBudgetEntries:      _q.withBudgetEntries.Clone(),
 		withIdempotencyRecords: _q.withIdempotencyRecords.Clone(),
 		// clone intermediate query.
@@ -592,6 +617,17 @@ func (_q *ExperimentQuery) WithProviderResources(opts ...func(*ProviderResourceQ
 		opt(query)
 	}
 	_q.withProviderResources = query
+	return _q
+}
+
+// WithNodeAssignments tells the query-builder to eager-load the nodes that are connected to
+// the "node_assignments" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ExperimentQuery) WithNodeAssignments(opts ...func(*NodeAssignmentQuery)) *ExperimentQuery {
+	query := (&NodeAssignmentClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withNodeAssignments = query
 	return _q
 }
 
@@ -695,7 +731,7 @@ func (_q *ExperimentQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*E
 	var (
 		nodes       = []*Experiment{}
 		_spec       = _q.querySpec()
-		loadedTypes = [10]bool{
+		loadedTypes = [11]bool{
 			_q.withTenant != nil,
 			_q.withProject != nil,
 			_q.withAgentToken != nil,
@@ -704,6 +740,7 @@ func (_q *ExperimentQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*E
 			_q.withResourceProfile != nil,
 			_q.withAttempts != nil,
 			_q.withProviderResources != nil,
+			_q.withNodeAssignments != nil,
 			_q.withBudgetEntries != nil,
 			_q.withIdempotencyRecords != nil,
 		}
@@ -775,6 +812,13 @@ func (_q *ExperimentQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*E
 			func(n *Experiment, e *ProviderResource) {
 				n.Edges.ProviderResources = append(n.Edges.ProviderResources, e)
 			}); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withNodeAssignments; query != nil {
+		if err := _q.loadNodeAssignments(ctx, query, nodes,
+			func(n *Experiment) { n.Edges.NodeAssignments = []*NodeAssignment{} },
+			func(n *Experiment, e *NodeAssignment) { n.Edges.NodeAssignments = append(n.Edges.NodeAssignments, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -1016,6 +1060,36 @@ func (_q *ExperimentQuery) loadProviderResources(ctx context.Context, query *Pro
 	}
 	query.Where(predicate.ProviderResource(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(experiment.ProviderResourcesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ExperimentID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "experiment_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *ExperimentQuery) loadNodeAssignments(ctx context.Context, query *NodeAssignmentQuery, nodes []*Experiment, init func(*Experiment), assign func(*Experiment, *NodeAssignment)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Experiment)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(nodeassignment.FieldExperimentID)
+	}
+	query.Where(predicate.NodeAssignment(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(experiment.NodeAssignmentsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

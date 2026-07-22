@@ -105,6 +105,66 @@ func (f IdempotencyRecordFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.IdempotencyRecordMutation", m)
 }
 
+// The NodeAssignmentFunc type is an adapter to allow the use of ordinary
+// function as NodeAssignment mutator.
+type NodeAssignmentFunc func(context.Context, *ent.NodeAssignmentMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f NodeAssignmentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.NodeAssignmentMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.NodeAssignmentMutation", m)
+}
+
+// The NodeCommandFunc type is an adapter to allow the use of ordinary
+// function as NodeCommand mutator.
+type NodeCommandFunc func(context.Context, *ent.NodeCommandMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f NodeCommandFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.NodeCommandMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.NodeCommandMutation", m)
+}
+
+// The NodeEnrollmentFunc type is an adapter to allow the use of ordinary
+// function as NodeEnrollment mutator.
+type NodeEnrollmentFunc func(context.Context, *ent.NodeEnrollmentMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f NodeEnrollmentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.NodeEnrollmentMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.NodeEnrollmentMutation", m)
+}
+
+// The NodeEventFunc type is an adapter to allow the use of ordinary
+// function as NodeEvent mutator.
+type NodeEventFunc func(context.Context, *ent.NodeEventMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f NodeEventFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.NodeEventMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.NodeEventMutation", m)
+}
+
+// The NodeProjectAccessFunc type is an adapter to allow the use of ordinary
+// function as NodeProjectAccess mutator.
+type NodeProjectAccessFunc func(context.Context, *ent.NodeProjectAccessMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f NodeProjectAccessFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.NodeProjectAccessMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.NodeProjectAccessMutation", m)
+}
+
 // The NotificationFunc type is an adapter to allow the use of ordinary
 // function as Notification mutator.
 type NotificationFunc func(context.Context, *ent.NotificationMutation) (ent.Value, error)
@@ -199,6 +259,18 @@ func (f ResourceProfileFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Va
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ResourceProfileMutation", m)
+}
+
+// The SelfHostedNodeFunc type is an adapter to allow the use of ordinary
+// function as SelfHostedNode mutator.
+type SelfHostedNodeFunc func(context.Context, *ent.SelfHostedNodeMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SelfHostedNodeFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SelfHostedNodeMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SelfHostedNodeMutation", m)
 }
 
 // The ServiceHeartbeatFunc type is an adapter to allow the use of ordinary

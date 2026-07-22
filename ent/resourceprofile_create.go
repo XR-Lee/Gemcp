@@ -71,6 +71,20 @@ func (_c *ResourceProfileCreate) SetProjectID(v int) *ResourceProfileCreate {
 	return _c
 }
 
+// SetBackend sets the "backend" field.
+func (_c *ResourceProfileCreate) SetBackend(v resourceprofile.Backend) *ResourceProfileCreate {
+	_c.mutation.SetBackend(v)
+	return _c
+}
+
+// SetNillableBackend sets the "backend" field if the given value is not nil.
+func (_c *ResourceProfileCreate) SetNillableBackend(v *resourceprofile.Backend) *ResourceProfileCreate {
+	if v != nil {
+		_c.SetBackend(*v)
+	}
+	return _c
+}
+
 // SetName sets the "name" field.
 func (_c *ResourceProfileCreate) SetName(v string) *ResourceProfileCreate {
 	_c.mutation.SetName(v)
@@ -260,6 +274,10 @@ func (_c *ResourceProfileCreate) defaults() {
 		v := resourceprofile.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
+	if _, ok := _c.mutation.Backend(); !ok {
+		v := resourceprofile.DefaultBackend
+		_c.mutation.SetBackend(v)
+	}
 	if _, ok := _c.mutation.GpuNum(); !ok {
 		v := resourceprofile.DefaultGpuNum
 		_c.mutation.SetGpuNum(v)
@@ -291,6 +309,14 @@ func (_c *ResourceProfileCreate) check() error {
 	}
 	if _, ok := _c.mutation.ProjectID(); !ok {
 		return &ValidationError{Name: "project_id", err: errors.New(`ent: missing required field "ResourceProfile.project_id"`)}
+	}
+	if _, ok := _c.mutation.Backend(); !ok {
+		return &ValidationError{Name: "backend", err: errors.New(`ent: missing required field "ResourceProfile.backend"`)}
+	}
+	if v, ok := _c.mutation.Backend(); ok {
+		if err := resourceprofile.BackendValidator(v); err != nil {
+			return &ValidationError{Name: "backend", err: fmt.Errorf(`ent: validator failed for field "ResourceProfile.backend": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.Name(); !ok {
 		return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "ResourceProfile.name"`)}
@@ -437,6 +463,10 @@ func (_c *ResourceProfileCreate) createSpec() (*ResourceProfile, *sqlgraph.Creat
 	if value, ok := _c.mutation.UpdatedAt(); ok {
 		_spec.SetField(resourceprofile.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
+	}
+	if value, ok := _c.mutation.Backend(); ok {
+		_spec.SetField(resourceprofile.FieldBackend, field.TypeEnum, value)
+		_node.Backend = value
 	}
 	if value, ok := _c.mutation.Name(); ok {
 		_spec.SetField(resourceprofile.FieldName, field.TypeString, value)

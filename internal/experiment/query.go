@@ -247,13 +247,13 @@ func (s *Service) Options(ctx context.Context, principal agentauth.Principal) (P
 	result.Environments = make([]EnvironmentOption, 0, len(environments))
 	for _, record := range environments {
 		result.Environments = append(result.Environments, EnvironmentOption{
-			ID: record.PublicID.String(), Name: record.Name, ImageUUID: record.ImageUUID, IsDefault: record.IsDefault,
+			ID: record.PublicID.String(), Name: record.Name, Backend: string(record.Backend), ImageUUID: record.ImageUUID, IsDefault: record.IsDefault,
 		})
 	}
 	result.ResourceProfiles = make([]ResourceProfileOption, 0, len(profiles))
 	for _, record := range profiles {
 		result.ResourceProfiles = append(result.ResourceProfiles, ResourceProfileOption{
-			ID: record.PublicID.String(), Name: record.Name, Region: record.Region, GPUNames: record.GpuNames,
+			ID: record.PublicID.String(), Name: record.Name, Backend: string(record.Backend), Region: record.Region, GPUNames: record.GpuNames,
 			GPUNum: record.GpuNum, PriceFromMilli: record.PriceFromMilli, PriceToMilli: record.PriceToMilli,
 			ReuseContainer: record.ReuseContainer, IsDefault: record.IsDefault,
 		})

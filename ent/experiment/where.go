@@ -2065,6 +2065,29 @@ func HasProviderResourcesWith(preds ...predicate.ProviderResource) predicate.Exp
 	})
 }
 
+// HasNodeAssignments applies the HasEdge predicate on the "node_assignments" edge.
+func HasNodeAssignments() predicate.Experiment {
+	return predicate.Experiment(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, NodeAssignmentsTable, NodeAssignmentsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasNodeAssignmentsWith applies the HasEdge predicate on the "node_assignments" edge with a given conditions (other predicates).
+func HasNodeAssignmentsWith(preds ...predicate.NodeAssignment) predicate.Experiment {
+	return predicate.Experiment(func(s *sql.Selector) {
+		step := newNodeAssignmentsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasBudgetEntries applies the HasEdge predicate on the "budget_entries" edge.
 func HasBudgetEntries() predicate.Experiment {
 	return predicate.Experiment(func(s *sql.Selector) {

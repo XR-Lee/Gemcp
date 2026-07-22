@@ -254,6 +254,7 @@ export type RuntimeHeartbeat = {
 
 export type RuntimeStatus = {
   scheduler_enabled: boolean
+  self_hosted_enabled: boolean
   global_concurrency: number
   public_url_configured: boolean
   scheduler_healthy: boolean
@@ -280,6 +281,110 @@ export type ManagedProviderResource = {
   last_error?: string
   created_at: string
   updated_at: string
+}
+
+export type SelfHostedGPU = {
+  uuid: string
+  name: string
+  memory_bytes: number
+}
+
+export type SelfHostedNode = {
+  id: string
+  label: string
+  token_prefix: string
+  status: string
+  observed_state: string
+  installation_id: string
+  machine_fingerprint: string
+  hostname: string
+  operating_system: string
+  architecture: string
+  agent_version: string
+  protocol_version: string
+  capabilities: { gpus?: SelfHostedGPU[]; cpu_count?: number; memory_bytes?: number }
+  storage: { root?: string; total_bytes?: number; available_bytes?: number; managed_bytes?: number }
+  project_ids: string[]
+  last_seen_at?: string
+  approved_at?: string
+  revoked_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export type NodeEnrollment = {
+  id: string
+  label: string
+  status: 'pending' | 'claimed' | 'approved' | 'completed' | 'expired' | 'revoked'
+  expires_at: string
+  pairing_code?: string
+  installation_id?: string
+  machine_fingerprint?: string
+  report?: Record<string, unknown>
+  node_id?: string
+  claimed_at?: string
+  approved_at?: string
+  completed_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export type NodeList = {
+  nodes: SelfHostedNode[]
+  enrollments: NodeEnrollment[]
+  assignments: NodeAssignment[]
+  truncated?: boolean
+}
+
+export type NodeAssignment = {
+  id: string
+  node_id: string
+  node_label: string
+  project_id: string
+  experiment_id: string
+  attempt_id: string
+  attempt_number: number
+  state: string
+  output_ref: string
+  started_at?: string
+  last_heartbeat_at?: string
+  finished_at?: string
+  exit_code?: number
+  failure_code?: string
+  created_at: string
+  updated_at: string
+}
+
+export type NodeEnrollmentIssue = {
+  enrollment: NodeEnrollment
+  setup_url: string
+  claim_url: string
+}
+
+export type SelfHostedRuntimeEnvironment = {
+  id: string
+  name: string
+  image: string
+  is_default: boolean
+}
+
+export type SelfHostedRuntimeProfile = {
+  id: string
+  name: string
+  gpu_names: string[]
+  cpu_limit: number
+  memory_gb: number
+  is_default: boolean
+}
+
+export type SelfHostedRuntimeList = {
+  environments: SelfHostedRuntimeEnvironment[]
+  resource_profiles: SelfHostedRuntimeProfile[]
+}
+
+export type SelfHostedRuntimeConfig = {
+  environment: SelfHostedRuntimeEnvironment
+  resource_profile: SelfHostedRuntimeProfile
 }
 
 export type ProviderDeploymentDetails = {
@@ -410,6 +515,22 @@ export const api = {
     setCSRFToken('')
   },
   projects: () => request<Project[]>('/api/v1/projects'),
+  nodes: () => request<NodeList>('/api/v1/nodes'),
+  issueNodeEnrollment: (payload: { label: string; setup_expires_in_minutes: number }) =>
+    request<NodeEnrollmentIssue>('/api/v1/node-enrollments', { method: 'POST', body: JSON.stringify(payload) }),
+  approveNodeEnrollment: (enrollmentID: string, payload: { pairing_code: string; project_ids: string[] }) =>
+    request<SelfHostedNode>(`/api/v1/node-enrollments/${encodeURIComponent(enrollmentID)}/approve`, {
+      method: 'POST', body: JSON.stringify(payload),
+    }),
+  revokeNodeEnrollment: (enrollmentID: string) =>
+    request<NodeEnrollment>(`/api/v1/node-enrollments/${encodeURIComponent(enrollmentID)}`, { method: 'DELETE' }),
+  selfHostedRuntimes: (projectID: string) =>
+    request<SelfHostedRuntimeList>(`/api/v1/projects/${encodeURIComponent(projectID)}/self-hosted-runtimes`),
+  createSelfHostedRuntime: (projectID: string, payload: {
+    name: string; image: string; gpu_names: string[]; cpu_limit: number; memory_gb: number; make_default: boolean
+  }) => request<SelfHostedRuntimeConfig>(`/api/v1/projects/${encodeURIComponent(projectID)}/self-hosted-runtimes`, {
+    method: 'POST', body: JSON.stringify(payload),
+  }),
   agentTokens: (projectID: string) =>
     request<AgentTokenList>(`/api/v1/projects/${encodeURIComponent(projectID)}/agent-tokens`),
   issueAgentToken: (projectID: string, payload: {

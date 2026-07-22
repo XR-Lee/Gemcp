@@ -946,6 +946,52 @@ func HasBudgetEntriesWith(preds ...predicate.BudgetEntry) predicate.Project {
 	})
 }
 
+// HasNodeAccess applies the HasEdge predicate on the "node_access" edge.
+func HasNodeAccess() predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, NodeAccessTable, NodeAccessColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasNodeAccessWith applies the HasEdge predicate on the "node_access" edge with a given conditions (other predicates).
+func HasNodeAccessWith(preds ...predicate.NodeProjectAccess) predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := newNodeAccessStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasNodeAssignments applies the HasEdge predicate on the "node_assignments" edge.
+func HasNodeAssignments() predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, NodeAssignmentsTable, NodeAssignmentsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasNodeAssignmentsWith applies the HasEdge predicate on the "node_assignments" edge with a given conditions (other predicates).
+func HasNodeAssignmentsWith(preds ...predicate.NodeAssignment) predicate.Project {
+	return predicate.Project(func(s *sql.Selector) {
+		step := newNodeAssignmentsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.Project) predicate.Project {
 	return predicate.Project(sql.AndPredicates(predicates...))

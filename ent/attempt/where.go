@@ -1393,6 +1393,29 @@ func HasOwnedResourceWith(preds ...predicate.ProviderResource) predicate.Attempt
 	})
 }
 
+// HasNodeAssignment applies the HasEdge predicate on the "node_assignment" edge.
+func HasNodeAssignment() predicate.Attempt {
+	return predicate.Attempt(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, NodeAssignmentTable, NodeAssignmentColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasNodeAssignmentWith applies the HasEdge predicate on the "node_assignment" edge with a given conditions (other predicates).
+func HasNodeAssignmentWith(preds ...predicate.NodeAssignment) predicate.Attempt {
+	return predicate.Attempt(func(s *sql.Selector) {
+		step := newNodeAssignmentStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.Attempt) predicate.Attempt {
 	return predicate.Attempt(sql.AndPredicates(predicates...))

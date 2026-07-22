@@ -17,11 +17,13 @@ import (
 	"github.com/XR-Lee/Gemcp/internal/experiment"
 	"github.com/XR-Lee/Gemcp/internal/httpapi"
 	"github.com/XR-Lee/Gemcp/internal/mcpserver"
+	"github.com/XR-Lee/Gemcp/internal/nodeaccess"
 	"github.com/XR-Lee/Gemcp/internal/notification"
 	providerservice "github.com/XR-Lee/Gemcp/internal/provider"
 	gitrepository "github.com/XR-Lee/Gemcp/internal/repository"
 	runnerservice "github.com/XR-Lee/Gemcp/internal/runner"
 	"github.com/XR-Lee/Gemcp/internal/secrets"
+	"github.com/XR-Lee/Gemcp/internal/selfhosted"
 	setupservice "github.com/XR-Lee/Gemcp/internal/setup"
 	"github.com/XR-Lee/Gemcp/internal/web"
 	"github.com/gin-gonic/gin"
@@ -32,11 +34,12 @@ type Database interface {
 }
 
 type Dependencies struct {
-	Config  config.Config
-	Build   buildinfo.Info
-	DB      Database
-	Ent     *ent.Client
-	Secrets *secrets.Box
+	Config     config.Config
+	Build      buildinfo.Info
+	DB         Database
+	Ent        *ent.Client
+	Secrets    *secrets.Box
+	SelfHosted *selfhosted.Service
 }
 
 func New(deps Dependencies) *http.Server {
@@ -57,6 +60,7 @@ func New(deps Dependencies) *http.Server {
 	router.GET("/agent/setup", markdownGuide(guides.PiSetup(deps.Config.PublicURL)))
 	router.GET("/agent/setup/install.mjs", staticGuide("text/javascript; charset=utf-8", guides.PiSetupInstaller(deps.Config.PublicURL)))
 	router.GET("/agent/setup/gemcp-tool.mjs", staticGuide("text/javascript; charset=utf-8", guides.GemcpTool()))
+	router.GET("/node/setup", markdownGuide(guides.NodeSetup(deps.Config.PublicURL)))
 
 	api := router.Group("/api/v1")
 	api.GET("/version", func(c *gin.Context) {
@@ -70,8 +74,17 @@ func New(deps Dependencies) *http.Server {
 	api.POST("/auth/login", authHandlers.Login)
 	agentAccessService := agentaccess.NewService(deps.Ent, deps.Secrets, deps.Config.PublicURL)
 	agentTokenHandlers := httpapi.NewAgentTokenHandlers(agentAccessService)
+	nodeOptions := []nodeaccess.ServiceOption{}
+	if deps.SelfHosted != nil {
+		nodeOptions = append(nodeOptions, nodeaccess.WithEventProjector(deps.SelfHosted))
+	}
+	nodeService := nodeaccess.NewService(deps.Ent, deps.Secrets, deps.Config.PublicURL, deps.Config.SelfHostedEnabled, nodeOptions...)
+	nodeHandlers := httpapi.NewNodeHandlers(nodeService, deps.SelfHosted)
 	api.POST("/agent-enrollments/claim", agentTokenHandlers.ClaimEnrollment)
 	api.POST("/agent-enrollments/complete", agentTokenHandlers.CompleteEnrollment)
+	api.POST("/node-enrollments/claim", nodeHandlers.ClaimEnrollment)
+	api.POST("/nodes/sync", nodeHandlers.Sync)
+	api.GET("/node-assignments/:id/source", nodeHandlers.Source)
 
 	repositoryService := gitrepository.NewService(deps.Ent, deps.Secrets, nil)
 	runnerHandlers := httpapi.NewRunnerHandlers(runnerservice.NewService(
@@ -93,6 +106,12 @@ func New(deps Dependencies) *http.Server {
 	protected.DELETE("/projects/:id/agent-tokens/:tokenID", agentTokenHandlers.Revoke)
 	protected.POST("/projects/:id/agent-enrollments", agentTokenHandlers.IssueEnrollment)
 	protected.DELETE("/projects/:id/agent-enrollments/:enrollmentID", agentTokenHandlers.RevokeEnrollment)
+	protected.GET("/nodes", nodeHandlers.List)
+	protected.POST("/node-enrollments", nodeHandlers.IssueEnrollment)
+	protected.POST("/node-enrollments/:id/approve", nodeHandlers.ApproveEnrollment)
+	protected.DELETE("/node-enrollments/:id", nodeHandlers.RevokeEnrollment)
+	protected.GET("/projects/:id/self-hosted-runtimes", nodeHandlers.ListRuntimeConfigs)
+	protected.POST("/projects/:id/self-hosted-runtimes", nodeHandlers.CreateRuntimeConfig)
 
 	providerService := providerservice.NewService(deps.Ent, deps.Secrets, deps.Build.Version)
 	providerHandlers := httpapi.NewProviderHandlers(providerService)
@@ -102,6 +121,7 @@ func New(deps Dependencies) *http.Server {
 	protected.GET("/provider/deployments/:id", providerHandlers.Deployment)
 	runtimeHandlers := httpapi.NewRuntimeHandlers(execution.NewOperations(
 		deps.Ent, execution.WithRuntimeConfiguration(deps.Config.SchedulerEnabled, deps.Config.GlobalConcurrency, deps.Config.PublicURL != ""),
+		execution.WithSelfHostedEnabled(deps.Config.SelfHostedEnabled),
 	))
 	protected.GET("/runtime/status", runtimeHandlers.Status)
 	protected.GET("/provider/managed-resources", runtimeHandlers.List)

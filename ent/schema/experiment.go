@@ -34,7 +34,7 @@ func (Experiment) Fields() []ent.Field {
 		field.JSON("resource_snapshot", map[string]any{}).Immutable(),
 		field.Strings("secret_names").Default([]string{}).Immutable(),
 		field.String("output_path").Immutable().NotEmpty(),
-		field.Int64("reserved_cost_milli").Immutable().Positive(),
+		field.Int64("reserved_cost_milli").Immutable().NonNegative(),
 		field.Int64("estimated_cost_milli").Default(0).NonNegative(),
 		field.String("provider_resource_id").Optional().Nillable().MaxLen(255),
 		field.String("provider_status").Optional().Nillable().MaxLen(255),
@@ -65,6 +65,7 @@ func (Experiment) Edges() []ent.Edge {
 		edge.From("resource_profile", ResourceProfile.Type).Ref("experiments").Field("resource_profile_id").Unique().Required().Immutable(),
 		edge.To("attempts", Attempt.Type),
 		edge.To("provider_resources", ProviderResource.Type),
+		edge.To("node_assignments", NodeAssignment.Type),
 		edge.To("budget_entries", BudgetEntry.Type),
 		edge.To("idempotency_records", IdempotencyRecord.Type),
 	}

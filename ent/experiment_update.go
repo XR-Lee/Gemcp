@@ -15,6 +15,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
+	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
 )
@@ -424,6 +425,21 @@ func (_u *ExperimentUpdate) AddProviderResources(v ...*ProviderResource) *Experi
 	return _u.AddProviderResourceIDs(ids...)
 }
 
+// AddNodeAssignmentIDs adds the "node_assignments" edge to the NodeAssignment entity by IDs.
+func (_u *ExperimentUpdate) AddNodeAssignmentIDs(ids ...int) *ExperimentUpdate {
+	_u.mutation.AddNodeAssignmentIDs(ids...)
+	return _u
+}
+
+// AddNodeAssignments adds the "node_assignments" edges to the NodeAssignment entity.
+func (_u *ExperimentUpdate) AddNodeAssignments(v ...*NodeAssignment) *ExperimentUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddNodeAssignmentIDs(ids...)
+}
+
 // AddBudgetEntryIDs adds the "budget_entries" edge to the BudgetEntry entity by IDs.
 func (_u *ExperimentUpdate) AddBudgetEntryIDs(ids ...int) *ExperimentUpdate {
 	_u.mutation.AddBudgetEntryIDs(ids...)
@@ -499,6 +515,27 @@ func (_u *ExperimentUpdate) RemoveProviderResources(v ...*ProviderResource) *Exp
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveProviderResourceIDs(ids...)
+}
+
+// ClearNodeAssignments clears all "node_assignments" edges to the NodeAssignment entity.
+func (_u *ExperimentUpdate) ClearNodeAssignments() *ExperimentUpdate {
+	_u.mutation.ClearNodeAssignments()
+	return _u
+}
+
+// RemoveNodeAssignmentIDs removes the "node_assignments" edge to NodeAssignment entities by IDs.
+func (_u *ExperimentUpdate) RemoveNodeAssignmentIDs(ids ...int) *ExperimentUpdate {
+	_u.mutation.RemoveNodeAssignmentIDs(ids...)
+	return _u
+}
+
+// RemoveNodeAssignments removes "node_assignments" edges to NodeAssignment entities.
+func (_u *ExperimentUpdate) RemoveNodeAssignments(v ...*NodeAssignment) *ExperimentUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveNodeAssignmentIDs(ids...)
 }
 
 // ClearBudgetEntries clears all "budget_entries" edges to the BudgetEntry entity.
@@ -840,6 +877,51 @@ func (_u *ExperimentUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(providerresource.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.NodeAssignmentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   experiment.NodeAssignmentsTable,
+			Columns: []string{experiment.NodeAssignmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nodeassignment.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedNodeAssignmentsIDs(); len(nodes) > 0 && !_u.mutation.NodeAssignmentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   experiment.NodeAssignmentsTable,
+			Columns: []string{experiment.NodeAssignmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nodeassignment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.NodeAssignmentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   experiment.NodeAssignmentsTable,
+			Columns: []string{experiment.NodeAssignmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nodeassignment.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -1349,6 +1431,21 @@ func (_u *ExperimentUpdateOne) AddProviderResources(v ...*ProviderResource) *Exp
 	return _u.AddProviderResourceIDs(ids...)
 }
 
+// AddNodeAssignmentIDs adds the "node_assignments" edge to the NodeAssignment entity by IDs.
+func (_u *ExperimentUpdateOne) AddNodeAssignmentIDs(ids ...int) *ExperimentUpdateOne {
+	_u.mutation.AddNodeAssignmentIDs(ids...)
+	return _u
+}
+
+// AddNodeAssignments adds the "node_assignments" edges to the NodeAssignment entity.
+func (_u *ExperimentUpdateOne) AddNodeAssignments(v ...*NodeAssignment) *ExperimentUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddNodeAssignmentIDs(ids...)
+}
+
 // AddBudgetEntryIDs adds the "budget_entries" edge to the BudgetEntry entity by IDs.
 func (_u *ExperimentUpdateOne) AddBudgetEntryIDs(ids ...int) *ExperimentUpdateOne {
 	_u.mutation.AddBudgetEntryIDs(ids...)
@@ -1424,6 +1521,27 @@ func (_u *ExperimentUpdateOne) RemoveProviderResources(v ...*ProviderResource) *
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveProviderResourceIDs(ids...)
+}
+
+// ClearNodeAssignments clears all "node_assignments" edges to the NodeAssignment entity.
+func (_u *ExperimentUpdateOne) ClearNodeAssignments() *ExperimentUpdateOne {
+	_u.mutation.ClearNodeAssignments()
+	return _u
+}
+
+// RemoveNodeAssignmentIDs removes the "node_assignments" edge to NodeAssignment entities by IDs.
+func (_u *ExperimentUpdateOne) RemoveNodeAssignmentIDs(ids ...int) *ExperimentUpdateOne {
+	_u.mutation.RemoveNodeAssignmentIDs(ids...)
+	return _u
+}
+
+// RemoveNodeAssignments removes "node_assignments" edges to NodeAssignment entities.
+func (_u *ExperimentUpdateOne) RemoveNodeAssignments(v ...*NodeAssignment) *ExperimentUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveNodeAssignmentIDs(ids...)
 }
 
 // ClearBudgetEntries clears all "budget_entries" edges to the BudgetEntry entity.
@@ -1795,6 +1913,51 @@ func (_u *ExperimentUpdateOne) sqlSave(ctx context.Context) (_node *Experiment, 
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(providerresource.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.NodeAssignmentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   experiment.NodeAssignmentsTable,
+			Columns: []string{experiment.NodeAssignmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nodeassignment.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedNodeAssignmentsIDs(); len(nodes) > 0 && !_u.mutation.NodeAssignmentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   experiment.NodeAssignmentsTable,
+			Columns: []string{experiment.NodeAssignmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nodeassignment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.NodeAssignmentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   experiment.NodeAssignmentsTable,
+			Columns: []string{experiment.NodeAssignmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nodeassignment.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

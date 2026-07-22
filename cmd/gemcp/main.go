@@ -15,7 +15,9 @@ import (
 	"github.com/XR-Lee/Gemcp/internal/database"
 	"github.com/XR-Lee/Gemcp/internal/execution"
 	"github.com/XR-Lee/Gemcp/internal/notification"
+	gitrepository "github.com/XR-Lee/Gemcp/internal/repository"
 	"github.com/XR-Lee/Gemcp/internal/secrets"
+	"github.com/XR-Lee/Gemcp/internal/selfhosted"
 	"github.com/XR-Lee/Gemcp/internal/server"
 	"github.com/XR-Lee/Gemcp/internal/watchdog"
 )
@@ -89,7 +91,6 @@ func runServer() error {
 	defer store.Close()
 
 	info := buildinfo.New(version, commit, builtAt)
-	httpServer := server.New(server.Dependencies{Config: cfg, Build: info, DB: store, Ent: store.Client, Secrets: secretBox})
 	provider := execution.NewProvider(secretBox, info.Version)
 	executionConfig := execution.DefaultConfig()
 	executionConfig.Enabled = cfg.SchedulerEnabled
@@ -102,7 +103,22 @@ func runServer() error {
 	executionConfig.ReconcileDelay = cfg.ReconcileDelay
 	executionConfig.CallbackGrace = cfg.CallbackGrace
 	executionConfig.MaxAttempts = cfg.MaxAttempts
-	engine, err := execution.NewEngine(store.Client, secretBox, provider, executionConfig)
+	selfHostedConfig := selfhosted.DefaultConfig()
+	selfHostedConfig.Enabled = cfg.SelfHostedEnabled
+	selfHostedConfig.InstanceID = executionConfig.InstanceID
+	selfHostedConfig.ProvisionTimeout = cfg.ProvisionTimeout
+	selfHostedConfig.MaxAttempts = cfg.MaxAttempts
+	selfHostedConfig.SourceMaxBytes = cfg.RunnerSourceMaxBytes
+	selfHostedService, err := selfhosted.NewService(
+		store.Client, gitrepository.NewService(store.Client, secretBox, nil), selfHostedConfig,
+	)
+	if err != nil {
+		return fmt.Errorf("initialize Self-hosted execution: %w", err)
+	}
+	httpServer := server.New(server.Dependencies{
+		Config: cfg, Build: info, DB: store, Ent: store.Client, Secrets: secretBox, SelfHosted: selfHostedService,
+	})
+	engine, err := execution.NewEngine(store.Client, secretBox, provider, executionConfig, execution.WithSelfHostedService(selfHostedService))
 	if err != nil {
 		return fmt.Errorf("initialize execution scheduler: %w", err)
 	}

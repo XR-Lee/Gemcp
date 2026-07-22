@@ -20,6 +20,11 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
+	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
+	"github.com/XR-Lee/Gemcp/ent/nodecommand"
+	"github.com/XR-Lee/Gemcp/ent/nodeenrollment"
+	"github.com/XR-Lee/Gemcp/ent/nodeevent"
+	"github.com/XR-Lee/Gemcp/ent/nodeprojectaccess"
 	"github.com/XR-Lee/Gemcp/ent/notification"
 	"github.com/XR-Lee/Gemcp/ent/notificationsetting"
 	"github.com/XR-Lee/Gemcp/ent/project"
@@ -28,6 +33,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/recordmixin"
 	"github.com/XR-Lee/Gemcp/ent/repository"
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
+	"github.com/XR-Lee/Gemcp/ent/selfhostednode"
 	"github.com/XR-Lee/Gemcp/ent/serviceheartbeat"
 	"github.com/XR-Lee/Gemcp/ent/session"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
@@ -100,6 +106,11 @@ func checkColumn(t, c string) error {
 			environment.Table:         environment.ValidColumn,
 			experiment.Table:          experiment.ValidColumn,
 			idempotencyrecord.Table:   idempotencyrecord.ValidColumn,
+			nodeassignment.Table:      nodeassignment.ValidColumn,
+			nodecommand.Table:         nodecommand.ValidColumn,
+			nodeenrollment.Table:      nodeenrollment.ValidColumn,
+			nodeevent.Table:           nodeevent.ValidColumn,
+			nodeprojectaccess.Table:   nodeprojectaccess.ValidColumn,
 			notification.Table:        notification.ValidColumn,
 			notificationsetting.Table: notificationsetting.ValidColumn,
 			project.Table:             project.ValidColumn,
@@ -108,6 +119,7 @@ func checkColumn(t, c string) error {
 			recordmixin.Table:         recordmixin.ValidColumn,
 			repository.Table:          repository.ValidColumn,
 			resourceprofile.Table:     resourceprofile.ValidColumn,
+			selfhostednode.Table:      selfhostednode.ValidColumn,
 			serviceheartbeat.Table:    serviceheartbeat.ValidColumn,
 			session.Table:             session.ValidColumn,
 			tenant.Table:              tenant.ValidColumn,

@@ -159,6 +159,41 @@ func TestSubmitEnforcesHardBudget(t *testing.T) {
 	}
 }
 
+func TestSubmitSelfHostedIsUnmeteredAndUsesManagedOutput(t *testing.T) {
+	f := newFixture(t, 1, 1)
+	ctx := context.Background()
+	environment, err := f.client.Environment.Create().SetProjectID(f.project.ID).SetBackend("self_hosted").
+		SetName("self-hosted").SetImageUUID("registry.example/train@sha256:" + strings.Repeat("a", 64)).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	profile, err := f.client.ResourceProfile.Create().SetProjectID(f.project.ID).SetBackend("self_hosted").
+		SetName("self-hosted").SetRegion("self_hosted").SetGpuNames([]string{"RTX 3090"}).SetGpuNum(1).
+		SetCudaFrom(118).SetCudaTo(128).SetCPUFrom(1).SetCPUTo(16).SetMemoryFromGB(1).SetMemoryToGB(64).
+		SetPriceFromMilli(0).SetPriceToMilli(0).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	input := validSubmit(f, "request-self-hosted")
+	input.EnvironmentID = environment.PublicID.String()
+	input.ResourceProfileID = profile.PublicID.String()
+	result, err := f.service.Submit(ctx, f.principal, input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Experiment.ReservedCostMilli != 0 || !strings.HasPrefix(result.Experiment.OutputPath, "managed://experiments/") {
+		t.Fatalf("Self-hosted experiment = %+v", result.Experiment)
+	}
+	record, _ := f.client.Experiment.Query().Only(ctx)
+	if record.EnvironmentSnapshot["backend"] != "self_hosted" || record.ResourceSnapshot["backend"] != "self_hosted" {
+		t.Fatalf("snapshots environment=%v resource=%v", record.EnvironmentSnapshot, record.ResourceSnapshot)
+	}
+	entry, _ := f.client.BudgetEntry.Query().Only(ctx)
+	if entry.AmountMilli != 0 {
+		t.Fatalf("Self-hosted reservation = %d", entry.AmountMilli)
+	}
+}
+
 func TestSubmitRejectsUnimplementedSecretInjection(t *testing.T) {
 	f := newFixture(t, 100000, 20000)
 	input := validSubmit(f, "request-secret")

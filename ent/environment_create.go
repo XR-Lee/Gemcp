@@ -71,6 +71,20 @@ func (_c *EnvironmentCreate) SetProjectID(v int) *EnvironmentCreate {
 	return _c
 }
 
+// SetBackend sets the "backend" field.
+func (_c *EnvironmentCreate) SetBackend(v environment.Backend) *EnvironmentCreate {
+	_c.mutation.SetBackend(v)
+	return _c
+}
+
+// SetNillableBackend sets the "backend" field if the given value is not nil.
+func (_c *EnvironmentCreate) SetNillableBackend(v *environment.Backend) *EnvironmentCreate {
+	if v != nil {
+		_c.SetBackend(*v)
+	}
+	return _c
+}
+
 // SetName sets the "name" field.
 func (_c *EnvironmentCreate) SetName(v string) *EnvironmentCreate {
 	_c.mutation.SetName(v)
@@ -192,6 +206,10 @@ func (_c *EnvironmentCreate) defaults() {
 		v := environment.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
+	if _, ok := _c.mutation.Backend(); !ok {
+		v := environment.DefaultBackend
+		_c.mutation.SetBackend(v)
+	}
 	if _, ok := _c.mutation.Status(); !ok {
 		v := environment.DefaultStatus
 		_c.mutation.SetStatus(v)
@@ -215,6 +233,14 @@ func (_c *EnvironmentCreate) check() error {
 	}
 	if _, ok := _c.mutation.ProjectID(); !ok {
 		return &ValidationError{Name: "project_id", err: errors.New(`ent: missing required field "Environment.project_id"`)}
+	}
+	if _, ok := _c.mutation.Backend(); !ok {
+		return &ValidationError{Name: "backend", err: errors.New(`ent: missing required field "Environment.backend"`)}
+	}
+	if v, ok := _c.mutation.Backend(); ok {
+		if err := environment.BackendValidator(v); err != nil {
+			return &ValidationError{Name: "backend", err: fmt.Errorf(`ent: validator failed for field "Environment.backend": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.Name(); !ok {
 		return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "Environment.name"`)}
@@ -288,6 +314,10 @@ func (_c *EnvironmentCreate) createSpec() (*Environment, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.UpdatedAt(); ok {
 		_spec.SetField(environment.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
+	}
+	if value, ok := _c.mutation.Backend(); ok {
+		_spec.SetField(environment.FieldBackend, field.TypeEnum, value)
+		_node.Backend = value
 	}
 	if value, ok := _c.mutation.Name(); ok {
 		_spec.SetField(environment.FieldName, field.TypeString, value)

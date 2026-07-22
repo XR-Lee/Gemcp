@@ -28,6 +28,16 @@ type Tx struct {
 	Experiment *ExperimentClient
 	// IdempotencyRecord is the client for interacting with the IdempotencyRecord builders.
 	IdempotencyRecord *IdempotencyRecordClient
+	// NodeAssignment is the client for interacting with the NodeAssignment builders.
+	NodeAssignment *NodeAssignmentClient
+	// NodeCommand is the client for interacting with the NodeCommand builders.
+	NodeCommand *NodeCommandClient
+	// NodeEnrollment is the client for interacting with the NodeEnrollment builders.
+	NodeEnrollment *NodeEnrollmentClient
+	// NodeEvent is the client for interacting with the NodeEvent builders.
+	NodeEvent *NodeEventClient
+	// NodeProjectAccess is the client for interacting with the NodeProjectAccess builders.
+	NodeProjectAccess *NodeProjectAccessClient
 	// Notification is the client for interacting with the Notification builders.
 	Notification *NotificationClient
 	// NotificationSetting is the client for interacting with the NotificationSetting builders.
@@ -44,6 +54,8 @@ type Tx struct {
 	Repository *RepositoryClient
 	// ResourceProfile is the client for interacting with the ResourceProfile builders.
 	ResourceProfile *ResourceProfileClient
+	// SelfHostedNode is the client for interacting with the SelfHostedNode builders.
+	SelfHostedNode *SelfHostedNodeClient
 	// ServiceHeartbeat is the client for interacting with the ServiceHeartbeat builders.
 	ServiceHeartbeat *ServiceHeartbeatClient
 	// Session is the client for interacting with the Session builders.
@@ -191,6 +203,11 @@ func (tx *Tx) init() {
 	tx.Environment = NewEnvironmentClient(tx.config)
 	tx.Experiment = NewExperimentClient(tx.config)
 	tx.IdempotencyRecord = NewIdempotencyRecordClient(tx.config)
+	tx.NodeAssignment = NewNodeAssignmentClient(tx.config)
+	tx.NodeCommand = NewNodeCommandClient(tx.config)
+	tx.NodeEnrollment = NewNodeEnrollmentClient(tx.config)
+	tx.NodeEvent = NewNodeEventClient(tx.config)
+	tx.NodeProjectAccess = NewNodeProjectAccessClient(tx.config)
 	tx.Notification = NewNotificationClient(tx.config)
 	tx.NotificationSetting = NewNotificationSettingClient(tx.config)
 	tx.Project = NewProjectClient(tx.config)
@@ -199,6 +216,7 @@ func (tx *Tx) init() {
 	tx.RecordMixin = NewRecordMixinClient(tx.config)
 	tx.Repository = NewRepositoryClient(tx.config)
 	tx.ResourceProfile = NewResourceProfileClient(tx.config)
+	tx.SelfHostedNode = NewSelfHostedNodeClient(tx.config)
 	tx.ServiceHeartbeat = NewServiceHeartbeatClient(tx.config)
 	tx.Session = NewSessionClient(tx.config)
 	tx.Tenant = NewTenantClient(tx.config)
