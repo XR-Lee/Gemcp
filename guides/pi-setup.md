@@ -30,11 +30,13 @@ unset setup_link
 
 ## Required operating boundary
 
-Setup and read-only verification do not create paid resources. Before any `submit_experiment` call:
+Setup and read-only verification do not create paid resources. For normal work:
 
-- call `get_project_options` and `get_project_cost`;
-- use only approved IDs and a complete pushed Git commit SHA;
-- show the exact command, runtime, resource profile, idempotency key, and worst-case reservation;
-- wait for explicit human approval unless an existing standing authorization unambiguously covers the run.
+- inspect the intended repository entry point and call `prepare_experiment` with an ordered argv;
+- let Gemcp resolve repository defaults, the full commit SHA, resources, checks, cost, and idempotency;
+- show the exact immutable proposal and wait for explicit human approval of its digest;
+- call `submit_prepared_experiment` only with that proposal ID and digest.
 
-After submission, record the Experiment ID and monitor it to a terminal state. Never create a new idempotency key merely because a response was delayed.
+`submit_experiment` remains an Advanced shell-command compatibility path. It still requires `get_project_options`, `get_project_cost`, a full pushed commit SHA, an exact command, a caller-managed idempotency key, and separate human approval.
+
+After submission, record the Experiment ID and monitor it to a terminal state. Never create a replacement proposal merely because a response was delayed.

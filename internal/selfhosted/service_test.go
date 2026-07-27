@@ -28,6 +28,10 @@ type serviceFixture struct {
 }
 
 func newServiceFixture(t *testing.T) serviceFixture {
+	return newServiceFixtureWithArgv(t, nil)
+}
+
+func newServiceFixtureWithArgv(t *testing.T, argv []string) serviceFixture {
 	t.Helper()
 	client := enttest.Open(t, dialect.SQLite, "file:"+t.Name()+"?mode=memory&cache=shared&_fk=1")
 	t.Cleanup(func() { _ = client.Close() })
@@ -47,17 +51,21 @@ func newServiceFixture(t *testing.T) serviceFixture {
 	node, _ := client.SelfHostedNode.Create().SetTenantID(tenant.ID).SetLabel("gpu-node").SetTokenPrefix("gmn_test").SetTokenHash([]byte("node-hash")).
 		SetStatus("active").SetObservedState("online").SetInstallationID(uuid.NewString()).SetMachineFingerprint(strings.Repeat("b", 64)).
 		SetHostname("gpu-node").SetOperatingSystem("linux").SetArchitecture("amd64").SetAgentVersion("test").SetProtocolVersion(nodeprotocol.Version).
-		SetCapabilities(map[string]any{"gpus": []any{map[string]any{"uuid": "GPU-test", "name": "NVIDIA GeForce RTX 3090", "memory_bytes": float64(24 << 30)}}}).
+		SetCapabilities(map[string]any{"gpus": []any{map[string]any{"uuid": "GPU-test", "name": "NVIDIA GeForce RTX 3090", "memory_bytes": float64(24 << 30)}}, "execution_modes": []any{"shell", "argv"}}).
 		SetStorage(map[string]any{"available_bytes": float64(1 << 40)}).SetLastSeenAt(now).Save(ctx)
 	_, _ = client.NodeProjectAccess.Create().SetTenantID(tenant.ID).SetNodeID(node.ID).SetProjectID(project.ID).Save(ctx)
 	experimentID := uuid.New()
-	experiment, _ := client.Experiment.Create().SetPublicID(experimentID).SetTenantID(tenant.ID).SetProjectID(project.ID).SetAgentTokenID(agent.ID).
+	experimentCreate := client.Experiment.Create().SetPublicID(experimentID).SetTenantID(tenant.ID).SetProjectID(project.ID).SetAgentTokenID(agent.ID).
 		SetRepositoryID(repository.ID).SetEnvironmentID(environment.ID).SetResourceProfileID(profile.ID).SetCommitSha(strings.Repeat("0", 40)).
 		SetCommand("python train.py").SetMaxRuntimeSeconds(300).SetTimeoutExtensionSeconds(60).SetTerminationGraceSeconds(5).
 		SetRepositorySnapshot(map[string]any{"id": repository.PublicID.String(), "project_id": project.PublicID.String()}).
 		SetEnvironmentSnapshot(map[string]any{"id": environment.PublicID.String(), "backend": Backend, "image_uuid": environment.ImageUUID}).
 		SetResourceSnapshot(map[string]any{"id": profile.PublicID.String(), "backend": Backend}).SetOutputPath("managed://experiments/" + experimentID.String() + "/outputs").
-		SetReservedCostMilli(0).Save(ctx)
+		SetReservedCostMilli(0)
+	if len(argv) > 0 {
+		experimentCreate.SetExecutionMode("argv").SetArgv(argv)
+	}
+	experiment, _ := experimentCreate.Save(ctx)
 	_, _ = client.BudgetEntry.Create().SetTenantID(tenant.ID).SetProjectID(project.ID).SetExperimentID(experiment.ID).
 		SetPeriod("2026-07").SetKind("reservation").SetAmountMilli(0).SetDescription("unmetered").Save(ctx)
 	config := DefaultConfig()
@@ -92,6 +100,22 @@ func (f serviceFixture) dispatch(t *testing.T) *ent.NodeAssignment {
 		t.Fatal(err)
 	}
 	return assignment
+}
+
+func TestArgvAssignmentCarriesNoShellCommand(t *testing.T) {
+	f := newServiceFixtureWithArgv(t, []string{"python", "train.py", "--seed", "2"})
+	assignment := f.dispatch(t)
+	command, err := f.client.NodeCommand.Query().Where(nodecommand.AssignmentIDEQ(assignment.ID), nodecommand.KindEQ("start_workload")).Only(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if command.Payload["execution_mode"] != "argv" || command.Payload["command"] != "" {
+		t.Fatalf("argv command payload = %+v", command.Payload)
+	}
+	values, ok := command.Payload["argv"].([]any)
+	if !ok || len(values) != 4 || values[0] != "python" || values[3] != "2" {
+		t.Fatalf("argv payload = %#v", command.Payload["argv"])
+	}
 }
 
 func TestAssignmentLifecycleIsUnmeteredAndTokenless(t *testing.T) {

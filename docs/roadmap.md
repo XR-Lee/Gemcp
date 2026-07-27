@@ -104,6 +104,16 @@ Retry transiently interrupted source bodies from a clean temporary file and retr
 
 Add an Owner-only Diagnostics workspace with fixed GPU-connectivity and PyTorch-CUDA suites for AutoDL and Self-hosted backends. Run diagnostics through normal immutable Experiments, Attempts, source delivery, callbacks, output collection, settlement, cancellation, and cleanup. Gate dispatch on bounded preflight, explicit paid confirmation, a drift-protected proposal digest, Project-scoped hashed idempotency, and cleanup-aware result assessment.
 
+### v0.13.0 - repository-first prepared Agent experiments
+
+Add durable 30-minute Experiment Proposals and the `prepare_experiment` and `submit_prepared_experiment` MCP tools. Resolve a sole repository, server-verified full commit, compatible Environment and Resource Profile, source safety, backend readiness, capacity, budget, runtime bounds, and worst-case reservation before confirmation. Use the Proposal as the immutable drift and idempotency boundary. Carry structured argv end to end and execute it directly in the AutoDL Runner or capability-compatible Self-hosted Nodes while retaining `submit_experiment` as the Advanced shell path.
+
+## In progress
+
+### Repository readiness and Owner prepared experiments
+
+Add repository URL onboarding and public-repository readiness, expose the prepared proposal and confirmation flow to authenticated Owners, then add reviewed named workloads. The released Agent path already removes preliminary options, cost, UUID, full-SHA, reservation calculation, caller idempotency, and shell-command assembly from the common single-repository workflow.
+
 ## Further validation
 
 The following items still require the target environment or newly authorized paid resources:

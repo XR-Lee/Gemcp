@@ -25,6 +25,8 @@ func (Experiment) Fields() []ent.Field {
 			Validate(enum("queued", "provisioning", "running", "cancelling", "collecting", "succeeded", "failed", "cancelled", "timed_out", "budget_stopped", "provider_error")),
 		field.String("desired_state").Default("running").Validate(enum("running", "cancelled")),
 		field.String("commit_sha").Immutable().MaxLen(64),
+		field.Enum("execution_mode").Values("shell", "argv").Default("shell").Immutable(),
+		field.Strings("argv").Optional().Immutable(),
 		field.Text("command").Immutable(),
 		field.Int("max_runtime_seconds").Immutable().Positive(),
 		field.Int("timeout_extension_seconds").Immutable().NonNegative(),
@@ -69,6 +71,7 @@ func (Experiment) Edges() []ent.Edge {
 		edge.To("budget_entries", BudgetEntry.Type),
 		edge.To("idempotency_records", IdempotencyRecord.Type),
 		edge.To("diagnostic_run", DiagnosticRun.Type).Unique(),
+		edge.To("proposal", ExperimentProposal.Type).Unique(),
 	}
 }
 

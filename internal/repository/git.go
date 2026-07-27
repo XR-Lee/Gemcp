@@ -112,6 +112,26 @@ func (v *CommandVerifier) VerifyCommit(ctx context.Context, sshURL, host string,
 	return v.verify(ctx, sshURL, host, privateKey, fingerprint, commitSHA)
 }
 
+func (v *CommandVerifier) ResolveRef(ctx context.Context, sshURL, host string, privateKey []byte, fingerprint, ref string) (string, error) {
+	tempDir, repositoryPath, environment, err := v.fetchResolved(ctx, sshURL, host, privateKey, fingerprint, ref, false)
+	if tempDir != "" {
+		defer os.RemoveAll(tempDir)
+	}
+	if err != nil {
+		return "", err
+	}
+	revParse := exec.CommandContext(ctx, v.gitBinary, "-C", repositoryPath, "rev-parse", "FETCH_HEAD")
+	output, stderr, err := run(revParse, environment)
+	if err != nil {
+		return "", fmt.Errorf("resolve fetched commit: %w: %s", err, stderr)
+	}
+	commitSHA := strings.ToLower(strings.TrimSpace(string(output)))
+	if len(commitSHA) != 40 && len(commitSHA) != 64 {
+		return "", fmt.Errorf("resolved Git ref did not produce a full commit SHA")
+	}
+	return commitSHA, nil
+}
+
 func (v *CommandVerifier) ArchiveCommit(ctx context.Context, sshURL, host string, privateKey []byte, fingerprint, commitSHA string, maxBytes int64) (Archive, error) {
 	if maxBytes <= 0 {
 		return nil, fmt.Errorf("source archive size limit must be positive")
@@ -178,6 +198,10 @@ func (v *CommandVerifier) verify(ctx context.Context, sshURL, host string, priva
 }
 
 func (v *CommandVerifier) fetch(ctx context.Context, sshURL, host string, privateKey []byte, fingerprint, ref string) (string, string, []string, error) {
+	return v.fetchResolved(ctx, sshURL, host, privateKey, fingerprint, ref, true)
+}
+
+func (v *CommandVerifier) fetchResolved(ctx context.Context, sshURL, host string, privateKey []byte, fingerprint, ref string, requireExact bool) (string, string, []string, error) {
 	tempDir, err := os.MkdirTemp("", "gemcp-git-fetch-*")
 	if err != nil {
 		return "", "", nil, fmt.Errorf("create Git workspace: %w", err)
@@ -218,7 +242,7 @@ func (v *CommandVerifier) fetch(ctx context.Context, sshURL, host string, privat
 	if _, stderr, err := run(fetchCommand, environment); err != nil {
 		return fail(fmt.Errorf("fetch requested Git ref: %w: %s", err, stderr))
 	}
-	if ref != "HEAD" {
+	if requireExact && ref != "HEAD" {
 		revParse := exec.CommandContext(ctx, v.gitBinary, "-C", repositoryPath, "rev-parse", "FETCH_HEAD")
 		output, stderr, err := run(revParse, environment)
 		if err != nil {

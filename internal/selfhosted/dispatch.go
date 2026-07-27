@@ -13,6 +13,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/nodeprojectaccess"
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
 	"github.com/XR-Lee/Gemcp/ent/selfhostednode"
+	"github.com/XR-Lee/Gemcp/internal/executioncmd"
 	"github.com/google/uuid"
 )
 
@@ -77,12 +78,21 @@ func (s *Service) Dispatch(ctx context.Context, tx *ent.Tx, experiment *ent.Expe
 	if err != nil {
 		return false, fmt.Errorf("create Node Assignment: %w", err)
 	}
+	executionCommand := experiment.Command
+	argv := append([]string(nil), experiment.Argv...)
+	if experiment.ExecutionMode == executioncmd.ModeArgv {
+		executionCommand = ""
+	} else {
+		argv = nil
+	}
 	payload := map[string]any{
 		"assignment_id":             assignmentID.String(),
 		"experiment_id":             experiment.PublicID.String(),
 		"attempt_id":                attemptID.String(),
 		"image":                     image,
-		"command":                   experiment.Command,
+		"execution_mode":            experiment.ExecutionMode,
+		"command":                   executionCommand,
+		"argv":                      argv,
 		"source_path":               "/api/v1/node-assignments/" + assignmentID.String() + "/source",
 		"source_max_bytes":          s.config.SourceMaxBytes,
 		"output_ref":                outputRef,
@@ -93,11 +103,11 @@ func (s *Service) Dispatch(ctx context.Context, tx *ent.Tx, experiment *ent.Expe
 		"cpu_limit":                 profile.CPUTo,
 		"memory_limit_bytes":        int64(profile.MemoryToGB) << 30,
 	}
-	command, err := enqueueCommand(ctx, tx, experiment.TenantID, node.ID, assignment.ID, "start_workload", "start:"+assignmentID.String(), payload, now)
+	commandRecord, err := enqueueCommand(ctx, tx, experiment.TenantID, node.ID, assignment.ID, "start_workload", "start:"+assignmentID.String(), payload, now)
 	if err != nil {
 		return false, err
 	}
-	if _, err := assignment.Update().SetStartCommandID(command.PublicID.String()).Save(ctx); err != nil {
+	if _, err := assignment.Update().SetStartCommandID(commandRecord.PublicID.String()).Save(ctx); err != nil {
 		return false, err
 	}
 	resourceID := "self_hosted:" + assignmentID.String()
@@ -146,12 +156,36 @@ func (s *Service) availableNode(ctx context.Context, tx *ent.Tx, experiment *ent
 		if busy {
 			continue
 		}
+		if experiment.ExecutionMode == executioncmd.ModeArgv && !supportsExecutionMode(node.Capabilities, executioncmd.ModeArgv) {
+			continue
+		}
 		gpuUUID, ok := matchingGPU(node.Capabilities, profile.GpuNames)
 		if ok {
 			return node, gpuUUID, nil
 		}
 	}
 	return nil, "", nil
+}
+
+func supportsExecutionMode(capabilities map[string]any, mode string) bool {
+	switch values := capabilities["execution_modes"].(type) {
+	case []any:
+		for _, value := range values {
+			candidate, _ := value.(string)
+			if candidate == mode {
+				return true
+			}
+		}
+	case []string:
+		for _, candidate := range values {
+			if candidate == mode {
+				return true
+			}
+		}
+	default:
+		return mode == executioncmd.ModeShell
+	}
+	return false
 }
 
 func matchingGPU(capabilities map[string]any, accepted []string) (string, bool) {

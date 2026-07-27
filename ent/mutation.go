@@ -19,6 +19,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/diagnosticrun"
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/nodecommand"
@@ -59,6 +60,7 @@ const (
 	TypeDiagnosticRun       = "DiagnosticRun"
 	TypeEnvironment         = "Environment"
 	TypeExperiment          = "Experiment"
+	TypeExperimentProposal  = "ExperimentProposal"
 	TypeIdempotencyRecord   = "IdempotencyRecord"
 	TypeNodeAssignment      = "NodeAssignment"
 	TypeNodeCommand         = "NodeCommand"
@@ -1362,33 +1364,36 @@ func (m *AgentEnrollmentMutation) ResetEdge(name string) error {
 // AgentTokenMutation represents an operation that mutates the AgentToken nodes in the graph.
 type AgentTokenMutation struct {
 	config
-	op                         Op
-	typ                        string
-	id                         *int
-	public_id                  *uuid.UUID
-	created_at                 *time.Time
-	updated_at                 *time.Time
-	label                      *string
-	prefix                     *string
-	token_hash                 *[]byte
-	principal_type             *agenttoken.PrincipalType
-	scopes                     *[]string
-	appendscopes               []string
-	status                     *agenttoken.Status
-	expires_at                 *time.Time
-	last_used_at               *time.Time
-	clearedFields              map[string]struct{}
-	project                    *int
-	clearedproject             bool
-	experiments                map[int]struct{}
-	removedexperiments         map[int]struct{}
-	clearedexperiments         bool
-	idempotency_records        map[int]struct{}
-	removedidempotency_records map[int]struct{}
-	clearedidempotency_records bool
-	done                       bool
-	oldValue                   func(context.Context) (*AgentToken, error)
-	predicates                 []predicate.AgentToken
+	op                          Op
+	typ                         string
+	id                          *int
+	public_id                   *uuid.UUID
+	created_at                  *time.Time
+	updated_at                  *time.Time
+	label                       *string
+	prefix                      *string
+	token_hash                  *[]byte
+	principal_type              *agenttoken.PrincipalType
+	scopes                      *[]string
+	appendscopes                []string
+	status                      *agenttoken.Status
+	expires_at                  *time.Time
+	last_used_at                *time.Time
+	clearedFields               map[string]struct{}
+	project                     *int
+	clearedproject              bool
+	experiments                 map[int]struct{}
+	removedexperiments          map[int]struct{}
+	clearedexperiments          bool
+	idempotency_records         map[int]struct{}
+	removedidempotency_records  map[int]struct{}
+	clearedidempotency_records  bool
+	experiment_proposals        map[int]struct{}
+	removedexperiment_proposals map[int]struct{}
+	clearedexperiment_proposals bool
+	done                        bool
+	oldValue                    func(context.Context) (*AgentToken, error)
+	predicates                  []predicate.AgentToken
 }
 
 var _ ent.Mutation = (*AgentTokenMutation)(nil)
@@ -2097,6 +2102,60 @@ func (m *AgentTokenMutation) ResetIdempotencyRecords() {
 	m.removedidempotency_records = nil
 }
 
+// AddExperimentProposalIDs adds the "experiment_proposals" edge to the ExperimentProposal entity by ids.
+func (m *AgentTokenMutation) AddExperimentProposalIDs(ids ...int) {
+	if m.experiment_proposals == nil {
+		m.experiment_proposals = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.experiment_proposals[ids[i]] = struct{}{}
+	}
+}
+
+// ClearExperimentProposals clears the "experiment_proposals" edge to the ExperimentProposal entity.
+func (m *AgentTokenMutation) ClearExperimentProposals() {
+	m.clearedexperiment_proposals = true
+}
+
+// ExperimentProposalsCleared reports if the "experiment_proposals" edge to the ExperimentProposal entity was cleared.
+func (m *AgentTokenMutation) ExperimentProposalsCleared() bool {
+	return m.clearedexperiment_proposals
+}
+
+// RemoveExperimentProposalIDs removes the "experiment_proposals" edge to the ExperimentProposal entity by IDs.
+func (m *AgentTokenMutation) RemoveExperimentProposalIDs(ids ...int) {
+	if m.removedexperiment_proposals == nil {
+		m.removedexperiment_proposals = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.experiment_proposals, ids[i])
+		m.removedexperiment_proposals[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedExperimentProposals returns the removed IDs of the "experiment_proposals" edge to the ExperimentProposal entity.
+func (m *AgentTokenMutation) RemovedExperimentProposalsIDs() (ids []int) {
+	for id := range m.removedexperiment_proposals {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ExperimentProposalsIDs returns the "experiment_proposals" edge IDs in the mutation.
+func (m *AgentTokenMutation) ExperimentProposalsIDs() (ids []int) {
+	for id := range m.experiment_proposals {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetExperimentProposals resets all changes to the "experiment_proposals" edge.
+func (m *AgentTokenMutation) ResetExperimentProposals() {
+	m.experiment_proposals = nil
+	m.clearedexperiment_proposals = false
+	m.removedexperiment_proposals = nil
+}
+
 // Where appends a list predicates to the AgentTokenMutation builder.
 func (m *AgentTokenMutation) Where(ps ...predicate.AgentToken) {
 	m.predicates = append(m.predicates, ps...)
@@ -2435,7 +2494,7 @@ func (m *AgentTokenMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *AgentTokenMutation) AddedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 4)
 	if m.project != nil {
 		edges = append(edges, agenttoken.EdgeProject)
 	}
@@ -2444,6 +2503,9 @@ func (m *AgentTokenMutation) AddedEdges() []string {
 	}
 	if m.idempotency_records != nil {
 		edges = append(edges, agenttoken.EdgeIdempotencyRecords)
+	}
+	if m.experiment_proposals != nil {
+		edges = append(edges, agenttoken.EdgeExperimentProposals)
 	}
 	return edges
 }
@@ -2468,18 +2530,27 @@ func (m *AgentTokenMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case agenttoken.EdgeExperimentProposals:
+		ids := make([]ent.Value, 0, len(m.experiment_proposals))
+		for id := range m.experiment_proposals {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *AgentTokenMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 4)
 	if m.removedexperiments != nil {
 		edges = append(edges, agenttoken.EdgeExperiments)
 	}
 	if m.removedidempotency_records != nil {
 		edges = append(edges, agenttoken.EdgeIdempotencyRecords)
+	}
+	if m.removedexperiment_proposals != nil {
+		edges = append(edges, agenttoken.EdgeExperimentProposals)
 	}
 	return edges
 }
@@ -2500,13 +2571,19 @@ func (m *AgentTokenMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case agenttoken.EdgeExperimentProposals:
+		ids := make([]ent.Value, 0, len(m.removedexperiment_proposals))
+		for id := range m.removedexperiment_proposals {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *AgentTokenMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 4)
 	if m.clearedproject {
 		edges = append(edges, agenttoken.EdgeProject)
 	}
@@ -2515,6 +2592,9 @@ func (m *AgentTokenMutation) ClearedEdges() []string {
 	}
 	if m.clearedidempotency_records {
 		edges = append(edges, agenttoken.EdgeIdempotencyRecords)
+	}
+	if m.clearedexperiment_proposals {
+		edges = append(edges, agenttoken.EdgeExperimentProposals)
 	}
 	return edges
 }
@@ -2529,6 +2609,8 @@ func (m *AgentTokenMutation) EdgeCleared(name string) bool {
 		return m.clearedexperiments
 	case agenttoken.EdgeIdempotencyRecords:
 		return m.clearedidempotency_records
+	case agenttoken.EdgeExperimentProposals:
+		return m.clearedexperiment_proposals
 	}
 	return false
 }
@@ -2556,6 +2638,9 @@ func (m *AgentTokenMutation) ResetEdge(name string) error {
 		return nil
 	case agenttoken.EdgeIdempotencyRecords:
 		m.ResetIdempotencyRecords()
+		return nil
+	case agenttoken.EdgeExperimentProposals:
+		m.ResetExperimentProposals()
 		return nil
 	}
 	return fmt.Errorf("unknown AgentToken edge %s", name)
@@ -7961,27 +8046,30 @@ func (m *DiagnosticRunMutation) ResetEdge(name string) error {
 // EnvironmentMutation represents an operation that mutates the Environment nodes in the graph.
 type EnvironmentMutation struct {
 	config
-	op                 Op
-	typ                string
-	id                 *int
-	public_id          *uuid.UUID
-	created_at         *time.Time
-	updated_at         *time.Time
-	backend            *environment.Backend
-	name               *string
-	image_uuid         *string
-	recipe_ref         *string
-	status             *environment.Status
-	is_default         *bool
-	clearedFields      map[string]struct{}
-	project            *int
-	clearedproject     bool
-	experiments        map[int]struct{}
-	removedexperiments map[int]struct{}
-	clearedexperiments bool
-	done               bool
-	oldValue           func(context.Context) (*Environment, error)
-	predicates         []predicate.Environment
+	op                          Op
+	typ                         string
+	id                          *int
+	public_id                   *uuid.UUID
+	created_at                  *time.Time
+	updated_at                  *time.Time
+	backend                     *environment.Backend
+	name                        *string
+	image_uuid                  *string
+	recipe_ref                  *string
+	status                      *environment.Status
+	is_default                  *bool
+	clearedFields               map[string]struct{}
+	project                     *int
+	clearedproject              bool
+	experiments                 map[int]struct{}
+	removedexperiments          map[int]struct{}
+	clearedexperiments          bool
+	experiment_proposals        map[int]struct{}
+	removedexperiment_proposals map[int]struct{}
+	clearedexperiment_proposals bool
+	done                        bool
+	oldValue                    func(context.Context) (*Environment, error)
+	predicates                  []predicate.Environment
 }
 
 var _ ent.Mutation = (*EnvironmentMutation)(nil)
@@ -8536,6 +8624,60 @@ func (m *EnvironmentMutation) ResetExperiments() {
 	m.removedexperiments = nil
 }
 
+// AddExperimentProposalIDs adds the "experiment_proposals" edge to the ExperimentProposal entity by ids.
+func (m *EnvironmentMutation) AddExperimentProposalIDs(ids ...int) {
+	if m.experiment_proposals == nil {
+		m.experiment_proposals = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.experiment_proposals[ids[i]] = struct{}{}
+	}
+}
+
+// ClearExperimentProposals clears the "experiment_proposals" edge to the ExperimentProposal entity.
+func (m *EnvironmentMutation) ClearExperimentProposals() {
+	m.clearedexperiment_proposals = true
+}
+
+// ExperimentProposalsCleared reports if the "experiment_proposals" edge to the ExperimentProposal entity was cleared.
+func (m *EnvironmentMutation) ExperimentProposalsCleared() bool {
+	return m.clearedexperiment_proposals
+}
+
+// RemoveExperimentProposalIDs removes the "experiment_proposals" edge to the ExperimentProposal entity by IDs.
+func (m *EnvironmentMutation) RemoveExperimentProposalIDs(ids ...int) {
+	if m.removedexperiment_proposals == nil {
+		m.removedexperiment_proposals = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.experiment_proposals, ids[i])
+		m.removedexperiment_proposals[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedExperimentProposals returns the removed IDs of the "experiment_proposals" edge to the ExperimentProposal entity.
+func (m *EnvironmentMutation) RemovedExperimentProposalsIDs() (ids []int) {
+	for id := range m.removedexperiment_proposals {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ExperimentProposalsIDs returns the "experiment_proposals" edge IDs in the mutation.
+func (m *EnvironmentMutation) ExperimentProposalsIDs() (ids []int) {
+	for id := range m.experiment_proposals {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetExperimentProposals resets all changes to the "experiment_proposals" edge.
+func (m *EnvironmentMutation) ResetExperimentProposals() {
+	m.experiment_proposals = nil
+	m.clearedexperiment_proposals = false
+	m.removedexperiment_proposals = nil
+}
+
 // Where appends a list predicates to the EnvironmentMutation builder.
 func (m *EnvironmentMutation) Where(ps ...predicate.Environment) {
 	m.predicates = append(m.predicates, ps...)
@@ -8834,12 +8976,15 @@ func (m *EnvironmentMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *EnvironmentMutation) AddedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.project != nil {
 		edges = append(edges, environment.EdgeProject)
 	}
 	if m.experiments != nil {
 		edges = append(edges, environment.EdgeExperiments)
+	}
+	if m.experiment_proposals != nil {
+		edges = append(edges, environment.EdgeExperimentProposals)
 	}
 	return edges
 }
@@ -8858,15 +9003,24 @@ func (m *EnvironmentMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case environment.EdgeExperimentProposals:
+		ids := make([]ent.Value, 0, len(m.experiment_proposals))
+		for id := range m.experiment_proposals {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *EnvironmentMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.removedexperiments != nil {
 		edges = append(edges, environment.EdgeExperiments)
+	}
+	if m.removedexperiment_proposals != nil {
+		edges = append(edges, environment.EdgeExperimentProposals)
 	}
 	return edges
 }
@@ -8881,18 +9035,27 @@ func (m *EnvironmentMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case environment.EdgeExperimentProposals:
+		ids := make([]ent.Value, 0, len(m.removedexperiment_proposals))
+		for id := range m.removedexperiment_proposals {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *EnvironmentMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.clearedproject {
 		edges = append(edges, environment.EdgeProject)
 	}
 	if m.clearedexperiments {
 		edges = append(edges, environment.EdgeExperiments)
+	}
+	if m.clearedexperiment_proposals {
+		edges = append(edges, environment.EdgeExperimentProposals)
 	}
 	return edges
 }
@@ -8905,6 +9068,8 @@ func (m *EnvironmentMutation) EdgeCleared(name string) bool {
 		return m.clearedproject
 	case environment.EdgeExperiments:
 		return m.clearedexperiments
+	case environment.EdgeExperimentProposals:
+		return m.clearedexperiment_proposals
 	}
 	return false
 }
@@ -8930,6 +9095,9 @@ func (m *EnvironmentMutation) ResetEdge(name string) error {
 	case environment.EdgeExperiments:
 		m.ResetExperiments()
 		return nil
+	case environment.EdgeExperimentProposals:
+		m.ResetExperimentProposals()
+		return nil
 	}
 	return fmt.Errorf("unknown Environment edge %s", name)
 }
@@ -8946,6 +9114,9 @@ type ExperimentMutation struct {
 	state                        *string
 	desired_state                *string
 	commit_sha                   *string
+	execution_mode               *experiment.ExecutionMode
+	argv                         *[]string
+	appendargv                   []string
 	command                      *string
 	max_runtime_seconds          *int
 	addmax_runtime_seconds       *int
@@ -9010,6 +9181,8 @@ type ExperimentMutation struct {
 	clearedidempotency_records   bool
 	diagnostic_run               *int
 	cleareddiagnostic_run        bool
+	proposal                     *int
+	clearedproposal              bool
 	done                         bool
 	oldValue                     func(context.Context) (*Experiment, error)
 	predicates                   []predicate.Experiment
@@ -9556,6 +9729,107 @@ func (m *ExperimentMutation) OldCommitSha(ctx context.Context) (v string, err er
 // ResetCommitSha resets all changes to the "commit_sha" field.
 func (m *ExperimentMutation) ResetCommitSha() {
 	m.commit_sha = nil
+}
+
+// SetExecutionMode sets the "execution_mode" field.
+func (m *ExperimentMutation) SetExecutionMode(em experiment.ExecutionMode) {
+	m.execution_mode = &em
+}
+
+// ExecutionMode returns the value of the "execution_mode" field in the mutation.
+func (m *ExperimentMutation) ExecutionMode() (r experiment.ExecutionMode, exists bool) {
+	v := m.execution_mode
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExecutionMode returns the old "execution_mode" field's value of the Experiment entity.
+// If the Experiment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ExperimentMutation) OldExecutionMode(ctx context.Context) (v experiment.ExecutionMode, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExecutionMode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExecutionMode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExecutionMode: %w", err)
+	}
+	return oldValue.ExecutionMode, nil
+}
+
+// ResetExecutionMode resets all changes to the "execution_mode" field.
+func (m *ExperimentMutation) ResetExecutionMode() {
+	m.execution_mode = nil
+}
+
+// SetArgv sets the "argv" field.
+func (m *ExperimentMutation) SetArgv(s []string) {
+	m.argv = &s
+	m.appendargv = nil
+}
+
+// Argv returns the value of the "argv" field in the mutation.
+func (m *ExperimentMutation) Argv() (r []string, exists bool) {
+	v := m.argv
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldArgv returns the old "argv" field's value of the Experiment entity.
+// If the Experiment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ExperimentMutation) OldArgv(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldArgv is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldArgv requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldArgv: %w", err)
+	}
+	return oldValue.Argv, nil
+}
+
+// AppendArgv adds s to the "argv" field.
+func (m *ExperimentMutation) AppendArgv(s []string) {
+	m.appendargv = append(m.appendargv, s...)
+}
+
+// AppendedArgv returns the list of values that were appended to the "argv" field in this mutation.
+func (m *ExperimentMutation) AppendedArgv() ([]string, bool) {
+	if len(m.appendargv) == 0 {
+		return nil, false
+	}
+	return m.appendargv, true
+}
+
+// ClearArgv clears the value of the "argv" field.
+func (m *ExperimentMutation) ClearArgv() {
+	m.argv = nil
+	m.appendargv = nil
+	m.clearedFields[experiment.FieldArgv] = struct{}{}
+}
+
+// ArgvCleared returns if the "argv" field was cleared in this mutation.
+func (m *ExperimentMutation) ArgvCleared() bool {
+	_, ok := m.clearedFields[experiment.FieldArgv]
+	return ok
+}
+
+// ResetArgv resets all changes to the "argv" field.
+func (m *ExperimentMutation) ResetArgv() {
+	m.argv = nil
+	m.appendargv = nil
+	delete(m.clearedFields, experiment.FieldArgv)
 }
 
 // SetCommand sets the "command" field.
@@ -11319,6 +11593,45 @@ func (m *ExperimentMutation) ResetDiagnosticRun() {
 	m.cleareddiagnostic_run = false
 }
 
+// SetProposalID sets the "proposal" edge to the ExperimentProposal entity by id.
+func (m *ExperimentMutation) SetProposalID(id int) {
+	m.proposal = &id
+}
+
+// ClearProposal clears the "proposal" edge to the ExperimentProposal entity.
+func (m *ExperimentMutation) ClearProposal() {
+	m.clearedproposal = true
+}
+
+// ProposalCleared reports if the "proposal" edge to the ExperimentProposal entity was cleared.
+func (m *ExperimentMutation) ProposalCleared() bool {
+	return m.clearedproposal
+}
+
+// ProposalID returns the "proposal" edge ID in the mutation.
+func (m *ExperimentMutation) ProposalID() (id int, exists bool) {
+	if m.proposal != nil {
+		return *m.proposal, true
+	}
+	return
+}
+
+// ProposalIDs returns the "proposal" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ProposalID instead. It exists only for internal usage by the builders.
+func (m *ExperimentMutation) ProposalIDs() (ids []int) {
+	if id := m.proposal; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetProposal resets all changes to the "proposal" edge.
+func (m *ExperimentMutation) ResetProposal() {
+	m.proposal = nil
+	m.clearedproposal = false
+}
+
 // Where appends a list predicates to the ExperimentMutation builder.
 func (m *ExperimentMutation) Where(ps ...predicate.Experiment) {
 	m.predicates = append(m.predicates, ps...)
@@ -11353,7 +11666,7 @@ func (m *ExperimentMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ExperimentMutation) Fields() []string {
-	fields := make([]string, 0, 39)
+	fields := make([]string, 0, 41)
 	if m.public_id != nil {
 		fields = append(fields, experiment.FieldPublicID)
 	}
@@ -11389,6 +11702,12 @@ func (m *ExperimentMutation) Fields() []string {
 	}
 	if m.commit_sha != nil {
 		fields = append(fields, experiment.FieldCommitSha)
+	}
+	if m.execution_mode != nil {
+		fields = append(fields, experiment.FieldExecutionMode)
+	}
+	if m.argv != nil {
+		fields = append(fields, experiment.FieldArgv)
 	}
 	if m.command != nil {
 		fields = append(fields, experiment.FieldCommand)
@@ -11503,6 +11822,10 @@ func (m *ExperimentMutation) Field(name string) (ent.Value, bool) {
 		return m.DesiredState()
 	case experiment.FieldCommitSha:
 		return m.CommitSha()
+	case experiment.FieldExecutionMode:
+		return m.ExecutionMode()
+	case experiment.FieldArgv:
+		return m.Argv()
 	case experiment.FieldCommand:
 		return m.Command()
 	case experiment.FieldMaxRuntimeSeconds:
@@ -11590,6 +11913,10 @@ func (m *ExperimentMutation) OldField(ctx context.Context, name string) (ent.Val
 		return m.OldDesiredState(ctx)
 	case experiment.FieldCommitSha:
 		return m.OldCommitSha(ctx)
+	case experiment.FieldExecutionMode:
+		return m.OldExecutionMode(ctx)
+	case experiment.FieldArgv:
+		return m.OldArgv(ctx)
 	case experiment.FieldCommand:
 		return m.OldCommand(ctx)
 	case experiment.FieldMaxRuntimeSeconds:
@@ -11736,6 +12063,20 @@ func (m *ExperimentMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetCommitSha(v)
+		return nil
+	case experiment.FieldExecutionMode:
+		v, ok := value.(experiment.ExecutionMode)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExecutionMode(v)
+		return nil
+	case experiment.FieldArgv:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetArgv(v)
 		return nil
 	case experiment.FieldCommand:
 		v, ok := value.(string)
@@ -12034,6 +12375,9 @@ func (m *ExperimentMutation) ClearedFields() []string {
 	if m.FieldCleared(experiment.FieldAgentTokenID) {
 		fields = append(fields, experiment.FieldAgentTokenID)
 	}
+	if m.FieldCleared(experiment.FieldArgv) {
+		fields = append(fields, experiment.FieldArgv)
+	}
 	if m.FieldCleared(experiment.FieldProviderResourceID) {
 		fields = append(fields, experiment.FieldProviderResourceID)
 	}
@@ -12092,6 +12436,9 @@ func (m *ExperimentMutation) ClearField(name string) error {
 	switch name {
 	case experiment.FieldAgentTokenID:
 		m.ClearAgentTokenID()
+		return nil
+	case experiment.FieldArgv:
+		m.ClearArgv()
 		return nil
 	case experiment.FieldProviderResourceID:
 		m.ClearProviderResourceID()
@@ -12178,6 +12525,12 @@ func (m *ExperimentMutation) ResetField(name string) error {
 		return nil
 	case experiment.FieldCommitSha:
 		m.ResetCommitSha()
+		return nil
+	case experiment.FieldExecutionMode:
+		m.ResetExecutionMode()
+		return nil
+	case experiment.FieldArgv:
+		m.ResetArgv()
 		return nil
 	case experiment.FieldCommand:
 		m.ResetCommand()
@@ -12266,7 +12619,7 @@ func (m *ExperimentMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *ExperimentMutation) AddedEdges() []string {
-	edges := make([]string, 0, 12)
+	edges := make([]string, 0, 13)
 	if m.tenant != nil {
 		edges = append(edges, experiment.EdgeTenant)
 	}
@@ -12302,6 +12655,9 @@ func (m *ExperimentMutation) AddedEdges() []string {
 	}
 	if m.diagnostic_run != nil {
 		edges = append(edges, experiment.EdgeDiagnosticRun)
+	}
+	if m.proposal != nil {
+		edges = append(edges, experiment.EdgeProposal)
 	}
 	return edges
 }
@@ -12368,13 +12724,17 @@ func (m *ExperimentMutation) AddedIDs(name string) []ent.Value {
 		if id := m.diagnostic_run; id != nil {
 			return []ent.Value{*id}
 		}
+	case experiment.EdgeProposal:
+		if id := m.proposal; id != nil {
+			return []ent.Value{*id}
+		}
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *ExperimentMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 12)
+	edges := make([]string, 0, 13)
 	if m.removedattempts != nil {
 		edges = append(edges, experiment.EdgeAttempts)
 	}
@@ -12433,7 +12793,7 @@ func (m *ExperimentMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *ExperimentMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 12)
+	edges := make([]string, 0, 13)
 	if m.clearedtenant {
 		edges = append(edges, experiment.EdgeTenant)
 	}
@@ -12470,6 +12830,9 @@ func (m *ExperimentMutation) ClearedEdges() []string {
 	if m.cleareddiagnostic_run {
 		edges = append(edges, experiment.EdgeDiagnosticRun)
 	}
+	if m.clearedproposal {
+		edges = append(edges, experiment.EdgeProposal)
+	}
 	return edges
 }
 
@@ -12501,6 +12864,8 @@ func (m *ExperimentMutation) EdgeCleared(name string) bool {
 		return m.clearedidempotency_records
 	case experiment.EdgeDiagnosticRun:
 		return m.cleareddiagnostic_run
+	case experiment.EdgeProposal:
+		return m.clearedproposal
 	}
 	return false
 }
@@ -12529,6 +12894,9 @@ func (m *ExperimentMutation) ClearEdge(name string) error {
 		return nil
 	case experiment.EdgeDiagnosticRun:
 		m.ClearDiagnosticRun()
+		return nil
+	case experiment.EdgeProposal:
+		m.ClearProposal()
 		return nil
 	}
 	return fmt.Errorf("unknown Experiment unique edge %s", name)
@@ -12574,8 +12942,2387 @@ func (m *ExperimentMutation) ResetEdge(name string) error {
 	case experiment.EdgeDiagnosticRun:
 		m.ResetDiagnosticRun()
 		return nil
+	case experiment.EdgeProposal:
+		m.ResetProposal()
+		return nil
 	}
 	return fmt.Errorf("unknown Experiment edge %s", name)
+}
+
+// ExperimentProposalMutation represents an operation that mutates the ExperimentProposal nodes in the graph.
+type ExperimentProposalMutation struct {
+	config
+	op                           Op
+	typ                          string
+	id                           *int
+	public_id                    *uuid.UUID
+	created_at                   *time.Time
+	updated_at                   *time.Time
+	status                       *experimentproposal.Status
+	requested_ref                *string
+	commit_sha                   *string
+	execution_mode               *experimentproposal.ExecutionMode
+	argv                         *[]string
+	appendargv                   []string
+	display_command              *string
+	runtime_preset               *string
+	max_runtime_seconds          *int
+	addmax_runtime_seconds       *int
+	timeout_extension_seconds    *int
+	addtimeout_extension_seconds *int
+	termination_grace_seconds    *int
+	addtermination_grace_seconds *int
+	project_snapshot             *map[string]interface{}
+	repository_snapshot          *map[string]interface{}
+	environment_snapshot         *map[string]interface{}
+	resource_snapshot            *map[string]interface{}
+	checks                       *[]map[string]interface{}
+	appendchecks                 []map[string]interface{}
+	reserved_cost_milli          *int64
+	addreserved_cost_milli       *int64
+	confirmation_digest          *string
+	expires_at                   *time.Time
+	submitted_at                 *time.Time
+	clearedFields                map[string]struct{}
+	tenant                       *int
+	clearedtenant                bool
+	project                      *int
+	clearedproject               bool
+	agent_token                  *int
+	clearedagent_token           bool
+	repository                   *int
+	clearedrepository            bool
+	environment                  *int
+	clearedenvironment           bool
+	resource_profile             *int
+	clearedresource_profile      bool
+	experiment                   *int
+	clearedexperiment            bool
+	done                         bool
+	oldValue                     func(context.Context) (*ExperimentProposal, error)
+	predicates                   []predicate.ExperimentProposal
+}
+
+var _ ent.Mutation = (*ExperimentProposalMutation)(nil)
+
+// experimentproposalOption allows management of the mutation configuration using functional options.
+type experimentproposalOption func(*ExperimentProposalMutation)
+
+// newExperimentProposalMutation creates new mutation for the ExperimentProposal entity.
+func newExperimentProposalMutation(c config, op Op, opts ...experimentproposalOption) *ExperimentProposalMutation {
+	m := &ExperimentProposalMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeExperimentProposal,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withExperimentProposalID sets the ID field of the mutation.
+func withExperimentProposalID(id int) experimentproposalOption {
+	return func(m *ExperimentProposalMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *ExperimentProposal
+		)
+		m.oldValue = func(ctx context.Context) (*ExperimentProposal, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().ExperimentProposal.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withExperimentProposal sets the old ExperimentProposal of the mutation.
+func withExperimentProposal(node *ExperimentProposal) experimentproposalOption {
+	return func(m *ExperimentProposalMutation) {
+		m.oldValue = func(context.Context) (*ExperimentProposal, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m ExperimentProposalMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m ExperimentProposalMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *ExperimentProposalMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *ExperimentProposalMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().ExperimentProposal.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetPublicID sets the "public_id" field.
+func (m *ExperimentProposalMutation) SetPublicID(u uuid.UUID) {
+	m.public_id = &u
+}
+
+// PublicID returns the value of the "public_id" field in the mutation.
+func (m *ExperimentProposalMutation) PublicID() (r uuid.UUID, exists bool) {
+	v := m.public_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPublicID returns the old "public_id" field's value of the ExperimentProposal entity.
+// If the ExperimentProposal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ExperimentProposalMutation) OldPublicID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPublicID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPublicID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPublicID: %w", err)
+	}
+	return oldValue.PublicID, nil
+}
+
+// ResetPublicID resets all changes to the "public_id" field.
+func (m *ExperimentProposalMutation) ResetPublicID() {
+	m.public_id = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *ExperimentProposalMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *ExperimentProposalMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the ExperimentProposal entity.
+// If the ExperimentProposal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ExperimentProposalMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *ExperimentProposalMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *ExperimentProposalMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *ExperimentProposalMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the ExperimentProposal entity.
+// If the ExperimentProposal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ExperimentProposalMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *ExperimentProposalMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *ExperimentProposalMutation) SetTenantID(i int) {
+	m.tenant = &i
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *ExperimentProposalMutation) TenantID() (r int, exists bool) {
+	v := m.tenant
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the ExperimentProposal entity.
+// If the ExperimentProposal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ExperimentProposalMutation) OldTenantID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *ExperimentProposalMutation) ResetTenantID() {
+	m.tenant = nil
+}
+
+// SetProjectID sets the "project_id" field.
+func (m *ExperimentProposalMutation) SetProjectID(i int) {
+	m.project = &i
+}
+
+// ProjectID returns the value of the "project_id" field in the mutation.
+func (m *ExperimentProposalMutation) ProjectID() (r int, exists bool) {
+	v := m.project
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProjectID returns the old "project_id" field's value of the ExperimentProposal entity.
+// If the ExperimentProposal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ExperimentProposalMutation) OldProjectID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProjectID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProjectID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProjectID: %w", err)
+	}
+	return oldValue.ProjectID, nil
+}
+
+// ResetProjectID resets all changes to the "project_id" field.
+func (m *ExperimentProposalMutation) ResetProjectID() {
+	m.project = nil
+}
+
+// SetAgentTokenID sets the "agent_token_id" field.
+func (m *ExperimentProposalMutation) SetAgentTokenID(i int) {
+	m.agent_token = &i
+}
+
+// AgentTokenID returns the value of the "agent_token_id" field in the mutation.
+func (m *ExperimentProposalMutation) AgentTokenID() (r int, exists bool) {
+	v := m.agent_token
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAgentTokenID returns the old "agent_token_id" field's value of the ExperimentProposal entity.
+// If the ExperimentProposal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ExperimentProposalMutation) OldAgentTokenID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAgentTokenID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAgentTokenID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAgentTokenID: %w", err)
+	}
+	return oldValue.AgentTokenID, nil
+}
+
+// ResetAgentTokenID resets all changes to the "agent_token_id" field.
+func (m *ExperimentProposalMutation) ResetAgentTokenID() {
+	m.agent_token = nil
+}
+
+// SetRepositoryID sets the "repository_id" field.
+func (m *ExperimentProposalMutation) SetRepositoryID(i int) {
+	m.repository = &i
+}
+
+// RepositoryID returns the value of the "repository_id" field in the mutation.
+func (m *ExperimentProposalMutation) RepositoryID() (r int, exists bool) {
+	v := m.repository
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRepositoryID returns the old "repository_id" field's value of the ExperimentProposal entity.
+// If the ExperimentProposal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ExperimentProposalMutation) OldRepositoryID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRepositoryID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRepositoryID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRepositoryID: %w", err)
+	}
+	return oldValue.RepositoryID, nil
+}
+
+// ResetRepositoryID resets all changes to the "repository_id" field.
+func (m *ExperimentProposalMutation) ResetRepositoryID() {
+	m.repository = nil
+}
+
+// SetEnvironmentID sets the "environment_id" field.
+func (m *ExperimentProposalMutation) SetEnvironmentID(i int) {
+	m.environment = &i
+}
+
+// EnvironmentID returns the value of the "environment_id" field in the mutation.
+func (m *ExperimentProposalMutation) EnvironmentID() (r int, exists bool) {
+	v := m.environment
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEnvironmentID returns the old "environment_id" field's value of the ExperimentProposal entity.
+// If the ExperimentProposal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ExperimentProposalMutation) OldEnvironmentID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEnvironmentID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEnvironmentID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEnvironmentID: %w", err)
+	}
+	return oldValue.EnvironmentID, nil
+}
+
+// ResetEnvironmentID resets all changes to the "environment_id" field.
+func (m *ExperimentProposalMutation) ResetEnvironmentID() {
+	m.environment = nil
+}
+
+// SetResourceProfileID sets the "resource_profile_id" field.
+func (m *ExperimentProposalMutation) SetResourceProfileID(i int) {
+	m.resource_profile = &i
+}
+
+// ResourceProfileID returns the value of the "resource_profile_id" field in the mutation.
+func (m *ExperimentProposalMutation) ResourceProfileID() (r int, exists bool) {
+	v := m.resource_profile
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResourceProfileID returns the old "resource_profile_id" field's value of the ExperimentProposal entity.
+// If the ExperimentProposal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ExperimentProposalMutation) OldResourceProfileID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResourceProfileID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResourceProfileID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResourceProfileID: %w", err)
+	}
+	return oldValue.ResourceProfileID, nil
+}
+
+// ResetResourceProfileID resets all changes to the "resource_profile_id" field.
+func (m *ExperimentProposalMutation) ResetResourceProfileID() {
+	m.resource_profile = nil
+}
+
+// SetExperimentID sets the "experiment_id" field.
+func (m *ExperimentProposalMutation) SetExperimentID(i int) {
+	m.experiment = &i
+}
+
+// ExperimentID returns the value of the "experiment_id" field in the mutation.
+func (m *ExperimentProposalMutation) ExperimentID() (r int, exists bool) {
+	v := m.experiment
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExperimentID returns the old "experiment_id" field's value of the ExperimentProposal entity.
+// If the ExperimentProposal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ExperimentProposalMutation) OldExperimentID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExperimentID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExperimentID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExperimentID: %w", err)
+	}
+	return oldValue.ExperimentID, nil
+}
+
+// ClearExperimentID clears the value of the "experiment_id" field.
+func (m *ExperimentProposalMutation) ClearExperimentID() {
+	m.experiment = nil
+	m.clearedFields[experimentproposal.FieldExperimentID] = struct{}{}
+}
+
+// ExperimentIDCleared returns if the "experiment_id" field was cleared in this mutation.
+func (m *ExperimentProposalMutation) ExperimentIDCleared() bool {
+	_, ok := m.clearedFields[experimentproposal.FieldExperimentID]
+	return ok
+}
+
+// ResetExperimentID resets all changes to the "experiment_id" field.
+func (m *ExperimentProposalMutation) ResetExperimentID() {
+	m.experiment = nil
+	delete(m.clearedFields, experimentproposal.FieldExperimentID)
+}
+
+// SetStatus sets the "status" field.
+func (m *ExperimentProposalMutation) SetStatus(e experimentproposal.Status) {
+	m.status = &e
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *ExperimentProposalMutation) Status() (r experimentproposal.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the ExperimentProposal entity.
+// If the ExperimentProposal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ExperimentProposalMutation) OldStatus(ctx context.Context) (v experimentproposal.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *ExperimentProposalMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetRequestedRef sets the "requested_ref" field.
+func (m *ExperimentProposalMutation) SetRequestedRef(s string) {
+	m.requested_ref = &s
+}
+
+// RequestedRef returns the value of the "requested_ref" field in the mutation.
+func (m *ExperimentProposalMutation) RequestedRef() (r string, exists bool) {
+	v := m.requested_ref
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequestedRef returns the old "requested_ref" field's value of the ExperimentProposal entity.
+// If the ExperimentProposal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ExperimentProposalMutation) OldRequestedRef(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequestedRef is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequestedRef requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequestedRef: %w", err)
+	}
+	return oldValue.RequestedRef, nil
+}
+
+// ResetRequestedRef resets all changes to the "requested_ref" field.
+func (m *ExperimentProposalMutation) ResetRequestedRef() {
+	m.requested_ref = nil
+}
+
+// SetCommitSha sets the "commit_sha" field.
+func (m *ExperimentProposalMutation) SetCommitSha(s string) {
+	m.commit_sha = &s
+}
+
+// CommitSha returns the value of the "commit_sha" field in the mutation.
+func (m *ExperimentProposalMutation) CommitSha() (r string, exists bool) {
+	v := m.commit_sha
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCommitSha returns the old "commit_sha" field's value of the ExperimentProposal entity.
+// If the ExperimentProposal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ExperimentProposalMutation) OldCommitSha(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCommitSha is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCommitSha requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCommitSha: %w", err)
+	}
+	return oldValue.CommitSha, nil
+}
+
+// ResetCommitSha resets all changes to the "commit_sha" field.
+func (m *ExperimentProposalMutation) ResetCommitSha() {
+	m.commit_sha = nil
+}
+
+// SetExecutionMode sets the "execution_mode" field.
+func (m *ExperimentProposalMutation) SetExecutionMode(em experimentproposal.ExecutionMode) {
+	m.execution_mode = &em
+}
+
+// ExecutionMode returns the value of the "execution_mode" field in the mutation.
+func (m *ExperimentProposalMutation) ExecutionMode() (r experimentproposal.ExecutionMode, exists bool) {
+	v := m.execution_mode
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExecutionMode returns the old "execution_mode" field's value of the ExperimentProposal entity.
+// If the ExperimentProposal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ExperimentProposalMutation) OldExecutionMode(ctx context.Context) (v experimentproposal.ExecutionMode, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExecutionMode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExecutionMode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExecutionMode: %w", err)
+	}
+	return oldValue.ExecutionMode, nil
+}
+
+// ResetExecutionMode resets all changes to the "execution_mode" field.
+func (m *ExperimentProposalMutation) ResetExecutionMode() {
+	m.execution_mode = nil
+}
+
+// SetArgv sets the "argv" field.
+func (m *ExperimentProposalMutation) SetArgv(s []string) {
+	m.argv = &s
+	m.appendargv = nil
+}
+
+// Argv returns the value of the "argv" field in the mutation.
+func (m *ExperimentProposalMutation) Argv() (r []string, exists bool) {
+	v := m.argv
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldArgv returns the old "argv" field's value of the ExperimentProposal entity.
+// If the ExperimentProposal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ExperimentProposalMutation) OldArgv(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldArgv is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldArgv requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldArgv: %w", err)
+	}
+	return oldValue.Argv, nil
+}
+
+// AppendArgv adds s to the "argv" field.
+func (m *ExperimentProposalMutation) AppendArgv(s []string) {
+	m.appendargv = append(m.appendargv, s...)
+}
+
+// AppendedArgv returns the list of values that were appended to the "argv" field in this mutation.
+func (m *ExperimentProposalMutation) AppendedArgv() ([]string, bool) {
+	if len(m.appendargv) == 0 {
+		return nil, false
+	}
+	return m.appendargv, true
+}
+
+// ResetArgv resets all changes to the "argv" field.
+func (m *ExperimentProposalMutation) ResetArgv() {
+	m.argv = nil
+	m.appendargv = nil
+}
+
+// SetDisplayCommand sets the "display_command" field.
+func (m *ExperimentProposalMutation) SetDisplayCommand(s string) {
+	m.display_command = &s
+}
+
+// DisplayCommand returns the value of the "display_command" field in the mutation.
+func (m *ExperimentProposalMutation) DisplayCommand() (r string, exists bool) {
+	v := m.display_command
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDisplayCommand returns the old "display_command" field's value of the ExperimentProposal entity.
+// If the ExperimentProposal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ExperimentProposalMutation) OldDisplayCommand(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDisplayCommand is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDisplayCommand requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDisplayCommand: %w", err)
+	}
+	return oldValue.DisplayCommand, nil
+}
+
+// ResetDisplayCommand resets all changes to the "display_command" field.
+func (m *ExperimentProposalMutation) ResetDisplayCommand() {
+	m.display_command = nil
+}
+
+// SetRuntimePreset sets the "runtime_preset" field.
+func (m *ExperimentProposalMutation) SetRuntimePreset(s string) {
+	m.runtime_preset = &s
+}
+
+// RuntimePreset returns the value of the "runtime_preset" field in the mutation.
+func (m *ExperimentProposalMutation) RuntimePreset() (r string, exists bool) {
+	v := m.runtime_preset
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRuntimePreset returns the old "runtime_preset" field's value of the ExperimentProposal entity.
+// If the ExperimentProposal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ExperimentProposalMutation) OldRuntimePreset(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRuntimePreset is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRuntimePreset requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRuntimePreset: %w", err)
+	}
+	return oldValue.RuntimePreset, nil
+}
+
+// ResetRuntimePreset resets all changes to the "runtime_preset" field.
+func (m *ExperimentProposalMutation) ResetRuntimePreset() {
+	m.runtime_preset = nil
+}
+
+// SetMaxRuntimeSeconds sets the "max_runtime_seconds" field.
+func (m *ExperimentProposalMutation) SetMaxRuntimeSeconds(i int) {
+	m.max_runtime_seconds = &i
+	m.addmax_runtime_seconds = nil
+}
+
+// MaxRuntimeSeconds returns the value of the "max_runtime_seconds" field in the mutation.
+func (m *ExperimentProposalMutation) MaxRuntimeSeconds() (r int, exists bool) {
+	v := m.max_runtime_seconds
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMaxRuntimeSeconds returns the old "max_runtime_seconds" field's value of the ExperimentProposal entity.
+// If the ExperimentProposal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ExperimentProposalMutation) OldMaxRuntimeSeconds(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMaxRuntimeSeconds is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMaxRuntimeSeconds requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMaxRuntimeSeconds: %w", err)
+	}
+	return oldValue.MaxRuntimeSeconds, nil
+}
+
+// AddMaxRuntimeSeconds adds i to the "max_runtime_seconds" field.
+func (m *ExperimentProposalMutation) AddMaxRuntimeSeconds(i int) {
+	if m.addmax_runtime_seconds != nil {
+		*m.addmax_runtime_seconds += i
+	} else {
+		m.addmax_runtime_seconds = &i
+	}
+}
+
+// AddedMaxRuntimeSeconds returns the value that was added to the "max_runtime_seconds" field in this mutation.
+func (m *ExperimentProposalMutation) AddedMaxRuntimeSeconds() (r int, exists bool) {
+	v := m.addmax_runtime_seconds
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetMaxRuntimeSeconds resets all changes to the "max_runtime_seconds" field.
+func (m *ExperimentProposalMutation) ResetMaxRuntimeSeconds() {
+	m.max_runtime_seconds = nil
+	m.addmax_runtime_seconds = nil
+}
+
+// SetTimeoutExtensionSeconds sets the "timeout_extension_seconds" field.
+func (m *ExperimentProposalMutation) SetTimeoutExtensionSeconds(i int) {
+	m.timeout_extension_seconds = &i
+	m.addtimeout_extension_seconds = nil
+}
+
+// TimeoutExtensionSeconds returns the value of the "timeout_extension_seconds" field in the mutation.
+func (m *ExperimentProposalMutation) TimeoutExtensionSeconds() (r int, exists bool) {
+	v := m.timeout_extension_seconds
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTimeoutExtensionSeconds returns the old "timeout_extension_seconds" field's value of the ExperimentProposal entity.
+// If the ExperimentProposal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ExperimentProposalMutation) OldTimeoutExtensionSeconds(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTimeoutExtensionSeconds is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTimeoutExtensionSeconds requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTimeoutExtensionSeconds: %w", err)
+	}
+	return oldValue.TimeoutExtensionSeconds, nil
+}
+
+// AddTimeoutExtensionSeconds adds i to the "timeout_extension_seconds" field.
+func (m *ExperimentProposalMutation) AddTimeoutExtensionSeconds(i int) {
+	if m.addtimeout_extension_seconds != nil {
+		*m.addtimeout_extension_seconds += i
+	} else {
+		m.addtimeout_extension_seconds = &i
+	}
+}
+
+// AddedTimeoutExtensionSeconds returns the value that was added to the "timeout_extension_seconds" field in this mutation.
+func (m *ExperimentProposalMutation) AddedTimeoutExtensionSeconds() (r int, exists bool) {
+	v := m.addtimeout_extension_seconds
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTimeoutExtensionSeconds resets all changes to the "timeout_extension_seconds" field.
+func (m *ExperimentProposalMutation) ResetTimeoutExtensionSeconds() {
+	m.timeout_extension_seconds = nil
+	m.addtimeout_extension_seconds = nil
+}
+
+// SetTerminationGraceSeconds sets the "termination_grace_seconds" field.
+func (m *ExperimentProposalMutation) SetTerminationGraceSeconds(i int) {
+	m.termination_grace_seconds = &i
+	m.addtermination_grace_seconds = nil
+}
+
+// TerminationGraceSeconds returns the value of the "termination_grace_seconds" field in the mutation.
+func (m *ExperimentProposalMutation) TerminationGraceSeconds() (r int, exists bool) {
+	v := m.termination_grace_seconds
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTerminationGraceSeconds returns the old "termination_grace_seconds" field's value of the ExperimentProposal entity.
+// If the ExperimentProposal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ExperimentProposalMutation) OldTerminationGraceSeconds(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTerminationGraceSeconds is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTerminationGraceSeconds requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTerminationGraceSeconds: %w", err)
+	}
+	return oldValue.TerminationGraceSeconds, nil
+}
+
+// AddTerminationGraceSeconds adds i to the "termination_grace_seconds" field.
+func (m *ExperimentProposalMutation) AddTerminationGraceSeconds(i int) {
+	if m.addtermination_grace_seconds != nil {
+		*m.addtermination_grace_seconds += i
+	} else {
+		m.addtermination_grace_seconds = &i
+	}
+}
+
+// AddedTerminationGraceSeconds returns the value that was added to the "termination_grace_seconds" field in this mutation.
+func (m *ExperimentProposalMutation) AddedTerminationGraceSeconds() (r int, exists bool) {
+	v := m.addtermination_grace_seconds
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTerminationGraceSeconds resets all changes to the "termination_grace_seconds" field.
+func (m *ExperimentProposalMutation) ResetTerminationGraceSeconds() {
+	m.termination_grace_seconds = nil
+	m.addtermination_grace_seconds = nil
+}
+
+// SetProjectSnapshot sets the "project_snapshot" field.
+func (m *ExperimentProposalMutation) SetProjectSnapshot(value map[string]interface{}) {
+	m.project_snapshot = &value
+}
+
+// ProjectSnapshot returns the value of the "project_snapshot" field in the mutation.
+func (m *ExperimentProposalMutation) ProjectSnapshot() (r map[string]interface{}, exists bool) {
+	v := m.project_snapshot
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProjectSnapshot returns the old "project_snapshot" field's value of the ExperimentProposal entity.
+// If the ExperimentProposal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ExperimentProposalMutation) OldProjectSnapshot(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProjectSnapshot is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProjectSnapshot requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProjectSnapshot: %w", err)
+	}
+	return oldValue.ProjectSnapshot, nil
+}
+
+// ResetProjectSnapshot resets all changes to the "project_snapshot" field.
+func (m *ExperimentProposalMutation) ResetProjectSnapshot() {
+	m.project_snapshot = nil
+}
+
+// SetRepositorySnapshot sets the "repository_snapshot" field.
+func (m *ExperimentProposalMutation) SetRepositorySnapshot(value map[string]interface{}) {
+	m.repository_snapshot = &value
+}
+
+// RepositorySnapshot returns the value of the "repository_snapshot" field in the mutation.
+func (m *ExperimentProposalMutation) RepositorySnapshot() (r map[string]interface{}, exists bool) {
+	v := m.repository_snapshot
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRepositorySnapshot returns the old "repository_snapshot" field's value of the ExperimentProposal entity.
+// If the ExperimentProposal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ExperimentProposalMutation) OldRepositorySnapshot(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRepositorySnapshot is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRepositorySnapshot requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRepositorySnapshot: %w", err)
+	}
+	return oldValue.RepositorySnapshot, nil
+}
+
+// ResetRepositorySnapshot resets all changes to the "repository_snapshot" field.
+func (m *ExperimentProposalMutation) ResetRepositorySnapshot() {
+	m.repository_snapshot = nil
+}
+
+// SetEnvironmentSnapshot sets the "environment_snapshot" field.
+func (m *ExperimentProposalMutation) SetEnvironmentSnapshot(value map[string]interface{}) {
+	m.environment_snapshot = &value
+}
+
+// EnvironmentSnapshot returns the value of the "environment_snapshot" field in the mutation.
+func (m *ExperimentProposalMutation) EnvironmentSnapshot() (r map[string]interface{}, exists bool) {
+	v := m.environment_snapshot
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEnvironmentSnapshot returns the old "environment_snapshot" field's value of the ExperimentProposal entity.
+// If the ExperimentProposal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ExperimentProposalMutation) OldEnvironmentSnapshot(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEnvironmentSnapshot is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEnvironmentSnapshot requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEnvironmentSnapshot: %w", err)
+	}
+	return oldValue.EnvironmentSnapshot, nil
+}
+
+// ResetEnvironmentSnapshot resets all changes to the "environment_snapshot" field.
+func (m *ExperimentProposalMutation) ResetEnvironmentSnapshot() {
+	m.environment_snapshot = nil
+}
+
+// SetResourceSnapshot sets the "resource_snapshot" field.
+func (m *ExperimentProposalMutation) SetResourceSnapshot(value map[string]interface{}) {
+	m.resource_snapshot = &value
+}
+
+// ResourceSnapshot returns the value of the "resource_snapshot" field in the mutation.
+func (m *ExperimentProposalMutation) ResourceSnapshot() (r map[string]interface{}, exists bool) {
+	v := m.resource_snapshot
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResourceSnapshot returns the old "resource_snapshot" field's value of the ExperimentProposal entity.
+// If the ExperimentProposal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ExperimentProposalMutation) OldResourceSnapshot(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResourceSnapshot is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResourceSnapshot requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResourceSnapshot: %w", err)
+	}
+	return oldValue.ResourceSnapshot, nil
+}
+
+// ResetResourceSnapshot resets all changes to the "resource_snapshot" field.
+func (m *ExperimentProposalMutation) ResetResourceSnapshot() {
+	m.resource_snapshot = nil
+}
+
+// SetChecks sets the "checks" field.
+func (m *ExperimentProposalMutation) SetChecks(value []map[string]interface{}) {
+	m.checks = &value
+	m.appendchecks = nil
+}
+
+// Checks returns the value of the "checks" field in the mutation.
+func (m *ExperimentProposalMutation) Checks() (r []map[string]interface{}, exists bool) {
+	v := m.checks
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChecks returns the old "checks" field's value of the ExperimentProposal entity.
+// If the ExperimentProposal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ExperimentProposalMutation) OldChecks(ctx context.Context) (v []map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChecks is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChecks requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChecks: %w", err)
+	}
+	return oldValue.Checks, nil
+}
+
+// AppendChecks adds value to the "checks" field.
+func (m *ExperimentProposalMutation) AppendChecks(value []map[string]interface{}) {
+	m.appendchecks = append(m.appendchecks, value...)
+}
+
+// AppendedChecks returns the list of values that were appended to the "checks" field in this mutation.
+func (m *ExperimentProposalMutation) AppendedChecks() ([]map[string]interface{}, bool) {
+	if len(m.appendchecks) == 0 {
+		return nil, false
+	}
+	return m.appendchecks, true
+}
+
+// ResetChecks resets all changes to the "checks" field.
+func (m *ExperimentProposalMutation) ResetChecks() {
+	m.checks = nil
+	m.appendchecks = nil
+}
+
+// SetReservedCostMilli sets the "reserved_cost_milli" field.
+func (m *ExperimentProposalMutation) SetReservedCostMilli(i int64) {
+	m.reserved_cost_milli = &i
+	m.addreserved_cost_milli = nil
+}
+
+// ReservedCostMilli returns the value of the "reserved_cost_milli" field in the mutation.
+func (m *ExperimentProposalMutation) ReservedCostMilli() (r int64, exists bool) {
+	v := m.reserved_cost_milli
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReservedCostMilli returns the old "reserved_cost_milli" field's value of the ExperimentProposal entity.
+// If the ExperimentProposal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ExperimentProposalMutation) OldReservedCostMilli(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReservedCostMilli is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReservedCostMilli requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReservedCostMilli: %w", err)
+	}
+	return oldValue.ReservedCostMilli, nil
+}
+
+// AddReservedCostMilli adds i to the "reserved_cost_milli" field.
+func (m *ExperimentProposalMutation) AddReservedCostMilli(i int64) {
+	if m.addreserved_cost_milli != nil {
+		*m.addreserved_cost_milli += i
+	} else {
+		m.addreserved_cost_milli = &i
+	}
+}
+
+// AddedReservedCostMilli returns the value that was added to the "reserved_cost_milli" field in this mutation.
+func (m *ExperimentProposalMutation) AddedReservedCostMilli() (r int64, exists bool) {
+	v := m.addreserved_cost_milli
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetReservedCostMilli resets all changes to the "reserved_cost_milli" field.
+func (m *ExperimentProposalMutation) ResetReservedCostMilli() {
+	m.reserved_cost_milli = nil
+	m.addreserved_cost_milli = nil
+}
+
+// SetConfirmationDigest sets the "confirmation_digest" field.
+func (m *ExperimentProposalMutation) SetConfirmationDigest(s string) {
+	m.confirmation_digest = &s
+}
+
+// ConfirmationDigest returns the value of the "confirmation_digest" field in the mutation.
+func (m *ExperimentProposalMutation) ConfirmationDigest() (r string, exists bool) {
+	v := m.confirmation_digest
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldConfirmationDigest returns the old "confirmation_digest" field's value of the ExperimentProposal entity.
+// If the ExperimentProposal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ExperimentProposalMutation) OldConfirmationDigest(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldConfirmationDigest is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldConfirmationDigest requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldConfirmationDigest: %w", err)
+	}
+	return oldValue.ConfirmationDigest, nil
+}
+
+// ResetConfirmationDigest resets all changes to the "confirmation_digest" field.
+func (m *ExperimentProposalMutation) ResetConfirmationDigest() {
+	m.confirmation_digest = nil
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (m *ExperimentProposalMutation) SetExpiresAt(t time.Time) {
+	m.expires_at = &t
+}
+
+// ExpiresAt returns the value of the "expires_at" field in the mutation.
+func (m *ExperimentProposalMutation) ExpiresAt() (r time.Time, exists bool) {
+	v := m.expires_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpiresAt returns the old "expires_at" field's value of the ExperimentProposal entity.
+// If the ExperimentProposal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ExperimentProposalMutation) OldExpiresAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpiresAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpiresAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpiresAt: %w", err)
+	}
+	return oldValue.ExpiresAt, nil
+}
+
+// ResetExpiresAt resets all changes to the "expires_at" field.
+func (m *ExperimentProposalMutation) ResetExpiresAt() {
+	m.expires_at = nil
+}
+
+// SetSubmittedAt sets the "submitted_at" field.
+func (m *ExperimentProposalMutation) SetSubmittedAt(t time.Time) {
+	m.submitted_at = &t
+}
+
+// SubmittedAt returns the value of the "submitted_at" field in the mutation.
+func (m *ExperimentProposalMutation) SubmittedAt() (r time.Time, exists bool) {
+	v := m.submitted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSubmittedAt returns the old "submitted_at" field's value of the ExperimentProposal entity.
+// If the ExperimentProposal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ExperimentProposalMutation) OldSubmittedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSubmittedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSubmittedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSubmittedAt: %w", err)
+	}
+	return oldValue.SubmittedAt, nil
+}
+
+// ClearSubmittedAt clears the value of the "submitted_at" field.
+func (m *ExperimentProposalMutation) ClearSubmittedAt() {
+	m.submitted_at = nil
+	m.clearedFields[experimentproposal.FieldSubmittedAt] = struct{}{}
+}
+
+// SubmittedAtCleared returns if the "submitted_at" field was cleared in this mutation.
+func (m *ExperimentProposalMutation) SubmittedAtCleared() bool {
+	_, ok := m.clearedFields[experimentproposal.FieldSubmittedAt]
+	return ok
+}
+
+// ResetSubmittedAt resets all changes to the "submitted_at" field.
+func (m *ExperimentProposalMutation) ResetSubmittedAt() {
+	m.submitted_at = nil
+	delete(m.clearedFields, experimentproposal.FieldSubmittedAt)
+}
+
+// ClearTenant clears the "tenant" edge to the Tenant entity.
+func (m *ExperimentProposalMutation) ClearTenant() {
+	m.clearedtenant = true
+	m.clearedFields[experimentproposal.FieldTenantID] = struct{}{}
+}
+
+// TenantCleared reports if the "tenant" edge to the Tenant entity was cleared.
+func (m *ExperimentProposalMutation) TenantCleared() bool {
+	return m.clearedtenant
+}
+
+// TenantIDs returns the "tenant" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// TenantID instead. It exists only for internal usage by the builders.
+func (m *ExperimentProposalMutation) TenantIDs() (ids []int) {
+	if id := m.tenant; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetTenant resets all changes to the "tenant" edge.
+func (m *ExperimentProposalMutation) ResetTenant() {
+	m.tenant = nil
+	m.clearedtenant = false
+}
+
+// ClearProject clears the "project" edge to the Project entity.
+func (m *ExperimentProposalMutation) ClearProject() {
+	m.clearedproject = true
+	m.clearedFields[experimentproposal.FieldProjectID] = struct{}{}
+}
+
+// ProjectCleared reports if the "project" edge to the Project entity was cleared.
+func (m *ExperimentProposalMutation) ProjectCleared() bool {
+	return m.clearedproject
+}
+
+// ProjectIDs returns the "project" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ProjectID instead. It exists only for internal usage by the builders.
+func (m *ExperimentProposalMutation) ProjectIDs() (ids []int) {
+	if id := m.project; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetProject resets all changes to the "project" edge.
+func (m *ExperimentProposalMutation) ResetProject() {
+	m.project = nil
+	m.clearedproject = false
+}
+
+// ClearAgentToken clears the "agent_token" edge to the AgentToken entity.
+func (m *ExperimentProposalMutation) ClearAgentToken() {
+	m.clearedagent_token = true
+	m.clearedFields[experimentproposal.FieldAgentTokenID] = struct{}{}
+}
+
+// AgentTokenCleared reports if the "agent_token" edge to the AgentToken entity was cleared.
+func (m *ExperimentProposalMutation) AgentTokenCleared() bool {
+	return m.clearedagent_token
+}
+
+// AgentTokenIDs returns the "agent_token" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// AgentTokenID instead. It exists only for internal usage by the builders.
+func (m *ExperimentProposalMutation) AgentTokenIDs() (ids []int) {
+	if id := m.agent_token; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetAgentToken resets all changes to the "agent_token" edge.
+func (m *ExperimentProposalMutation) ResetAgentToken() {
+	m.agent_token = nil
+	m.clearedagent_token = false
+}
+
+// ClearRepository clears the "repository" edge to the Repository entity.
+func (m *ExperimentProposalMutation) ClearRepository() {
+	m.clearedrepository = true
+	m.clearedFields[experimentproposal.FieldRepositoryID] = struct{}{}
+}
+
+// RepositoryCleared reports if the "repository" edge to the Repository entity was cleared.
+func (m *ExperimentProposalMutation) RepositoryCleared() bool {
+	return m.clearedrepository
+}
+
+// RepositoryIDs returns the "repository" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// RepositoryID instead. It exists only for internal usage by the builders.
+func (m *ExperimentProposalMutation) RepositoryIDs() (ids []int) {
+	if id := m.repository; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetRepository resets all changes to the "repository" edge.
+func (m *ExperimentProposalMutation) ResetRepository() {
+	m.repository = nil
+	m.clearedrepository = false
+}
+
+// ClearEnvironment clears the "environment" edge to the Environment entity.
+func (m *ExperimentProposalMutation) ClearEnvironment() {
+	m.clearedenvironment = true
+	m.clearedFields[experimentproposal.FieldEnvironmentID] = struct{}{}
+}
+
+// EnvironmentCleared reports if the "environment" edge to the Environment entity was cleared.
+func (m *ExperimentProposalMutation) EnvironmentCleared() bool {
+	return m.clearedenvironment
+}
+
+// EnvironmentIDs returns the "environment" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// EnvironmentID instead. It exists only for internal usage by the builders.
+func (m *ExperimentProposalMutation) EnvironmentIDs() (ids []int) {
+	if id := m.environment; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetEnvironment resets all changes to the "environment" edge.
+func (m *ExperimentProposalMutation) ResetEnvironment() {
+	m.environment = nil
+	m.clearedenvironment = false
+}
+
+// ClearResourceProfile clears the "resource_profile" edge to the ResourceProfile entity.
+func (m *ExperimentProposalMutation) ClearResourceProfile() {
+	m.clearedresource_profile = true
+	m.clearedFields[experimentproposal.FieldResourceProfileID] = struct{}{}
+}
+
+// ResourceProfileCleared reports if the "resource_profile" edge to the ResourceProfile entity was cleared.
+func (m *ExperimentProposalMutation) ResourceProfileCleared() bool {
+	return m.clearedresource_profile
+}
+
+// ResourceProfileIDs returns the "resource_profile" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ResourceProfileID instead. It exists only for internal usage by the builders.
+func (m *ExperimentProposalMutation) ResourceProfileIDs() (ids []int) {
+	if id := m.resource_profile; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetResourceProfile resets all changes to the "resource_profile" edge.
+func (m *ExperimentProposalMutation) ResetResourceProfile() {
+	m.resource_profile = nil
+	m.clearedresource_profile = false
+}
+
+// ClearExperiment clears the "experiment" edge to the Experiment entity.
+func (m *ExperimentProposalMutation) ClearExperiment() {
+	m.clearedexperiment = true
+	m.clearedFields[experimentproposal.FieldExperimentID] = struct{}{}
+}
+
+// ExperimentCleared reports if the "experiment" edge to the Experiment entity was cleared.
+func (m *ExperimentProposalMutation) ExperimentCleared() bool {
+	return m.ExperimentIDCleared() || m.clearedexperiment
+}
+
+// ExperimentIDs returns the "experiment" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ExperimentID instead. It exists only for internal usage by the builders.
+func (m *ExperimentProposalMutation) ExperimentIDs() (ids []int) {
+	if id := m.experiment; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetExperiment resets all changes to the "experiment" edge.
+func (m *ExperimentProposalMutation) ResetExperiment() {
+	m.experiment = nil
+	m.clearedexperiment = false
+}
+
+// Where appends a list predicates to the ExperimentProposalMutation builder.
+func (m *ExperimentProposalMutation) Where(ps ...predicate.ExperimentProposal) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the ExperimentProposalMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *ExperimentProposalMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.ExperimentProposal, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *ExperimentProposalMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *ExperimentProposalMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (ExperimentProposal).
+func (m *ExperimentProposalMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *ExperimentProposalMutation) Fields() []string {
+	fields := make([]string, 0, 29)
+	if m.public_id != nil {
+		fields = append(fields, experimentproposal.FieldPublicID)
+	}
+	if m.created_at != nil {
+		fields = append(fields, experimentproposal.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, experimentproposal.FieldUpdatedAt)
+	}
+	if m.tenant != nil {
+		fields = append(fields, experimentproposal.FieldTenantID)
+	}
+	if m.project != nil {
+		fields = append(fields, experimentproposal.FieldProjectID)
+	}
+	if m.agent_token != nil {
+		fields = append(fields, experimentproposal.FieldAgentTokenID)
+	}
+	if m.repository != nil {
+		fields = append(fields, experimentproposal.FieldRepositoryID)
+	}
+	if m.environment != nil {
+		fields = append(fields, experimentproposal.FieldEnvironmentID)
+	}
+	if m.resource_profile != nil {
+		fields = append(fields, experimentproposal.FieldResourceProfileID)
+	}
+	if m.experiment != nil {
+		fields = append(fields, experimentproposal.FieldExperimentID)
+	}
+	if m.status != nil {
+		fields = append(fields, experimentproposal.FieldStatus)
+	}
+	if m.requested_ref != nil {
+		fields = append(fields, experimentproposal.FieldRequestedRef)
+	}
+	if m.commit_sha != nil {
+		fields = append(fields, experimentproposal.FieldCommitSha)
+	}
+	if m.execution_mode != nil {
+		fields = append(fields, experimentproposal.FieldExecutionMode)
+	}
+	if m.argv != nil {
+		fields = append(fields, experimentproposal.FieldArgv)
+	}
+	if m.display_command != nil {
+		fields = append(fields, experimentproposal.FieldDisplayCommand)
+	}
+	if m.runtime_preset != nil {
+		fields = append(fields, experimentproposal.FieldRuntimePreset)
+	}
+	if m.max_runtime_seconds != nil {
+		fields = append(fields, experimentproposal.FieldMaxRuntimeSeconds)
+	}
+	if m.timeout_extension_seconds != nil {
+		fields = append(fields, experimentproposal.FieldTimeoutExtensionSeconds)
+	}
+	if m.termination_grace_seconds != nil {
+		fields = append(fields, experimentproposal.FieldTerminationGraceSeconds)
+	}
+	if m.project_snapshot != nil {
+		fields = append(fields, experimentproposal.FieldProjectSnapshot)
+	}
+	if m.repository_snapshot != nil {
+		fields = append(fields, experimentproposal.FieldRepositorySnapshot)
+	}
+	if m.environment_snapshot != nil {
+		fields = append(fields, experimentproposal.FieldEnvironmentSnapshot)
+	}
+	if m.resource_snapshot != nil {
+		fields = append(fields, experimentproposal.FieldResourceSnapshot)
+	}
+	if m.checks != nil {
+		fields = append(fields, experimentproposal.FieldChecks)
+	}
+	if m.reserved_cost_milli != nil {
+		fields = append(fields, experimentproposal.FieldReservedCostMilli)
+	}
+	if m.confirmation_digest != nil {
+		fields = append(fields, experimentproposal.FieldConfirmationDigest)
+	}
+	if m.expires_at != nil {
+		fields = append(fields, experimentproposal.FieldExpiresAt)
+	}
+	if m.submitted_at != nil {
+		fields = append(fields, experimentproposal.FieldSubmittedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *ExperimentProposalMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case experimentproposal.FieldPublicID:
+		return m.PublicID()
+	case experimentproposal.FieldCreatedAt:
+		return m.CreatedAt()
+	case experimentproposal.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case experimentproposal.FieldTenantID:
+		return m.TenantID()
+	case experimentproposal.FieldProjectID:
+		return m.ProjectID()
+	case experimentproposal.FieldAgentTokenID:
+		return m.AgentTokenID()
+	case experimentproposal.FieldRepositoryID:
+		return m.RepositoryID()
+	case experimentproposal.FieldEnvironmentID:
+		return m.EnvironmentID()
+	case experimentproposal.FieldResourceProfileID:
+		return m.ResourceProfileID()
+	case experimentproposal.FieldExperimentID:
+		return m.ExperimentID()
+	case experimentproposal.FieldStatus:
+		return m.Status()
+	case experimentproposal.FieldRequestedRef:
+		return m.RequestedRef()
+	case experimentproposal.FieldCommitSha:
+		return m.CommitSha()
+	case experimentproposal.FieldExecutionMode:
+		return m.ExecutionMode()
+	case experimentproposal.FieldArgv:
+		return m.Argv()
+	case experimentproposal.FieldDisplayCommand:
+		return m.DisplayCommand()
+	case experimentproposal.FieldRuntimePreset:
+		return m.RuntimePreset()
+	case experimentproposal.FieldMaxRuntimeSeconds:
+		return m.MaxRuntimeSeconds()
+	case experimentproposal.FieldTimeoutExtensionSeconds:
+		return m.TimeoutExtensionSeconds()
+	case experimentproposal.FieldTerminationGraceSeconds:
+		return m.TerminationGraceSeconds()
+	case experimentproposal.FieldProjectSnapshot:
+		return m.ProjectSnapshot()
+	case experimentproposal.FieldRepositorySnapshot:
+		return m.RepositorySnapshot()
+	case experimentproposal.FieldEnvironmentSnapshot:
+		return m.EnvironmentSnapshot()
+	case experimentproposal.FieldResourceSnapshot:
+		return m.ResourceSnapshot()
+	case experimentproposal.FieldChecks:
+		return m.Checks()
+	case experimentproposal.FieldReservedCostMilli:
+		return m.ReservedCostMilli()
+	case experimentproposal.FieldConfirmationDigest:
+		return m.ConfirmationDigest()
+	case experimentproposal.FieldExpiresAt:
+		return m.ExpiresAt()
+	case experimentproposal.FieldSubmittedAt:
+		return m.SubmittedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *ExperimentProposalMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case experimentproposal.FieldPublicID:
+		return m.OldPublicID(ctx)
+	case experimentproposal.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case experimentproposal.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case experimentproposal.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case experimentproposal.FieldProjectID:
+		return m.OldProjectID(ctx)
+	case experimentproposal.FieldAgentTokenID:
+		return m.OldAgentTokenID(ctx)
+	case experimentproposal.FieldRepositoryID:
+		return m.OldRepositoryID(ctx)
+	case experimentproposal.FieldEnvironmentID:
+		return m.OldEnvironmentID(ctx)
+	case experimentproposal.FieldResourceProfileID:
+		return m.OldResourceProfileID(ctx)
+	case experimentproposal.FieldExperimentID:
+		return m.OldExperimentID(ctx)
+	case experimentproposal.FieldStatus:
+		return m.OldStatus(ctx)
+	case experimentproposal.FieldRequestedRef:
+		return m.OldRequestedRef(ctx)
+	case experimentproposal.FieldCommitSha:
+		return m.OldCommitSha(ctx)
+	case experimentproposal.FieldExecutionMode:
+		return m.OldExecutionMode(ctx)
+	case experimentproposal.FieldArgv:
+		return m.OldArgv(ctx)
+	case experimentproposal.FieldDisplayCommand:
+		return m.OldDisplayCommand(ctx)
+	case experimentproposal.FieldRuntimePreset:
+		return m.OldRuntimePreset(ctx)
+	case experimentproposal.FieldMaxRuntimeSeconds:
+		return m.OldMaxRuntimeSeconds(ctx)
+	case experimentproposal.FieldTimeoutExtensionSeconds:
+		return m.OldTimeoutExtensionSeconds(ctx)
+	case experimentproposal.FieldTerminationGraceSeconds:
+		return m.OldTerminationGraceSeconds(ctx)
+	case experimentproposal.FieldProjectSnapshot:
+		return m.OldProjectSnapshot(ctx)
+	case experimentproposal.FieldRepositorySnapshot:
+		return m.OldRepositorySnapshot(ctx)
+	case experimentproposal.FieldEnvironmentSnapshot:
+		return m.OldEnvironmentSnapshot(ctx)
+	case experimentproposal.FieldResourceSnapshot:
+		return m.OldResourceSnapshot(ctx)
+	case experimentproposal.FieldChecks:
+		return m.OldChecks(ctx)
+	case experimentproposal.FieldReservedCostMilli:
+		return m.OldReservedCostMilli(ctx)
+	case experimentproposal.FieldConfirmationDigest:
+		return m.OldConfirmationDigest(ctx)
+	case experimentproposal.FieldExpiresAt:
+		return m.OldExpiresAt(ctx)
+	case experimentproposal.FieldSubmittedAt:
+		return m.OldSubmittedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown ExperimentProposal field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ExperimentProposalMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case experimentproposal.FieldPublicID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPublicID(v)
+		return nil
+	case experimentproposal.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case experimentproposal.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case experimentproposal.FieldTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case experimentproposal.FieldProjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProjectID(v)
+		return nil
+	case experimentproposal.FieldAgentTokenID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAgentTokenID(v)
+		return nil
+	case experimentproposal.FieldRepositoryID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRepositoryID(v)
+		return nil
+	case experimentproposal.FieldEnvironmentID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEnvironmentID(v)
+		return nil
+	case experimentproposal.FieldResourceProfileID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResourceProfileID(v)
+		return nil
+	case experimentproposal.FieldExperimentID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExperimentID(v)
+		return nil
+	case experimentproposal.FieldStatus:
+		v, ok := value.(experimentproposal.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case experimentproposal.FieldRequestedRef:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequestedRef(v)
+		return nil
+	case experimentproposal.FieldCommitSha:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCommitSha(v)
+		return nil
+	case experimentproposal.FieldExecutionMode:
+		v, ok := value.(experimentproposal.ExecutionMode)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExecutionMode(v)
+		return nil
+	case experimentproposal.FieldArgv:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetArgv(v)
+		return nil
+	case experimentproposal.FieldDisplayCommand:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDisplayCommand(v)
+		return nil
+	case experimentproposal.FieldRuntimePreset:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRuntimePreset(v)
+		return nil
+	case experimentproposal.FieldMaxRuntimeSeconds:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMaxRuntimeSeconds(v)
+		return nil
+	case experimentproposal.FieldTimeoutExtensionSeconds:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTimeoutExtensionSeconds(v)
+		return nil
+	case experimentproposal.FieldTerminationGraceSeconds:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTerminationGraceSeconds(v)
+		return nil
+	case experimentproposal.FieldProjectSnapshot:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProjectSnapshot(v)
+		return nil
+	case experimentproposal.FieldRepositorySnapshot:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRepositorySnapshot(v)
+		return nil
+	case experimentproposal.FieldEnvironmentSnapshot:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEnvironmentSnapshot(v)
+		return nil
+	case experimentproposal.FieldResourceSnapshot:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResourceSnapshot(v)
+		return nil
+	case experimentproposal.FieldChecks:
+		v, ok := value.([]map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChecks(v)
+		return nil
+	case experimentproposal.FieldReservedCostMilli:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReservedCostMilli(v)
+		return nil
+	case experimentproposal.FieldConfirmationDigest:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetConfirmationDigest(v)
+		return nil
+	case experimentproposal.FieldExpiresAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpiresAt(v)
+		return nil
+	case experimentproposal.FieldSubmittedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubmittedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ExperimentProposal field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *ExperimentProposalMutation) AddedFields() []string {
+	var fields []string
+	if m.addmax_runtime_seconds != nil {
+		fields = append(fields, experimentproposal.FieldMaxRuntimeSeconds)
+	}
+	if m.addtimeout_extension_seconds != nil {
+		fields = append(fields, experimentproposal.FieldTimeoutExtensionSeconds)
+	}
+	if m.addtermination_grace_seconds != nil {
+		fields = append(fields, experimentproposal.FieldTerminationGraceSeconds)
+	}
+	if m.addreserved_cost_milli != nil {
+		fields = append(fields, experimentproposal.FieldReservedCostMilli)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *ExperimentProposalMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case experimentproposal.FieldMaxRuntimeSeconds:
+		return m.AddedMaxRuntimeSeconds()
+	case experimentproposal.FieldTimeoutExtensionSeconds:
+		return m.AddedTimeoutExtensionSeconds()
+	case experimentproposal.FieldTerminationGraceSeconds:
+		return m.AddedTerminationGraceSeconds()
+	case experimentproposal.FieldReservedCostMilli:
+		return m.AddedReservedCostMilli()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ExperimentProposalMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case experimentproposal.FieldMaxRuntimeSeconds:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMaxRuntimeSeconds(v)
+		return nil
+	case experimentproposal.FieldTimeoutExtensionSeconds:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTimeoutExtensionSeconds(v)
+		return nil
+	case experimentproposal.FieldTerminationGraceSeconds:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTerminationGraceSeconds(v)
+		return nil
+	case experimentproposal.FieldReservedCostMilli:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddReservedCostMilli(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ExperimentProposal numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *ExperimentProposalMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(experimentproposal.FieldExperimentID) {
+		fields = append(fields, experimentproposal.FieldExperimentID)
+	}
+	if m.FieldCleared(experimentproposal.FieldSubmittedAt) {
+		fields = append(fields, experimentproposal.FieldSubmittedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *ExperimentProposalMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *ExperimentProposalMutation) ClearField(name string) error {
+	switch name {
+	case experimentproposal.FieldExperimentID:
+		m.ClearExperimentID()
+		return nil
+	case experimentproposal.FieldSubmittedAt:
+		m.ClearSubmittedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown ExperimentProposal nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *ExperimentProposalMutation) ResetField(name string) error {
+	switch name {
+	case experimentproposal.FieldPublicID:
+		m.ResetPublicID()
+		return nil
+	case experimentproposal.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case experimentproposal.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case experimentproposal.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case experimentproposal.FieldProjectID:
+		m.ResetProjectID()
+		return nil
+	case experimentproposal.FieldAgentTokenID:
+		m.ResetAgentTokenID()
+		return nil
+	case experimentproposal.FieldRepositoryID:
+		m.ResetRepositoryID()
+		return nil
+	case experimentproposal.FieldEnvironmentID:
+		m.ResetEnvironmentID()
+		return nil
+	case experimentproposal.FieldResourceProfileID:
+		m.ResetResourceProfileID()
+		return nil
+	case experimentproposal.FieldExperimentID:
+		m.ResetExperimentID()
+		return nil
+	case experimentproposal.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case experimentproposal.FieldRequestedRef:
+		m.ResetRequestedRef()
+		return nil
+	case experimentproposal.FieldCommitSha:
+		m.ResetCommitSha()
+		return nil
+	case experimentproposal.FieldExecutionMode:
+		m.ResetExecutionMode()
+		return nil
+	case experimentproposal.FieldArgv:
+		m.ResetArgv()
+		return nil
+	case experimentproposal.FieldDisplayCommand:
+		m.ResetDisplayCommand()
+		return nil
+	case experimentproposal.FieldRuntimePreset:
+		m.ResetRuntimePreset()
+		return nil
+	case experimentproposal.FieldMaxRuntimeSeconds:
+		m.ResetMaxRuntimeSeconds()
+		return nil
+	case experimentproposal.FieldTimeoutExtensionSeconds:
+		m.ResetTimeoutExtensionSeconds()
+		return nil
+	case experimentproposal.FieldTerminationGraceSeconds:
+		m.ResetTerminationGraceSeconds()
+		return nil
+	case experimentproposal.FieldProjectSnapshot:
+		m.ResetProjectSnapshot()
+		return nil
+	case experimentproposal.FieldRepositorySnapshot:
+		m.ResetRepositorySnapshot()
+		return nil
+	case experimentproposal.FieldEnvironmentSnapshot:
+		m.ResetEnvironmentSnapshot()
+		return nil
+	case experimentproposal.FieldResourceSnapshot:
+		m.ResetResourceSnapshot()
+		return nil
+	case experimentproposal.FieldChecks:
+		m.ResetChecks()
+		return nil
+	case experimentproposal.FieldReservedCostMilli:
+		m.ResetReservedCostMilli()
+		return nil
+	case experimentproposal.FieldConfirmationDigest:
+		m.ResetConfirmationDigest()
+		return nil
+	case experimentproposal.FieldExpiresAt:
+		m.ResetExpiresAt()
+		return nil
+	case experimentproposal.FieldSubmittedAt:
+		m.ResetSubmittedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown ExperimentProposal field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *ExperimentProposalMutation) AddedEdges() []string {
+	edges := make([]string, 0, 7)
+	if m.tenant != nil {
+		edges = append(edges, experimentproposal.EdgeTenant)
+	}
+	if m.project != nil {
+		edges = append(edges, experimentproposal.EdgeProject)
+	}
+	if m.agent_token != nil {
+		edges = append(edges, experimentproposal.EdgeAgentToken)
+	}
+	if m.repository != nil {
+		edges = append(edges, experimentproposal.EdgeRepository)
+	}
+	if m.environment != nil {
+		edges = append(edges, experimentproposal.EdgeEnvironment)
+	}
+	if m.resource_profile != nil {
+		edges = append(edges, experimentproposal.EdgeResourceProfile)
+	}
+	if m.experiment != nil {
+		edges = append(edges, experimentproposal.EdgeExperiment)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *ExperimentProposalMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case experimentproposal.EdgeTenant:
+		if id := m.tenant; id != nil {
+			return []ent.Value{*id}
+		}
+	case experimentproposal.EdgeProject:
+		if id := m.project; id != nil {
+			return []ent.Value{*id}
+		}
+	case experimentproposal.EdgeAgentToken:
+		if id := m.agent_token; id != nil {
+			return []ent.Value{*id}
+		}
+	case experimentproposal.EdgeRepository:
+		if id := m.repository; id != nil {
+			return []ent.Value{*id}
+		}
+	case experimentproposal.EdgeEnvironment:
+		if id := m.environment; id != nil {
+			return []ent.Value{*id}
+		}
+	case experimentproposal.EdgeResourceProfile:
+		if id := m.resource_profile; id != nil {
+			return []ent.Value{*id}
+		}
+	case experimentproposal.EdgeExperiment:
+		if id := m.experiment; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *ExperimentProposalMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 7)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *ExperimentProposalMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *ExperimentProposalMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 7)
+	if m.clearedtenant {
+		edges = append(edges, experimentproposal.EdgeTenant)
+	}
+	if m.clearedproject {
+		edges = append(edges, experimentproposal.EdgeProject)
+	}
+	if m.clearedagent_token {
+		edges = append(edges, experimentproposal.EdgeAgentToken)
+	}
+	if m.clearedrepository {
+		edges = append(edges, experimentproposal.EdgeRepository)
+	}
+	if m.clearedenvironment {
+		edges = append(edges, experimentproposal.EdgeEnvironment)
+	}
+	if m.clearedresource_profile {
+		edges = append(edges, experimentproposal.EdgeResourceProfile)
+	}
+	if m.clearedexperiment {
+		edges = append(edges, experimentproposal.EdgeExperiment)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *ExperimentProposalMutation) EdgeCleared(name string) bool {
+	switch name {
+	case experimentproposal.EdgeTenant:
+		return m.clearedtenant
+	case experimentproposal.EdgeProject:
+		return m.clearedproject
+	case experimentproposal.EdgeAgentToken:
+		return m.clearedagent_token
+	case experimentproposal.EdgeRepository:
+		return m.clearedrepository
+	case experimentproposal.EdgeEnvironment:
+		return m.clearedenvironment
+	case experimentproposal.EdgeResourceProfile:
+		return m.clearedresource_profile
+	case experimentproposal.EdgeExperiment:
+		return m.clearedexperiment
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *ExperimentProposalMutation) ClearEdge(name string) error {
+	switch name {
+	case experimentproposal.EdgeTenant:
+		m.ClearTenant()
+		return nil
+	case experimentproposal.EdgeProject:
+		m.ClearProject()
+		return nil
+	case experimentproposal.EdgeAgentToken:
+		m.ClearAgentToken()
+		return nil
+	case experimentproposal.EdgeRepository:
+		m.ClearRepository()
+		return nil
+	case experimentproposal.EdgeEnvironment:
+		m.ClearEnvironment()
+		return nil
+	case experimentproposal.EdgeResourceProfile:
+		m.ClearResourceProfile()
+		return nil
+	case experimentproposal.EdgeExperiment:
+		m.ClearExperiment()
+		return nil
+	}
+	return fmt.Errorf("unknown ExperimentProposal unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *ExperimentProposalMutation) ResetEdge(name string) error {
+	switch name {
+	case experimentproposal.EdgeTenant:
+		m.ResetTenant()
+		return nil
+	case experimentproposal.EdgeProject:
+		m.ResetProject()
+		return nil
+	case experimentproposal.EdgeAgentToken:
+		m.ResetAgentToken()
+		return nil
+	case experimentproposal.EdgeRepository:
+		m.ResetRepository()
+		return nil
+	case experimentproposal.EdgeEnvironment:
+		m.ResetEnvironment()
+		return nil
+	case experimentproposal.EdgeResourceProfile:
+		m.ResetResourceProfile()
+		return nil
+	case experimentproposal.EdgeExperiment:
+		m.ResetExperiment()
+		return nil
+	}
+	return fmt.Errorf("unknown ExperimentProposal edge %s", name)
 }
 
 // IdempotencyRecordMutation represents an operation that mutates the IdempotencyRecord nodes in the graph.
@@ -22970,6 +25717,9 @@ type ProjectMutation struct {
 	diagnostic_runs              map[int]struct{}
 	removeddiagnostic_runs       map[int]struct{}
 	cleareddiagnostic_runs       bool
+	experiment_proposals         map[int]struct{}
+	removedexperiment_proposals  map[int]struct{}
+	clearedexperiment_proposals  bool
 	done                         bool
 	oldValue                     func(context.Context) (*Project, error)
 	predicates                   []predicate.Project
@@ -24372,6 +27122,60 @@ func (m *ProjectMutation) ResetDiagnosticRuns() {
 	m.removeddiagnostic_runs = nil
 }
 
+// AddExperimentProposalIDs adds the "experiment_proposals" edge to the ExperimentProposal entity by ids.
+func (m *ProjectMutation) AddExperimentProposalIDs(ids ...int) {
+	if m.experiment_proposals == nil {
+		m.experiment_proposals = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.experiment_proposals[ids[i]] = struct{}{}
+	}
+}
+
+// ClearExperimentProposals clears the "experiment_proposals" edge to the ExperimentProposal entity.
+func (m *ProjectMutation) ClearExperimentProposals() {
+	m.clearedexperiment_proposals = true
+}
+
+// ExperimentProposalsCleared reports if the "experiment_proposals" edge to the ExperimentProposal entity was cleared.
+func (m *ProjectMutation) ExperimentProposalsCleared() bool {
+	return m.clearedexperiment_proposals
+}
+
+// RemoveExperimentProposalIDs removes the "experiment_proposals" edge to the ExperimentProposal entity by IDs.
+func (m *ProjectMutation) RemoveExperimentProposalIDs(ids ...int) {
+	if m.removedexperiment_proposals == nil {
+		m.removedexperiment_proposals = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.experiment_proposals, ids[i])
+		m.removedexperiment_proposals[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedExperimentProposals returns the removed IDs of the "experiment_proposals" edge to the ExperimentProposal entity.
+func (m *ProjectMutation) RemovedExperimentProposalsIDs() (ids []int) {
+	for id := range m.removedexperiment_proposals {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ExperimentProposalsIDs returns the "experiment_proposals" edge IDs in the mutation.
+func (m *ProjectMutation) ExperimentProposalsIDs() (ids []int) {
+	for id := range m.experiment_proposals {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetExperimentProposals resets all changes to the "experiment_proposals" edge.
+func (m *ProjectMutation) ResetExperimentProposals() {
+	m.experiment_proposals = nil
+	m.clearedexperiment_proposals = false
+	m.removedexperiment_proposals = nil
+}
+
 // Where appends a list predicates to the ProjectMutation builder.
 func (m *ProjectMutation) Where(ps ...predicate.Project) {
 	m.predicates = append(m.predicates, ps...)
@@ -24801,7 +27605,7 @@ func (m *ProjectMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *ProjectMutation) AddedEdges() []string {
-	edges := make([]string, 0, 13)
+	edges := make([]string, 0, 14)
 	if m.tenant != nil {
 		edges = append(edges, project.EdgeTenant)
 	}
@@ -24840,6 +27644,9 @@ func (m *ProjectMutation) AddedEdges() []string {
 	}
 	if m.diagnostic_runs != nil {
 		edges = append(edges, project.EdgeDiagnosticRuns)
+	}
+	if m.experiment_proposals != nil {
+		edges = append(edges, project.EdgeExperimentProposals)
 	}
 	return edges
 }
@@ -24924,13 +27731,19 @@ func (m *ProjectMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case project.EdgeExperimentProposals:
+		ids := make([]ent.Value, 0, len(m.experiment_proposals))
+		for id := range m.experiment_proposals {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *ProjectMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 13)
+	edges := make([]string, 0, 14)
 	if m.removedenvironments != nil {
 		edges = append(edges, project.EdgeEnvironments)
 	}
@@ -24966,6 +27779,9 @@ func (m *ProjectMutation) RemovedEdges() []string {
 	}
 	if m.removeddiagnostic_runs != nil {
 		edges = append(edges, project.EdgeDiagnosticRuns)
+	}
+	if m.removedexperiment_proposals != nil {
+		edges = append(edges, project.EdgeExperimentProposals)
 	}
 	return edges
 }
@@ -25046,13 +27862,19 @@ func (m *ProjectMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case project.EdgeExperimentProposals:
+		ids := make([]ent.Value, 0, len(m.removedexperiment_proposals))
+		for id := range m.removedexperiment_proposals {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *ProjectMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 13)
+	edges := make([]string, 0, 14)
 	if m.clearedtenant {
 		edges = append(edges, project.EdgeTenant)
 	}
@@ -25092,6 +27914,9 @@ func (m *ProjectMutation) ClearedEdges() []string {
 	if m.cleareddiagnostic_runs {
 		edges = append(edges, project.EdgeDiagnosticRuns)
 	}
+	if m.clearedexperiment_proposals {
+		edges = append(edges, project.EdgeExperimentProposals)
+	}
 	return edges
 }
 
@@ -25125,6 +27950,8 @@ func (m *ProjectMutation) EdgeCleared(name string) bool {
 		return m.clearednode_assignments
 	case project.EdgeDiagnosticRuns:
 		return m.cleareddiagnostic_runs
+	case project.EdgeExperimentProposals:
+		return m.clearedexperiment_proposals
 	}
 	return false
 }
@@ -25182,6 +28009,9 @@ func (m *ProjectMutation) ResetEdge(name string) error {
 		return nil
 	case project.EdgeDiagnosticRuns:
 		m.ResetDiagnosticRuns()
+		return nil
+	case project.EdgeExperimentProposals:
+		m.ResetExperimentProposals()
 		return nil
 	}
 	return fmt.Errorf("unknown Project edge %s", name)
@@ -29108,6 +31938,9 @@ type RepositoryMutation struct {
 	experiments                   map[int]struct{}
 	removedexperiments            map[int]struct{}
 	clearedexperiments            bool
+	experiment_proposals          map[int]struct{}
+	removedexperiment_proposals   map[int]struct{}
+	clearedexperiment_proposals   bool
 	done                          bool
 	oldValue                      func(context.Context) (*Repository, error)
 	predicates                    []predicate.Repository
@@ -29812,6 +32645,60 @@ func (m *RepositoryMutation) ResetExperiments() {
 	m.removedexperiments = nil
 }
 
+// AddExperimentProposalIDs adds the "experiment_proposals" edge to the ExperimentProposal entity by ids.
+func (m *RepositoryMutation) AddExperimentProposalIDs(ids ...int) {
+	if m.experiment_proposals == nil {
+		m.experiment_proposals = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.experiment_proposals[ids[i]] = struct{}{}
+	}
+}
+
+// ClearExperimentProposals clears the "experiment_proposals" edge to the ExperimentProposal entity.
+func (m *RepositoryMutation) ClearExperimentProposals() {
+	m.clearedexperiment_proposals = true
+}
+
+// ExperimentProposalsCleared reports if the "experiment_proposals" edge to the ExperimentProposal entity was cleared.
+func (m *RepositoryMutation) ExperimentProposalsCleared() bool {
+	return m.clearedexperiment_proposals
+}
+
+// RemoveExperimentProposalIDs removes the "experiment_proposals" edge to the ExperimentProposal entity by IDs.
+func (m *RepositoryMutation) RemoveExperimentProposalIDs(ids ...int) {
+	if m.removedexperiment_proposals == nil {
+		m.removedexperiment_proposals = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.experiment_proposals, ids[i])
+		m.removedexperiment_proposals[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedExperimentProposals returns the removed IDs of the "experiment_proposals" edge to the ExperimentProposal entity.
+func (m *RepositoryMutation) RemovedExperimentProposalsIDs() (ids []int) {
+	for id := range m.removedexperiment_proposals {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ExperimentProposalsIDs returns the "experiment_proposals" edge IDs in the mutation.
+func (m *RepositoryMutation) ExperimentProposalsIDs() (ids []int) {
+	for id := range m.experiment_proposals {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetExperimentProposals resets all changes to the "experiment_proposals" edge.
+func (m *RepositoryMutation) ResetExperimentProposals() {
+	m.experiment_proposals = nil
+	m.clearedexperiment_proposals = false
+	m.removedexperiment_proposals = nil
+}
+
 // Where appends a list predicates to the RepositoryMutation builder.
 func (m *RepositoryMutation) Where(ps ...predicate.Repository) {
 	m.predicates = append(m.predicates, ps...)
@@ -30179,12 +33066,15 @@ func (m *RepositoryMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *RepositoryMutation) AddedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.project != nil {
 		edges = append(edges, repository.EdgeProject)
 	}
 	if m.experiments != nil {
 		edges = append(edges, repository.EdgeExperiments)
+	}
+	if m.experiment_proposals != nil {
+		edges = append(edges, repository.EdgeExperimentProposals)
 	}
 	return edges
 }
@@ -30203,15 +33093,24 @@ func (m *RepositoryMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case repository.EdgeExperimentProposals:
+		ids := make([]ent.Value, 0, len(m.experiment_proposals))
+		for id := range m.experiment_proposals {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *RepositoryMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.removedexperiments != nil {
 		edges = append(edges, repository.EdgeExperiments)
+	}
+	if m.removedexperiment_proposals != nil {
+		edges = append(edges, repository.EdgeExperimentProposals)
 	}
 	return edges
 }
@@ -30226,18 +33125,27 @@ func (m *RepositoryMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case repository.EdgeExperimentProposals:
+		ids := make([]ent.Value, 0, len(m.removedexperiment_proposals))
+		for id := range m.removedexperiment_proposals {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *RepositoryMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.clearedproject {
 		edges = append(edges, repository.EdgeProject)
 	}
 	if m.clearedexperiments {
 		edges = append(edges, repository.EdgeExperiments)
+	}
+	if m.clearedexperiment_proposals {
+		edges = append(edges, repository.EdgeExperimentProposals)
 	}
 	return edges
 }
@@ -30250,6 +33158,8 @@ func (m *RepositoryMutation) EdgeCleared(name string) bool {
 		return m.clearedproject
 	case repository.EdgeExperiments:
 		return m.clearedexperiments
+	case repository.EdgeExperimentProposals:
+		return m.clearedexperiment_proposals
 	}
 	return false
 }
@@ -30275,6 +33185,9 @@ func (m *RepositoryMutation) ResetEdge(name string) error {
 	case repository.EdgeExperiments:
 		m.ResetExperiments()
 		return nil
+	case repository.EdgeExperimentProposals:
+		m.ResetExperimentProposals()
+		return nil
 	}
 	return fmt.Errorf("unknown Repository edge %s", name)
 }
@@ -30282,47 +33195,50 @@ func (m *RepositoryMutation) ResetEdge(name string) error {
 // ResourceProfileMutation represents an operation that mutates the ResourceProfile nodes in the graph.
 type ResourceProfileMutation struct {
 	config
-	op                  Op
-	typ                 string
-	id                  *int
-	public_id           *uuid.UUID
-	created_at          *time.Time
-	updated_at          *time.Time
-	backend             *resourceprofile.Backend
-	name                *string
-	region              *string
-	gpu_names           *[]string
-	appendgpu_names     []string
-	gpu_num             *int
-	addgpu_num          *int
-	cuda_from           *int
-	addcuda_from        *int
-	cuda_to             *int
-	addcuda_to          *int
-	cpu_from            *int
-	addcpu_from         *int
-	cpu_to              *int
-	addcpu_to           *int
-	memory_from_gb      *int
-	addmemory_from_gb   *int
-	memory_to_gb        *int
-	addmemory_to_gb     *int
-	price_from_milli    *int64
-	addprice_from_milli *int64
-	price_to_milli      *int64
-	addprice_to_milli   *int64
-	reuse_container     *bool
-	is_default          *bool
-	status              *resourceprofile.Status
-	clearedFields       map[string]struct{}
-	project             *int
-	clearedproject      bool
-	experiments         map[int]struct{}
-	removedexperiments  map[int]struct{}
-	clearedexperiments  bool
-	done                bool
-	oldValue            func(context.Context) (*ResourceProfile, error)
-	predicates          []predicate.ResourceProfile
+	op                          Op
+	typ                         string
+	id                          *int
+	public_id                   *uuid.UUID
+	created_at                  *time.Time
+	updated_at                  *time.Time
+	backend                     *resourceprofile.Backend
+	name                        *string
+	region                      *string
+	gpu_names                   *[]string
+	appendgpu_names             []string
+	gpu_num                     *int
+	addgpu_num                  *int
+	cuda_from                   *int
+	addcuda_from                *int
+	cuda_to                     *int
+	addcuda_to                  *int
+	cpu_from                    *int
+	addcpu_from                 *int
+	cpu_to                      *int
+	addcpu_to                   *int
+	memory_from_gb              *int
+	addmemory_from_gb           *int
+	memory_to_gb                *int
+	addmemory_to_gb             *int
+	price_from_milli            *int64
+	addprice_from_milli         *int64
+	price_to_milli              *int64
+	addprice_to_milli           *int64
+	reuse_container             *bool
+	is_default                  *bool
+	status                      *resourceprofile.Status
+	clearedFields               map[string]struct{}
+	project                     *int
+	clearedproject              bool
+	experiments                 map[int]struct{}
+	removedexperiments          map[int]struct{}
+	clearedexperiments          bool
+	experiment_proposals        map[int]struct{}
+	removedexperiment_proposals map[int]struct{}
+	clearedexperiment_proposals bool
+	done                        bool
+	oldValue                    func(context.Context) (*ResourceProfile, error)
+	predicates                  []predicate.ResourceProfile
 }
 
 var _ ent.Mutation = (*ResourceProfileMutation)(nil)
@@ -31419,6 +34335,60 @@ func (m *ResourceProfileMutation) ResetExperiments() {
 	m.removedexperiments = nil
 }
 
+// AddExperimentProposalIDs adds the "experiment_proposals" edge to the ExperimentProposal entity by ids.
+func (m *ResourceProfileMutation) AddExperimentProposalIDs(ids ...int) {
+	if m.experiment_proposals == nil {
+		m.experiment_proposals = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.experiment_proposals[ids[i]] = struct{}{}
+	}
+}
+
+// ClearExperimentProposals clears the "experiment_proposals" edge to the ExperimentProposal entity.
+func (m *ResourceProfileMutation) ClearExperimentProposals() {
+	m.clearedexperiment_proposals = true
+}
+
+// ExperimentProposalsCleared reports if the "experiment_proposals" edge to the ExperimentProposal entity was cleared.
+func (m *ResourceProfileMutation) ExperimentProposalsCleared() bool {
+	return m.clearedexperiment_proposals
+}
+
+// RemoveExperimentProposalIDs removes the "experiment_proposals" edge to the ExperimentProposal entity by IDs.
+func (m *ResourceProfileMutation) RemoveExperimentProposalIDs(ids ...int) {
+	if m.removedexperiment_proposals == nil {
+		m.removedexperiment_proposals = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.experiment_proposals, ids[i])
+		m.removedexperiment_proposals[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedExperimentProposals returns the removed IDs of the "experiment_proposals" edge to the ExperimentProposal entity.
+func (m *ResourceProfileMutation) RemovedExperimentProposalsIDs() (ids []int) {
+	for id := range m.removedexperiment_proposals {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ExperimentProposalsIDs returns the "experiment_proposals" edge IDs in the mutation.
+func (m *ResourceProfileMutation) ExperimentProposalsIDs() (ids []int) {
+	for id := range m.experiment_proposals {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetExperimentProposals resets all changes to the "experiment_proposals" edge.
+func (m *ResourceProfileMutation) ResetExperimentProposals() {
+	m.experiment_proposals = nil
+	m.clearedexperiment_proposals = false
+	m.removedexperiment_proposals = nil
+}
+
 // Where appends a list predicates to the ResourceProfileMutation builder.
 func (m *ResourceProfileMutation) Where(ps ...predicate.ResourceProfile) {
 	m.predicates = append(m.predicates, ps...)
@@ -31986,12 +34956,15 @@ func (m *ResourceProfileMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *ResourceProfileMutation) AddedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.project != nil {
 		edges = append(edges, resourceprofile.EdgeProject)
 	}
 	if m.experiments != nil {
 		edges = append(edges, resourceprofile.EdgeExperiments)
+	}
+	if m.experiment_proposals != nil {
+		edges = append(edges, resourceprofile.EdgeExperimentProposals)
 	}
 	return edges
 }
@@ -32010,15 +34983,24 @@ func (m *ResourceProfileMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case resourceprofile.EdgeExperimentProposals:
+		ids := make([]ent.Value, 0, len(m.experiment_proposals))
+		for id := range m.experiment_proposals {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *ResourceProfileMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.removedexperiments != nil {
 		edges = append(edges, resourceprofile.EdgeExperiments)
+	}
+	if m.removedexperiment_proposals != nil {
+		edges = append(edges, resourceprofile.EdgeExperimentProposals)
 	}
 	return edges
 }
@@ -32033,18 +35015,27 @@ func (m *ResourceProfileMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case resourceprofile.EdgeExperimentProposals:
+		ids := make([]ent.Value, 0, len(m.removedexperiment_proposals))
+		for id := range m.removedexperiment_proposals {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *ResourceProfileMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.clearedproject {
 		edges = append(edges, resourceprofile.EdgeProject)
 	}
 	if m.clearedexperiments {
 		edges = append(edges, resourceprofile.EdgeExperiments)
+	}
+	if m.clearedexperiment_proposals {
+		edges = append(edges, resourceprofile.EdgeExperimentProposals)
 	}
 	return edges
 }
@@ -32057,6 +35048,8 @@ func (m *ResourceProfileMutation) EdgeCleared(name string) bool {
 		return m.clearedproject
 	case resourceprofile.EdgeExperiments:
 		return m.clearedexperiments
+	case resourceprofile.EdgeExperimentProposals:
+		return m.clearedexperiment_proposals
 	}
 	return false
 }
@@ -32081,6 +35074,9 @@ func (m *ResourceProfileMutation) ResetEdge(name string) error {
 		return nil
 	case resourceprofile.EdgeExperiments:
 		m.ResetExperiments()
+		return nil
+	case resourceprofile.EdgeExperimentProposals:
+		m.ResetExperimentProposals()
 		return nil
 	}
 	return fmt.Errorf("unknown ResourceProfile edge %s", name)
@@ -35588,6 +38584,9 @@ type TenantMutation struct {
 	diagnostic_runs              map[int]struct{}
 	removeddiagnostic_runs       map[int]struct{}
 	cleareddiagnostic_runs       bool
+	experiment_proposals         map[int]struct{}
+	removedexperiment_proposals  map[int]struct{}
+	clearedexperiment_proposals  bool
 	done                         bool
 	oldValue                     func(context.Context) (*Tenant, error)
 	predicates                   []predicate.Tenant
@@ -36843,6 +39842,60 @@ func (m *TenantMutation) ResetDiagnosticRuns() {
 	m.removeddiagnostic_runs = nil
 }
 
+// AddExperimentProposalIDs adds the "experiment_proposals" edge to the ExperimentProposal entity by ids.
+func (m *TenantMutation) AddExperimentProposalIDs(ids ...int) {
+	if m.experiment_proposals == nil {
+		m.experiment_proposals = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.experiment_proposals[ids[i]] = struct{}{}
+	}
+}
+
+// ClearExperimentProposals clears the "experiment_proposals" edge to the ExperimentProposal entity.
+func (m *TenantMutation) ClearExperimentProposals() {
+	m.clearedexperiment_proposals = true
+}
+
+// ExperimentProposalsCleared reports if the "experiment_proposals" edge to the ExperimentProposal entity was cleared.
+func (m *TenantMutation) ExperimentProposalsCleared() bool {
+	return m.clearedexperiment_proposals
+}
+
+// RemoveExperimentProposalIDs removes the "experiment_proposals" edge to the ExperimentProposal entity by IDs.
+func (m *TenantMutation) RemoveExperimentProposalIDs(ids ...int) {
+	if m.removedexperiment_proposals == nil {
+		m.removedexperiment_proposals = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.experiment_proposals, ids[i])
+		m.removedexperiment_proposals[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedExperimentProposals returns the removed IDs of the "experiment_proposals" edge to the ExperimentProposal entity.
+func (m *TenantMutation) RemovedExperimentProposalsIDs() (ids []int) {
+	for id := range m.removedexperiment_proposals {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ExperimentProposalsIDs returns the "experiment_proposals" edge IDs in the mutation.
+func (m *TenantMutation) ExperimentProposalsIDs() (ids []int) {
+	for id := range m.experiment_proposals {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetExperimentProposals resets all changes to the "experiment_proposals" edge.
+func (m *TenantMutation) ResetExperimentProposals() {
+	m.experiment_proposals = nil
+	m.clearedexperiment_proposals = false
+	m.removedexperiment_proposals = nil
+}
+
 // Where appends a list predicates to the TenantMutation builder.
 func (m *TenantMutation) Where(ps ...predicate.Tenant) {
 	m.predicates = append(m.predicates, ps...)
@@ -37044,7 +40097,7 @@ func (m *TenantMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *TenantMutation) AddedEdges() []string {
-	edges := make([]string, 0, 18)
+	edges := make([]string, 0, 19)
 	if m.users != nil {
 		edges = append(edges, tenant.EdgeUsers)
 	}
@@ -37098,6 +40151,9 @@ func (m *TenantMutation) AddedEdges() []string {
 	}
 	if m.diagnostic_runs != nil {
 		edges = append(edges, tenant.EdgeDiagnosticRuns)
+	}
+	if m.experiment_proposals != nil {
+		edges = append(edges, tenant.EdgeExperimentProposals)
 	}
 	return edges
 }
@@ -37214,13 +40270,19 @@ func (m *TenantMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case tenant.EdgeExperimentProposals:
+		ids := make([]ent.Value, 0, len(m.experiment_proposals))
+		for id := range m.experiment_proposals {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *TenantMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 18)
+	edges := make([]string, 0, 19)
 	if m.removedusers != nil {
 		edges = append(edges, tenant.EdgeUsers)
 	}
@@ -37274,6 +40336,9 @@ func (m *TenantMutation) RemovedEdges() []string {
 	}
 	if m.removeddiagnostic_runs != nil {
 		edges = append(edges, tenant.EdgeDiagnosticRuns)
+	}
+	if m.removedexperiment_proposals != nil {
+		edges = append(edges, tenant.EdgeExperimentProposals)
 	}
 	return edges
 }
@@ -37390,13 +40455,19 @@ func (m *TenantMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case tenant.EdgeExperimentProposals:
+		ids := make([]ent.Value, 0, len(m.removedexperiment_proposals))
+		for id := range m.removedexperiment_proposals {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *TenantMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 18)
+	edges := make([]string, 0, 19)
 	if m.clearedusers {
 		edges = append(edges, tenant.EdgeUsers)
 	}
@@ -37451,6 +40522,9 @@ func (m *TenantMutation) ClearedEdges() []string {
 	if m.cleareddiagnostic_runs {
 		edges = append(edges, tenant.EdgeDiagnosticRuns)
 	}
+	if m.clearedexperiment_proposals {
+		edges = append(edges, tenant.EdgeExperimentProposals)
+	}
 	return edges
 }
 
@@ -37494,6 +40568,8 @@ func (m *TenantMutation) EdgeCleared(name string) bool {
 		return m.clearednode_assignments
 	case tenant.EdgeDiagnosticRuns:
 		return m.cleareddiagnostic_runs
+	case tenant.EdgeExperimentProposals:
+		return m.clearedexperiment_proposals
 	}
 	return false
 }
@@ -37563,6 +40639,9 @@ func (m *TenantMutation) ResetEdge(name string) error {
 		return nil
 	case tenant.EdgeDiagnosticRuns:
 		m.ResetDiagnosticRuns()
+		return nil
+	case tenant.EdgeExperimentProposals:
+		m.ResetExperimentProposals()
 		return nil
 	}
 	return fmt.Errorf("unknown Tenant edge %s", name)

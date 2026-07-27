@@ -10,6 +10,8 @@ const trustedOrigin = '{{GEMCP_PUBLIC_URL}}'
 const setupUserAgent = 'Gemcp-Pi-Setup/1'
 const expectedDirectTools = [
   'get_usage_guide',
+  'prepare_experiment',
+  'submit_prepared_experiment',
   'get_project_options',
   'get_project_cost',
   'submit_experiment',

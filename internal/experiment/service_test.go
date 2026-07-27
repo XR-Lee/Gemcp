@@ -30,6 +30,7 @@ func (f *fakeCommitVerifier) VerifyCommit(_ context.Context, _ int, sha string) 
 
 type fixture struct {
 	client      *ent.Client
+	box         *secrets.Box
 	service     *Service
 	principal   agentauth.Principal
 	project     *ent.Project
@@ -84,7 +85,7 @@ func newFixture(t *testing.T, monthlyBudget, experimentCap int64) fixture {
 	box, _ := secrets.New(key)
 	verifier := &fakeCommitVerifier{}
 	return fixture{
-		client: client, service: NewService(client, box, verifier), project: project, repository: repository,
+		client: client, box: box, service: NewService(client, box, verifier), project: project, repository: repository,
 		environment: environment, profile: profile, verifier: verifier,
 		principal: agentauth.Principal{
 			TenantID: tenant.ID, TenantPublicID: tenant.PublicID.String(), ProjectID: project.ID,
@@ -118,7 +119,7 @@ func TestSubmitIsAtomicAndIdempotent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Submit() error = %v", err)
 	}
-	if first.Idempotent || first.Experiment.State != "queued" || first.Experiment.ReservedCostMilli != 6575 {
+	if first.Idempotent || first.Experiment.State != "queued" || first.Experiment.ExecutionMode != "shell" || len(first.Experiment.Argv) != 0 || first.Experiment.ReservedCostMilli != 6575 {
 		t.Fatalf("unexpected first result: %+v", first)
 	}
 	if first.Experiment.ProjectID != f.project.PublicID.String() || first.Experiment.EnvironmentID != f.environment.PublicID.String() {

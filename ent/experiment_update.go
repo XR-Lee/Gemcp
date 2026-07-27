@@ -15,6 +15,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
 	"github.com/XR-Lee/Gemcp/ent/diagnosticrun"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
@@ -490,6 +491,25 @@ func (_u *ExperimentUpdate) SetDiagnosticRun(v *DiagnosticRun) *ExperimentUpdate
 	return _u.SetDiagnosticRunID(v.ID)
 }
 
+// SetProposalID sets the "proposal" edge to the ExperimentProposal entity by ID.
+func (_u *ExperimentUpdate) SetProposalID(id int) *ExperimentUpdate {
+	_u.mutation.SetProposalID(id)
+	return _u
+}
+
+// SetNillableProposalID sets the "proposal" edge to the ExperimentProposal entity by ID if the given value is not nil.
+func (_u *ExperimentUpdate) SetNillableProposalID(id *int) *ExperimentUpdate {
+	if id != nil {
+		_u = _u.SetProposalID(*id)
+	}
+	return _u
+}
+
+// SetProposal sets the "proposal" edge to the ExperimentProposal entity.
+func (_u *ExperimentUpdate) SetProposal(v *ExperimentProposal) *ExperimentUpdate {
+	return _u.SetProposalID(v.ID)
+}
+
 // Mutation returns the ExperimentMutation object of the builder.
 func (_u *ExperimentUpdate) Mutation() *ExperimentMutation {
 	return _u.mutation
@@ -606,6 +626,12 @@ func (_u *ExperimentUpdate) ClearDiagnosticRun() *ExperimentUpdate {
 	return _u
 }
 
+// ClearProposal clears the "proposal" edge to the ExperimentProposal entity.
+func (_u *ExperimentUpdate) ClearProposal() *ExperimentUpdate {
+	_u.mutation.ClearProposal()
+	return _u
+}
+
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (_u *ExperimentUpdate) Save(ctx context.Context) (int, error) {
 	_u.defaults()
@@ -717,6 +743,9 @@ func (_u *ExperimentUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	}
 	if value, ok := _u.mutation.DesiredState(); ok {
 		_spec.SetField(experiment.FieldDesiredState, field.TypeString, value)
+	}
+	if _u.mutation.ArgvCleared() {
+		_spec.ClearField(experiment.FieldArgv, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.EstimatedCostMilli(); ok {
 		_spec.SetField(experiment.FieldEstimatedCostMilli, field.TypeInt64, value)
@@ -1064,6 +1093,35 @@ func (_u *ExperimentUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(diagnosticrun.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ProposalCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   experiment.ProposalTable,
+			Columns: []string{experiment.ProposalColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentproposal.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ProposalIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   experiment.ProposalTable,
+			Columns: []string{experiment.ProposalColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentproposal.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -1547,6 +1605,25 @@ func (_u *ExperimentUpdateOne) SetDiagnosticRun(v *DiagnosticRun) *ExperimentUpd
 	return _u.SetDiagnosticRunID(v.ID)
 }
 
+// SetProposalID sets the "proposal" edge to the ExperimentProposal entity by ID.
+func (_u *ExperimentUpdateOne) SetProposalID(id int) *ExperimentUpdateOne {
+	_u.mutation.SetProposalID(id)
+	return _u
+}
+
+// SetNillableProposalID sets the "proposal" edge to the ExperimentProposal entity by ID if the given value is not nil.
+func (_u *ExperimentUpdateOne) SetNillableProposalID(id *int) *ExperimentUpdateOne {
+	if id != nil {
+		_u = _u.SetProposalID(*id)
+	}
+	return _u
+}
+
+// SetProposal sets the "proposal" edge to the ExperimentProposal entity.
+func (_u *ExperimentUpdateOne) SetProposal(v *ExperimentProposal) *ExperimentUpdateOne {
+	return _u.SetProposalID(v.ID)
+}
+
 // Mutation returns the ExperimentMutation object of the builder.
 func (_u *ExperimentUpdateOne) Mutation() *ExperimentMutation {
 	return _u.mutation
@@ -1660,6 +1737,12 @@ func (_u *ExperimentUpdateOne) RemoveIdempotencyRecords(v ...*IdempotencyRecord)
 // ClearDiagnosticRun clears the "diagnostic_run" edge to the DiagnosticRun entity.
 func (_u *ExperimentUpdateOne) ClearDiagnosticRun() *ExperimentUpdateOne {
 	_u.mutation.ClearDiagnosticRun()
+	return _u
+}
+
+// ClearProposal clears the "proposal" edge to the ExperimentProposal entity.
+func (_u *ExperimentUpdateOne) ClearProposal() *ExperimentUpdateOne {
+	_u.mutation.ClearProposal()
 	return _u
 }
 
@@ -1804,6 +1887,9 @@ func (_u *ExperimentUpdateOne) sqlSave(ctx context.Context) (_node *Experiment, 
 	}
 	if value, ok := _u.mutation.DesiredState(); ok {
 		_spec.SetField(experiment.FieldDesiredState, field.TypeString, value)
+	}
+	if _u.mutation.ArgvCleared() {
+		_spec.ClearField(experiment.FieldArgv, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.EstimatedCostMilli(); ok {
 		_spec.SetField(experiment.FieldEstimatedCostMilli, field.TypeInt64, value)
@@ -2151,6 +2237,35 @@ func (_u *ExperimentUpdateOne) sqlSave(ctx context.Context) (_node *Experiment, 
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(diagnosticrun.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ProposalCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   experiment.ProposalTable,
+			Columns: []string{experiment.ProposalColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentproposal.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ProposalIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   experiment.ProposalTable,
+			Columns: []string{experiment.ProposalColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentproposal.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

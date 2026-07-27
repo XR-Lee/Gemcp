@@ -17,10 +17,12 @@ import (
 )
 
 type fakeGitVerifier struct {
-	accessErr  error
-	commitErr  error
-	privateKey []byte
-	commitSHA  string
+	accessErr   error
+	commitErr   error
+	privateKey  []byte
+	commitSHA   string
+	ref         string
+	resolvedSHA string
 }
 
 func (f *fakeGitVerifier) VerifyAccess(_ context.Context, _, _ string, privateKey []byte, _ string) error {
@@ -32,6 +34,18 @@ func (f *fakeGitVerifier) VerifyCommit(_ context.Context, _, _ string, privateKe
 	f.privateKey = append([]byte(nil), privateKey...)
 	f.commitSHA = sha
 	return f.commitErr
+}
+
+func (f *fakeGitVerifier) ResolveRef(_ context.Context, _, _ string, privateKey []byte, _ string, ref string) (string, error) {
+	f.privateKey = append([]byte(nil), privateKey...)
+	f.ref = ref
+	if f.commitErr != nil {
+		return "", f.commitErr
+	}
+	if f.resolvedSHA == "" {
+		return strings.Repeat("a", 40), nil
+	}
+	return f.resolvedSHA, nil
 }
 
 func TestBoundedFileWriterStopsAtLimit(t *testing.T) {
@@ -92,6 +106,13 @@ func TestRepositoryDeployKeyLifecycle(t *testing.T) {
 	}
 	if verifier.commitSHA != sha {
 		t.Fatalf("verified SHA = %q", verifier.commitSHA)
+	}
+	resolved, err := service.ResolveRef(ctx, record.ID, "main")
+	if err != nil || resolved != strings.Repeat("a", 40) || verifier.ref != "main" {
+		t.Fatalf("ResolveRef() = %q, ref=%q, err=%v", resolved, verifier.ref, err)
+	}
+	if _, err := service.ResolveRef(ctx, record.ID, "--upload-pack=evil"); err == nil {
+		t.Fatal("ResolveRef() accepted an option-like ref")
 	}
 }
 

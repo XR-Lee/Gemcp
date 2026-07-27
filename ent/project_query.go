@@ -19,6 +19,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/diagnosticrun"
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/nodeprojectaccess"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
@@ -32,23 +33,24 @@ import (
 // ProjectQuery is the builder for querying Project entities.
 type ProjectQuery struct {
 	config
-	ctx                   *QueryContext
-	order                 []project.OrderOption
-	inters                []Interceptor
-	predicates            []predicate.Project
-	withTenant            *TenantQuery
-	withEnvironments      *EnvironmentQuery
-	withResourceProfiles  *ResourceProfileQuery
-	withRepositories      *RepositoryQuery
-	withAgentTokens       *AgentTokenQuery
-	withAgentEnrollments  *AgentEnrollmentQuery
-	withExperiments       *ExperimentQuery
-	withAttempts          *AttemptQuery
-	withProviderResources *ProviderResourceQuery
-	withBudgetEntries     *BudgetEntryQuery
-	withNodeAccess        *NodeProjectAccessQuery
-	withNodeAssignments   *NodeAssignmentQuery
-	withDiagnosticRuns    *DiagnosticRunQuery
+	ctx                     *QueryContext
+	order                   []project.OrderOption
+	inters                  []Interceptor
+	predicates              []predicate.Project
+	withTenant              *TenantQuery
+	withEnvironments        *EnvironmentQuery
+	withResourceProfiles    *ResourceProfileQuery
+	withRepositories        *RepositoryQuery
+	withAgentTokens         *AgentTokenQuery
+	withAgentEnrollments    *AgentEnrollmentQuery
+	withExperiments         *ExperimentQuery
+	withAttempts            *AttemptQuery
+	withProviderResources   *ProviderResourceQuery
+	withBudgetEntries       *BudgetEntryQuery
+	withNodeAccess          *NodeProjectAccessQuery
+	withNodeAssignments     *NodeAssignmentQuery
+	withDiagnosticRuns      *DiagnosticRunQuery
+	withExperimentProposals *ExperimentProposalQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -371,6 +373,28 @@ func (_q *ProjectQuery) QueryDiagnosticRuns() *DiagnosticRunQuery {
 	return query
 }
 
+// QueryExperimentProposals chains the current query on the "experiment_proposals" edge.
+func (_q *ProjectQuery) QueryExperimentProposals() *ExperimentProposalQuery {
+	query := (&ExperimentProposalClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, selector),
+			sqlgraph.To(experimentproposal.Table, experimentproposal.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.ExperimentProposalsTable, project.ExperimentProposalsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
 // First returns the first Project entity from the query.
 // Returns a *NotFoundError when no Project was found.
 func (_q *ProjectQuery) First(ctx context.Context) (*Project, error) {
@@ -558,24 +582,25 @@ func (_q *ProjectQuery) Clone() *ProjectQuery {
 		return nil
 	}
 	return &ProjectQuery{
-		config:                _q.config,
-		ctx:                   _q.ctx.Clone(),
-		order:                 append([]project.OrderOption{}, _q.order...),
-		inters:                append([]Interceptor{}, _q.inters...),
-		predicates:            append([]predicate.Project{}, _q.predicates...),
-		withTenant:            _q.withTenant.Clone(),
-		withEnvironments:      _q.withEnvironments.Clone(),
-		withResourceProfiles:  _q.withResourceProfiles.Clone(),
-		withRepositories:      _q.withRepositories.Clone(),
-		withAgentTokens:       _q.withAgentTokens.Clone(),
-		withAgentEnrollments:  _q.withAgentEnrollments.Clone(),
-		withExperiments:       _q.withExperiments.Clone(),
-		withAttempts:          _q.withAttempts.Clone(),
-		withProviderResources: _q.withProviderResources.Clone(),
-		withBudgetEntries:     _q.withBudgetEntries.Clone(),
-		withNodeAccess:        _q.withNodeAccess.Clone(),
-		withNodeAssignments:   _q.withNodeAssignments.Clone(),
-		withDiagnosticRuns:    _q.withDiagnosticRuns.Clone(),
+		config:                  _q.config,
+		ctx:                     _q.ctx.Clone(),
+		order:                   append([]project.OrderOption{}, _q.order...),
+		inters:                  append([]Interceptor{}, _q.inters...),
+		predicates:              append([]predicate.Project{}, _q.predicates...),
+		withTenant:              _q.withTenant.Clone(),
+		withEnvironments:        _q.withEnvironments.Clone(),
+		withResourceProfiles:    _q.withResourceProfiles.Clone(),
+		withRepositories:        _q.withRepositories.Clone(),
+		withAgentTokens:         _q.withAgentTokens.Clone(),
+		withAgentEnrollments:    _q.withAgentEnrollments.Clone(),
+		withExperiments:         _q.withExperiments.Clone(),
+		withAttempts:            _q.withAttempts.Clone(),
+		withProviderResources:   _q.withProviderResources.Clone(),
+		withBudgetEntries:       _q.withBudgetEntries.Clone(),
+		withNodeAccess:          _q.withNodeAccess.Clone(),
+		withNodeAssignments:     _q.withNodeAssignments.Clone(),
+		withDiagnosticRuns:      _q.withDiagnosticRuns.Clone(),
+		withExperimentProposals: _q.withExperimentProposals.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -725,6 +750,17 @@ func (_q *ProjectQuery) WithDiagnosticRuns(opts ...func(*DiagnosticRunQuery)) *P
 	return _q
 }
 
+// WithExperimentProposals tells the query-builder to eager-load the nodes that are connected to
+// the "experiment_proposals" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ProjectQuery) WithExperimentProposals(opts ...func(*ExperimentProposalQuery)) *ProjectQuery {
+	query := (&ExperimentProposalClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withExperimentProposals = query
+	return _q
+}
+
 // GroupBy is used to group vertices by one or more fields/columns.
 // It is often used with aggregate functions, like: count, max, mean, min, sum.
 //
@@ -803,7 +839,7 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 	var (
 		nodes       = []*Project{}
 		_spec       = _q.querySpec()
-		loadedTypes = [13]bool{
+		loadedTypes = [14]bool{
 			_q.withTenant != nil,
 			_q.withEnvironments != nil,
 			_q.withResourceProfiles != nil,
@@ -817,6 +853,7 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 			_q.withNodeAccess != nil,
 			_q.withNodeAssignments != nil,
 			_q.withDiagnosticRuns != nil,
+			_q.withExperimentProposals != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -926,6 +963,15 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 		if err := _q.loadDiagnosticRuns(ctx, query, nodes,
 			func(n *Project) { n.Edges.DiagnosticRuns = []*DiagnosticRun{} },
 			func(n *Project, e *DiagnosticRun) { n.Edges.DiagnosticRuns = append(n.Edges.DiagnosticRuns, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withExperimentProposals; query != nil {
+		if err := _q.loadExperimentProposals(ctx, query, nodes,
+			func(n *Project) { n.Edges.ExperimentProposals = []*ExperimentProposal{} },
+			func(n *Project, e *ExperimentProposal) {
+				n.Edges.ExperimentProposals = append(n.Edges.ExperimentProposals, e)
+			}); err != nil {
 			return nil, err
 		}
 	}
@@ -1306,6 +1352,36 @@ func (_q *ProjectQuery) loadDiagnosticRuns(ctx context.Context, query *Diagnosti
 	}
 	query.Where(predicate.DiagnosticRun(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(project.DiagnosticRunsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ProjectID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "project_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *ProjectQuery) loadExperimentProposals(ctx context.Context, query *ExperimentProposalQuery, nodes []*Project, init func(*Project), assign func(*Project, *ExperimentProposal)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Project)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(experimentproposal.FieldProjectID)
+	}
+	query.Where(predicate.ExperimentProposal(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(project.ExperimentProposalsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

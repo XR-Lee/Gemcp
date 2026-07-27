@@ -14,6 +14,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/diagnosticrun"
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/repository"
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
@@ -50,6 +51,10 @@ type Experiment struct {
 	DesiredState string `json:"desired_state,omitempty"`
 	// CommitSha holds the value of the "commit_sha" field.
 	CommitSha string `json:"commit_sha,omitempty"`
+	// ExecutionMode holds the value of the "execution_mode" field.
+	ExecutionMode experiment.ExecutionMode `json:"execution_mode,omitempty"`
+	// Argv holds the value of the "argv" field.
+	Argv []string `json:"argv,omitempty"`
 	// Command holds the value of the "command" field.
 	Command string `json:"command,omitempty"`
 	// MaxRuntimeSeconds holds the value of the "max_runtime_seconds" field.
@@ -136,9 +141,11 @@ type ExperimentEdges struct {
 	IdempotencyRecords []*IdempotencyRecord `json:"idempotency_records,omitempty"`
 	// DiagnosticRun holds the value of the diagnostic_run edge.
 	DiagnosticRun *DiagnosticRun `json:"diagnostic_run,omitempty"`
+	// Proposal holds the value of the proposal edge.
+	Proposal *ExperimentProposal `json:"proposal,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [12]bool
+	loadedTypes [13]bool
 }
 
 // TenantOrErr returns the Tenant value or an error if the edge
@@ -263,16 +270,27 @@ func (e ExperimentEdges) DiagnosticRunOrErr() (*DiagnosticRun, error) {
 	return nil, &NotLoadedError{edge: "diagnostic_run"}
 }
 
+// ProposalOrErr returns the Proposal value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e ExperimentEdges) ProposalOrErr() (*ExperimentProposal, error) {
+	if e.Proposal != nil {
+		return e.Proposal, nil
+	} else if e.loadedTypes[12] {
+		return nil, &NotFoundError{label: experimentproposal.Label}
+	}
+	return nil, &NotLoadedError{edge: "proposal"}
+}
+
 // scanValues returns the types for scanning values from sql.Rows.
 func (*Experiment) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case experiment.FieldRepositorySnapshot, experiment.FieldEnvironmentSnapshot, experiment.FieldResourceSnapshot, experiment.FieldSecretNames, experiment.FieldMetrics:
+		case experiment.FieldArgv, experiment.FieldRepositorySnapshot, experiment.FieldEnvironmentSnapshot, experiment.FieldResourceSnapshot, experiment.FieldSecretNames, experiment.FieldMetrics:
 			values[i] = new([]byte)
 		case experiment.FieldID, experiment.FieldTenantID, experiment.FieldProjectID, experiment.FieldAgentTokenID, experiment.FieldRepositoryID, experiment.FieldEnvironmentID, experiment.FieldResourceProfileID, experiment.FieldMaxRuntimeSeconds, experiment.FieldTimeoutExtensionSeconds, experiment.FieldTerminationGraceSeconds, experiment.FieldReservedCostMilli, experiment.FieldEstimatedCostMilli, experiment.FieldExitCode:
 			values[i] = new(sql.NullInt64)
-		case experiment.FieldState, experiment.FieldDesiredState, experiment.FieldCommitSha, experiment.FieldCommand, experiment.FieldOutputPath, experiment.FieldProviderResourceID, experiment.FieldProviderStatus, experiment.FieldFailureCode, experiment.FieldFailureReason, experiment.FieldLogTail, experiment.FieldLeaseOwner:
+		case experiment.FieldState, experiment.FieldDesiredState, experiment.FieldCommitSha, experiment.FieldExecutionMode, experiment.FieldCommand, experiment.FieldOutputPath, experiment.FieldProviderResourceID, experiment.FieldProviderStatus, experiment.FieldFailureCode, experiment.FieldFailureReason, experiment.FieldLogTail, experiment.FieldLeaseOwner:
 			values[i] = new(sql.NullString)
 		case experiment.FieldCreatedAt, experiment.FieldUpdatedAt, experiment.FieldStartedAt, experiment.FieldDeadlineAt, experiment.FieldFinishedAt, experiment.FieldCancelRequestedAt, experiment.FieldTimeoutExtendedAt, experiment.FieldBudgetFinalizedAt, experiment.FieldLeaseExpiresAt, experiment.FieldNextAttemptAt:
 			values[i] = new(sql.NullTime)
@@ -371,6 +389,20 @@ func (_m *Experiment) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field commit_sha", values[i])
 			} else if value.Valid {
 				_m.CommitSha = value.String
+			}
+		case experiment.FieldExecutionMode:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field execution_mode", values[i])
+			} else if value.Valid {
+				_m.ExecutionMode = experiment.ExecutionMode(value.String)
+			}
+		case experiment.FieldArgv:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field argv", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Argv); err != nil {
+					return fmt.Errorf("unmarshal field argv: %w", err)
+				}
 			}
 		case experiment.FieldCommand:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -631,6 +663,11 @@ func (_m *Experiment) QueryDiagnosticRun() *DiagnosticRunQuery {
 	return NewExperimentClient(_m.config).QueryDiagnosticRun(_m)
 }
 
+// QueryProposal queries the "proposal" edge of the Experiment entity.
+func (_m *Experiment) QueryProposal() *ExperimentProposalQuery {
+	return NewExperimentClient(_m.config).QueryProposal(_m)
+}
+
 // Update returns a builder for updating this Experiment.
 // Note that you need to call Experiment.Unwrap() before calling this method if this Experiment
 // was returned from a transaction, and the transaction was committed or rolled back.
@@ -691,6 +728,12 @@ func (_m *Experiment) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("commit_sha=")
 	builder.WriteString(_m.CommitSha)
+	builder.WriteString(", ")
+	builder.WriteString("execution_mode=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ExecutionMode))
+	builder.WriteString(", ")
+	builder.WriteString("argv=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Argv))
 	builder.WriteString(", ")
 	builder.WriteString("command=")
 	builder.WriteString(_m.Command)

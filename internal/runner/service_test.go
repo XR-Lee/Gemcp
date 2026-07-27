@@ -73,6 +73,10 @@ type runnerFixture struct {
 }
 
 func newRunnerFixture(t *testing.T) *runnerFixture {
+	return newRunnerFixtureWithArgv(t, nil)
+}
+
+func newRunnerFixtureWithArgv(t *testing.T, argv []string) *runnerFixture {
 	t.Helper()
 	client := enttest.Open(t, dialect.SQLite, "file:"+t.Name()+"?mode=memory&cache=shared&_fk=1")
 	t.Cleanup(func() { _ = client.Close() })
@@ -91,12 +95,16 @@ func newRunnerFixture(t *testing.T) *runnerFixture {
 	agentToken, _ := client.AgentToken.Create().SetProjectID(project.ID).SetLabel("agent").SetPrefix("gmc_test").SetTokenHash([]byte("hash")).Save(ctx)
 	providerAccount, _ := client.ProviderAccount.Create().SetTenantID(tenant.ID).SetName("provider").SetBaseURL("https://private.autodl.com").
 		SetBackend("private").SetStatus("active").SetCredentialCiphertext("ciphertext").Save(ctx)
-	experimentRecord, _ := client.Experiment.Create().SetTenantID(tenant.ID).SetProjectID(project.ID).SetAgentTokenID(agentToken.ID).
+	experimentCreate := client.Experiment.Create().SetTenantID(tenant.ID).SetProjectID(project.ID).SetAgentTokenID(agentToken.ID).
 		SetRepositoryID(repositoryRecord.ID).SetEnvironmentID(environment.ID).SetResourceProfileID(profile.ID).
 		SetState("provisioning").SetCommitSha("0123456789012345678901234567890123456789").SetCommand("python train.py").
 		SetMaxRuntimeSeconds(60).SetTimeoutExtensionSeconds(30).SetTerminationGraceSeconds(5).
 		SetRepositorySnapshot(map[string]any{}).SetEnvironmentSnapshot(map[string]any{}).SetResourceSnapshot(map[string]any{}).
-		SetOutputPath("/root/autodl-fs/projects/p/experiments/e/").SetReservedCostMilli(1000).Save(ctx)
+		SetOutputPath("/root/autodl-fs/projects/p/experiments/e/").SetReservedCostMilli(1000)
+	if len(argv) > 0 {
+		experimentCreate.SetExecutionMode("argv").SetArgv(argv)
+	}
+	experimentRecord, _ := experimentCreate.Save(ctx)
 	token, _, _ := secrets.RandomToken("gmr", 32)
 	attemptPublic := experimentRecord.PublicID
 	ciphertext, _ := box.Encrypt([]byte(token), TokenAADPrefix+attemptPublic.String())
@@ -113,6 +121,17 @@ func newRunnerFixture(t *testing.T) *runnerFixture {
 	return fixture
 }
 
+func TestSpecUsesExactlyOneExecutionAuthority(t *testing.T) {
+	f := newRunnerFixtureWithArgv(t, []string{"python", "train.py", "--seed", "2"})
+	spec, err := f.service.Spec(context.Background(), f.token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if spec.ExecutionMode != "argv" || spec.Command != "" || strings.Join(spec.Argv, "|") != "python|train.py|--seed|2" {
+		t.Fatalf("argv Runner spec = %+v", spec)
+	}
+}
+
 func TestSpecAndSourceAreScopedToRunnerToken(t *testing.T) {
 	f := newRunnerFixture(t)
 	ctx := context.Background()
@@ -120,7 +139,7 @@ func TestSpecAndSourceAreScopedToRunnerToken(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if spec.Command != "python train.py" || spec.SourceMaxBytes != sourceTransferLimit(1024) || spec.ExperimentID != f.experiment.PublicID.String() ||
+	if spec.ExecutionMode != "shell" || spec.Command != "python train.py" || len(spec.Argv) != 0 || spec.SourceMaxBytes != sourceTransferLimit(1024) || spec.ExperimentID != f.experiment.PublicID.String() ||
 		spec.ProvisioningSecondsRemaining != 600 {
 		t.Fatalf("spec = %+v", spec)
 	}
@@ -384,6 +403,84 @@ func TestBootstrapNormalizesOwnerStopBeforeCompletionCallback(t *testing.T) {
 		!strings.Contains(string(content), "gemcp-launch-source-download-retry-") || !strings.Contains(string(content), "gemcp-launch-stage-source_extracted") ||
 		!strings.Contains(string(content), "gemcp-launch-started-callback-retry-RemoteDisconnected") {
 		t.Fatalf("Runner launch log = %q, %v", content, err)
+	}
+}
+
+func TestBootstrapExecutesArgvWithoutShellInterpolation(t *testing.T) {
+	python, err := exec.LookPath("python3")
+	if err != nil {
+		t.Skip("python3 is unavailable")
+	}
+	var archive bytes.Buffer
+	gzipWriter := gzip.NewWriter(&archive)
+	tarWriter := tar.NewWriter(gzipWriter)
+	script := []byte("import os,pathlib,sys\npathlib.Path(os.environ['GEMCP_OUTPUT_DIR'],'argv.txt').write_text(sys.argv[1])\n")
+	if err := tarWriter.WriteHeader(&tar.Header{Name: "argv_test.py", Mode: 0o644, Size: int64(len(script)), Typeflag: tar.TypeReg}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tarWriter.Write(script); err != nil {
+		t.Fatal(err)
+	}
+	if err := tarWriter.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := gzipWriter.Close(); err != nil {
+		t.Fatal(err)
+	}
+	outputPath := t.TempDir()
+	shellMarker := filepath.Join(t.TempDir(), "shell-marker")
+	literal := "value; $(touch " + shellMarker + ")"
+	finishedEvents := make(chan EventInput, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		switch request.URL.Path {
+		case "/api/v1/runner/spec":
+			_ = json.NewEncoder(response).Encode(map[string]any{"data": Spec{
+				ExperimentID: "experiment", AttemptID: "attempt", ExecutionMode: "argv",
+				Argv: []string{python, "argv_test.py", literal}, OutputPath: outputPath,
+				MaxRuntimeSeconds: 60, TerminationGraceSeconds: 1, HeartbeatIntervalSeconds: 5,
+				SourceMaxBytes: 1 << 20, ProvisioningSecondsRemaining: 60, TokenExpiresAt: time.Now().Add(time.Hour),
+			}})
+		case "/api/v1/runner/source":
+			response.Header().Set("Content-Length", fmt.Sprint(archive.Len()))
+			_, _ = response.Write(archive.Bytes())
+		case "/api/v1/runner/events":
+			var event EventInput
+			if err := json.NewDecoder(request.Body).Decode(&event); err != nil {
+				http.Error(response, "bad event", http.StatusBadRequest)
+				return
+			}
+			if event.Type == "finished" {
+				finishedEvents <- event
+			}
+			_ = json.NewEncoder(response).Encode(map[string]any{"data": Control{}})
+		default:
+			http.NotFound(response, request)
+		}
+	}))
+	defer server.Close()
+	path := filepath.Join(t.TempDir(), "bootstrap.py")
+	if err := os.WriteFile(path, []byte(BootstrapScript()), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	command := exec.Command(python, path)
+	command.Env = append(os.Environ(), "GEMCP_RUNNER_URL="+server.URL, "GEMCP_RUNNER_TOKEN="+strings.Repeat("t", 40))
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("argv bootstrap failed: %v: %s", err, output)
+	}
+	content, err := os.ReadFile(filepath.Join(outputPath, "argv.txt"))
+	if err != nil || string(content) != literal {
+		t.Fatalf("argv output = %q, %v", content, err)
+	}
+	if _, err := os.Stat(shellMarker); !os.IsNotExist(err) {
+		t.Fatalf("shell interpolation marker exists: %v", err)
+	}
+	select {
+	case finished := <-finishedEvents:
+		if finished.ExitCode == nil || *finished.ExitCode != 0 || finished.Reason != "completed" {
+			t.Fatalf("finished callback = %+v", finished)
+		}
+	default:
+		t.Fatal("argv bootstrap sent no completion callback")
 	}
 }
 

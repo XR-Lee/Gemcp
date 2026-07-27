@@ -18,7 +18,7 @@ For Pi, create a short-lived **Pi setup link** from the Owner console and let th
 
 Gemcp's preferred Pi flow requires the already-installed `pi-mcp-adapter`. The Owner sends one URL from `/agent/setup#code=...`; the Agent reads the public setup instructions and runs the fixed installer from the same configured origin. The code remains in the URL fragment and is not sent by link previews or ordinary page requests.
 
-The installer merges a `gemcp-<project>` server into `<Pi agent dir>/mcp.json`, preserves existing servers, writes mode `0600`, exposes all eight bounded Gemcp tools through `directTools`, and verifies tool discovery plus guide, options, and cost calls. A local credential-reading helper supports the current session without printing the Token. One `/reload` activates native `gemcp-<project>_*` tools through the adapter.
+The installer merges a `gemcp-<project>` server into `<Pi agent dir>/mcp.json`, preserves existing servers, writes mode `0600`, exposes all ten bounded Gemcp tools through `directTools`, and verifies tool discovery plus guide, options, and cost calls. A local credential-reading helper supports the current session without printing the Token. One `/reload` activates native `gemcp-<project>_*` tools through the adapter.
 
 Claimed credentials remain `read`-only and expire at the setup deadline until verification completes. Completion activates the Owner-selected scopes and lifetime, clears the setup capability, and leaves only a credential-free local receipt. The complete API and installer are retry-safe if the final response is lost.
 
@@ -205,22 +205,24 @@ Then call `get_project_options`. It is read-only and confirms all of the followi
 - the Token has `read` scope;
 - approved repository, environment, and resource-profile IDs are visible.
 
-Then call `get_project_cost` before submitting work. A third-party Agent should never guess UUIDs or use a branch name where Gemcp requires an immutable commit.
+The installer also calls `get_project_cost` as a read-only setup check. Normal work then uses `prepare_experiment`, which resolves UUIDs, a moving ref, immutable commit, preflight, cost, and idempotency on the server. `get_project_options` and `get_project_cost` remain available for inspection and the Advanced direct path.
 
 The production Agent handoff includes a complete initial instruction. Its central approval boundary is:
 
 ```text
 Use Gemcp only through its MCP tools. Read the Gemcp usage guide when needed.
-Always call get_project_options and get_project_cost before proposing paid work.
-Present the exact immutable execution specification and worst-case reservation,
-then wait for human approval unless a standing authorization clearly covers it.
+Use prepare_experiment for normal work. Present the exact immutable proposal and
+worst-case reservation, then wait for human approval of its confirmation digest
+before calling submit_prepared_experiment.
 ```
 
 ## Tools
 
 - `get_usage_guide`: current Agent operating guide, authenticated project ID, Token scopes, Resource URI, and Prompt name.
+- `prepare_experiment`: resolve a repository/ref, safe argv, compatible defaults, preflight checks, cost, and a short-lived immutable proposal without reserving budget.
+- `submit_prepared_experiment`: submit one confirmed proposal by ID and digest; identical retries return the same Experiment.
 - `get_project_options`: approved repositories, environments, resource profiles, and project limits.
-- `submit_experiment`: verify a full Git commit SHA, reserve worst-case budget, and create an immutable queued experiment.
+- `submit_experiment`: Advanced compatibility path for a full commit SHA, arbitrary shell command, and caller-managed idempotency key.
 - `get_experiment`: current state and immutable experiment specification.
 - `list_experiments`: recent experiments with optional state filters.
 - `cancel_experiment`: cancel queued work immediately or request cancellation of active work.
@@ -232,12 +234,34 @@ Scope mapping:
 | Scope | Required for |
 | --- | --- |
 | `read` | usage guide, options, experiment queries, artifact listing, and cost queries |
-| `submit` | `submit_experiment` |
+| `submit` | prepare, prepared submission, and Advanced direct submission |
 | `cancel` | `cancel_experiment` |
 
 Issue the minimum scopes needed by the third-party Agent.
 
-## Submission contract
+## Prepared submission contract
+
+The normal call may omit the repository and ref when the Project has one active repository with a default branch:
+
+```json
+{
+  "argv": ["python", "tools/smoke.py"],
+  "runtime_preset": "smoke"
+}
+```
+
+Preparation returns the resolved full commit, resources, checks, exact argv, display command, runtime policy, CNY reservation, expiry, proposal ID, and confirmation digest. It creates no Experiment, Attempt, Provider resource, or budget entry. After the human confirms the exact proposal, submit only:
+
+```json
+{
+  "proposal_id": "proposal-id",
+  "confirmation_digest": "sha256:exact-confirmed-digest"
+}
+```
+
+Gemcp rechecks drift and budget. A retry with the same proposal returns the original Experiment.
+
+## Advanced submission contract
 
 `submit_experiment` requires:
 

@@ -37,6 +37,7 @@ func (ResourceProfile) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.From("project", Project.Type).Ref("resource_profiles").Field("project_id").Unique().Required().Immutable(),
 		edge.To("experiments", Experiment.Type),
+		edge.To("experiment_proposals", ExperimentProposal.Type),
 	}
 }
 

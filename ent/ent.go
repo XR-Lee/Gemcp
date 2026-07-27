@@ -20,6 +20,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/diagnosticrun"
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/nodecommand"
@@ -107,6 +108,7 @@ func checkColumn(t, c string) error {
 			diagnosticrun.Table:       diagnosticrun.ValidColumn,
 			environment.Table:         environment.ValidColumn,
 			experiment.Table:          experiment.ValidColumn,
+			experimentproposal.Table:  experimentproposal.ValidColumn,
 			idempotencyrecord.Table:   idempotencyrecord.ValidColumn,
 			nodeassignment.Table:      nodeassignment.ValidColumn,
 			nodecommand.Table:         nodecommand.ValidColumn,

@@ -41,7 +41,7 @@ The Pi setup flow writes this authentication configuration automatically. The ad
 
 A Pi setup link stores its 256-bit setup code only in the URL fragment. Browsers do not include the fragment in the setup-page request, access log, or Referer. Previewing the public setup page does not consume the link.
 
-Claiming creates a short-lived `read`-only credential and writes it to the Pi agent directory's `mcp.json` with mode `0600`. The fixed installer preserves other MCP servers, discovers all eight Gemcp tools, calls `get_usage_guide`, `get_project_options`, and `get_project_cost`, and then completes enrollment. Completion atomically applies the Owner-selected scopes and credential lifetime. The database stores only HMAC-SHA-256 digests of the setup code and Agent Token.
+Claiming creates a short-lived `read`-only credential and writes it to the Pi agent directory's `mcp.json` with mode `0600`. The fixed installer preserves other MCP servers, discovers all ten Gemcp tools, calls `get_usage_guide`, `get_project_options`, and `get_project_cost`, and then completes enrollment. Completion atomically applies the Owner-selected scopes and credential lifetime. The database stores only HMAC-SHA-256 digests of the setup code and Agent Token.
 
 The setup link is shown once, may be claimed repeatedly only until completion for retry safety, and becomes unusable after completion, expiry, or revocation. The Owner can revoke pending or claimed setup from the console; revoking a claimed setup also revokes its provisional Token.
 

@@ -122,12 +122,12 @@ func TestOwnerAgentTokenHTTPContract(t *testing.T) {
 	if err := json.Unmarshal(claimResponse.Body.Bytes(), &claim); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(claim.Data.AgentToken, "gmc_") || claim.Data.PiConfig.BearerToken != claim.Data.AgentToken || len(claim.Data.PiConfig.DirectTools) != 8 {
+	if !strings.HasPrefix(claim.Data.AgentToken, "gmc_") || claim.Data.PiConfig.BearerToken != claim.Data.AgentToken || len(claim.Data.PiConfig.DirectTools) != 10 {
 		t.Fatalf("claim response = %+v", claim.Data)
 	}
 
 	completeRequest := httptest.NewRequest(http.MethodPost, "/agent-enrollments/complete", strings.NewReader(`{
-		"code":"`+setupCode+`","client":"pi-mcp-adapter/2.10.0","tool_count":8,
+		"code":"`+setupCode+`","client":"pi-mcp-adapter/2.10.0","tool_count":10,
 		"checks":["tools","guide","options","cost"]
 	}`))
 	completeRequest.Header.Set("Content-Type", "application/json")

@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 )
 
@@ -126,6 +127,21 @@ func (_u *EnvironmentUpdate) AddExperiments(v ...*Experiment) *EnvironmentUpdate
 	return _u.AddExperimentIDs(ids...)
 }
 
+// AddExperimentProposalIDs adds the "experiment_proposals" edge to the ExperimentProposal entity by IDs.
+func (_u *EnvironmentUpdate) AddExperimentProposalIDs(ids ...int) *EnvironmentUpdate {
+	_u.mutation.AddExperimentProposalIDs(ids...)
+	return _u
+}
+
+// AddExperimentProposals adds the "experiment_proposals" edges to the ExperimentProposal entity.
+func (_u *EnvironmentUpdate) AddExperimentProposals(v ...*ExperimentProposal) *EnvironmentUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddExperimentProposalIDs(ids...)
+}
+
 // Mutation returns the EnvironmentMutation object of the builder.
 func (_u *EnvironmentUpdate) Mutation() *EnvironmentMutation {
 	return _u.mutation
@@ -150,6 +166,27 @@ func (_u *EnvironmentUpdate) RemoveExperiments(v ...*Experiment) *EnvironmentUpd
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveExperimentIDs(ids...)
+}
+
+// ClearExperimentProposals clears all "experiment_proposals" edges to the ExperimentProposal entity.
+func (_u *EnvironmentUpdate) ClearExperimentProposals() *EnvironmentUpdate {
+	_u.mutation.ClearExperimentProposals()
+	return _u
+}
+
+// RemoveExperimentProposalIDs removes the "experiment_proposals" edge to ExperimentProposal entities by IDs.
+func (_u *EnvironmentUpdate) RemoveExperimentProposalIDs(ids ...int) *EnvironmentUpdate {
+	_u.mutation.RemoveExperimentProposalIDs(ids...)
+	return _u
+}
+
+// RemoveExperimentProposals removes "experiment_proposals" edges to ExperimentProposal entities.
+func (_u *EnvironmentUpdate) RemoveExperimentProposals(v ...*ExperimentProposal) *EnvironmentUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveExperimentProposalIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -294,6 +331,51 @@ func (_u *EnvironmentUpdate) sqlSave(ctx context.Context) (_node int, err error)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.ExperimentProposalsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   environment.ExperimentProposalsTable,
+			Columns: []string{environment.ExperimentProposalsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentproposal.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedExperimentProposalsIDs(); len(nodes) > 0 && !_u.mutation.ExperimentProposalsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   environment.ExperimentProposalsTable,
+			Columns: []string{environment.ExperimentProposalsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentproposal.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ExperimentProposalsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   environment.ExperimentProposalsTable,
+			Columns: []string{environment.ExperimentProposalsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentproposal.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{environment.Label}
@@ -411,6 +493,21 @@ func (_u *EnvironmentUpdateOne) AddExperiments(v ...*Experiment) *EnvironmentUpd
 	return _u.AddExperimentIDs(ids...)
 }
 
+// AddExperimentProposalIDs adds the "experiment_proposals" edge to the ExperimentProposal entity by IDs.
+func (_u *EnvironmentUpdateOne) AddExperimentProposalIDs(ids ...int) *EnvironmentUpdateOne {
+	_u.mutation.AddExperimentProposalIDs(ids...)
+	return _u
+}
+
+// AddExperimentProposals adds the "experiment_proposals" edges to the ExperimentProposal entity.
+func (_u *EnvironmentUpdateOne) AddExperimentProposals(v ...*ExperimentProposal) *EnvironmentUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddExperimentProposalIDs(ids...)
+}
+
 // Mutation returns the EnvironmentMutation object of the builder.
 func (_u *EnvironmentUpdateOne) Mutation() *EnvironmentMutation {
 	return _u.mutation
@@ -435,6 +532,27 @@ func (_u *EnvironmentUpdateOne) RemoveExperiments(v ...*Experiment) *Environment
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveExperimentIDs(ids...)
+}
+
+// ClearExperimentProposals clears all "experiment_proposals" edges to the ExperimentProposal entity.
+func (_u *EnvironmentUpdateOne) ClearExperimentProposals() *EnvironmentUpdateOne {
+	_u.mutation.ClearExperimentProposals()
+	return _u
+}
+
+// RemoveExperimentProposalIDs removes the "experiment_proposals" edge to ExperimentProposal entities by IDs.
+func (_u *EnvironmentUpdateOne) RemoveExperimentProposalIDs(ids ...int) *EnvironmentUpdateOne {
+	_u.mutation.RemoveExperimentProposalIDs(ids...)
+	return _u
+}
+
+// RemoveExperimentProposals removes "experiment_proposals" edges to ExperimentProposal entities.
+func (_u *EnvironmentUpdateOne) RemoveExperimentProposals(v ...*ExperimentProposal) *EnvironmentUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveExperimentProposalIDs(ids...)
 }
 
 // Where appends a list predicates to the EnvironmentUpdate builder.
@@ -602,6 +720,51 @@ func (_u *EnvironmentUpdateOne) sqlSave(ctx context.Context) (_node *Environment
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ExperimentProposalsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   environment.ExperimentProposalsTable,
+			Columns: []string{environment.ExperimentProposalsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentproposal.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedExperimentProposalsIDs(); len(nodes) > 0 && !_u.mutation.ExperimentProposalsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   environment.ExperimentProposalsTable,
+			Columns: []string{environment.ExperimentProposalsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentproposal.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ExperimentProposalsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   environment.ExperimentProposalsTable,
+			Columns: []string{environment.ExperimentProposalsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentproposal.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

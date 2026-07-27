@@ -80,9 +80,17 @@ func (s *Service) Spec(ctx context.Context, token string) (Spec, error) {
 			provisioningSecondsRemaining = int(remaining / time.Second)
 		}
 	}
+	executionMode := string(session.experiment.ExecutionMode)
+	command := session.experiment.Command
+	argv := append([]string(nil), session.experiment.Argv...)
+	if executionMode == "argv" {
+		command = ""
+	} else {
+		argv = nil
+	}
 	return Spec{
 		ExperimentID: session.experiment.PublicID.String(), AttemptID: session.attempt.PublicID.String(),
-		Command: session.experiment.Command, OutputPath: session.experiment.OutputPath,
+		ExecutionMode: executionMode, Command: command, Argv: argv, OutputPath: session.experiment.OutputPath,
 		MaxRuntimeSeconds:        session.experiment.MaxRuntimeSeconds,
 		TimeoutExtensionSeconds:  session.experiment.TimeoutExtensionSeconds,
 		TerminationGraceSeconds:  session.experiment.TerminationGraceSeconds,

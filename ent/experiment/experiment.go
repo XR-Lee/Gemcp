@@ -3,6 +3,7 @@
 package experiment
 
 import (
+	"fmt"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
@@ -39,6 +40,10 @@ const (
 	FieldDesiredState = "desired_state"
 	// FieldCommitSha holds the string denoting the commit_sha field in the database.
 	FieldCommitSha = "commit_sha"
+	// FieldExecutionMode holds the string denoting the execution_mode field in the database.
+	FieldExecutionMode = "execution_mode"
+	// FieldArgv holds the string denoting the argv field in the database.
+	FieldArgv = "argv"
 	// FieldCommand holds the string denoting the command field in the database.
 	FieldCommand = "command"
 	// FieldMaxRuntimeSeconds holds the string denoting the max_runtime_seconds field in the database.
@@ -117,6 +122,8 @@ const (
 	EdgeIdempotencyRecords = "idempotency_records"
 	// EdgeDiagnosticRun holds the string denoting the diagnostic_run edge name in mutations.
 	EdgeDiagnosticRun = "diagnostic_run"
+	// EdgeProposal holds the string denoting the proposal edge name in mutations.
+	EdgeProposal = "proposal"
 	// Table holds the table name of the experiment in the database.
 	Table = "experiments"
 	// TenantTable is the table that holds the tenant relation/edge.
@@ -203,6 +210,13 @@ const (
 	DiagnosticRunInverseTable = "diagnostic_runs"
 	// DiagnosticRunColumn is the table column denoting the diagnostic_run relation/edge.
 	DiagnosticRunColumn = "experiment_id"
+	// ProposalTable is the table that holds the proposal relation/edge.
+	ProposalTable = "experiment_proposals"
+	// ProposalInverseTable is the table name for the ExperimentProposal entity.
+	// It exists in this package in order to avoid circular dependency with the "experimentproposal" package.
+	ProposalInverseTable = "experiment_proposals"
+	// ProposalColumn is the table column denoting the proposal relation/edge.
+	ProposalColumn = "experiment_id"
 )
 
 // Columns holds all SQL columns for experiment fields.
@@ -220,6 +234,8 @@ var Columns = []string{
 	FieldState,
 	FieldDesiredState,
 	FieldCommitSha,
+	FieldExecutionMode,
+	FieldArgv,
 	FieldCommand,
 	FieldMaxRuntimeSeconds,
 	FieldTimeoutExtensionSeconds,
@@ -308,6 +324,32 @@ var (
 	DefaultNextAttemptAt func() time.Time
 )
 
+// ExecutionMode defines the type for the "execution_mode" enum field.
+type ExecutionMode string
+
+// ExecutionModeShell is the default value of the ExecutionMode enum.
+const DefaultExecutionMode = ExecutionModeShell
+
+// ExecutionMode values.
+const (
+	ExecutionModeShell ExecutionMode = "shell"
+	ExecutionModeArgv  ExecutionMode = "argv"
+)
+
+func (em ExecutionMode) String() string {
+	return string(em)
+}
+
+// ExecutionModeValidator is a validator for the "execution_mode" field enum values. It is called by the builders before save.
+func ExecutionModeValidator(em ExecutionMode) error {
+	switch em {
+	case ExecutionModeShell, ExecutionModeArgv:
+		return nil
+	default:
+		return fmt.Errorf("experiment: invalid enum value for execution_mode field: %q", em)
+	}
+}
+
 // OrderOption defines the ordering options for the Experiment queries.
 type OrderOption func(*sql.Selector)
 
@@ -374,6 +416,11 @@ func ByDesiredState(opts ...sql.OrderTermOption) OrderOption {
 // ByCommitSha orders the results by the commit_sha field.
 func ByCommitSha(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCommitSha, opts...).ToFunc()
+}
+
+// ByExecutionMode orders the results by the execution_mode field.
+func ByExecutionMode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldExecutionMode, opts...).ToFunc()
 }
 
 // ByCommand orders the results by the command field.
@@ -604,6 +651,13 @@ func ByDiagnosticRunField(field string, opts ...sql.OrderTermOption) OrderOption
 		sqlgraph.OrderByNeighborTerms(s, newDiagnosticRunStep(), sql.OrderByField(field, opts...))
 	}
 }
+
+// ByProposalField orders the results by proposal field.
+func ByProposalField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newProposalStep(), sql.OrderByField(field, opts...))
+	}
+}
 func newTenantStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -686,5 +740,12 @@ func newDiagnosticRunStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(DiagnosticRunInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2O, false, DiagnosticRunTable, DiagnosticRunColumn),
+	)
+}
+func newProposalStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ProposalInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2O, false, ProposalTable, ProposalColumn),
 	)
 }

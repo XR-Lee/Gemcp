@@ -18,6 +18,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/diagnosticrun"
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
@@ -47,6 +48,7 @@ type ExperimentQuery struct {
 	withBudgetEntries      *BudgetEntryQuery
 	withIdempotencyRecords *IdempotencyRecordQuery
 	withDiagnosticRun      *DiagnosticRunQuery
+	withProposal           *ExperimentProposalQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -347,6 +349,28 @@ func (_q *ExperimentQuery) QueryDiagnosticRun() *DiagnosticRunQuery {
 	return query
 }
 
+// QueryProposal chains the current query on the "proposal" edge.
+func (_q *ExperimentQuery) QueryProposal() *ExperimentProposalQuery {
+	query := (&ExperimentProposalClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(experiment.Table, experiment.FieldID, selector),
+			sqlgraph.To(experimentproposal.Table, experimentproposal.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, experiment.ProposalTable, experiment.ProposalColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
 // First returns the first Experiment entity from the query.
 // Returns a *NotFoundError when no Experiment was found.
 func (_q *ExperimentQuery) First(ctx context.Context) (*Experiment, error) {
@@ -551,6 +575,7 @@ func (_q *ExperimentQuery) Clone() *ExperimentQuery {
 		withBudgetEntries:      _q.withBudgetEntries.Clone(),
 		withIdempotencyRecords: _q.withIdempotencyRecords.Clone(),
 		withDiagnosticRun:      _q.withDiagnosticRun.Clone(),
+		withProposal:           _q.withProposal.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -689,6 +714,17 @@ func (_q *ExperimentQuery) WithDiagnosticRun(opts ...func(*DiagnosticRunQuery)) 
 	return _q
 }
 
+// WithProposal tells the query-builder to eager-load the nodes that are connected to
+// the "proposal" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ExperimentQuery) WithProposal(opts ...func(*ExperimentProposalQuery)) *ExperimentQuery {
+	query := (&ExperimentProposalClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withProposal = query
+	return _q
+}
+
 // GroupBy is used to group vertices by one or more fields/columns.
 // It is often used with aggregate functions, like: count, max, mean, min, sum.
 //
@@ -767,7 +803,7 @@ func (_q *ExperimentQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*E
 	var (
 		nodes       = []*Experiment{}
 		_spec       = _q.querySpec()
-		loadedTypes = [12]bool{
+		loadedTypes = [13]bool{
 			_q.withTenant != nil,
 			_q.withProject != nil,
 			_q.withAgentToken != nil,
@@ -780,6 +816,7 @@ func (_q *ExperimentQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*E
 			_q.withBudgetEntries != nil,
 			_q.withIdempotencyRecords != nil,
 			_q.withDiagnosticRun != nil,
+			_q.withProposal != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -878,6 +915,12 @@ func (_q *ExperimentQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*E
 	if query := _q.withDiagnosticRun; query != nil {
 		if err := _q.loadDiagnosticRun(ctx, query, nodes, nil,
 			func(n *Experiment, e *DiagnosticRun) { n.Edges.DiagnosticRun = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withProposal; query != nil {
+		if err := _q.loadProposal(ctx, query, nodes, nil,
+			func(n *Experiment, e *ExperimentProposal) { n.Edges.Proposal = e }); err != nil {
 			return nil, err
 		}
 	}
@@ -1236,6 +1279,36 @@ func (_q *ExperimentQuery) loadDiagnosticRun(ctx context.Context, query *Diagnos
 		node, ok := nodeids[fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "experiment_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *ExperimentQuery) loadProposal(ctx context.Context, query *ExperimentProposalQuery, nodes []*Experiment, init func(*Experiment), assign func(*Experiment, *ExperimentProposal)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Experiment)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(experimentproposal.FieldExperimentID)
+	}
+	query.Where(predicate.ExperimentProposal(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(experiment.ProposalColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ExperimentID
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "experiment_id" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "experiment_id" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
 	}

@@ -60,7 +60,7 @@ The Provider command downloads a small Python bootstrap. `v0.6.2` fixes the inco
 
 - safely downloads and bounds the source archive;
 - reports `started` and heartbeats every 15 seconds;
-- runs the immutable command in a separate process group;
+- runs the immutable execution specification in a separate process group: prepared `argv` is passed directly to `subprocess.Popen` without a shell, while Advanced and fixed diagnostic commands retain the compatibility shell mode;
 - removes Runner credentials from the user process environment;
 - enforces runtime plus the configured extension locally;
 - sends TERM, waits the grace period, then sends KILL;
@@ -77,6 +77,14 @@ The fixed durable path is:
 Gemcp never automatically deletes durable output. `list_artifacts` reports Runner-managed filenames without browsing arbitrary shared-storage paths. A dispatched AutoDL Attempt registers `gemcp-launch.log`; if provisioning expires before the first callback, its last marker distinguishes Bootstrap download and Runner entry when the Provider executed enough of the launch command to write the file. Bootstrap also reports a fixed, credential-free stage vocabulary to the immutable audit log. `get_experiment` and the Owner detail view expose the current Attempt ID, source-download count, latest stage, stage time, and bounded exception type. Arbitrary error text is never accepted. A terminal Bootstrap failure that reaches the controlplane records `runner_bootstrap_failed` and immediately requests managed Provider cleanup.
 
 Approved images must provide the AutoDL `/root/miniconda3/bin/python3` link, `/usr/bin/base64`, and TLS root certificates.
+
+## Prepared experiments
+
+The normal Agent path separates zero-cost preparation from paid submission. `prepare_experiment` resolves a Project-scoped repository and moving ref to a full commit SHA, validates an ordered argv, selects unambiguous compatible defaults, checks source, runtime, capacity, image, and budget readiness, and stores a 30-minute immutable proposal. It creates no Experiment, Attempt, Provider resource, or budget entry.
+
+After the human confirms the exact digest, `submit_prepared_experiment` reruns preflight and rechecks all execution-relevant configuration and budget inside the Serializable creation boundary. The proposal itself is the server-owned idempotency key: one proposal can create at most one Experiment, and an identical retry returns it.
+
+Prepared Experiments persist `execution_mode=argv` and the exact argument array. The display command is never execution authority. AutoDL executes the array with `shell=False`. A Self-hosted Node must advertise argv capability and passes the vector directly to the OCI process using an explicit entrypoint. Existing Experiments default to `execution_mode=shell`; `submit_experiment` remains the explicit Advanced compatibility path.
 
 ## Backend diagnostics
 

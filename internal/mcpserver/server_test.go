@@ -107,8 +107,15 @@ func TestStreamableHTTPToolsWithAgentToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListTools() error = %v", err)
 	}
-	if len(tools.Tools) != 8 {
-		t.Fatalf("tool count = %d, want 8", len(tools.Tools))
+	if len(tools.Tools) != 10 {
+		t.Fatalf("tool count = %d, want 10", len(tools.Tools))
+	}
+	toolNames := map[string]bool{}
+	for _, tool := range tools.Tools {
+		toolNames[tool.Name] = true
+	}
+	if !toolNames["prepare_experiment"] || !toolNames["submit_prepared_experiment"] || !toolNames["submit_experiment"] {
+		t.Fatalf("prepared and Advanced tools are not all registered: %+v", toolNames)
 	}
 	usage, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "get_usage_guide", Arguments: map[string]any{}})
 	if err != nil || usage.IsError {

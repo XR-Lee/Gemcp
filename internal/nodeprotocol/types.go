@@ -83,20 +83,22 @@ type Command struct {
 }
 
 type StartWorkload struct {
-	AssignmentID            string `json:"assignment_id"`
-	ExperimentID            string `json:"experiment_id"`
-	AttemptID               string `json:"attempt_id"`
-	Image                   string `json:"image"`
-	Command                 string `json:"command"`
-	SourcePath              string `json:"source_path"`
-	SourceMaxBytes          int64  `json:"source_max_bytes"`
-	OutputRef               string `json:"output_ref"`
-	MaxRuntimeSeconds       int    `json:"max_runtime_seconds"`
-	TimeoutExtensionSeconds int    `json:"timeout_extension_seconds"`
-	TerminationGraceSeconds int    `json:"termination_grace_seconds"`
-	GPUUUID                 string `json:"gpu_uuid"`
-	CPULimit                int    `json:"cpu_limit"`
-	MemoryLimitBytes        int64  `json:"memory_limit_bytes"`
+	AssignmentID            string   `json:"assignment_id"`
+	ExperimentID            string   `json:"experiment_id"`
+	AttemptID               string   `json:"attempt_id"`
+	Image                   string   `json:"image"`
+	ExecutionMode           string   `json:"execution_mode,omitempty"`
+	Command                 string   `json:"command,omitempty"`
+	Argv                    []string `json:"argv,omitempty"`
+	SourcePath              string   `json:"source_path"`
+	SourceMaxBytes          int64    `json:"source_max_bytes"`
+	OutputRef               string   `json:"output_ref"`
+	MaxRuntimeSeconds       int      `json:"max_runtime_seconds"`
+	TimeoutExtensionSeconds int      `json:"timeout_extension_seconds"`
+	TerminationGraceSeconds int      `json:"termination_grace_seconds"`
+	GPUUUID                 string   `json:"gpu_uuid"`
+	CPULimit                int      `json:"cpu_limit"`
+	MemoryLimitBytes        int64    `json:"memory_limit_bytes"`
 }
 
 type StopWorkload struct {

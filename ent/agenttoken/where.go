@@ -615,6 +615,29 @@ func HasIdempotencyRecordsWith(preds ...predicate.IdempotencyRecord) predicate.A
 	})
 }
 
+// HasExperimentProposals applies the HasEdge predicate on the "experiment_proposals" edge.
+func HasExperimentProposals() predicate.AgentToken {
+	return predicate.AgentToken(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ExperimentProposalsTable, ExperimentProposalsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasExperimentProposalsWith applies the HasEdge predicate on the "experiment_proposals" edge with a given conditions (other predicates).
+func HasExperimentProposalsWith(preds ...predicate.ExperimentProposal) predicate.AgentToken {
+	return predicate.AgentToken(func(s *sql.Selector) {
+		step := newExperimentProposalsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.AgentToken) predicate.AgentToken {
 	return predicate.AgentToken(sql.AndPredicates(predicates...))

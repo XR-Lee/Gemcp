@@ -28,6 +28,8 @@ type Tx struct {
 	Environment *EnvironmentClient
 	// Experiment is the client for interacting with the Experiment builders.
 	Experiment *ExperimentClient
+	// ExperimentProposal is the client for interacting with the ExperimentProposal builders.
+	ExperimentProposal *ExperimentProposalClient
 	// IdempotencyRecord is the client for interacting with the IdempotencyRecord builders.
 	IdempotencyRecord *IdempotencyRecordClient
 	// NodeAssignment is the client for interacting with the NodeAssignment builders.
@@ -205,6 +207,7 @@ func (tx *Tx) init() {
 	tx.DiagnosticRun = NewDiagnosticRunClient(tx.config)
 	tx.Environment = NewEnvironmentClient(tx.config)
 	tx.Experiment = NewExperimentClient(tx.config)
+	tx.ExperimentProposal = NewExperimentProposalClient(tx.config)
 	tx.IdempotencyRecord = NewIdempotencyRecordClient(tx.config)
 	tx.NodeAssignment = NewNodeAssignmentClient(tx.config)
 	tx.NodeCommand = NewNodeCommandClient(tx.config)

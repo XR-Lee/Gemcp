@@ -13,6 +13,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/XR-Lee/Gemcp/internal/executioncmd"
 	"github.com/XR-Lee/Gemcp/internal/nodeprotocol"
 	"github.com/google/uuid"
 )
@@ -95,7 +96,8 @@ func (m *WorkloadManager) Start(ctx context.Context, payload map[string]any) (ma
 			return nil, fmt.Errorf("create managed output directory: %w", err)
 		}
 		containerID, err = m.runtime.Start(ctx, ContainerSpec{
-			AssignmentID: spec.AssignmentID, Image: spec.Image, Command: spec.Command, GPUUUID: spec.GPUUUID,
+			AssignmentID: spec.AssignmentID, Image: spec.Image, ExecutionMode: spec.ExecutionMode,
+			Command: spec.Command, Argv: append([]string(nil), spec.Argv...), GPUUUID: spec.GPUUUID,
 			CPULimit: spec.CPULimit, MemoryLimitBytes: spec.MemoryLimitBytes, SourcePath: sourcePath, OutputPath: outputPath,
 		})
 		if err != nil {
@@ -284,14 +286,16 @@ func decodeStartWorkload(payload map[string]any) (nodeprotocol.StartWorkload, er
 	if err := decodePayload(payload, &spec); err != nil {
 		return spec, err
 	}
-	if uuid.Validate(spec.AssignmentID) != nil || uuid.Validate(spec.ExperimentID) != nil || uuid.Validate(spec.AttemptID) != nil ||
-		!pinnedOCIImage.MatchString(spec.Image) || spec.Command == "" || len(spec.Command) > 256<<10 ||
+	execution, executionErr := executioncmd.Validate(executioncmd.Spec{Mode: spec.ExecutionMode, Command: spec.Command, Argv: spec.Argv})
+	if executionErr != nil || uuid.Validate(spec.AssignmentID) != nil || uuid.Validate(spec.ExperimentID) != nil || uuid.Validate(spec.AttemptID) != nil ||
+		!pinnedOCIImage.MatchString(spec.Image) ||
 		spec.SourcePath != "/api/v1/node-assignments/"+spec.AssignmentID+"/source" || spec.SourceMaxBytes <= 0 || spec.SourceMaxBytes > 1<<30 ||
 		!validOutputRef(spec.OutputRef) || spec.MaxRuntimeSeconds <= 0 || spec.MaxRuntimeSeconds > 30*24*3600 ||
 		spec.TimeoutExtensionSeconds < 0 || spec.TerminationGraceSeconds < 0 || spec.TerminationGraceSeconds > 3600 ||
 		!nvidiaGPUUUID.MatchString(spec.GPUUUID) || spec.CPULimit <= 0 || spec.CPULimit > 1024 || spec.MemoryLimitBytes <= 0 {
 		return spec, fmt.Errorf("start workload command is invalid")
 	}
+	spec.ExecutionMode, spec.Command, spec.Argv = execution.Mode, execution.Command, execution.Argv
 	return spec, nil
 }
 

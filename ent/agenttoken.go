@@ -58,9 +58,11 @@ type AgentTokenEdges struct {
 	Experiments []*Experiment `json:"experiments,omitempty"`
 	// IdempotencyRecords holds the value of the idempotency_records edge.
 	IdempotencyRecords []*IdempotencyRecord `json:"idempotency_records,omitempty"`
+	// ExperimentProposals holds the value of the experiment_proposals edge.
+	ExperimentProposals []*ExperimentProposal `json:"experiment_proposals,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [3]bool
+	loadedTypes [4]bool
 }
 
 // ProjectOrErr returns the Project value or an error if the edge
@@ -90,6 +92,15 @@ func (e AgentTokenEdges) IdempotencyRecordsOrErr() ([]*IdempotencyRecord, error)
 		return e.IdempotencyRecords, nil
 	}
 	return nil, &NotLoadedError{edge: "idempotency_records"}
+}
+
+// ExperimentProposalsOrErr returns the ExperimentProposals value or an error if the edge
+// was not loaded in eager-loading.
+func (e AgentTokenEdges) ExperimentProposalsOrErr() ([]*ExperimentProposal, error) {
+	if e.loadedTypes[3] {
+		return e.ExperimentProposals, nil
+	}
+	return nil, &NotLoadedError{edge: "experiment_proposals"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -230,6 +241,11 @@ func (_m *AgentToken) QueryExperiments() *ExperimentQuery {
 // QueryIdempotencyRecords queries the "idempotency_records" edge of the AgentToken entity.
 func (_m *AgentToken) QueryIdempotencyRecords() *IdempotencyRecordQuery {
 	return NewAgentTokenClient(_m.config).QueryIdempotencyRecords(_m)
+}
+
+// QueryExperimentProposals queries the "experiment_proposals" edge of the AgentToken entity.
+func (_m *AgentToken) QueryExperimentProposals() *ExperimentProposalQuery {
+	return NewAgentTokenClient(_m.config).QueryExperimentProposals(_m)
 }
 
 // Update returns a builder for updating this AgentToken.

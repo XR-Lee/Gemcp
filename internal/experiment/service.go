@@ -55,14 +55,36 @@ type CommitVerifier interface {
 }
 
 type Service struct {
-	client   *ent.Client
-	box      *secrets.Box
-	verifier CommitVerifier
-	now      func() time.Time
+	client         *ent.Client
+	box            *secrets.Box
+	verifier       CommitVerifier
+	refResolver    ProposalRefResolver
+	archiver       ProposalArchiveReader
+	providerReader ProposalProviderReader
+	runtimeReader  ProposalRuntimeReader
+	proposalConfig ProposalConfig
+	now            func() time.Time
 }
 
-func NewService(client *ent.Client, box *secrets.Box, verifier CommitVerifier) *Service {
-	return &Service{client: client, box: box, verifier: verifier, now: time.Now}
+type ServiceOption func(*Service)
+
+func WithPreparedExperiments(refResolver ProposalRefResolver, archiver ProposalArchiveReader, providerReader ProposalProviderReader, runtimeReader ProposalRuntimeReader, config ProposalConfig) ServiceOption {
+	return func(service *Service) {
+		service.refResolver = refResolver
+		service.archiver = archiver
+		service.providerReader = providerReader
+		service.runtimeReader = runtimeReader
+		service.proposalConfig = config
+	}
+}
+
+func NewService(client *ent.Client, box *secrets.Box, verifier CommitVerifier, options ...ServiceOption) *Service {
+	service := &Service{client: client, box: box, verifier: verifier, now: time.Now}
+	for _, option := range options {
+		option(service)
+	}
+	service.normalizeProposalConfig()
+	return service
 }
 
 type normalizedSubmit struct {
@@ -491,6 +513,7 @@ func makeView(record *ent.Experiment) View {
 		RepositoryID: snapshotString(record.RepositorySnapshot, "id"), EnvironmentID: snapshotString(record.EnvironmentSnapshot, "id"),
 		ResourceProfileID: snapshotString(record.ResourceSnapshot, "id"), State: record.State, DesiredState: record.DesiredState,
 		CommitSHA: record.CommitSha, Command: record.Command, MaxRuntimeSeconds: record.MaxRuntimeSeconds,
+		ExecutionMode: string(record.ExecutionMode), Argv: append([]string(nil), record.Argv...),
 		ReservedCostMilli: record.ReservedCostMilli, EstimatedCostMilli: record.EstimatedCostMilli, OutputPath: record.OutputPath,
 		ProviderResourceID: record.ProviderResourceID, ProviderStatus: record.ProviderStatus, ExitCode: record.ExitCode,
 		FailureCode: record.FailureCode, FailureReason: record.FailureReason, Metrics: record.Metrics,

@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
 )
@@ -322,6 +323,21 @@ func (_u *ResourceProfileUpdate) AddExperiments(v ...*Experiment) *ResourceProfi
 	return _u.AddExperimentIDs(ids...)
 }
 
+// AddExperimentProposalIDs adds the "experiment_proposals" edge to the ExperimentProposal entity by IDs.
+func (_u *ResourceProfileUpdate) AddExperimentProposalIDs(ids ...int) *ResourceProfileUpdate {
+	_u.mutation.AddExperimentProposalIDs(ids...)
+	return _u
+}
+
+// AddExperimentProposals adds the "experiment_proposals" edges to the ExperimentProposal entity.
+func (_u *ResourceProfileUpdate) AddExperimentProposals(v ...*ExperimentProposal) *ResourceProfileUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddExperimentProposalIDs(ids...)
+}
+
 // Mutation returns the ResourceProfileMutation object of the builder.
 func (_u *ResourceProfileUpdate) Mutation() *ResourceProfileMutation {
 	return _u.mutation
@@ -346,6 +362,27 @@ func (_u *ResourceProfileUpdate) RemoveExperiments(v ...*Experiment) *ResourcePr
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveExperimentIDs(ids...)
+}
+
+// ClearExperimentProposals clears all "experiment_proposals" edges to the ExperimentProposal entity.
+func (_u *ResourceProfileUpdate) ClearExperimentProposals() *ResourceProfileUpdate {
+	_u.mutation.ClearExperimentProposals()
+	return _u
+}
+
+// RemoveExperimentProposalIDs removes the "experiment_proposals" edge to ExperimentProposal entities by IDs.
+func (_u *ResourceProfileUpdate) RemoveExperimentProposalIDs(ids ...int) *ResourceProfileUpdate {
+	_u.mutation.RemoveExperimentProposalIDs(ids...)
+	return _u
+}
+
+// RemoveExperimentProposals removes "experiment_proposals" edges to ExperimentProposal entities.
+func (_u *ResourceProfileUpdate) RemoveExperimentProposals(v ...*ExperimentProposal) *ResourceProfileUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveExperimentProposalIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -582,6 +619,51 @@ func (_u *ResourceProfileUpdate) sqlSave(ctx context.Context) (_node int, err er
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ExperimentProposalsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   resourceprofile.ExperimentProposalsTable,
+			Columns: []string{resourceprofile.ExperimentProposalsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentproposal.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedExperimentProposalsIDs(); len(nodes) > 0 && !_u.mutation.ExperimentProposalsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   resourceprofile.ExperimentProposalsTable,
+			Columns: []string{resourceprofile.ExperimentProposalsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentproposal.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ExperimentProposalsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   resourceprofile.ExperimentProposalsTable,
+			Columns: []string{resourceprofile.ExperimentProposalsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentproposal.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -901,6 +983,21 @@ func (_u *ResourceProfileUpdateOne) AddExperiments(v ...*Experiment) *ResourcePr
 	return _u.AddExperimentIDs(ids...)
 }
 
+// AddExperimentProposalIDs adds the "experiment_proposals" edge to the ExperimentProposal entity by IDs.
+func (_u *ResourceProfileUpdateOne) AddExperimentProposalIDs(ids ...int) *ResourceProfileUpdateOne {
+	_u.mutation.AddExperimentProposalIDs(ids...)
+	return _u
+}
+
+// AddExperimentProposals adds the "experiment_proposals" edges to the ExperimentProposal entity.
+func (_u *ResourceProfileUpdateOne) AddExperimentProposals(v ...*ExperimentProposal) *ResourceProfileUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddExperimentProposalIDs(ids...)
+}
+
 // Mutation returns the ResourceProfileMutation object of the builder.
 func (_u *ResourceProfileUpdateOne) Mutation() *ResourceProfileMutation {
 	return _u.mutation
@@ -925,6 +1022,27 @@ func (_u *ResourceProfileUpdateOne) RemoveExperiments(v ...*Experiment) *Resourc
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveExperimentIDs(ids...)
+}
+
+// ClearExperimentProposals clears all "experiment_proposals" edges to the ExperimentProposal entity.
+func (_u *ResourceProfileUpdateOne) ClearExperimentProposals() *ResourceProfileUpdateOne {
+	_u.mutation.ClearExperimentProposals()
+	return _u
+}
+
+// RemoveExperimentProposalIDs removes the "experiment_proposals" edge to ExperimentProposal entities by IDs.
+func (_u *ResourceProfileUpdateOne) RemoveExperimentProposalIDs(ids ...int) *ResourceProfileUpdateOne {
+	_u.mutation.RemoveExperimentProposalIDs(ids...)
+	return _u
+}
+
+// RemoveExperimentProposals removes "experiment_proposals" edges to ExperimentProposal entities.
+func (_u *ResourceProfileUpdateOne) RemoveExperimentProposals(v ...*ExperimentProposal) *ResourceProfileUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveExperimentProposalIDs(ids...)
 }
 
 // Where appends a list predicates to the ResourceProfileUpdate builder.
@@ -1191,6 +1309,51 @@ func (_u *ResourceProfileUpdateOne) sqlSave(ctx context.Context) (_node *Resourc
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(experiment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ExperimentProposalsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   resourceprofile.ExperimentProposalsTable,
+			Columns: []string{resourceprofile.ExperimentProposalsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentproposal.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedExperimentProposalsIDs(); len(nodes) > 0 && !_u.mutation.ExperimentProposalsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   resourceprofile.ExperimentProposalsTable,
+			Columns: []string{resourceprofile.ExperimentProposalsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentproposal.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ExperimentProposalsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   resourceprofile.ExperimentProposalsTable,
+			Columns: []string{resourceprofile.ExperimentProposalsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentproposal.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

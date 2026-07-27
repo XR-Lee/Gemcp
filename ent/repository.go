@@ -57,9 +57,11 @@ type RepositoryEdges struct {
 	Project *Project `json:"project,omitempty"`
 	// Experiments holds the value of the experiments edge.
 	Experiments []*Experiment `json:"experiments,omitempty"`
+	// ExperimentProposals holds the value of the experiment_proposals edge.
+	ExperimentProposals []*ExperimentProposal `json:"experiment_proposals,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [3]bool
 }
 
 // ProjectOrErr returns the Project value or an error if the edge
@@ -80,6 +82,15 @@ func (e RepositoryEdges) ExperimentsOrErr() ([]*Experiment, error) {
 		return e.Experiments, nil
 	}
 	return nil, &NotLoadedError{edge: "experiments"}
+}
+
+// ExperimentProposalsOrErr returns the ExperimentProposals value or an error if the edge
+// was not loaded in eager-loading.
+func (e RepositoryEdges) ExperimentProposalsOrErr() ([]*ExperimentProposal, error) {
+	if e.loadedTypes[2] {
+		return e.ExperimentProposals, nil
+	}
+	return nil, &NotLoadedError{edge: "experiment_proposals"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -216,6 +227,11 @@ func (_m *Repository) QueryProject() *ProjectQuery {
 // QueryExperiments queries the "experiments" edge of the Repository entity.
 func (_m *Repository) QueryExperiments() *ExperimentQuery {
 	return NewRepositoryClient(_m.config).QueryExperiments(_m)
+}
+
+// QueryExperimentProposals queries the "experiment_proposals" edge of the Repository entity.
+func (_m *Repository) QueryExperimentProposals() *ExperimentProposalQuery {
+	return NewRepositoryClient(_m.config).QueryExperimentProposals(_m)
 }
 
 // Update returns a builder for updating this Repository.

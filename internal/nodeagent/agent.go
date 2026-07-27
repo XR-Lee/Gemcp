@@ -89,6 +89,7 @@ func (a *Agent) Run(ctx context.Context) error {
 		}
 		capabilities, err := normalizeMap(map[string]any{
 			"cpu_count": report.Inventory.CPUCount, "memory_bytes": report.Inventory.MemoryBytes, "gpus": report.Inventory.GPUs,
+			"execution_modes": []string{"shell", "argv"},
 		})
 		if err != nil {
 			return err

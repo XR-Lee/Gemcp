@@ -37,6 +37,9 @@ func TestPostgresMigration(t *testing.T) {
 	if _, err := store.Client.DiagnosticRun.Query().Count(ctx); err != nil {
 		t.Fatalf("query migrated diagnostic runs table: %v", err)
 	}
+	if _, err := store.Client.ExperimentProposal.Query().Count(ctx); err != nil {
+		t.Fatalf("query migrated experiment proposals table: %v", err)
+	}
 	tenant, err := store.Client.Tenant.Create().SetName("migration-test").Save(ctx)
 	if err != nil {
 		t.Fatalf("create tenant: %v", err)

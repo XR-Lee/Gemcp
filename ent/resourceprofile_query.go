@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
@@ -21,12 +22,13 @@ import (
 // ResourceProfileQuery is the builder for querying ResourceProfile entities.
 type ResourceProfileQuery struct {
 	config
-	ctx             *QueryContext
-	order           []resourceprofile.OrderOption
-	inters          []Interceptor
-	predicates      []predicate.ResourceProfile
-	withProject     *ProjectQuery
-	withExperiments *ExperimentQuery
+	ctx                     *QueryContext
+	order                   []resourceprofile.OrderOption
+	inters                  []Interceptor
+	predicates              []predicate.ResourceProfile
+	withProject             *ProjectQuery
+	withExperiments         *ExperimentQuery
+	withExperimentProposals *ExperimentProposalQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -100,6 +102,28 @@ func (_q *ResourceProfileQuery) QueryExperiments() *ExperimentQuery {
 			sqlgraph.From(resourceprofile.Table, resourceprofile.FieldID, selector),
 			sqlgraph.To(experiment.Table, experiment.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, resourceprofile.ExperimentsTable, resourceprofile.ExperimentsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryExperimentProposals chains the current query on the "experiment_proposals" edge.
+func (_q *ResourceProfileQuery) QueryExperimentProposals() *ExperimentProposalQuery {
+	query := (&ExperimentProposalClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(resourceprofile.Table, resourceprofile.FieldID, selector),
+			sqlgraph.To(experimentproposal.Table, experimentproposal.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, resourceprofile.ExperimentProposalsTable, resourceprofile.ExperimentProposalsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -294,13 +318,14 @@ func (_q *ResourceProfileQuery) Clone() *ResourceProfileQuery {
 		return nil
 	}
 	return &ResourceProfileQuery{
-		config:          _q.config,
-		ctx:             _q.ctx.Clone(),
-		order:           append([]resourceprofile.OrderOption{}, _q.order...),
-		inters:          append([]Interceptor{}, _q.inters...),
-		predicates:      append([]predicate.ResourceProfile{}, _q.predicates...),
-		withProject:     _q.withProject.Clone(),
-		withExperiments: _q.withExperiments.Clone(),
+		config:                  _q.config,
+		ctx:                     _q.ctx.Clone(),
+		order:                   append([]resourceprofile.OrderOption{}, _q.order...),
+		inters:                  append([]Interceptor{}, _q.inters...),
+		predicates:              append([]predicate.ResourceProfile{}, _q.predicates...),
+		withProject:             _q.withProject.Clone(),
+		withExperiments:         _q.withExperiments.Clone(),
+		withExperimentProposals: _q.withExperimentProposals.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -326,6 +351,17 @@ func (_q *ResourceProfileQuery) WithExperiments(opts ...func(*ExperimentQuery)) 
 		opt(query)
 	}
 	_q.withExperiments = query
+	return _q
+}
+
+// WithExperimentProposals tells the query-builder to eager-load the nodes that are connected to
+// the "experiment_proposals" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ResourceProfileQuery) WithExperimentProposals(opts ...func(*ExperimentProposalQuery)) *ResourceProfileQuery {
+	query := (&ExperimentProposalClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withExperimentProposals = query
 	return _q
 }
 
@@ -407,9 +443,10 @@ func (_q *ResourceProfileQuery) sqlAll(ctx context.Context, hooks ...queryHook) 
 	var (
 		nodes       = []*ResourceProfile{}
 		_spec       = _q.querySpec()
-		loadedTypes = [2]bool{
+		loadedTypes = [3]bool{
 			_q.withProject != nil,
 			_q.withExperiments != nil,
+			_q.withExperimentProposals != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -440,6 +477,15 @@ func (_q *ResourceProfileQuery) sqlAll(ctx context.Context, hooks ...queryHook) 
 		if err := _q.loadExperiments(ctx, query, nodes,
 			func(n *ResourceProfile) { n.Edges.Experiments = []*Experiment{} },
 			func(n *ResourceProfile, e *Experiment) { n.Edges.Experiments = append(n.Edges.Experiments, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withExperimentProposals; query != nil {
+		if err := _q.loadExperimentProposals(ctx, query, nodes,
+			func(n *ResourceProfile) { n.Edges.ExperimentProposals = []*ExperimentProposal{} },
+			func(n *ResourceProfile, e *ExperimentProposal) {
+				n.Edges.ExperimentProposals = append(n.Edges.ExperimentProposals, e)
+			}); err != nil {
 			return nil, err
 		}
 	}
@@ -490,6 +536,36 @@ func (_q *ResourceProfileQuery) loadExperiments(ctx context.Context, query *Expe
 	}
 	query.Where(predicate.Experiment(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(resourceprofile.ExperimentsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ResourceProfileID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "resource_profile_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *ResourceProfileQuery) loadExperimentProposals(ctx context.Context, query *ExperimentProposalQuery, nodes []*ResourceProfile, init func(*ResourceProfile), assign func(*ResourceProfile, *ExperimentProposal)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*ResourceProfile)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(experimentproposal.FieldResourceProfileID)
+	}
+	query.Where(predicate.ExperimentProposal(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(resourceprofile.ExperimentProposalsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

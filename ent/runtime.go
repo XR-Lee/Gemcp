@@ -13,6 +13,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/diagnosticrun"
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/nodecommand"
@@ -471,59 +472,154 @@ func init() {
 	// experiment.CommitShaValidator is a validator for the "commit_sha" field. It is called by the builders before save.
 	experiment.CommitShaValidator = experimentDescCommitSha.Validators[0].(func(string) error)
 	// experimentDescMaxRuntimeSeconds is the schema descriptor for max_runtime_seconds field.
-	experimentDescMaxRuntimeSeconds := experimentFields[10].Descriptor()
+	experimentDescMaxRuntimeSeconds := experimentFields[12].Descriptor()
 	// experiment.MaxRuntimeSecondsValidator is a validator for the "max_runtime_seconds" field. It is called by the builders before save.
 	experiment.MaxRuntimeSecondsValidator = experimentDescMaxRuntimeSeconds.Validators[0].(func(int) error)
 	// experimentDescTimeoutExtensionSeconds is the schema descriptor for timeout_extension_seconds field.
-	experimentDescTimeoutExtensionSeconds := experimentFields[11].Descriptor()
+	experimentDescTimeoutExtensionSeconds := experimentFields[13].Descriptor()
 	// experiment.TimeoutExtensionSecondsValidator is a validator for the "timeout_extension_seconds" field. It is called by the builders before save.
 	experiment.TimeoutExtensionSecondsValidator = experimentDescTimeoutExtensionSeconds.Validators[0].(func(int) error)
 	// experimentDescTerminationGraceSeconds is the schema descriptor for termination_grace_seconds field.
-	experimentDescTerminationGraceSeconds := experimentFields[12].Descriptor()
+	experimentDescTerminationGraceSeconds := experimentFields[14].Descriptor()
 	// experiment.TerminationGraceSecondsValidator is a validator for the "termination_grace_seconds" field. It is called by the builders before save.
 	experiment.TerminationGraceSecondsValidator = experimentDescTerminationGraceSeconds.Validators[0].(func(int) error)
 	// experimentDescSecretNames is the schema descriptor for secret_names field.
-	experimentDescSecretNames := experimentFields[16].Descriptor()
+	experimentDescSecretNames := experimentFields[18].Descriptor()
 	// experiment.DefaultSecretNames holds the default value on creation for the secret_names field.
 	experiment.DefaultSecretNames = experimentDescSecretNames.Default.([]string)
 	// experimentDescOutputPath is the schema descriptor for output_path field.
-	experimentDescOutputPath := experimentFields[17].Descriptor()
+	experimentDescOutputPath := experimentFields[19].Descriptor()
 	// experiment.OutputPathValidator is a validator for the "output_path" field. It is called by the builders before save.
 	experiment.OutputPathValidator = experimentDescOutputPath.Validators[0].(func(string) error)
 	// experimentDescReservedCostMilli is the schema descriptor for reserved_cost_milli field.
-	experimentDescReservedCostMilli := experimentFields[18].Descriptor()
+	experimentDescReservedCostMilli := experimentFields[20].Descriptor()
 	// experiment.ReservedCostMilliValidator is a validator for the "reserved_cost_milli" field. It is called by the builders before save.
 	experiment.ReservedCostMilliValidator = experimentDescReservedCostMilli.Validators[0].(func(int64) error)
 	// experimentDescEstimatedCostMilli is the schema descriptor for estimated_cost_milli field.
-	experimentDescEstimatedCostMilli := experimentFields[19].Descriptor()
+	experimentDescEstimatedCostMilli := experimentFields[21].Descriptor()
 	// experiment.DefaultEstimatedCostMilli holds the default value on creation for the estimated_cost_milli field.
 	experiment.DefaultEstimatedCostMilli = experimentDescEstimatedCostMilli.Default.(int64)
 	// experiment.EstimatedCostMilliValidator is a validator for the "estimated_cost_milli" field. It is called by the builders before save.
 	experiment.EstimatedCostMilliValidator = experimentDescEstimatedCostMilli.Validators[0].(func(int64) error)
 	// experimentDescProviderResourceID is the schema descriptor for provider_resource_id field.
-	experimentDescProviderResourceID := experimentFields[20].Descriptor()
+	experimentDescProviderResourceID := experimentFields[22].Descriptor()
 	// experiment.ProviderResourceIDValidator is a validator for the "provider_resource_id" field. It is called by the builders before save.
 	experiment.ProviderResourceIDValidator = experimentDescProviderResourceID.Validators[0].(func(string) error)
 	// experimentDescProviderStatus is the schema descriptor for provider_status field.
-	experimentDescProviderStatus := experimentFields[21].Descriptor()
+	experimentDescProviderStatus := experimentFields[23].Descriptor()
 	// experiment.ProviderStatusValidator is a validator for the "provider_status" field. It is called by the builders before save.
 	experiment.ProviderStatusValidator = experimentDescProviderStatus.Validators[0].(func(string) error)
 	// experimentDescFailureCode is the schema descriptor for failure_code field.
-	experimentDescFailureCode := experimentFields[26].Descriptor()
+	experimentDescFailureCode := experimentFields[28].Descriptor()
 	// experiment.FailureCodeValidator is a validator for the "failure_code" field. It is called by the builders before save.
 	experiment.FailureCodeValidator = experimentDescFailureCode.Validators[0].(func(string) error)
 	// experimentDescMetrics is the schema descriptor for metrics field.
-	experimentDescMetrics := experimentFields[29].Descriptor()
+	experimentDescMetrics := experimentFields[31].Descriptor()
 	// experiment.DefaultMetrics holds the default value on creation for the metrics field.
 	experiment.DefaultMetrics = experimentDescMetrics.Default.(map[string]interface{})
 	// experimentDescLeaseOwner is the schema descriptor for lease_owner field.
-	experimentDescLeaseOwner := experimentFields[34].Descriptor()
+	experimentDescLeaseOwner := experimentFields[36].Descriptor()
 	// experiment.LeaseOwnerValidator is a validator for the "lease_owner" field. It is called by the builders before save.
 	experiment.LeaseOwnerValidator = experimentDescLeaseOwner.Validators[0].(func(string) error)
 	// experimentDescNextAttemptAt is the schema descriptor for next_attempt_at field.
-	experimentDescNextAttemptAt := experimentFields[35].Descriptor()
+	experimentDescNextAttemptAt := experimentFields[37].Descriptor()
 	// experiment.DefaultNextAttemptAt holds the default value on creation for the next_attempt_at field.
 	experiment.DefaultNextAttemptAt = experimentDescNextAttemptAt.Default.(func() time.Time)
+	experimentproposalMixin := schema.ExperimentProposal{}.Mixin()
+	experimentproposalMixinFields0 := experimentproposalMixin[0].Fields()
+	_ = experimentproposalMixinFields0
+	experimentproposalFields := schema.ExperimentProposal{}.Fields()
+	_ = experimentproposalFields
+	// experimentproposalDescPublicID is the schema descriptor for public_id field.
+	experimentproposalDescPublicID := experimentproposalMixinFields0[0].Descriptor()
+	// experimentproposal.DefaultPublicID holds the default value on creation for the public_id field.
+	experimentproposal.DefaultPublicID = experimentproposalDescPublicID.Default.(func() uuid.UUID)
+	// experimentproposalDescCreatedAt is the schema descriptor for created_at field.
+	experimentproposalDescCreatedAt := experimentproposalMixinFields0[1].Descriptor()
+	// experimentproposal.DefaultCreatedAt holds the default value on creation for the created_at field.
+	experimentproposal.DefaultCreatedAt = experimentproposalDescCreatedAt.Default.(func() time.Time)
+	// experimentproposalDescUpdatedAt is the schema descriptor for updated_at field.
+	experimentproposalDescUpdatedAt := experimentproposalMixinFields0[2].Descriptor()
+	// experimentproposal.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	experimentproposal.DefaultUpdatedAt = experimentproposalDescUpdatedAt.Default.(func() time.Time)
+	// experimentproposal.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	experimentproposal.UpdateDefaultUpdatedAt = experimentproposalDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// experimentproposalDescRequestedRef is the schema descriptor for requested_ref field.
+	experimentproposalDescRequestedRef := experimentproposalFields[8].Descriptor()
+	// experimentproposal.RequestedRefValidator is a validator for the "requested_ref" field. It is called by the builders before save.
+	experimentproposal.RequestedRefValidator = func() func(string) error {
+		validators := experimentproposalDescRequestedRef.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(requested_ref string) error {
+			for _, fn := range fns {
+				if err := fn(requested_ref); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// experimentproposalDescCommitSha is the schema descriptor for commit_sha field.
+	experimentproposalDescCommitSha := experimentproposalFields[9].Descriptor()
+	// experimentproposal.CommitShaValidator is a validator for the "commit_sha" field. It is called by the builders before save.
+	experimentproposal.CommitShaValidator = func() func(string) error {
+		validators := experimentproposalDescCommitSha.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(commit_sha string) error {
+			for _, fn := range fns {
+				if err := fn(commit_sha); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// experimentproposalDescRuntimePreset is the schema descriptor for runtime_preset field.
+	experimentproposalDescRuntimePreset := experimentproposalFields[13].Descriptor()
+	// experimentproposal.DefaultRuntimePreset holds the default value on creation for the runtime_preset field.
+	experimentproposal.DefaultRuntimePreset = experimentproposalDescRuntimePreset.Default.(string)
+	// experimentproposal.RuntimePresetValidator is a validator for the "runtime_preset" field. It is called by the builders before save.
+	experimentproposal.RuntimePresetValidator = experimentproposalDescRuntimePreset.Validators[0].(func(string) error)
+	// experimentproposalDescMaxRuntimeSeconds is the schema descriptor for max_runtime_seconds field.
+	experimentproposalDescMaxRuntimeSeconds := experimentproposalFields[14].Descriptor()
+	// experimentproposal.MaxRuntimeSecondsValidator is a validator for the "max_runtime_seconds" field. It is called by the builders before save.
+	experimentproposal.MaxRuntimeSecondsValidator = experimentproposalDescMaxRuntimeSeconds.Validators[0].(func(int) error)
+	// experimentproposalDescTimeoutExtensionSeconds is the schema descriptor for timeout_extension_seconds field.
+	experimentproposalDescTimeoutExtensionSeconds := experimentproposalFields[15].Descriptor()
+	// experimentproposal.TimeoutExtensionSecondsValidator is a validator for the "timeout_extension_seconds" field. It is called by the builders before save.
+	experimentproposal.TimeoutExtensionSecondsValidator = experimentproposalDescTimeoutExtensionSeconds.Validators[0].(func(int) error)
+	// experimentproposalDescTerminationGraceSeconds is the schema descriptor for termination_grace_seconds field.
+	experimentproposalDescTerminationGraceSeconds := experimentproposalFields[16].Descriptor()
+	// experimentproposal.TerminationGraceSecondsValidator is a validator for the "termination_grace_seconds" field. It is called by the builders before save.
+	experimentproposal.TerminationGraceSecondsValidator = experimentproposalDescTerminationGraceSeconds.Validators[0].(func(int) error)
+	// experimentproposalDescReservedCostMilli is the schema descriptor for reserved_cost_milli field.
+	experimentproposalDescReservedCostMilli := experimentproposalFields[22].Descriptor()
+	// experimentproposal.ReservedCostMilliValidator is a validator for the "reserved_cost_milli" field. It is called by the builders before save.
+	experimentproposal.ReservedCostMilliValidator = experimentproposalDescReservedCostMilli.Validators[0].(func(int64) error)
+	// experimentproposalDescConfirmationDigest is the schema descriptor for confirmation_digest field.
+	experimentproposalDescConfirmationDigest := experimentproposalFields[23].Descriptor()
+	// experimentproposal.ConfirmationDigestValidator is a validator for the "confirmation_digest" field. It is called by the builders before save.
+	experimentproposal.ConfirmationDigestValidator = func() func(string) error {
+		validators := experimentproposalDescConfirmationDigest.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(confirmation_digest string) error {
+			for _, fn := range fns {
+				if err := fn(confirmation_digest); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
 	idempotencyrecordMixin := schema.IdempotencyRecord{}.Mixin()
 	idempotencyrecordMixinFields0 := idempotencyrecordMixin[0].Fields()
 	_ = idempotencyrecordMixinFields0

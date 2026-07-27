@@ -284,7 +284,7 @@ func TestPiEnrollmentClaimCompleteAndSecretHygiene(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ClaimEnrollment() error = %v", err)
 	}
-	if claimed.ProjectID != f.project.PublicID.String() || claimed.ServerName != "gemcp-research" || strings.Join(claimed.Scopes, ",") != "read,submit,cancel" || claimed.PiConfig.Auth != "bearer" || len(claimed.PiConfig.DirectTools) != 8 {
+	if claimed.ProjectID != f.project.PublicID.String() || claimed.ServerName != "gemcp-research" || strings.Join(claimed.Scopes, ",") != "read,submit,cancel" || claimed.PiConfig.Auth != "bearer" || len(claimed.PiConfig.DirectTools) != 10 {
 		t.Fatalf("claim result = %+v", claimed)
 	}
 	if claimed.PiConfig.BearerToken != claimed.AgentToken || claimed.GuideURL != "https://gemcp.example.com/docs/agent-mcp.md" {
@@ -323,7 +323,7 @@ func TestPiEnrollmentClaimCompleteAndSecretHygiene(t *testing.T) {
 	}
 
 	completed, err := f.service.CompleteEnrollment(ctx, code, EnrollmentCompleteInput{
-		Client: "pi-mcp-adapter/2.10.0", ToolCount: 8, Checks: []string{"tools", "guide", "options", "cost"},
+		Client: "pi-mcp-adapter/2.10.0", ToolCount: 10, Checks: []string{"tools", "guide", "options", "cost"},
 	})
 	if err != nil {
 		t.Fatalf("CompleteEnrollment() error = %v", err)
@@ -332,7 +332,7 @@ func TestPiEnrollmentClaimCompleteAndSecretHygiene(t *testing.T) {
 		t.Fatalf("complete result = %+v", completed)
 	}
 	retriedCompletion, err := f.service.CompleteEnrollment(ctx, code, EnrollmentCompleteInput{
-		Client: "pi-mcp-adapter/2.10.0", ToolCount: 8, Checks: []string{"tools", "guide", "options", "cost"},
+		Client: "pi-mcp-adapter/2.10.0", ToolCount: 10, Checks: []string{"tools", "guide", "options", "cost"},
 	})
 	if err != nil || retriedCompletion.Enrollment.ID != completed.Enrollment.ID || retriedCompletion.Enrollment.AgentTokenPrefix != completed.Token.Prefix {
 		t.Fatalf("idempotent completion result=%+v err=%v", retriedCompletion, err)

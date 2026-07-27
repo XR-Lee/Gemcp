@@ -22,6 +22,8 @@ type View struct {
 	State                 string         `json:"state"`
 	DesiredState          string         `json:"desired_state"`
 	CommitSHA             string         `json:"commit_sha"`
+	ExecutionMode         string         `json:"execution_mode"`
+	Argv                  []string       `json:"argv,omitempty"`
 	Command               string         `json:"command"`
 	MaxRuntimeSeconds     int            `json:"max_runtime_seconds"`
 	ReservedCostMilli     int64          `json:"reserved_cost_milli"`

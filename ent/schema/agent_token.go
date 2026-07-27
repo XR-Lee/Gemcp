@@ -30,6 +30,7 @@ func (AgentToken) Edges() []ent.Edge {
 		edge.From("project", Project.Type).Ref("agent_tokens").Field("project_id").Unique().Required().Immutable(),
 		edge.To("experiments", Experiment.Type),
 		edge.To("idempotency_records", IdempotencyRecord.Type),
+		edge.To("experiment_proposals", ExperimentProposal.Type),
 	}
 }
 

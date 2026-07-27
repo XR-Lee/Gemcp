@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/XR-Lee/Gemcp/internal/executioncmd"
 )
 
 var ErrContainerNotFound = errors.New("managed workload container not found")
@@ -20,7 +22,9 @@ var ErrContainerNotFound = errors.New("managed workload container not found")
 type ContainerSpec struct {
 	AssignmentID     string
 	Image            string
+	ExecutionMode    string
 	Command          string
+	Argv             []string
 	GPUUUID          string
 	CPULimit         int
 	MemoryLimitBytes int64
@@ -88,7 +92,12 @@ func (d DockerRuntime) Start(ctx context.Context, spec ContainerSpec) (string, e
 		"--mount", "type=bind,src=" + spec.SourcePath + ",dst=/workspace",
 		"--mount", "type=bind,src=" + spec.OutputPath + ",dst=/outputs",
 		"--workdir", "/workspace", "--env", "GEMCP_OUTPUT_DIR=/outputs",
-		spec.Image, "/bin/sh", "-lc", spec.Command,
+	}
+	if spec.ExecutionMode == executioncmd.ModeArgv {
+		args = append(args, "--entrypoint", spec.Argv[0], spec.Image)
+		args = append(args, spec.Argv[1:]...)
+	} else {
+		args = append(args, spec.Image, "/bin/sh", "-lc", spec.Command)
 	}
 	containerID, err := commandOutput(ctx, 16<<10, binary, args...)
 	if err != nil {
@@ -201,7 +210,10 @@ func (d DockerRuntime) binary() string {
 }
 
 func validateContainerSpec(spec ContainerSpec) error {
-	if len(strings.ReplaceAll(spec.AssignmentID, "-", "")) < 16 || spec.Command == "" || !nvidiaGPUUUID.MatchString(spec.GPUUUID) ||
+	if _, err := executioncmd.Validate(executioncmd.Spec{Mode: spec.ExecutionMode, Command: spec.Command, Argv: spec.Argv}); err != nil {
+		return fmt.Errorf("workload execution specification is invalid: %w", err)
+	}
+	if len(strings.ReplaceAll(spec.AssignmentID, "-", "")) < 16 || !nvidiaGPUUUID.MatchString(spec.GPUUUID) ||
 		spec.CPULimit <= 0 || spec.MemoryLimitBytes <= 0 || strings.ContainsAny(spec.SourcePath+spec.OutputPath, ",\x00") ||
 		!pinnedOCIImage.MatchString(spec.Image) {
 		return fmt.Errorf("workload container specification is invalid")

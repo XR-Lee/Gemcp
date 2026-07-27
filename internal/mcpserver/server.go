@@ -36,7 +36,7 @@ type UsageGuide struct {
 	Markdown    string   `json:"markdown"`
 }
 
-const serverInstructions = "Operate immutable, budget-governed experiments only through Gemcp. If the workflow is unfamiliar, call get_usage_guide or read gemcp://docs/agent-guide. Before paid work, call get_project_options and get_project_cost, use only approved IDs and a full pushed commit SHA, present the exact command/runtime/resource/reservation to the human, and wait for approval unless a standing policy clearly covers it. Reuse one idempotency key only for an identical retry, record the returned experiment ID, and monitor it to a terminal state."
+const serverInstructions = "Use prepare_experiment as the normal zero-cost path: provide a reviewed argv and optional repository/ref selectors, let Gemcp resolve immutable source, defaults, checks, cost, and server-side idempotency, then show the returned proposal and wait for human approval before submit_prepared_experiment. Use submit_experiment only as the Advanced shell-command compatibility path. Record the Experiment ID and monitor it to a terminal state."
 
 func New(agentAuth *agentauth.Service, experiments *experiment.Service, version string, logger *slog.Logger) *Server {
 	if logger == nil {
@@ -53,7 +53,13 @@ func New(agentAuth *agentauth.Service, experiments *experiment.Service, version 
 		Name: "get_project_options", Description: "List the project policy and approved repositories, environments, and resource profiles.",
 	}, server.getProjectOptions)
 	mcp.AddTool(mcpServer, &mcp.Tool{
-		Name: "submit_experiment", Description: "Verify an immutable Git commit and enqueue a budget-reserved experiment. Retries must reuse the same idempotency key.",
+		Name: "prepare_experiment", Description: "Prepare a zero-cost immutable argv proposal. Gemcp resolves an unambiguous repository, ref, compatible defaults, preflight checks, cost, and idempotency.",
+	}, server.prepareExperiment)
+	mcp.AddTool(mcpServer, &mcp.Tool{
+		Name: "submit_prepared_experiment", Description: "Submit one confirmed prepared proposal by ID and exact confirmation digest. Identical retries return the same Experiment.",
+	}, server.submitPreparedExperiment)
+	mcp.AddTool(mcpServer, &mcp.Tool{
+		Name: "submit_experiment", Description: "Advanced compatibility path: verify a full commit and enqueue an arbitrary shell command using a caller-managed idempotency key.",
 	}, server.submitExperiment)
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "get_experiment", Description: "Get the current state and immutable specification of one project experiment.",
@@ -185,6 +191,24 @@ func (s *Server) submitExperiment(ctx context.Context, request *mcp.CallToolRequ
 	return nil, output, s.toolError("submit_experiment", err)
 }
 
+func (s *Server) prepareExperiment(ctx context.Context, request *mcp.CallToolRequest, input experiment.PrepareInput) (*mcp.CallToolResult, experiment.PrepareResult, error) {
+	principal, err := principalFrom(request)
+	if err != nil {
+		return nil, experiment.PrepareResult{}, err
+	}
+	output, err := s.experiments.Prepare(ctx, principal, input)
+	return nil, output, s.toolError("prepare_experiment", err)
+}
+
+func (s *Server) submitPreparedExperiment(ctx context.Context, request *mcp.CallToolRequest, input experiment.SubmitPreparedInput) (*mcp.CallToolResult, experiment.SubmitPreparedResult, error) {
+	principal, err := principalFrom(request)
+	if err != nil {
+		return nil, experiment.SubmitPreparedResult{}, err
+	}
+	output, err := s.experiments.SubmitPrepared(ctx, principal, input)
+	return nil, output, s.toolError("submit_prepared_experiment", err)
+}
+
 func (s *Server) getExperiment(ctx context.Context, request *mcp.CallToolRequest, input experiment.GetInput) (*mcp.CallToolResult, experiment.View, error) {
 	principal, err := principalFrom(request)
 	if err != nil {
@@ -252,7 +276,8 @@ func (s *Server) toolError(tool string, err error) error {
 	for _, public := range []error{
 		experiment.ErrForbidden, experiment.ErrNotFound, experiment.ErrOptionNotFound,
 		experiment.ErrIdempotencyConflict, experiment.ErrBudgetExceeded, experiment.ErrExperimentCap,
-		experiment.ErrCommitVerification, experiment.ErrProjectPaused,
+		experiment.ErrCommitVerification, experiment.ErrProjectPaused, experiment.ErrProposalNotFound,
+		experiment.ErrProposalExpired, experiment.ErrProposalChanged, experiment.ErrProposalBlocked,
 	} {
 		if errors.Is(err, public) {
 			return public

@@ -112,6 +112,8 @@ export type Experiment = {
   state: string
   desired_state: string
   commit_sha: string
+  execution_mode?: 'shell' | 'argv'
+  argv?: string[]
   command: string
   max_runtime_seconds: number
   reserved_cost_milli: number
@@ -483,7 +485,7 @@ export type SelfHostedNode = {
   architecture: string
   agent_version: string
   protocol_version: string
-  capabilities: { gpus?: SelfHostedGPU[]; cpu_count?: number; memory_bytes?: number }
+  capabilities: { gpus?: SelfHostedGPU[]; cpu_count?: number; memory_bytes?: number; execution_modes?: Array<'shell' | 'argv'> }
   storage: { root?: string; total_bytes?: number; available_bytes?: number; managed_bytes?: number }
   project_ids: string[]
   last_seen_at?: string

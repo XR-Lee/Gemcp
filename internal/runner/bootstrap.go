@@ -208,6 +208,29 @@ def normalized_stop_reason(value):
         return "timeout"
     return "cancelled"
 
+def execution_argv(spec):
+    mode = spec.get("execution_mode", "shell")
+    if mode == "shell":
+        command = spec.get("command")
+        if not isinstance(command, str) or not command or "\x00" in command:
+            raise RuntimeError("invalid shell execution specification")
+        return ["/bin/sh", "-lc", command]
+    if mode != "argv":
+        raise RuntimeError("unsupported execution mode")
+    if spec.get("command"):
+        raise RuntimeError("argv execution must not include a command string")
+    argv = spec.get("argv")
+    if not isinstance(argv, list) or not argv or len(argv) > 256:
+        raise RuntimeError("invalid argv execution specification")
+    total = 0
+    for index, value in enumerate(argv):
+        if not isinstance(value, str) or (index == 0 and not value) or "\x00" in value:
+            raise RuntimeError("invalid argv execution specification")
+        total += len(value.encode("utf-8"))
+        if total > 65536:
+            raise RuntimeError("argv execution specification is too large")
+    return argv
+
 def log_tail(path, maximum=65536):
     try:
         with open(path, "rb") as source:
@@ -281,9 +304,10 @@ def main():
             environment.pop("GEMCP_RUNNER_TOKEN", None)
             environment.pop("GEMCP_LAUNCH_LOG", None)
             environment["GEMCP_OUTPUT_DIR"] = output_path
+            process_argv = execution_argv(spec)
             with open(log_path, "ab", buffering=0) as log:
                 process = subprocess.Popen(
-                    ["/bin/sh", "-lc", spec["command"]], cwd=source_path,
+                    process_argv, cwd=source_path,
                     stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
                     env=environment, start_new_session=True,
                 )

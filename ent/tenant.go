@@ -72,9 +72,11 @@ type TenantEdges struct {
 	NodeAssignments []*NodeAssignment `json:"node_assignments,omitempty"`
 	// DiagnosticRuns holds the value of the diagnostic_runs edge.
 	DiagnosticRuns []*DiagnosticRun `json:"diagnostic_runs,omitempty"`
+	// ExperimentProposals holds the value of the experiment_proposals edge.
+	ExperimentProposals []*ExperimentProposal `json:"experiment_proposals,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [18]bool
+	loadedTypes [19]bool
 }
 
 // UsersOrErr returns the Users value or an error if the edge
@@ -237,6 +239,15 @@ func (e TenantEdges) DiagnosticRunsOrErr() ([]*DiagnosticRun, error) {
 		return e.DiagnosticRuns, nil
 	}
 	return nil, &NotLoadedError{edge: "diagnostic_runs"}
+}
+
+// ExperimentProposalsOrErr returns the ExperimentProposals value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) ExperimentProposalsOrErr() ([]*ExperimentProposal, error) {
+	if e.loadedTypes[18] {
+		return e.ExperimentProposals, nil
+	}
+	return nil, &NotLoadedError{edge: "experiment_proposals"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -404,6 +415,11 @@ func (_m *Tenant) QueryNodeAssignments() *NodeAssignmentQuery {
 // QueryDiagnosticRuns queries the "diagnostic_runs" edge of the Tenant entity.
 func (_m *Tenant) QueryDiagnosticRuns() *DiagnosticRunQuery {
 	return NewTenantClient(_m.config).QueryDiagnosticRuns(_m)
+}
+
+// QueryExperimentProposals queries the "experiment_proposals" edge of the Tenant entity.
+func (_m *Tenant) QueryExperimentProposals() *ExperimentProposalQuery {
+	return NewTenantClient(_m.config).QueryExperimentProposals(_m)
 }
 
 // Update returns a builder for updating this Tenant.

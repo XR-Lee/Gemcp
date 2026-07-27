@@ -63,6 +63,8 @@ Containers may run as root, but never use privileged mode, host namespaces, Host
 
 The daemon enforces the extended runtime deadline locally even when Gemcp is unreachable. Container state is reconciled from bbolt and Docker labels after restart. Complete output and logs stay in managed node storage; Gemcp receives a 64 KiB log tail, bounded `metrics.json`, exit status, and an opaque output reference.
 
+Prepared Experiments use a structured argv instead of `/bin/sh -lc`. A compatible `gemcp-node` advertises `execution_modes: [shell, argv]`, validates the bounded array, and launches it as the OCI process with an explicit entrypoint. The scheduler never sends an argv workload to an older Node that lacks this capability. Existing shell-mode Experiments and fixed diagnostics remain compatible with older protocol-v1 Nodes, but Nodes must be upgraded before they can run the simplified prepared path.
+
 The Owner can validate this path from the [Backend diagnostics](diagnostics.md) workspace. A Self-hosted diagnostic uses a fixed built-in command but otherwise follows normal source download, Assignment, Docker, GPU, output, Event, cancellation, and cleanup behavior. It requires an online authorized Node that exactly matches the selected Resource Profile and records a zero-CNY reservation.
 
 ## Build Sessions and assets

@@ -24,7 +24,9 @@ var (
 type Spec struct {
 	ExperimentID                 string    `json:"experiment_id"`
 	AttemptID                    string    `json:"attempt_id"`
-	Command                      string    `json:"command"`
+	ExecutionMode                string    `json:"execution_mode"`
+	Command                      string    `json:"command,omitempty"`
+	Argv                         []string  `json:"argv,omitempty"`
 	OutputPath                   string    `json:"output_path"`
 	MaxRuntimeSeconds            int       `json:"max_runtime_seconds"`
 	TimeoutExtensionSeconds      int       `json:"timeout_extension_seconds"`

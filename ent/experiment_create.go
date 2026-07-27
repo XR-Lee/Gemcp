@@ -16,6 +16,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/diagnosticrun"
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/project"
@@ -150,6 +151,26 @@ func (_c *ExperimentCreate) SetNillableDesiredState(v *string) *ExperimentCreate
 // SetCommitSha sets the "commit_sha" field.
 func (_c *ExperimentCreate) SetCommitSha(v string) *ExperimentCreate {
 	_c.mutation.SetCommitSha(v)
+	return _c
+}
+
+// SetExecutionMode sets the "execution_mode" field.
+func (_c *ExperimentCreate) SetExecutionMode(v experiment.ExecutionMode) *ExperimentCreate {
+	_c.mutation.SetExecutionMode(v)
+	return _c
+}
+
+// SetNillableExecutionMode sets the "execution_mode" field if the given value is not nil.
+func (_c *ExperimentCreate) SetNillableExecutionMode(v *experiment.ExecutionMode) *ExperimentCreate {
+	if v != nil {
+		_c.SetExecutionMode(*v)
+	}
+	return _c
+}
+
+// SetArgv sets the "argv" field.
+func (_c *ExperimentCreate) SetArgv(v []string) *ExperimentCreate {
+	_c.mutation.SetArgv(v)
 	return _c
 }
 
@@ -567,6 +588,25 @@ func (_c *ExperimentCreate) SetDiagnosticRun(v *DiagnosticRun) *ExperimentCreate
 	return _c.SetDiagnosticRunID(v.ID)
 }
 
+// SetProposalID sets the "proposal" edge to the ExperimentProposal entity by ID.
+func (_c *ExperimentCreate) SetProposalID(id int) *ExperimentCreate {
+	_c.mutation.SetProposalID(id)
+	return _c
+}
+
+// SetNillableProposalID sets the "proposal" edge to the ExperimentProposal entity by ID if the given value is not nil.
+func (_c *ExperimentCreate) SetNillableProposalID(id *int) *ExperimentCreate {
+	if id != nil {
+		_c = _c.SetProposalID(*id)
+	}
+	return _c
+}
+
+// SetProposal sets the "proposal" edge to the ExperimentProposal entity.
+func (_c *ExperimentCreate) SetProposal(v *ExperimentProposal) *ExperimentCreate {
+	return _c.SetProposalID(v.ID)
+}
+
 // Mutation returns the ExperimentMutation object of the builder.
 func (_c *ExperimentCreate) Mutation() *ExperimentMutation {
 	return _c.mutation
@@ -621,6 +661,10 @@ func (_c *ExperimentCreate) defaults() {
 	if _, ok := _c.mutation.DesiredState(); !ok {
 		v := experiment.DefaultDesiredState
 		_c.mutation.SetDesiredState(v)
+	}
+	if _, ok := _c.mutation.ExecutionMode(); !ok {
+		v := experiment.DefaultExecutionMode
+		_c.mutation.SetExecutionMode(v)
 	}
 	if _, ok := _c.mutation.SecretNames(); !ok {
 		v := experiment.DefaultSecretNames
@@ -688,6 +732,14 @@ func (_c *ExperimentCreate) check() error {
 	if v, ok := _c.mutation.CommitSha(); ok {
 		if err := experiment.CommitShaValidator(v); err != nil {
 			return &ValidationError{Name: "commit_sha", err: fmt.Errorf(`ent: validator failed for field "Experiment.commit_sha": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.ExecutionMode(); !ok {
+		return &ValidationError{Name: "execution_mode", err: errors.New(`ent: missing required field "Experiment.execution_mode"`)}
+	}
+	if v, ok := _c.mutation.ExecutionMode(); ok {
+		if err := experiment.ExecutionModeValidator(v); err != nil {
+			return &ValidationError{Name: "execution_mode", err: fmt.Errorf(`ent: validator failed for field "Experiment.execution_mode": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.Command(); !ok {
@@ -843,6 +895,14 @@ func (_c *ExperimentCreate) createSpec() (*Experiment, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.CommitSha(); ok {
 		_spec.SetField(experiment.FieldCommitSha, field.TypeString, value)
 		_node.CommitSha = value
+	}
+	if value, ok := _c.mutation.ExecutionMode(); ok {
+		_spec.SetField(experiment.FieldExecutionMode, field.TypeEnum, value)
+		_node.ExecutionMode = value
+	}
+	if value, ok := _c.mutation.Argv(); ok {
+		_spec.SetField(experiment.FieldArgv, field.TypeJSON, value)
+		_node.Argv = value
 	}
 	if value, ok := _c.mutation.Command(); ok {
 		_spec.SetField(experiment.FieldCommand, field.TypeString, value)
@@ -1143,6 +1203,22 @@ func (_c *ExperimentCreate) createSpec() (*Experiment, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(diagnosticrun.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ProposalIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   experiment.ProposalTable,
+			Columns: []string{experiment.ProposalColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentproposal.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

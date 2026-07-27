@@ -671,6 +671,36 @@ func CommitShaContainsFold(v string) predicate.Experiment {
 	return predicate.Experiment(sql.FieldContainsFold(FieldCommitSha, v))
 }
 
+// ExecutionModeEQ applies the EQ predicate on the "execution_mode" field.
+func ExecutionModeEQ(v ExecutionMode) predicate.Experiment {
+	return predicate.Experiment(sql.FieldEQ(FieldExecutionMode, v))
+}
+
+// ExecutionModeNEQ applies the NEQ predicate on the "execution_mode" field.
+func ExecutionModeNEQ(v ExecutionMode) predicate.Experiment {
+	return predicate.Experiment(sql.FieldNEQ(FieldExecutionMode, v))
+}
+
+// ExecutionModeIn applies the In predicate on the "execution_mode" field.
+func ExecutionModeIn(vs ...ExecutionMode) predicate.Experiment {
+	return predicate.Experiment(sql.FieldIn(FieldExecutionMode, vs...))
+}
+
+// ExecutionModeNotIn applies the NotIn predicate on the "execution_mode" field.
+func ExecutionModeNotIn(vs ...ExecutionMode) predicate.Experiment {
+	return predicate.Experiment(sql.FieldNotIn(FieldExecutionMode, vs...))
+}
+
+// ArgvIsNil applies the IsNil predicate on the "argv" field.
+func ArgvIsNil() predicate.Experiment {
+	return predicate.Experiment(sql.FieldIsNull(FieldArgv))
+}
+
+// ArgvNotNil applies the NotNil predicate on the "argv" field.
+func ArgvNotNil() predicate.Experiment {
+	return predicate.Experiment(sql.FieldNotNull(FieldArgv))
+}
+
 // CommandEQ applies the EQ predicate on the "command" field.
 func CommandEQ(v string) predicate.Experiment {
 	return predicate.Experiment(sql.FieldEQ(FieldCommand, v))
@@ -2159,6 +2189,29 @@ func HasDiagnosticRun() predicate.Experiment {
 func HasDiagnosticRunWith(preds ...predicate.DiagnosticRun) predicate.Experiment {
 	return predicate.Experiment(func(s *sql.Selector) {
 		step := newDiagnosticRunStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasProposal applies the HasEdge predicate on the "proposal" edge.
+func HasProposal() predicate.Experiment {
+	return predicate.Experiment(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, ProposalTable, ProposalColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasProposalWith applies the HasEdge predicate on the "proposal" edge with a given conditions (other predicates).
+func HasProposalWith(preds ...predicate.ExperimentProposal) predicate.Experiment {
+	return predicate.Experiment(func(s *sql.Selector) {
+		step := newProposalStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

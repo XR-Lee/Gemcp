@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/XR-Lee/Gemcp/ent/agenttoken"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/google/uuid"
@@ -185,6 +186,21 @@ func (_c *AgentTokenCreate) AddIdempotencyRecords(v ...*IdempotencyRecord) *Agen
 		ids[i] = v[i].ID
 	}
 	return _c.AddIdempotencyRecordIDs(ids...)
+}
+
+// AddExperimentProposalIDs adds the "experiment_proposals" edge to the ExperimentProposal entity by IDs.
+func (_c *AgentTokenCreate) AddExperimentProposalIDs(ids ...int) *AgentTokenCreate {
+	_c.mutation.AddExperimentProposalIDs(ids...)
+	return _c
+}
+
+// AddExperimentProposals adds the "experiment_proposals" edges to the ExperimentProposal entity.
+func (_c *AgentTokenCreate) AddExperimentProposals(v ...*ExperimentProposal) *AgentTokenCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddExperimentProposalIDs(ids...)
 }
 
 // Mutation returns the AgentTokenMutation object of the builder.
@@ -415,6 +431,22 @@ func (_c *AgentTokenCreate) createSpec() (*AgentToken, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(idempotencyrecord.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ExperimentProposalsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.ExperimentProposalsTable,
+			Columns: []string{agenttoken.ExperimentProposalsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentproposal.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

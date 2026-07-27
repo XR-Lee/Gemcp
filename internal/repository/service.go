@@ -63,6 +63,10 @@ type GitArchiver interface {
 	ArchiveCommit(context.Context, string, string, []byte, string, string, int64) (Archive, error)
 }
 
+type GitRefResolver interface {
+	ResolveRef(context.Context, string, string, []byte, string, string) (string, error)
+}
+
 type Service struct {
 	client   *ent.Client
 	box      *secrets.Box
@@ -199,6 +203,33 @@ func (s *Service) VerifyCommit(ctx context.Context, repositoryID int, commitSHA 
 	}
 	defer wipe(privateKey)
 	return s.verifier.VerifyCommit(ctx, record.SSHURL, record.SSHHost, privateKey, record.HostKeyFingerprint, commitSHA)
+}
+
+func (s *Service) ResolveRef(ctx context.Context, repositoryID int, ref string) (string, error) {
+	ref = strings.TrimSpace(ref)
+	if !branchPattern.MatchString(ref) || strings.Contains(ref, "..") || strings.Contains(ref, "//") {
+		return "", invalid("Git ref is invalid")
+	}
+	record, err := s.client.Repository.Get(ctx, repositoryID)
+	if ent.IsNotFound(err) {
+		return "", ErrNotFound
+	}
+	if err != nil {
+		return "", err
+	}
+	if record.Status != "active" || record.HostKeyFingerprint == "" {
+		return "", ErrNotActive
+	}
+	resolver, ok := s.verifier.(GitRefResolver)
+	if !ok {
+		return "", fmt.Errorf("repository ref resolver is unavailable")
+	}
+	privateKey, err := s.decryptKey(record)
+	if err != nil {
+		return "", err
+	}
+	defer wipe(privateKey)
+	return resolver.ResolveRef(ctx, record.SSHURL, record.SSHHost, privateKey, record.HostKeyFingerprint, ref)
 }
 
 func (s *Service) ArchiveCommit(ctx context.Context, repositoryID int, commitSHA string, maxBytes int64) (Archive, error) {

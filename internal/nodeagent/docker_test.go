@@ -49,3 +49,38 @@ esac
 		}
 	}
 }
+
+func TestDockerRuntimeLaunchesArgvWithoutShell(t *testing.T) {
+	directory := t.TempDir()
+	logPath := filepath.Join(directory, "docker-argv.log")
+	binary := filepath.Join(directory, "docker")
+	image := "registry.example/train@sha256:" + strings.Repeat("d", 64)
+	script := `#!/bin/sh
+printf '%s\n' "$@" >> "$GEMCP_TEST_DOCKER_LOG"
+case "$1" in
+  image) printf '["` + image + `"]\n' ;;
+  create) printf 'container-id\n' ;;
+esac
+`
+	if err := os.WriteFile(binary, []byte(script), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GEMCP_TEST_DOCKER_LOG", logPath)
+	runtime := DockerRuntime{Binary: binary}
+	_, err := runtime.Start(context.Background(), ContainerSpec{
+		AssignmentID: "11111111-2222-4333-8444-666666666666", Image: image, ExecutionMode: "argv",
+		Argv: []string{"python", "train.py", "--label", "value with spaces"}, GPUUUID: "GPU-test",
+		CPULimit: 8, MemoryLimitBytes: 32 << 30, SourcePath: directory + "/source", OutputPath: directory + "/output",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload, _ := os.ReadFile(logPath)
+	args := string(payload)
+	if !strings.Contains(args, "--entrypoint\npython\n"+image+"\ntrain.py\n--label\nvalue with spaces") {
+		t.Fatalf("Docker argv was not preserved:\n%s", args)
+	}
+	if strings.Contains(args, "/bin/sh\n-lc") {
+		t.Fatalf("Docker argv used a shell:\n%s", args)
+	}
+}

@@ -373,6 +373,8 @@ var (
 		{Name: "state", Type: field.TypeString, Default: "queued"},
 		{Name: "desired_state", Type: field.TypeString, Default: "running"},
 		{Name: "commit_sha", Type: field.TypeString, Size: 64},
+		{Name: "execution_mode", Type: field.TypeEnum, Enums: []string{"shell", "argv"}, Default: "shell"},
+		{Name: "argv", Type: field.TypeJSON, Nullable: true},
 		{Name: "command", Type: field.TypeString, Size: 2147483647},
 		{Name: "max_runtime_seconds", Type: field.TypeInt},
 		{Name: "timeout_extension_seconds", Type: field.TypeInt},
@@ -415,37 +417,37 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "experiments_agent_tokens_experiments",
-				Columns:    []*schema.Column{ExperimentsColumns[34]},
+				Columns:    []*schema.Column{ExperimentsColumns[36]},
 				RefColumns: []*schema.Column{AgentTokensColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "experiments_environments_experiments",
-				Columns:    []*schema.Column{ExperimentsColumns[35]},
+				Columns:    []*schema.Column{ExperimentsColumns[37]},
 				RefColumns: []*schema.Column{EnvironmentsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "experiments_projects_experiments",
-				Columns:    []*schema.Column{ExperimentsColumns[36]},
+				Columns:    []*schema.Column{ExperimentsColumns[38]},
 				RefColumns: []*schema.Column{ProjectsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "experiments_repositories_experiments",
-				Columns:    []*schema.Column{ExperimentsColumns[37]},
+				Columns:    []*schema.Column{ExperimentsColumns[39]},
 				RefColumns: []*schema.Column{RepositoriesColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "experiments_resource_profiles_experiments",
-				Columns:    []*schema.Column{ExperimentsColumns[38]},
+				Columns:    []*schema.Column{ExperimentsColumns[40]},
 				RefColumns: []*schema.Column{ResourceProfilesColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "experiments_tenants_experiments",
-				Columns:    []*schema.Column{ExperimentsColumns[39]},
+				Columns:    []*schema.Column{ExperimentsColumns[41]},
 				RefColumns: []*schema.Column{TenantsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -454,17 +456,112 @@ var (
 			{
 				Name:    "experiment_project_id_state_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{ExperimentsColumns[36], ExperimentsColumns[4], ExperimentsColumns[2]},
+				Columns: []*schema.Column{ExperimentsColumns[38], ExperimentsColumns[4], ExperimentsColumns[2]},
 			},
 			{
 				Name:    "experiment_state_next_attempt_at_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{ExperimentsColumns[4], ExperimentsColumns[33], ExperimentsColumns[2]},
+				Columns: []*schema.Column{ExperimentsColumns[4], ExperimentsColumns[35], ExperimentsColumns[2]},
 			},
 			{
 				Name:    "experiment_provider_resource_id",
 				Unique:  true,
-				Columns: []*schema.Column{ExperimentsColumns[18]},
+				Columns: []*schema.Column{ExperimentsColumns[20]},
+			},
+		},
+	}
+	// ExperimentProposalsColumns holds the columns for the "experiment_proposals" table.
+	ExperimentProposalsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "public_id", Type: field.TypeUUID, Unique: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"prepared", "submitted"}, Default: "prepared"},
+		{Name: "requested_ref", Type: field.TypeString, Size: 255},
+		{Name: "commit_sha", Type: field.TypeString, Size: 64},
+		{Name: "execution_mode", Type: field.TypeEnum, Enums: []string{"argv"}},
+		{Name: "argv", Type: field.TypeJSON},
+		{Name: "display_command", Type: field.TypeString, Size: 2147483647},
+		{Name: "runtime_preset", Type: field.TypeString, Size: 80, Default: "smoke"},
+		{Name: "max_runtime_seconds", Type: field.TypeInt},
+		{Name: "timeout_extension_seconds", Type: field.TypeInt},
+		{Name: "termination_grace_seconds", Type: field.TypeInt},
+		{Name: "project_snapshot", Type: field.TypeJSON},
+		{Name: "repository_snapshot", Type: field.TypeJSON},
+		{Name: "environment_snapshot", Type: field.TypeJSON},
+		{Name: "resource_snapshot", Type: field.TypeJSON},
+		{Name: "checks", Type: field.TypeJSON},
+		{Name: "reserved_cost_milli", Type: field.TypeInt64},
+		{Name: "confirmation_digest", Type: field.TypeString, Size: 80},
+		{Name: "expires_at", Type: field.TypeTime},
+		{Name: "submitted_at", Type: field.TypeTime, Nullable: true},
+		{Name: "agent_token_id", Type: field.TypeInt},
+		{Name: "environment_id", Type: field.TypeInt},
+		{Name: "experiment_id", Type: field.TypeInt, Unique: true, Nullable: true},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "repository_id", Type: field.TypeInt},
+		{Name: "resource_profile_id", Type: field.TypeInt},
+		{Name: "tenant_id", Type: field.TypeInt},
+	}
+	// ExperimentProposalsTable holds the schema information for the "experiment_proposals" table.
+	ExperimentProposalsTable = &schema.Table{
+		Name:       "experiment_proposals",
+		Columns:    ExperimentProposalsColumns,
+		PrimaryKey: []*schema.Column{ExperimentProposalsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "experiment_proposals_agent_tokens_experiment_proposals",
+				Columns:    []*schema.Column{ExperimentProposalsColumns[23]},
+				RefColumns: []*schema.Column{AgentTokensColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "experiment_proposals_environments_experiment_proposals",
+				Columns:    []*schema.Column{ExperimentProposalsColumns[24]},
+				RefColumns: []*schema.Column{EnvironmentsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "experiment_proposals_experiments_proposal",
+				Columns:    []*schema.Column{ExperimentProposalsColumns[25]},
+				RefColumns: []*schema.Column{ExperimentsColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+			{
+				Symbol:     "experiment_proposals_projects_experiment_proposals",
+				Columns:    []*schema.Column{ExperimentProposalsColumns[26]},
+				RefColumns: []*schema.Column{ProjectsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "experiment_proposals_repositories_experiment_proposals",
+				Columns:    []*schema.Column{ExperimentProposalsColumns[27]},
+				RefColumns: []*schema.Column{RepositoriesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "experiment_proposals_resource_profiles_experiment_proposals",
+				Columns:    []*schema.Column{ExperimentProposalsColumns[28]},
+				RefColumns: []*schema.Column{ResourceProfilesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "experiment_proposals_tenants_experiment_proposals",
+				Columns:    []*schema.Column{ExperimentProposalsColumns[29]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "experimentproposal_project_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{ExperimentProposalsColumns[26], ExperimentProposalsColumns[2]},
+			},
+			{
+				Name:    "experimentproposal_agent_token_id_status_expires_at",
+				Unique:  false,
+				Columns: []*schema.Column{ExperimentProposalsColumns[23], ExperimentProposalsColumns[4], ExperimentProposalsColumns[21]},
 			},
 		},
 	}
@@ -1366,6 +1463,7 @@ var (
 		DiagnosticRunsTable,
 		EnvironmentsTable,
 		ExperimentsTable,
+		ExperimentProposalsTable,
 		IdempotencyRecordsTable,
 		NodeAssignmentsTable,
 		NodeCommandsTable,
@@ -1409,6 +1507,13 @@ func init() {
 	ExperimentsTable.ForeignKeys[3].RefTable = RepositoriesTable
 	ExperimentsTable.ForeignKeys[4].RefTable = ResourceProfilesTable
 	ExperimentsTable.ForeignKeys[5].RefTable = TenantsTable
+	ExperimentProposalsTable.ForeignKeys[0].RefTable = AgentTokensTable
+	ExperimentProposalsTable.ForeignKeys[1].RefTable = EnvironmentsTable
+	ExperimentProposalsTable.ForeignKeys[2].RefTable = ExperimentsTable
+	ExperimentProposalsTable.ForeignKeys[3].RefTable = ProjectsTable
+	ExperimentProposalsTable.ForeignKeys[4].RefTable = RepositoriesTable
+	ExperimentProposalsTable.ForeignKeys[5].RefTable = ResourceProfilesTable
+	ExperimentProposalsTable.ForeignKeys[6].RefTable = TenantsTable
 	IdempotencyRecordsTable.ForeignKeys[0].RefTable = AgentTokensTable
 	IdempotencyRecordsTable.ForeignKeys[1].RefTable = ExperimentsTable
 	IdempotencyRecordsTable.ForeignKeys[2].RefTable = TenantsTable

@@ -30,6 +30,7 @@ func (Repository) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.From("project", Project.Type).Ref("repositories").Field("project_id").Unique().Required().Immutable(),
 		edge.To("experiments", Experiment.Type),
+		edge.To("experiment_proposals", ExperimentProposal.Type),
 	}
 }
 

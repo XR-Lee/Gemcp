@@ -8,7 +8,7 @@ The control plane owns:
 
 - Human configuration and audit through Web.
 - Owner-confirmed, fixed-suite backend diagnostics through the normal Experiment lifecycle.
-- Agent authentication and experiment operations through MCP.
+- Agent authentication, zero-cost prepared proposals, confirmed submission, and Advanced experiment operations through MCP.
 - Project policy, budget reservation, and cost estimates.
 - Provider reconciliation and resource ownership.
 - Independent timeout and shutdown enforcement.
@@ -29,9 +29,9 @@ The FIFO scheduler runs in the controlplane process only when explicitly enabled
 
 ## Durable coordination
 
-PostgreSQL is authoritative for identity, configuration, experiments, attempts, reservations, provider resources, idempotency records, audit events, and leases. In-memory queues may wake workers but never own job state.
+PostgreSQL is authoritative for identity, configuration, expiring Experiment Proposals, experiments, attempts, reservations, provider resources, idempotency records, audit events, and leases. In-memory queues may wake workers but never own job state.
 
-A submitted experiment is immutable. Agent submission verifies a full Git commit SHA before a serializable transaction creates the experiment, budget reservation, Token-scoped idempotency record, and audit event. Owner diagnostics create the same immutable Experiment without fabricating Agent Token attribution; a linked `DiagnosticRun` stores only hashed idempotency material, the fixed suite, Owner identity, and the confirmed preflight snapshot. Infrastructure retries create attempts under the same experiment. A manual rerun creates a new experiment.
+A submitted Experiment is immutable. The normal Agent path resolves a ref and compatible defaults into an expiring, zero-cost Proposal. Its digest binds Project policy, repository identity, full commit, structured argv, Environment, Resource Profile, runtime, and reservation. Confirmed submission rechecks drift and budget in a serializable transaction; the Proposal itself ensures that one confirmation creates at most one Experiment. The Advanced direct path retains Token-scoped caller idempotency and shell-command compatibility. Owner diagnostics create the same immutable Experiment without fabricating Agent Token attribution; a linked `DiagnosticRun` stores only hashed idempotency material, the fixed suite, Owner identity, and the confirmed preflight snapshot. Infrastructure retries create Attempts under the same Experiment. A manual rerun creates a new Experiment.
 
 The remote MCP endpoint uses the official Go SDK's Streamable HTTP transport. Agent Bearer Tokens are checked against PostgreSQL for each request, and MCP sessions are bound to the authenticated Token identity. Owner-only APIs issue project credentials with bounded scopes and optional expiry, return plaintext once, and generate the canonical MCP URL only from `GEMCP_PUBLIC_URL`.
 

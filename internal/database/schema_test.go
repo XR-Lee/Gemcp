@@ -170,3 +170,35 @@ func TestOwnerDiagnosticsUseNullableAgentAttributionAndHashedIdempotency(t *test
 		t.Fatal("diagnostic Project/idempotency digest unique index is missing")
 	}
 }
+
+func TestPreparedExperimentSchemaIsCredentialFreeAndExecutionMigrationIsAdditive(t *testing.T) {
+	proposalColumns := map[string]*schema.Column{}
+	for _, column := range entmigrate.ExperimentProposalsColumns {
+		proposalColumns[column.Name] = column
+		name := strings.ToLower(column.Name)
+		if name == "token" || name == "credential" || strings.Contains(name, "ciphertext") || strings.Contains(name, "secret") || strings.Contains(name, "private_key") {
+			t.Fatalf("experiment_proposals contains recoverable credential-like column %q", column.Name)
+		}
+	}
+	for _, required := range []string{
+		"project_id", "agent_token_id", "repository_id", "environment_id", "resource_profile_id", "status",
+		"requested_ref", "commit_sha", "execution_mode", "argv", "display_command", "checks",
+		"reserved_cost_milli", "confirmation_digest", "expires_at", "experiment_id",
+	} {
+		if proposalColumns[required] == nil {
+			t.Fatalf("experiment_proposals column %s is missing", required)
+		}
+	}
+	experimentColumns := map[string]*schema.Column{}
+	for _, column := range entmigrate.ExperimentsColumns {
+		experimentColumns[column.Name] = column
+	}
+	executionMode := experimentColumns["execution_mode"]
+	if executionMode == nil || executionMode.Nullable || executionMode.Default == nil {
+		t.Fatal("experiments execution_mode must have a non-null shell migration default")
+	}
+	argv := experimentColumns["argv"]
+	if argv == nil || !argv.Nullable {
+		t.Fatal("experiments argv must be nullable so historical shell rows migrate without a JSON database default")
+	}
+}

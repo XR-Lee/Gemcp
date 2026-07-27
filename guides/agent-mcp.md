@@ -1,19 +1,19 @@
 # Gemcp MCP Agent Operating Guide
 
-This document is for an AI or automation Agent connected to a Gemcp MCP server. Gemcp schedules bounded AutoDL experiments. It does not provide arbitrary shell access, raw machine access, Provider credentials, or a general-purpose cloud API.
+This document is for an AI or automation Agent connected to a Gemcp MCP server. Gemcp schedules bounded AutoDL and authorized Self-hosted experiments. It does not provide arbitrary host access, Provider credentials, SSH, or a general-purpose cloud API.
 
 ## Non-negotiable rules
 
 1. Treat the Agent Token as a secret. Never print it, commit it, place it in experiment arguments, or include it in chat or logs.
-2. Call `get_project_options` and `get_project_cost` before proposing or submitting paid work.
-3. Use only repository, environment, and resource-profile IDs returned by `get_project_options`.
-4. Submit only a complete 40- or 64-character Git commit SHA that has already been pushed and is reachable from the registered repository.
-5. Show the human the exact command, commit, runtime, selected resource, and worst-case reservation before calling `submit_experiment`. Wait for explicit approval unless the human has already granted a clear standing policy that covers the request.
-6. Generate one idempotency key for one logical submission. Reuse that key only when retrying the identical request. Never create a new key merely because a response was delayed or lost.
-7. Omit `secret_names`. Project Secret injection is not implemented.
-8. After submission, record the returned experiment ID and monitor it to a terminal state. Do not infer success from Provider startup alone.
-9. Use `cancel_experiment` when the human cancels work or when the submitted experiment should no longer run.
-10. Money values are milli-CNY operational estimates, not a final Provider invoice.
+2. Use `prepare_experiment` as the normal path. Let Gemcp resolve the repository, moving ref, full commit SHA, compatible defaults, preflight checks, cost, and idempotency.
+3. Submit normal workloads as an ordered `argv`. Do not wrap it in a shell, add output-path wrappers, or interpolate typed values into shell text.
+4. Show the human the returned repository, full commit, argv, runtime, backend resource, checks, expiry, and worst-case reservation.
+5. Wait for explicit human approval of the exact confirmation digest before calling `submit_prepared_experiment`.
+6. Submit a prepared proposal using only its proposal ID and exact digest. Never alter fields between preparation and submission.
+7. A proposal retry uses the same proposal ID and digest and returns the same Experiment. A failed paid Experiment is never automatically resubmitted.
+8. After submission, record the Experiment ID and monitor it to a terminal state. Do not infer success from Provider or Node startup alone.
+9. Use `cancel_experiment` when the human cancels work or when the submitted Experiment should no longer run.
+10. Use `submit_experiment` only when the human explicitly requests the Advanced shell-command compatibility path.
 
 ## Connection
 
@@ -23,93 +23,95 @@ Transport: MCP Streamable HTTP
 https://<gemcp-host>/mcp
 ```
 
-Authentication is a project-scoped bearer credential supplied by the MCP client:
+Authentication is a Project-scoped bearer credential supplied by the MCP client:
 
 ```http
 Authorization: Bearer <Gemcp Agent Token>
 ```
 
-A 401 response means the Token is missing, malformed, expired, revoked, or no longer valid for the project. Do not ask the human to paste the Token into the conversation. Ask them to update the MCP client's secret store.
+A 401 response means the Token is missing, malformed, expired, revoked, or no longer valid for the Project. Do not ask the human to paste the Token into the conversation. Ask them to update the MCP client's secret store.
 
 ## Required workflow
 
-### 1. Discover policy and approved IDs
+### 1. Inspect the local repository
 
-Call:
+When operating inside the user's repository, determine the intended program and arguments from reviewed source and configuration. Prefer an existing smoke script or documented entry point. Do not invent training flags, search for datasets outside the declared root, or add automatic downloads.
 
-```text
-get_project_options {}
-```
-
-Confirm the project identity and read:
-
-- repository IDs and Git SSH URLs;
-- approved environment IDs and image UUIDs;
-- resource-profile IDs, GPU model/count, region, and price bounds;
-- maximum runtime, timeout extension, termination grace, concurrency, and budget limits.
-
-Never guess an ID from a previous project or another environment.
-
-### 2. Check current capacity
-
-Call:
+The normal request can be as small as:
 
 ```text
-get_project_cost {}
+Run the smoke test for this repository.
 ```
 
-Report the period, current reservations, estimated charges, available capacity, and the fact that values are in milli-CNY. This call does not guarantee future capacity; Gemcp rechecks the budget at submission and dispatch.
-
-### 3. Prepare immutable source
-
-Before submission:
-
-- ensure all required files are committed;
-- ensure the commit is pushed to the registered repository;
-- resolve the exact full commit SHA;
-- avoid branch names, tags, abbreviated SHAs, or uncommitted working-tree state.
-
-Gemcp verifies reachability and archives that exact commit. The repository Deploy Key never enters the experiment container.
-
-### 4. Present the execution proposal
-
-Before paid work, present at least:
-
-```text
-Repository: <name and repository_id>
-Commit: <full SHA>
-Environment: <name and environment_id>
-Resource: <profile name, GPU model/count, resource_profile_id>
-Command: <exact shell command>
-Runtime: <seconds>
-Timeout extension and grace: <project policy>
-Worst-case reservation: <milli-CNY and CNY>
-Idempotency key: <stable key>
-```
-
-Wait for explicit human approval unless an existing standing authorization clearly covers every field and the budget.
-
-### 5. Submit once
-
-Example:
+The tool call contains transport context that the user should not have to copy:
 
 ```json
 {
-  "repository_id": "repository-uuid-from-get_project_options",
-  "environment_id": "environment-uuid-from-get_project_options",
-  "resource_profile_id": "profile-uuid-from-get_project_options",
-  "commit_sha": "0123456789012345678901234567890123456789",
-  "command": "python train.py --config configs/experiment.yaml",
-  "max_runtime_seconds": 3600,
-  "idempotency_key": "project-task-20260718-001"
+  "repository_remote": "git@github.com:owner/repository.git",
+  "ref": "main",
+  "argv": ["python", "tools/smoke.py"],
+  "runtime_preset": "smoke"
 }
 ```
 
-`environment_id` and `resource_profile_id` may be omitted only when the project defaults returned by `get_project_options` are intended. Do not include `secret_names`.
+Omit `repository` and `repository_remote` when the authenticated Project has exactly one active repository. Omit `ref` to use its default branch. Omit Environment and Resource Profile selectors to use an unambiguous compatible default.
 
-A repeated identical request with the same idempotency key returns the original Experiment. Reusing the key with different input is an error and does not create another reservation.
+### 2. Prepare at zero cost
 
-### 6. Monitor and report
+Call:
+
+```text
+prepare_experiment
+```
+
+Preparation creates no Experiment, Attempt, Provider resource, or budget reservation. Gemcp:
+
+- resolves the selected ref to a verified full commit SHA;
+- validates and archives that exact commit;
+- resolves compatible Environment and Resource Profile defaults;
+- checks Scheduler, Watchdog, callback, concurrency, Provider or Node readiness, image, and budget;
+- calculates the worst-case reservation;
+- creates a short-lived immutable proposal and server-owned idempotency boundary.
+
+When preparation returns `choice_required`, present only the bounded candidates for the named field. Never guess between repositories or backend resources.
+
+### 3. Present the immutable proposal
+
+Present at least:
+
+```text
+Repository and requested ref
+Resolved full commit SHA
+Exact ordered argv and display command
+Environment image and Resource Profile
+Backend, GPU model and count
+Runtime, timeout extension, and termination grace
+Preflight failures and warnings
+Worst-case reservation in CNY
+Proposal expiry
+Proposal ID and confirmation digest
+```
+
+Do not hide failed checks. A warning may be approved, but a blocked proposal cannot be submitted.
+
+Wait for explicit human approval unless a future server-returned standing policy clearly authorizes this exact digest. The presence of `submit` scope is not financial approval.
+
+### 4. Submit the prepared proposal once
+
+Call:
+
+```json
+{
+  "proposal_id": "proposal-id-from-prepare",
+  "confirmation_digest": "sha256:exact-digest-shown-to-the-human"
+}
+```
+
+Gemcp reruns drift-sensitive preflight checks and rechecks configuration and budget in the creation transaction. Configuration drift returns `experiment proposal changed after confirmation` and creates no Experiment. Prepare a replacement and obtain approval again.
+
+A repeated identical call returns the original Experiment. Never create a replacement proposal merely because the submission response was delayed or lost.
+
+### 5. Monitor and report
 
 Use:
 
@@ -126,11 +128,9 @@ queued -> provisioning -> running -> collecting -> succeeded
                                       -> cancelling -> cancelled / timed_out
 ```
 
-`queued` may mean production dispatch is disabled, concurrency is full, or the Experiment is waiting in FIFO order. Do not resubmit it. Report the current state and continue monitoring at a reasonable interval.
+`queued` may mean concurrency is full or the Experiment is waiting in FIFO order. Do not resubmit it. A terminal success requires `state=succeeded`. On failure, report the failure code and reason, exit code, Runner stage, source-download count, estimated cost, metrics, and available log tail without exposing credentials.
 
-A terminal success requires `state=succeeded`. On failure, report `failure_code`, `failure_reason`, exit code, estimated cost, and available log tail without exposing credentials.
-
-### 7. Retrieve durable outputs
+### 6. Retrieve durable outputs
 
 After completion call:
 
@@ -138,53 +138,71 @@ After completion call:
 list_artifacts {"experiment_id":"..."}
 ```
 
-Gemcp reports the durable `/root/autodl-fs` output path and registered Runner artifacts. It does not provide arbitrary filesystem browsing. The workload should write `metrics.json` when structured metrics are useful; Gemcp bounds and records that object.
+Gemcp reports the managed output reference and registered artifacts. It does not provide arbitrary filesystem browsing. Workloads should write structured results to `${GEMCP_OUTPUT_DIR}/metrics.json`; the execution environment supplies `GEMCP_OUTPUT_DIR` and the Agent must not replace it.
+
+## Advanced compatibility path
+
+`submit_experiment` preserves the original arbitrary shell-command interface for existing automation. It is not the normal user journey.
+
+Before Advanced paid work:
+
+1. Call `get_project_options` and `get_project_cost`.
+2. Use IDs returned by the current Project, a complete pushed 40- or 64-character commit SHA, and an exact reviewed shell command.
+3. Show the human the command, IDs, runtime, policy deadlines, caller-generated idempotency key, and worst-case reservation.
+4. Wait for explicit human approval.
+5. Reuse the same idempotency key only for an identical transport retry.
+
+Do not translate a normal argv request into this path merely because it is familiar. Shell parsing and caller-managed idempotency are the compatibility behavior being retired from the primary interface.
 
 ## Tool and scope reference
 
 | Tool | Purpose | Scope |
 | --- | --- | --- |
 | `get_usage_guide` | Return this operating guide and discovery metadata | `read` |
-| `get_project_options` | Project policy and approved IDs | `read` |
-| `get_project_cost` | Budget period and operational estimates | `read` |
-| `submit_experiment` | Verify and enqueue one immutable experiment | `submit` |
-| `get_experiment` | Read one experiment | `read` |
-| `list_experiments` | List recent experiments | `read` |
+| `prepare_experiment` | Resolve and persist a zero-cost immutable argv proposal | `submit` |
+| `submit_prepared_experiment` | Submit one confirmed proposal, idempotently | `submit` |
+| `get_project_options` | Inspect Project policy and approved IDs for Advanced use | `read` |
+| `get_project_cost` | Inspect budget and accounting details for Advanced use | `read` |
+| `submit_experiment` | Advanced direct shell-command submission | `submit` |
+| `get_experiment` | Read one Experiment | `read` |
+| `list_experiments` | List recent Experiments | `read` |
 | `cancel_experiment` | Request durable cancellation | `cancel` |
-| `list_artifacts` | Read output path and artifact names | `read` |
+| `list_artifacts` | Read managed output and artifact names | `read` |
 
 If a tool returns forbidden, the Token lacks the required scope. Do not work around scope restrictions; ask the Owner to issue the minimum appropriate replacement Token.
 
 ## Cost model
 
-Gemcp reserves conservatively using the selected profile's maximum price:
+Gemcp presents exact CNY strings in a prepared proposal and retains milli-CNY integers for API and audit compatibility. The Advanced reservation uses the selected profile's maximum price:
 
 ```text
 ceil(price_to_milli * gpu_count *
   (runtime + timeout_extension + termination_grace + 600 + 30) / 3600)
 ```
 
-The reservation is released at terminal settlement and replaced by an estimated charge based on observed managed-resource lifetime. Both values are operational controls. The AutoDL console remains authoritative for actual billing.
+The reservation is released at terminal settlement and replaced by an estimated charge based on observed managed-resource lifetime. These values are operational controls. The AutoDL console remains authoritative for actual billing.
 
 ## Error handling
 
-- `401 Unauthorized`: Token or MCP client configuration problem. Ask the Owner to verify or rotate the credential.
-- `forbidden`: Token scope does not permit the requested tool.
-- commit verification failure: push the exact commit to the registered repository, then retry the identical logical request with the same idempotency key only if no Experiment was created.
-- idempotency conflict: the key was reused with different input. Stop and resolve the mismatch; do not blindly generate another key.
-- budget or experiment-cap failure: reduce the requested runtime/resource only with human approval, or ask the Owner to change policy.
-- option not found: refresh `get_project_options`; never substitute an arbitrary Provider identifier.
-- queued for an extended period: query rather than resubmit. Ask the Owner to inspect scheduler/runtime status.
-- active work no longer wanted: call `cancel_experiment` once, then monitor cleanup.
+- `401 Unauthorized`: verify or rotate the MCP credential without placing it in chat.
+- `forbidden`: the Token lacks the required scope.
+- `choice_required`: present the returned candidates and prepare again with the selected name or ID.
+- commit or ref verification failure: push the intended source or correct repository access, then prepare again.
+- proposal blocked: report failed checks; create no paid Experiment.
+- proposal expired: prepare a replacement and obtain approval for its new digest.
+- proposal changed: execution-relevant configuration drifted; prepare and confirm again.
+- budget or Experiment-cap failure: reduce runtime or resources only with human approval, or ask the Owner to change policy.
+- queued for an extended period: query rather than resubmit.
+- active work no longer wanted: call `cancel_experiment` once and monitor cleanup.
 
 ## Recommended Agent instruction
 
 ```text
-Use Gemcp only through its MCP tools. Read the Gemcp usage guide when needed.
-Always call get_project_options and get_project_cost before proposing paid work.
-Use only approved IDs and a full pushed commit SHA. Present the exact execution
-specification and worst-case reservation, then wait for human approval unless a
-standing authorization clearly covers it. Reuse one idempotency key only for an
-identical retry. After submission, record the experiment ID, monitor it to a
-terminal state, report cost and failure details, and never expose credentials.
+Use Gemcp's prepared path for normal work. Inspect the current repository and call
+prepare_experiment with an ordered argv and optional ref. Let Gemcp resolve IDs,
+commit, resources, checks, cost, and idempotency. Show the exact returned proposal
+and wait for explicit human approval of its digest. Then call
+submit_prepared_experiment once, monitor the Experiment to a terminal state, and
+report results and cleanup evidence. Use submit_experiment only for an explicitly
+requested Advanced shell-command workflow. Never expose credentials.
 ```

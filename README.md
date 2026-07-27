@@ -4,6 +4,8 @@ Gemcp is a private, single-organization control plane for running bounded AutoDL
 
 ## Current release
 
+`v0.13.0` adds the repository-first prepared Experiment path for MCP Agents. `prepare_experiment` accepts a reviewed argv plus optional repository/ref selectors, resolves a full commit and compatible Project defaults, runs zero-cost source/runtime/backend/budget checks, and returns a 30-minute immutable proposal with an exact CNY reservation. After human confirmation, `submit_prepared_experiment` uses the proposal as a server-owned idempotency boundary. Prepared argv executes without `/bin/sh` in the AutoDL Runner and capability-compatible Self-hosted Nodes. The original `submit_experiment` remains the Advanced shell-command compatibility path.
+
 `v0.12.0` adds an Owner-only Diagnostics workspace for real, bounded AutoDL and Self-hosted backend tests. Fixed GPU-connectivity and PyTorch-CUDA suites run through the normal Experiment and Attempt lifecycle after source, scheduler, budget, image, capacity, callback, and cleanup preflight checks. Paid AutoDL dispatch requires explicit confirmation of a drift-protected immutable proposal; Self-hosted diagnostics remain zero-CNY. Results combine Runner stages, source downloads, backend ownership, metrics, log tails, timeline, cancellation, and cleanup-aware fault guidance.
 
 `v0.11.2` hardens the remaining AutoDL pre-execution path: interrupted source bodies are downloaded again from a clean temporary file, transient `started` callback failures retry within the provisioning deadline, and controlled Bootstrap stages are persisted for `get_experiment` and the Owner console. HTTP errors and redirects remain non-retryable, user workloads still execute at most once, and a reported terminal Bootstrap failure requests immediate Provider cleanup instead of waiting for `provision_timeout`.
@@ -156,4 +158,4 @@ Bind the origin to localhost and publish it through the configured Cloudflare Tu
 
 No real AutoDL, SMTP, Git, Runner, Agent setup, Node setup, or experiment secret belongs in this repository. Provider, SMTP, and Git private credentials are encrypted at rest. Agent and Node setup codes and their long-lived Tokens are stored only as HMAC digests; setup retry credentials are deterministically derived and never stored recoverably. AutoDL Runner Tokens are Attempt-scoped, stored as HMAC digests plus recoverable ciphertext only until execution finalizes, and never passed to the user command environment. Self-hosted workload containers receive no Gemcp credential. Local phase-zero Token files and reports are Git-ignored and must be mode `0600` inside a mode `0700` directory.
 
-See [Architecture](docs/architecture.md) and [Roadmap](docs/roadmap.md).
+See [Architecture](docs/architecture.md), the [Experiment interface simplification proposal](docs/experiment-interface-simplification.md), and [Roadmap](docs/roadmap.md).

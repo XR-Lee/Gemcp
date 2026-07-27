@@ -147,7 +147,15 @@ func New(deps Dependencies) *http.Server {
 	protected.POST("/repositories", repositoryHandlers.Create)
 	protected.POST("/repositories/:id/verify", repositoryHandlers.Verify)
 
-	experimentService := experiment.NewService(deps.Ent, deps.Secrets, repositoryService)
+	experimentService := experiment.NewService(
+		deps.Ent, deps.Secrets, repositoryService,
+		experiment.WithPreparedExperiments(
+			repositoryService, repositoryService, providerService, runtimeOperations,
+			experiment.ProposalConfig{
+				SourceMaxBytes: deps.Config.RunnerSourceMaxBytes, SelfHostedEnabled: deps.Config.SelfHostedEnabled,
+			},
+		),
+	)
 	experimentHandlers := httpapi.NewExperimentHandlers(experimentService)
 	protected.GET("/experiments", experimentHandlers.List)
 	protected.GET("/experiments/:id", experimentHandlers.Get)

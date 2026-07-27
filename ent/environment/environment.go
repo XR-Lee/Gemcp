@@ -40,6 +40,8 @@ const (
 	EdgeProject = "project"
 	// EdgeExperiments holds the string denoting the experiments edge name in mutations.
 	EdgeExperiments = "experiments"
+	// EdgeExperimentProposals holds the string denoting the experiment_proposals edge name in mutations.
+	EdgeExperimentProposals = "experiment_proposals"
 	// Table holds the table name of the environment in the database.
 	Table = "environments"
 	// ProjectTable is the table that holds the project relation/edge.
@@ -56,6 +58,13 @@ const (
 	ExperimentsInverseTable = "experiments"
 	// ExperimentsColumn is the table column denoting the experiments relation/edge.
 	ExperimentsColumn = "environment_id"
+	// ExperimentProposalsTable is the table that holds the experiment_proposals relation/edge.
+	ExperimentProposalsTable = "experiment_proposals"
+	// ExperimentProposalsInverseTable is the table name for the ExperimentProposal entity.
+	// It exists in this package in order to avoid circular dependency with the "experimentproposal" package.
+	ExperimentProposalsInverseTable = "experiment_proposals"
+	// ExperimentProposalsColumn is the table column denoting the experiment_proposals relation/edge.
+	ExperimentProposalsColumn = "environment_id"
 )
 
 // Columns holds all SQL columns for environment fields.
@@ -233,6 +242,20 @@ func ByExperiments(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newExperimentsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByExperimentProposalsCount orders the results by experiment_proposals count.
+func ByExperimentProposalsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newExperimentProposalsStep(), opts...)
+	}
+}
+
+// ByExperimentProposals orders the results by experiment_proposals terms.
+func ByExperimentProposals(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newExperimentProposalsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newProjectStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -245,5 +268,12 @@ func newExperimentsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(ExperimentsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, ExperimentsTable, ExperimentsColumn),
+	)
+}
+func newExperimentProposalsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ExperimentProposalsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ExperimentProposalsTable, ExperimentProposalsColumn),
 	)
 }

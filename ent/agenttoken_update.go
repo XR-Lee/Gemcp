@@ -14,6 +14,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/XR-Lee/Gemcp/ent/agenttoken"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 )
@@ -181,6 +182,21 @@ func (_u *AgentTokenUpdate) AddIdempotencyRecords(v ...*IdempotencyRecord) *Agen
 	return _u.AddIdempotencyRecordIDs(ids...)
 }
 
+// AddExperimentProposalIDs adds the "experiment_proposals" edge to the ExperimentProposal entity by IDs.
+func (_u *AgentTokenUpdate) AddExperimentProposalIDs(ids ...int) *AgentTokenUpdate {
+	_u.mutation.AddExperimentProposalIDs(ids...)
+	return _u
+}
+
+// AddExperimentProposals adds the "experiment_proposals" edges to the ExperimentProposal entity.
+func (_u *AgentTokenUpdate) AddExperimentProposals(v ...*ExperimentProposal) *AgentTokenUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddExperimentProposalIDs(ids...)
+}
+
 // Mutation returns the AgentTokenMutation object of the builder.
 func (_u *AgentTokenUpdate) Mutation() *AgentTokenMutation {
 	return _u.mutation
@@ -226,6 +242,27 @@ func (_u *AgentTokenUpdate) RemoveIdempotencyRecords(v ...*IdempotencyRecord) *A
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveIdempotencyRecordIDs(ids...)
+}
+
+// ClearExperimentProposals clears all "experiment_proposals" edges to the ExperimentProposal entity.
+func (_u *AgentTokenUpdate) ClearExperimentProposals() *AgentTokenUpdate {
+	_u.mutation.ClearExperimentProposals()
+	return _u
+}
+
+// RemoveExperimentProposalIDs removes the "experiment_proposals" edge to ExperimentProposal entities by IDs.
+func (_u *AgentTokenUpdate) RemoveExperimentProposalIDs(ids ...int) *AgentTokenUpdate {
+	_u.mutation.RemoveExperimentProposalIDs(ids...)
+	return _u
+}
+
+// RemoveExperimentProposals removes "experiment_proposals" edges to ExperimentProposal entities.
+func (_u *AgentTokenUpdate) RemoveExperimentProposals(v ...*ExperimentProposal) *AgentTokenUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveExperimentProposalIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -432,6 +469,51 @@ func (_u *AgentTokenUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.ExperimentProposalsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.ExperimentProposalsTable,
+			Columns: []string{agenttoken.ExperimentProposalsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentproposal.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedExperimentProposalsIDs(); len(nodes) > 0 && !_u.mutation.ExperimentProposalsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.ExperimentProposalsTable,
+			Columns: []string{agenttoken.ExperimentProposalsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentproposal.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ExperimentProposalsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.ExperimentProposalsTable,
+			Columns: []string{agenttoken.ExperimentProposalsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentproposal.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{agenttoken.Label}
@@ -602,6 +684,21 @@ func (_u *AgentTokenUpdateOne) AddIdempotencyRecords(v ...*IdempotencyRecord) *A
 	return _u.AddIdempotencyRecordIDs(ids...)
 }
 
+// AddExperimentProposalIDs adds the "experiment_proposals" edge to the ExperimentProposal entity by IDs.
+func (_u *AgentTokenUpdateOne) AddExperimentProposalIDs(ids ...int) *AgentTokenUpdateOne {
+	_u.mutation.AddExperimentProposalIDs(ids...)
+	return _u
+}
+
+// AddExperimentProposals adds the "experiment_proposals" edges to the ExperimentProposal entity.
+func (_u *AgentTokenUpdateOne) AddExperimentProposals(v ...*ExperimentProposal) *AgentTokenUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddExperimentProposalIDs(ids...)
+}
+
 // Mutation returns the AgentTokenMutation object of the builder.
 func (_u *AgentTokenUpdateOne) Mutation() *AgentTokenMutation {
 	return _u.mutation
@@ -647,6 +744,27 @@ func (_u *AgentTokenUpdateOne) RemoveIdempotencyRecords(v ...*IdempotencyRecord)
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveIdempotencyRecordIDs(ids...)
+}
+
+// ClearExperimentProposals clears all "experiment_proposals" edges to the ExperimentProposal entity.
+func (_u *AgentTokenUpdateOne) ClearExperimentProposals() *AgentTokenUpdateOne {
+	_u.mutation.ClearExperimentProposals()
+	return _u
+}
+
+// RemoveExperimentProposalIDs removes the "experiment_proposals" edge to ExperimentProposal entities by IDs.
+func (_u *AgentTokenUpdateOne) RemoveExperimentProposalIDs(ids ...int) *AgentTokenUpdateOne {
+	_u.mutation.RemoveExperimentProposalIDs(ids...)
+	return _u
+}
+
+// RemoveExperimentProposals removes "experiment_proposals" edges to ExperimentProposal entities.
+func (_u *AgentTokenUpdateOne) RemoveExperimentProposals(v ...*ExperimentProposal) *AgentTokenUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveExperimentProposalIDs(ids...)
 }
 
 // Where appends a list predicates to the AgentTokenUpdate builder.
@@ -876,6 +994,51 @@ func (_u *AgentTokenUpdateOne) sqlSave(ctx context.Context) (_node *AgentToken, 
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(idempotencyrecord.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ExperimentProposalsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.ExperimentProposalsTable,
+			Columns: []string{agenttoken.ExperimentProposalsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentproposal.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedExperimentProposalsIDs(); len(nodes) > 0 && !_u.mutation.ExperimentProposalsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.ExperimentProposalsTable,
+			Columns: []string{agenttoken.ExperimentProposalsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentproposal.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ExperimentProposalsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.ExperimentProposalsTable,
+			Columns: []string{agenttoken.ExperimentProposalsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentproposal.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
