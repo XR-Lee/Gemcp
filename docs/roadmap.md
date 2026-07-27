@@ -108,6 +108,10 @@ Add an Owner-only Diagnostics workspace with fixed GPU-connectivity and PyTorch-
 
 Add durable 30-minute Experiment Proposals and the `prepare_experiment` and `submit_prepared_experiment` MCP tools. Resolve a sole repository, server-verified full commit, compatible Environment and Resource Profile, source safety, backend readiness, capacity, budget, runtime bounds, and worst-case reservation before confirmation. Use the Proposal as the immutable drift and idempotency boundary. Carry structured argv end to end and execute it directly in the AutoDL Runner or capability-compatible Self-hosted Nodes while retaining `submit_experiment` as the Advanced shell path.
 
+### v0.13.1 - Git archive compatibility
+
+Accept the narrowly validated PAX global commit header emitted by `git archive` in prepared source preflight and Self-hosted Node extraction. Continue rejecting arbitrary global metadata and unsupported archive entry types.
+
 ## In progress
 
 ### Repository readiness and Owner prepared experiments

@@ -91,6 +91,12 @@ func proposalArchive(t *testing.T) []byte {
 	var result bytes.Buffer
 	gzipWriter := gzip.NewWriter(&result)
 	tarWriter := tar.NewWriter(gzipWriter)
+	if err := tarWriter.WriteHeader(&tar.Header{
+		Name: "pax_global_header", Typeflag: tar.TypeXGlobalHeader,
+		PAXRecords: map[string]string{"comment": proposalCommit},
+	}); err != nil {
+		t.Fatal(err)
+	}
 	content := []byte("print('ok')\n")
 	if err := tarWriter.WriteHeader(&tar.Header{Name: "smoke.py", Mode: 0o644, Size: int64(len(content)), Typeflag: tar.TypeReg}); err != nil {
 		t.Fatal(err)

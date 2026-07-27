@@ -3,6 +3,7 @@ package sourcearchive
 import (
 	"archive/tar"
 	"compress/gzip"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"path"
@@ -69,6 +70,10 @@ func Inspect(archive gitrepository.Archive, maximum int64) (Inspection, error) {
 			if !safePath(header.Linkname) {
 				return result, fmt.Errorf("source archive contains unsafe hard link")
 			}
+		case tar.TypeXGlobalHeader:
+			if !ValidGitGlobalHeader(header) {
+				return result, fmt.Errorf("source archive contains unsafe global metadata")
+			}
 		default:
 			return result, fmt.Errorf("source archive contains unsupported entry type")
 		}
@@ -77,6 +82,19 @@ func Inspect(archive gitrepository.Archive, maximum int64) (Inspection, error) {
 		return result, fmt.Errorf("source archive is empty")
 	}
 	return result, nil
+}
+
+// ValidGitGlobalHeader accepts only the commit marker emitted by git archive.
+func ValidGitGlobalHeader(header *tar.Header) bool {
+	if header == nil || header.Name != "pax_global_header" || len(header.PAXRecords) != 1 {
+		return false
+	}
+	commitSHA, ok := header.PAXRecords["comment"]
+	if !ok || (len(commitSHA) != 40 && len(commitSHA) != 64) {
+		return false
+	}
+	_, err := hex.DecodeString(commitSHA)
+	return err == nil
 }
 
 func safePath(value string) bool {

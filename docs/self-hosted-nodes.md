@@ -65,6 +65,8 @@ The daemon enforces the extended runtime deadline locally even when Gemcp is unr
 
 Prepared Experiments use a structured argv instead of `/bin/sh -lc`. A compatible `gemcp-node` advertises `execution_modes: [shell, argv]`, validates the bounded array, and launches it as the OCI process with an explicit entrypoint. The scheduler never sends an argv workload to an older Node that lacks this capability. Existing shell-mode Experiments and fixed diagnostics remain compatible with older protocol-v1 Nodes, but Nodes must be upgraded before they can run the simplified prepared path.
 
+Use `gemcp-node v0.13.1` or later for prepared argv execution. `v0.13.1` adds compatibility with the bounded PAX commit marker produced by `git archive` while preserving path, link, type, entry-count, and payload limits.
+
 The Owner can validate this path from the [Backend diagnostics](diagnostics.md) workspace. A Self-hosted diagnostic uses a fixed built-in command but otherwise follows normal source download, Assignment, Docker, GPU, output, Event, cancellation, and cleanup behavior. It requires an online authorized Node that exactly matches the selected Resource Profile and records a zero-CNY reservation.
 
 ## Build Sessions and assets

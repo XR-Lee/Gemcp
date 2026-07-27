@@ -164,6 +164,12 @@ func sourceArchive(t *testing.T, files map[string]string) []byte {
 	var output bytes.Buffer
 	gzipWriter := gzip.NewWriter(&output)
 	tarWriter := tar.NewWriter(gzipWriter)
+	if err := tarWriter.WriteHeader(&tar.Header{
+		Name: "pax_global_header", Typeflag: tar.TypeXGlobalHeader,
+		PAXRecords: map[string]string{"comment": strings.Repeat("a", 40)},
+	}); err != nil {
+		t.Fatal(err)
+	}
 	for name, content := range files {
 		if err := tarWriter.WriteHeader(&tar.Header{Name: name, Mode: 0o644, Size: int64(len(content)), Typeflag: tar.TypeReg}); err != nil {
 			t.Fatal(err)

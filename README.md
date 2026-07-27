@@ -4,6 +4,8 @@ Gemcp is a private, single-organization control plane for running bounded AutoDL
 
 ## Current release
 
+`v0.13.1` accepts the bounded PAX commit header emitted by `git archive` during prepared source inspection and Self-hosted extraction. The accepted global metadata is restricted to a single 40- or 64-character hexadecimal commit comment; all other global tar metadata remains rejected.
+
 `v0.13.0` adds the repository-first prepared Experiment path for MCP Agents. `prepare_experiment` accepts a reviewed argv plus optional repository/ref selectors, resolves a full commit and compatible Project defaults, runs zero-cost source/runtime/backend/budget checks, and returns a 30-minute immutable proposal with an exact CNY reservation. After human confirmation, `submit_prepared_experiment` uses the proposal as a server-owned idempotency boundary. Prepared argv executes without `/bin/sh` in the AutoDL Runner and capability-compatible Self-hosted Nodes. The original `submit_experiment` remains the Advanced shell-command compatibility path.
 
 `v0.12.0` adds an Owner-only Diagnostics workspace for real, bounded AutoDL and Self-hosted backend tests. Fixed GPU-connectivity and PyTorch-CUDA suites run through the normal Experiment and Attempt lifecycle after source, scheduler, budget, image, capacity, callback, and cleanup preflight checks. Paid AutoDL dispatch requires explicit confirmation of a drift-protected immutable proposal; Self-hosted diagnostics remain zero-CNY. Results combine Runner stages, source downloads, backend ownership, metrics, log tails, timeline, cancellation, and cleanup-aware fault guidance.

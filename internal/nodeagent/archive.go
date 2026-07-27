@@ -9,6 +9,8 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/XR-Lee/Gemcp/internal/sourcearchive"
 )
 
 const maxArchiveEntries = 100000
@@ -67,6 +69,7 @@ func extractSourceArchive(filename, destination string, maximum int64) error {
 			}
 		case tar.TypeSymlink:
 			symlinks = append(symlinks, archiveSymlink{name: target, link: header.Linkname})
+		case tar.TypeXGlobalHeader:
 		}
 	}
 	for _, link := range symlinks {
@@ -113,6 +116,10 @@ func inspectSourceArchive(filename string, maximum int64) error {
 			linkTarget := path.Clean(path.Join(path.Dir(cleanName), header.Linkname))
 			if path.IsAbs(header.Linkname) || linkTarget == ".." || strings.HasPrefix(linkTarget, "../") || strings.ContainsRune(header.Linkname, 0) {
 				return fmt.Errorf("source archive contains an unsafe symlink")
+			}
+		case tar.TypeXGlobalHeader:
+			if !sourcearchive.ValidGitGlobalHeader(header) {
+				return fmt.Errorf("source archive contains unsafe global metadata")
 			}
 		default:
 			return fmt.Errorf("source archive contains an unsupported entry")
