@@ -11,6 +11,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent"
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
+	"github.com/XR-Lee/Gemcp/internal/executionmeta"
 	"github.com/XR-Lee/Gemcp/internal/nodeprotocol"
 	"github.com/google/uuid"
 )
@@ -22,7 +23,7 @@ const (
 
 func (s *Service) ProjectNodeEvent(ctx context.Context, tx *ent.Tx, node *ent.SelfHostedNode, event nodeprotocol.Event, now time.Time) error {
 	switch event.Kind {
-	case "workload_started", "workload_heartbeat", "workload_finished":
+	case "workload_started", "workload_heartbeat", "workload_finished", "workload_cleanup_complete":
 	default:
 		return nil
 	}
@@ -51,12 +52,25 @@ func (s *Service) ProjectNodeEvent(ctx context.Context, tx *ent.Tx, node *ent.Se
 	case "workload_started":
 		return s.projectStarted(ctx, tx, assignment, attempt, experiment, event, now)
 	case "workload_heartbeat":
-		return s.projectHeartbeat(ctx, tx, assignment, attempt, now)
+		return s.projectHeartbeat(ctx, tx, assignment, attempt, experiment, event, now)
 	case "workload_finished":
 		return s.projectFinished(ctx, tx, assignment, attempt, experiment, event, now)
+	case "workload_cleanup_complete":
+		return s.projectCleanup(ctx, tx, assignment, experiment, event, now)
 	default:
 		return nil
 	}
+}
+
+func (s *Service) projectCleanup(ctx context.Context, tx *ent.Tx, assignment *ent.NodeAssignment, experiment *ent.Experiment, event nodeprotocol.Event, now time.Time) error {
+	workloadID := strings.TrimSpace(payloadString(event.Payload, "workload_id"))
+	if !assignmentTerminal(assignment.State) || assignment.WorkloadID == nil || workloadID == "" || len(workloadID) > 255 || *assignment.WorkloadID != workloadID {
+		return ErrInvalidEvent
+	}
+	_, err := tx.AuditEvent.Create().SetTenantID(experiment.TenantID).SetActorType("self_hosted_node").SetActorID(fmt.Sprintf("node:%d", assignment.NodeID)).
+		SetAction("experiment.cleanup_complete").SetTargetType("experiment").SetTargetID(experiment.PublicID.String()).
+		SetMetadata(map[string]any{"assignment_id": assignment.PublicID.String(), "workload_id": workloadID, "recorded_at": now}).Save(ctx)
+	return err
 }
 
 func (s *Service) projectStarted(ctx context.Context, tx *ent.Tx, assignment *ent.NodeAssignment, attempt *ent.Attempt, experiment *ent.Experiment, event nodeprotocol.Event, now time.Time) error {
@@ -71,7 +85,11 @@ func (s *Service) projectStarted(ctx context.Context, tx *ent.Tx, assignment *en
 		if assignment.WorkloadID != nil && *assignment.WorkloadID != workloadID {
 			return ErrInvalidEvent
 		}
-		return s.projectHeartbeat(ctx, tx, assignment, attempt, now)
+		return s.projectHeartbeat(ctx, tx, assignment, attempt, experiment, event, now)
+	}
+	runtimeInfo, err := runtimeInfoFromPayload(event.Payload)
+	if err != nil {
+		return ErrInvalidEvent
 	}
 	deadline := now.Add(time.Duration(experiment.MaxRuntimeSeconds) * time.Second)
 	hardDeadline := deadline.Add(time.Duration(experiment.TimeoutExtensionSeconds+experiment.TerminationGraceSeconds)*time.Second + 30*time.Second)
@@ -92,21 +110,49 @@ func (s *Service) projectStarted(ctx context.Context, tx *ent.Tx, assignment *en
 			return err
 		}
 	}
-	_, err := tx.AuditEvent.Create().SetTenantID(experiment.TenantID).SetActorType("self_hosted_node").SetActorID(fmt.Sprintf("node:%d", assignment.NodeID)).
+	metadata := map[string]any{"attempt_id": attempt.PublicID.String(), "assignment_id": assignment.PublicID.String(), "deadline_at": deadline}
+	if runtimeInfo != nil {
+		metadata["runtime_info"] = runtimeInfo
+	}
+	_, err = tx.AuditEvent.Create().SetTenantID(experiment.TenantID).SetActorType("self_hosted_node").SetActorID(fmt.Sprintf("node:%d", assignment.NodeID)).
 		SetAction("experiment.started").SetTargetType("experiment").SetTargetID(experiment.PublicID.String()).
-		SetMetadata(map[string]any{"attempt_id": attempt.PublicID.String(), "assignment_id": assignment.PublicID.String(), "deadline_at": deadline}).Save(ctx)
+		SetMetadata(metadata).Save(ctx)
 	return err
 }
 
-func (s *Service) projectHeartbeat(ctx context.Context, tx *ent.Tx, assignment *ent.NodeAssignment, attempt *ent.Attempt, now time.Time) error {
+func (s *Service) projectHeartbeat(ctx context.Context, tx *ent.Tx, assignment *ent.NodeAssignment, attempt *ent.Attempt, experiment *ent.Experiment, event nodeprotocol.Event, now time.Time) error {
 	if assignmentTerminal(assignment.State) {
 		return nil
 	}
-	if _, err := assignment.Update().SetLastHeartbeatAt(now).Save(ctx); err != nil {
+	logTail, metrics, err := liveOutputFromPayload(event.Payload)
+	if err != nil {
+		return ErrInvalidEvent
+	}
+	assignmentUpdate := assignment.Update().SetLastHeartbeatAt(now)
+	attemptUpdate := tx.Attempt.UpdateOneID(attempt.ID).SetLastHeartbeatAt(now)
+	experimentUpdate := tx.Experiment.UpdateOneID(experiment.ID)
+	if logTail != "" {
+		assignmentUpdate.SetLogTail(logTail)
+		attemptUpdate.SetLogTail(logTail)
+		experimentUpdate.SetLogTail(logTail)
+	}
+	if len(metrics) > 0 {
+		assignmentUpdate.SetMetrics(metrics)
+		attemptUpdate.SetMetrics(metrics)
+		experimentUpdate.SetMetrics(metrics)
+	}
+	if _, err := assignmentUpdate.Save(ctx); err != nil {
 		return err
 	}
-	_, err := tx.Attempt.UpdateOneID(attempt.ID).SetLastHeartbeatAt(now).Save(ctx)
-	return err
+	if _, err := attemptUpdate.Save(ctx); err != nil {
+		return err
+	}
+	if logTail != "" || len(metrics) > 0 {
+		if _, err := experimentUpdate.Save(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Service) projectFinished(ctx context.Context, tx *ent.Tx, assignment *ent.NodeAssignment, attempt *ent.Attempt, experiment *ent.Experiment, event nodeprotocol.Event, now time.Time) error {
@@ -180,6 +226,50 @@ func releaseReservation(ctx context.Context, tx *ent.Tx, experiment *ent.Experim
 		SetExperimentID(experiment.ID).SetPeriod(reservation.Period).SetKind("release").SetAmountMilli(-experiment.ReservedCostMilli).
 		SetDescription("unmetered Self-hosted completion release").Save(ctx)
 	return err
+}
+
+func runtimeInfoFromPayload(payload map[string]any) (*executionmeta.RuntimeInfo, error) {
+	raw, exists := payload["runtime_info"]
+	if !exists || raw == nil {
+		return nil, nil
+	}
+	encoded, err := json.Marshal(raw)
+	if err != nil {
+		return nil, err
+	}
+	var runtimeInfo executionmeta.RuntimeInfo
+	if err := json.Unmarshal(encoded, &runtimeInfo); err != nil {
+		return nil, err
+	}
+	validated, err := executionmeta.Validate(runtimeInfo, "/outputs")
+	if err != nil {
+		return nil, err
+	}
+	return &validated, nil
+}
+
+func liveOutputFromPayload(payload map[string]any) (string, map[string]any, error) {
+	logTail := ""
+	if raw, exists := payload["log_tail"]; exists {
+		value, ok := raw.(string)
+		if !ok || !utf8.ValidString(value) || len([]byte(value)) > maxLogTailBytes {
+			return "", nil, ErrInvalidEvent
+		}
+		logTail = value
+	}
+	metrics := map[string]any{}
+	if raw, exists := payload["metrics"]; exists {
+		value, ok := raw.(map[string]any)
+		if !ok {
+			return "", nil, ErrInvalidEvent
+		}
+		encoded, err := json.Marshal(value)
+		if err != nil || len(encoded) > maxMetricsBytes {
+			return "", nil, ErrInvalidEvent
+		}
+		metrics = value
+	}
+	return logTail, metrics, nil
 }
 
 func assignmentTerminal(state nodeassignment.State) bool {

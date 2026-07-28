@@ -73,6 +73,7 @@ describe('App', () => {
       } })
       if (path.includes('/api/v1/repositories?')) return response({ data: [] })
       if (path.includes('/api/v1/experiments?')) return response({ data: [] })
+      if (path.includes('/api/v1/projects/project-id/operations?')) return response({ data: { activities: [], proposals: [], generated_at: '2026-07-17T00:00:00Z' } })
       if (path.endsWith('/api/v1/projects/project-id/cost')) return response({ data: {
         period: '2026-07', monthly_budget_milli: 100000, reserved_milli: 0, charged_milli: 0,
         adjustments_milli: 0, committed_milli: 0, available_milli: 100000,

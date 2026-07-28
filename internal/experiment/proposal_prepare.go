@@ -82,11 +82,18 @@ func (s *Service) Prepare(ctx context.Context, principal agentauth.Principal, in
 	if err != nil {
 		return PrepareResult{}, &ValidationError{Message: err.Error()}
 	}
+	if _, err := s.ReportActivity(ctx, principal, ReportActivityInput{
+		Phase: "preparing_proposal", RepositoryRemote: input.RepositoryRemote, Ref: input.Ref,
+	}); err != nil {
+		return PrepareResult{}, err
+	}
 	resolved, choices, err := s.resolveProposal(ctx, principal, input, executionSpec)
 	if err != nil {
+		_, _ = s.recordActivity(context.WithoutCancel(ctx), principal, "blocked", input.RepositoryRemote, input.Ref, "", "")
 		return PrepareResult{}, err
 	}
 	if len(choices) > 0 {
+		_, _ = s.recordActivity(context.WithoutCancel(ctx), principal, "blocked", input.RepositoryRemote, input.Ref, "", "")
 		return PrepareResult{ChoiceRequired: choices}, nil
 	}
 	resolved.checks = s.proposalChecks(ctx, resolved)
@@ -140,6 +147,14 @@ func (s *Service) Prepare(ctx context.Context, principal agentauth.Principal, in
 			"project_id": resolved.project.PublicID.String(), "repository_id": resolved.repository.PublicID.String(),
 			"commit_sha": resolved.commitSHA, "backend": resolved.profile.Backend, "reserved_cost_milli": resolved.reservation,
 			"eligible": proposalChecksEligible(resolved.checks), "confirmation_digest": digest,
+		}).Save(ctx); err != nil {
+		return PrepareResult{}, err
+	}
+	if _, err := tx.AuditEvent.Create().SetTenantID(principal.TenantID).SetActorType("agent_token").SetActorID(principal.TokenPublicID).
+		SetAction("agent.activity").SetTargetType("project").SetTargetID(principal.ProjectPublicID).
+		SetMetadata(map[string]any{
+			"project_id": principal.ProjectPublicID, "phase": "awaiting_confirmation", "proposal_id": record.PublicID.String(),
+			"repository_remote": resolved.repository.SSHURL, "ref": resolved.ref,
 		}).Save(ctx); err != nil {
 		return PrepareResult{}, err
 	}

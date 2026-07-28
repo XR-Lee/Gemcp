@@ -13,6 +13,8 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
+const schemaMigrationLockID int64 = 0x47656d63704d6967
+
 type Store struct {
 	DB     *sql.DB
 	Client *ent.Client
@@ -36,12 +38,29 @@ func Open(ctx context.Context, databaseURL string, autoMigrate bool) (*Store, er
 	client := ent.NewClient(ent.Driver(driver))
 	store := &Store{DB: db, Client: client}
 	if autoMigrate {
-		if err := client.Schema.Create(ctx, migrate.WithForeignKeys(true)); err != nil {
+		if err := migrateSchema(ctx, db, client); err != nil {
 			_ = store.Close()
 			return nil, fmt.Errorf("migrate postgres schema: %w", err)
 		}
 	}
 	return store, nil
+}
+
+func migrateSchema(ctx context.Context, db *sql.DB, client *ent.Client) error {
+	lockConnection, err := db.Conn(ctx)
+	if err != nil {
+		return fmt.Errorf("reserve schema migration lock connection: %w", err)
+	}
+	defer lockConnection.Close()
+	if _, err := lockConnection.ExecContext(ctx, "SELECT pg_advisory_lock($1)", schemaMigrationLockID); err != nil {
+		return fmt.Errorf("acquire schema migration lock: %w", err)
+	}
+	defer func() {
+		releaseContext, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_, _ = lockConnection.ExecContext(releaseContext, "SELECT pg_advisory_unlock($1)", schemaMigrationLockID)
+	}()
+	return client.Schema.Create(ctx, migrate.WithForeignKeys(true))
 }
 
 func (s *Store) Ping(ctx context.Context) error {

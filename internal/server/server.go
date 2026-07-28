@@ -161,6 +161,7 @@ func New(deps Dependencies) *http.Server {
 	protected.GET("/experiments/:id", experimentHandlers.Get)
 	protected.GET("/experiments/:id/attempts", experimentHandlers.Attempts)
 	protected.GET("/projects/:id/cost", experimentHandlers.Cost)
+	protected.GET("/projects/:id/operations", experimentHandlers.Operations)
 	diagnosticService := diagnostic.NewService(
 		deps.Ent, deps.Secrets, repositoryService, providerService, runtimeOperations, experimentService,
 		diagnostic.Config{SourceMaxBytes: deps.Config.RunnerSourceMaxBytes, SelfHostedEnabled: deps.Config.SelfHostedEnabled},

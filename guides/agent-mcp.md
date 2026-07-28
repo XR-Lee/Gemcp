@@ -5,15 +5,16 @@ This document is for an AI or automation Agent connected to a Gemcp MCP server. 
 ## Non-negotiable rules
 
 1. Treat the Agent Token as a secret. Never print it, commit it, place it in experiment arguments, or include it in chat or logs.
-2. Use `prepare_experiment` as the normal path. Let Gemcp resolve the repository, moving ref, full commit SHA, compatible defaults, preflight checks, cost, and idempotency.
-3. Submit normal workloads as an ordered `argv`. Do not wrap it in a shell, add output-path wrappers, or interpolate typed values into shell text.
-4. Show the human the returned repository, full commit, argv, runtime, backend resource, checks, expiry, and worst-case reservation.
-5. Wait for explicit human approval of the exact confirmation digest before calling `submit_prepared_experiment`.
-6. Submit a prepared proposal using only its proposal ID and exact digest. Never alter fields between preparation and submission.
-7. A proposal retry uses the same proposal ID and digest and returns the same Experiment. A failed paid Experiment is never automatically resubmitted.
-8. After submission, record the Experiment ID and monitor it to a terminal state. Do not infer success from Provider or Node startup alone.
-9. Use `cancel_experiment` when the human cancels work or when the submitted Experiment should no longer run.
-10. Use `submit_experiment` only when the human explicitly requests the Advanced shell-command compatibility path.
+2. Report controlled workflow transitions with `report_agent_activity`. Never send prompts, private reasoning, arbitrary free text, environment variables, credentials, or source contents as activity.
+3. Use `prepare_experiment` as the normal path. Let Gemcp resolve the repository, moving ref, full commit SHA, compatible defaults, preflight checks, cost, and idempotency.
+4. Submit normal workloads as an ordered `argv`. Do not wrap it in a shell, add output-path wrappers, or interpolate typed values into shell text.
+5. Show the human the returned repository, full commit, argv, runtime, backend resource, checks, expiry, and worst-case reservation.
+6. Wait for explicit human approval of the exact confirmation digest before calling `submit_prepared_experiment`.
+7. Submit a prepared proposal using only its proposal ID and exact digest. Never alter fields between preparation and submission.
+8. A proposal retry uses the same proposal ID and digest and returns the same Experiment. A failed paid Experiment is never automatically resubmitted.
+9. After submission, record the Experiment ID and monitor it to a terminal state. Do not infer success from Provider or Node startup alone.
+10. Use `cancel_experiment` when the human cancels work or when the submitted Experiment should no longer run.
+11. Use `submit_experiment` only when the human explicitly requests the Advanced shell-command compatibility path.
 
 ## Connection
 
@@ -36,6 +37,8 @@ A 401 response means the Token is missing, malformed, expired, revoked, or no lo
 ### 1. Inspect the local repository
 
 When operating inside the user's repository, determine the intended program and arguments from reviewed source and configuration. Prefer an existing smoke script or documented entry point. Do not invent training flags, search for datasets outside the declared root, or add automatic downloads.
+
+Report `inspecting_repository` before inspection and `selecting_workload` while resolving the reviewed entry point. Include only the registered remote and ref when known.
 
 The normal request can be as small as:
 
@@ -72,6 +75,8 @@ Preparation creates no Experiment, Attempt, Provider resource, or budget reserva
 - checks Scheduler, Watchdog, callback, concurrency, Provider or Node readiness, image, and budget;
 - calculates the worst-case reservation;
 - creates a short-lived immutable proposal and server-owned idempotency boundary.
+
+Gemcp records `preparing_proposal` when preparation begins and `awaiting_confirmation` after the proposal is committed. Resolution or preflight blockers record `blocked`.
 
 When preparation returns `choice_required`, present only the bounded candidates for the named field. Never guess between repositories or backend resources.
 
@@ -113,6 +118,8 @@ A repeated identical call returns the original Experiment. Never create a replac
 
 ### 5. Monitor and report
 
+After submission, report `monitoring` with the returned Experiment ID. Gemcp also records the initial monitoring transition atomically with prepared submission.
+
 Use:
 
 ```text
@@ -129,6 +136,8 @@ queued -> provisioning -> running -> collecting -> succeeded
 ```
 
 `queued` may mean concurrency is full or the Experiment is waiting in FIFO order. Do not resubmit it. A terminal success requires `state=succeeded`. On failure, report the failure code and reason, exit code, Runner stage, source-download count, estimated cost, metrics, and available log tail without exposing credentials.
+
+When interpreting a terminal result, report `reviewing_results` with that Experiment ID. Report `idle` after the review is complete. Monitoring and review reports are accepted only for an Experiment created by the same Agent Token.
 
 ### 6. Retrieve durable outputs
 
@@ -154,11 +163,30 @@ Before Advanced paid work:
 
 Do not translate a normal argv request into this path merely because it is familiar. Shell parsing and caller-managed idempotency are the compatibility behavior being retired from the primary interface.
 
+## Controlled activity reporting
+
+`report_agent_activity` accepts only these phases:
+
+```text
+inspecting_repository
+selecting_workload
+preparing_proposal
+awaiting_confirmation
+submitting
+monitoring
+reviewing_results
+blocked
+idle
+```
+
+The optional context is limited to repository remote, ref, and Experiment ID. `monitoring` and `reviewing_results` require an Experiment ID. Activity is an operational phase marker, not a transcript or general log channel. Never place user prompts, reasoning, code excerpts, filesystem searches, error prose, environment values, or secrets in its fields.
+
 ## Tool and scope reference
 
 | Tool | Purpose | Scope |
 | --- | --- | --- |
 | `get_usage_guide` | Return this operating guide and discovery metadata | `read` |
+| `report_agent_activity` | Report a controlled workflow phase without prompts or reasoning | `submit` |
 | `prepare_experiment` | Resolve and persist a zero-cost immutable argv proposal | `submit` |
 | `submit_prepared_experiment` | Submit one confirmed proposal, idempotently | `submit` |
 | `get_project_options` | Inspect Project policy and approved IDs for Advanced use | `read` |
@@ -199,6 +227,8 @@ The reservation is released at terminal settlement and replaced by an estimated 
 
 ```text
 Use Gemcp's prepared path for normal work. Inspect the current repository and call
+report_agent_activity at controlled workflow transitions without sending prompts,
+reasoning, source text, environment values, or credentials. Call
 prepare_experiment with an ordered argv and optional ref. Let Gemcp resolve IDs,
 commit, resources, checks, cost, and idempotency. Show the exact returned proposal
 and wait for explicit human approval of its digest. Then call

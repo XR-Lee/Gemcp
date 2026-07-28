@@ -76,6 +76,14 @@ The fixed durable path is:
 
 Gemcp never automatically deletes durable output. `list_artifacts` reports Runner-managed filenames without browsing arbitrary shared-storage paths. A dispatched AutoDL Attempt registers `gemcp-launch.log`; if provisioning expires before the first callback, its last marker distinguishes Bootstrap download and Runner entry when the Provider executed enough of the launch command to write the file. Bootstrap also reports a fixed, credential-free stage vocabulary to the immutable audit log. `get_experiment` and the Owner detail view expose the current Attempt ID, source-download count, latest stage, stage time, and bounded exception type. Arbitrary error text is never accepted. A terminal Bootstrap failure that reaches the controlplane records `runner_bootstrap_failed` and immediately requests managed Provider cleanup.
 
+### Runtime observability
+
+The Runner `started` callback reports a validated runtime observation containing only the actual working directory, output directory, bounded `CUDA_VISIBLE_DEVICES` value, and bounded GPU index, UUID, and name records from `nvidia-smi`. It never reports the general process environment. Heartbeats project a 64 KiB UTF-8 log tail and a bounded `metrics.json` object onto the current Attempt and Experiment for the Owner Console.
+
+Self-hosted Nodes report the fixed container paths and assigned GPU binding only after `workload_started`. A pending Node Command is not presented as an observed runtime. While running, the Node samples Docker logs and managed `metrics.json` every 15 seconds and sends them through the durable Event outbox. Complete logs remain on the Node-managed output path. After the workload result is durably recorded, successful container removal produces a separate `workload_cleanup_complete` Event; the Owner Console does not infer cleanup merely from a terminal Assignment.
+
+The Owner Experiment workspace distinguishes immutable request data from runtime evidence. It displays repository/ref/commit, ordered argv, Environment image, Resource Profile and requested GPU beside the reported working/output paths, CUDA visibility, observed GPU devices, current backend state, cleanup evidence, live output, Attempts, and an ordered audit timeline. The Project operations feed displays controlled Agent phases and prepared Proposal state. Agent activity accepts a fixed vocabulary and bounded identifiers only; prompts, private reasoning, source contents, arbitrary free text, environment variables, and credentials are outside the protocol.
+
 Approved images must provide the AutoDL `/root/miniconda3/bin/python3` link, `/usr/bin/base64`, and TLS root certificates.
 
 ## Prepared experiments

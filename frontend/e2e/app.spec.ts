@@ -24,12 +24,26 @@ const experiments = [
   {
     id: 'ec29dc68-9674-4611-9d8c-542f68f5e31c', project_id: project.id, repository_id: repositories[0].id,
     environment_id: 'environment-id', resource_profile_id: 'profile-id', state: 'provisioning', desired_state: 'running',
-    commit_sha: '0123456789012345678901234567890123456789', command: 'python train.py --config configs/scanobjectnn.yaml',
+    commit_sha: '0123456789012345678901234567890123456789', execution_mode: 'argv', argv: ['python', 'train.py', '--config', 'configs/scanobjectnn.yaml'], command: 'python train.py --config configs/scanobjectnn.yaml',
     max_runtime_seconds: 14400, reserved_cost_milli: 12250, estimated_cost_milli: 0,
     output_path: '/root/autodl-fs/projects/b492cbe4/experiments/ec29dc68/',
     runner_attempt_id: 'a72afbc7-df86-4aaf-a7bc-68060968ed11', runner_source_downloads: 2,
     runner_stage: 'source_extracted', runner_stage_updated_at: '2026-07-16T09:31:15Z',
-    created_at: '2026-07-16T09:30:00Z', updated_at: '2026-07-16T09:30:00Z', metrics: {},
+    log_tail: 'epoch 3 loss=0.42\nepoch 4 loss=0.38\n', metrics: { loss: 0.38, epoch: 4 },
+    execution_context: {
+      agent_label: 'training-agent', agent_token_prefix: 'gmc_abcd123', proposal_id: 'proposal-live-1',
+      repository_name: 'dynamic-point-mamba', repository_ssh_url: 'git@github.com:research/dynamic-point-mamba.git', requested_ref: 'main',
+      backend: 'autodl_private', environment_name: 'torch-cuda11.8', image: 'base-image-1', resource_profile_name: 'one-rtx-3090', region: 'private',
+      gpu_models: ['NVIDIA GeForce RTX 3090'], gpu_num: 1, workspace_policy: 'runner_temporary', container_output_path: '/gemcp/output',
+      runtime_info: { source: 'runner_observed', working_directory: '/gemcp/work/source', output_directory: '/gemcp/output', cuda_visible_devices: '0', gpu_devices: [{ index: 0, uuid: 'GPU-test-3090', name: 'NVIDIA GeForce RTX 3090' }] },
+    },
+    backend_observation: { kind: 'provider_resource', id: 'managed-resource-1', provider_id: 'deployment-live-1', state: 'active', status: 'running', cleanup_complete: false, updated_at: '2026-07-17T02:00:00Z' },
+    timeline: [
+      { at: '2026-07-16T09:30:00Z', code: 'experiment_created' },
+      { at: '2026-07-16T09:31:00Z', code: 'attempt_created', detail: 'Attempt #1' },
+      { at: '2026-07-16T09:31:15Z', code: 'runner_started', detail: 'Runtime paths and GPU observed' },
+    ],
+    created_at: '2026-07-16T09:30:00Z', updated_at: '2026-07-17T02:00:00Z',
   },
   {
     id: '11276758-f089-49e8-b706-0aa1cd0f9ac0', project_id: project.id, repository_id: repositories[0].id,
@@ -97,6 +111,21 @@ const attemptHistory = [{
   estimated_cost_milli: 0, log_tail: 'epoch 3 loss=0.42\n', metrics: { loss: 0.42 },
   started_at: '2026-07-17T01:56:00Z', created_at: '2026-07-17T01:55:00Z', updated_at: '2026-07-17T02:00:00Z',
 }]
+const operationsFeed = {
+  activities: [{
+    id: 'activity-live-1', agent_label: 'training-agent', agent_token_prefix: 'gmc_abcd123', phase: 'monitoring',
+    repository_remote: repositories[0].ssh_url, ref: 'main', proposal_id: 'proposal-live-1', experiment_id: experiments[0].id, at: '2026-07-28T18:05:00Z',
+  }],
+  proposals: [{
+    id: 'proposal-live-1', status: 'submitted', eligible: true, agent_label: 'training-agent', agent_token_prefix: 'gmc_abcd123',
+    repository_name: repositories[0].name, requested_ref: 'main', commit_sha: experiments[0].commit_sha,
+    display_command: experiments[0].command, backend: 'autodl_private', environment_name: 'torch-cuda11.8', image: 'base-image-1',
+    resource_profile_name: 'one-rtx-3090', gpu_models: ['NVIDIA GeForce RTX 3090'], gpu_num: 1, reserved_cost_milli: 12250,
+    checks: [{ id: 'source_archive', status: 'pass', summary: 'Source archive is safe' }], confirmation_digest: `sha256:${'a'.repeat(64)}`,
+    experiment_id: experiments[0].id, created_at: '2026-07-28T18:00:00Z', updated_at: '2026-07-28T18:05:00Z', expires_at: '2026-07-28T18:30:00Z',
+  }],
+  generated_at: '2026-07-28T18:05:00Z',
+}
 const provider = {
   id: 'provider-id', name: 'AutoDL Private Cloud', base_url: 'https://private.autodl.com', backend: 'private',
   status: 'active', credential_configured: true, last_validated_at: '2026-07-17T02:00:00Z',
@@ -417,6 +446,7 @@ async function mockConsole(page: Page, counters?: { providerQueries: number; sel
     }
     if (path === '/api/v1/repositories') return fulfill(route, repositories)
     if (path === '/api/v1/experiments') return fulfill(route, experiments)
+    if (path === `/api/v1/projects/${project.id}/operations`) return fulfill(route, operationsFeed)
     if (path === `/api/v1/experiments/${experiments[0].id}/attempts`) return fulfill(route, attemptHistory)
     if (path === `/api/v1/experiments/${experiments[0].id}`) return fulfill(route, experiments[0])
     if (path === `/api/v1/projects/${project.id}/cost`) return fulfill(route, {
@@ -486,6 +516,9 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible()
   await expect(page.getByText('CNY 82.07')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Live operations' })).toBeVisible()
+  await expect(page.getByText('Monitoring run', { exact: true })).toBeVisible()
+  await expect(page.getByText('training-agent', { exact: false }).first()).toBeVisible()
   await expectNoPageOverflow(page)
   await page.screenshot({ path: '/tmp/gemcp-console-desktop.png', fullPage: true })
 
@@ -502,6 +535,8 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await expect(page.getByText('source_extracted', { exact: true })).toBeVisible()
   await expect(page.getByText('Source downloads', { exact: true })).toBeVisible()
   await expect(page.getByText('epoch 3 loss=0.42')).toBeVisible()
+  await expect(page.getByText('GPU-test-3090', { exact: true })).toBeVisible()
+  await expect(page.getByText('/gemcp/work/source', { exact: true })).toBeVisible()
   await expectNoPageOverflow(page)
   await page.screenshot({ path: '/tmp/gemcp-experiment-detail.png', fullPage: true })
 })

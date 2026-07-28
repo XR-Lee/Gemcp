@@ -36,7 +36,7 @@ type UsageGuide struct {
 	Markdown    string   `json:"markdown"`
 }
 
-const serverInstructions = "Use prepare_experiment as the normal zero-cost path: provide a reviewed argv and optional repository/ref selectors, let Gemcp resolve immutable source, defaults, checks, cost, and server-side idempotency, then show the returned proposal and wait for human approval before submit_prepared_experiment. Use submit_experiment only as the Advanced shell-command compatibility path. Record the Experiment ID and monitor it to a terminal state."
+const serverInstructions = "Report only controlled Agent workflow phases with report_agent_activity so the Owner can observe repository inspection and run monitoring; never include prompts, private reasoning, source contents, environment values, or credentials. Use prepare_experiment as the normal zero-cost path: provide a reviewed argv and optional repository/ref selectors, let Gemcp resolve immutable source, defaults, checks, cost, and server-side idempotency, then show the returned proposal and wait for human approval before submit_prepared_experiment. Use submit_experiment only as the Advanced shell-command compatibility path. Record the Experiment ID and monitor it to a terminal state."
 
 func New(agentAuth *agentauth.Service, experiments *experiment.Service, version string, logger *slog.Logger) *Server {
 	if logger == nil {
@@ -52,6 +52,9 @@ func New(agentAuth *agentauth.Service, experiments *experiment.Service, version 
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "get_project_options", Description: "List the project policy and approved repositories, environments, and resource profiles.",
 	}, server.getProjectOptions)
+	mcp.AddTool(mcpServer, &mcp.Tool{
+		Name: "report_agent_activity", Description: "Report a controlled workflow phase so the Owner console can show what the Agent is doing without collecting prompts or reasoning.",
+	}, server.reportAgentActivity)
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "prepare_experiment", Description: "Prepare a zero-cost immutable argv proposal. Gemcp resolves an unambiguous repository, ref, compatible defaults, preflight checks, cost, and idempotency.",
 	}, server.prepareExperiment)
@@ -180,6 +183,15 @@ func (s *Server) getProjectOptions(ctx context.Context, request *mcp.CallToolReq
 	}
 	output, err := s.experiments.Options(ctx, principal)
 	return nil, output, s.toolError("get_project_options", err)
+}
+
+func (s *Server) reportAgentActivity(ctx context.Context, request *mcp.CallToolRequest, input experiment.ReportActivityInput) (*mcp.CallToolResult, experiment.ReportActivityResult, error) {
+	principal, err := principalFrom(request)
+	if err != nil {
+		return nil, experiment.ReportActivityResult{}, err
+	}
+	output, err := s.experiments.ReportActivity(ctx, principal, input)
+	return nil, output, s.toolError("report_agent_activity", err)
 }
 
 func (s *Server) submitExperiment(ctx context.Context, request *mcp.CallToolRequest, input experiment.SubmitInput) (*mcp.CallToolResult, experiment.SubmitResult, error) {

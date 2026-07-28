@@ -100,6 +100,7 @@ func (s *Service) Dispatch(ctx context.Context, tx *ent.Tx, experiment *ent.Expe
 		"timeout_extension_seconds": experiment.TimeoutExtensionSeconds,
 		"termination_grace_seconds": experiment.TerminationGraceSeconds,
 		"gpu_uuid":                  gpuUUID,
+		"gpu_name":                  profile.GpuNames[0],
 		"cpu_limit":                 profile.CPUTo,
 		"memory_limit_bytes":        int64(profile.MemoryToGB) << 30,
 	}

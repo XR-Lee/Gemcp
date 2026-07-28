@@ -97,6 +97,7 @@ type StartWorkload struct {
 	TimeoutExtensionSeconds int      `json:"timeout_extension_seconds"`
 	TerminationGraceSeconds int      `json:"termination_grace_seconds"`
 	GPUUUID                 string   `json:"gpu_uuid"`
+	GPUName                 string   `json:"gpu_name"`
 	CPULimit                int      `json:"cpu_limit"`
 	MemoryLimitBytes        int64    `json:"memory_limit_bytes"`
 }

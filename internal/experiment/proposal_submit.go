@@ -283,6 +283,14 @@ func (s *Service) createPreparedExperiment(ctx context.Context, principal agenta
 		}).Save(ctx); err != nil {
 		return result, err
 	}
+	if _, err := tx.AuditEvent.Create().SetTenantID(principal.TenantID).SetActorType("agent_token").SetActorID(principal.TokenPublicID).
+		SetAction("agent.activity").SetTargetType("project").SetTargetID(principal.ProjectPublicID).
+		SetMetadata(map[string]any{
+			"project_id": principal.ProjectPublicID, "phase": "monitoring", "proposal_id": proposalRecord.PublicID.String(),
+			"experiment_id": experimentID.String(), "repository_remote": repositoryRecord.SSHURL, "ref": proposalRecord.RequestedRef,
+		}).Save(ctx); err != nil {
+		return result, err
+	}
 	if err := tx.Commit(); err != nil {
 		return result, err
 	}

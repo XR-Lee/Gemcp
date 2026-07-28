@@ -23,7 +23,7 @@ curl --fail --silent --show-error --proto '=https' --tlsv1.2 \
 unset setup_link
 ```
 
-4. Require the final output to begin with `GEMCP_PI_SETUP_OK` and report all four checks: `tools,guide,options,cost`.
+4. Require the final output to begin with `GEMCP_PI_SETUP_OK`, discover all eleven direct tools, and report all four checks: `tools,guide,options,cost`.
 5. The installer stores the bearer credential in the Pi agent directory's `mcp.json` with mode `0600`, stores a credential-free receipt, and installs a local Gemcp CLI for the current session.
 6. Run `/reload` once when convenient. After reload, use the native `gemcp_*` tools. Before reload, use the `current_session_cli` command printed by the installer through Bash.
 7. Never expose the stored credential. The setup link becomes unusable after successful verification.
@@ -32,6 +32,7 @@ unset setup_link
 
 Setup and read-only verification do not create paid resources. For normal work:
 
+- report only controlled workflow phases through `report_agent_activity`; never send prompts, reasoning, source contents, environment variables, or credentials;
 - inspect the intended repository entry point and call `prepare_experiment` with an ordered argv;
 - let Gemcp resolve repository defaults, the full commit SHA, resources, checks, cost, and idempotency;
 - show the exact immutable proposal and wait for explicit human approval of its digest;

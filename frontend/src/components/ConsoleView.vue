@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import {
   Activity,
   Bell,
@@ -23,7 +23,7 @@ import {
   WalletCards,
   X,
 } from '@lucide/vue'
-import { APIError, api, type Attempt, type BuildInfo, type Cost, type Experiment, type Project, type Repository, type RuntimeStatus, type User } from '../api'
+import { APIError, api, type Attempt, type BuildInfo, type Cost, type Experiment, type OperationsFeed, type Project, type Repository, type RuntimeStatus, type User } from '../api'
 import { localizedState, useI18n } from '../i18n'
 import ExperimentTable from './ExperimentTable.vue'
 import FinanceView from './FinanceView.vue'
@@ -33,6 +33,8 @@ import NotificationView from './NotificationView.vue'
 import AgentView from './AgentView.vue'
 import NodeView from './NodeView.vue'
 import DiagnosticsView from './DiagnosticsView.vue'
+import ExperimentDetail from './ExperimentDetail.vue'
+import RunActivityPanel from './RunActivityPanel.vue'
 
 const props = defineProps<{ build: BuildInfo | null; user: User }>()
 const emit = defineEmits<{ signedOut: [] }>()
@@ -45,6 +47,8 @@ const repositories = ref<Repository[]>([])
 const experiments = ref<Experiment[]>([])
 const cost = ref<Cost | null>(null)
 const runtimeStatus = ref<RuntimeStatus | null>(null)
+const operationsFeed = ref<OperationsFeed | null>(null)
+const operationsLoading = ref(false)
 const loading = ref(false)
 const error = ref('')
 const signingOut = ref(false)
@@ -60,13 +64,15 @@ const dialogError = ref('')
 const copied = ref('')
 const repositoryForm = reactive({ name: '', sshURL: '', defaultBranch: 'main', fingerprint: '' })
 const { languageTag, t } = useI18n()
+let liveTimer = 0
+let liveRefreshInFlight = false
+let projectRefreshGeneration = 0
 
 const selectedProject = computed(() => projects.value.find((project) => project.id === selectedProjectID.value) ?? null)
 const runningCount = computed(() => experiments.value.filter((item) => ['provisioning', 'running', 'collecting', 'cancelling'].includes(item.state)).length)
 const queuedCount = computed(() => experiments.value.filter((item) => item.state === 'queued').length)
 const filteredExperiments = computed(() => stateFilter.value === 'all' ? experiments.value : experiments.value.filter((item) => item.state === stateFilter.value))
 const recentExperiments = computed(() => experiments.value.slice(0, 8))
-const latestAttempt = computed(() => attempts.value.at(-1) ?? null)
 const viewTitle = computed(() => ({
   overview: t('Overview', '概览'),
   experiments: t('Experiments', '实验'),
@@ -106,27 +112,62 @@ async function refreshAll() {
 }
 
 async function refreshProject(showSpinner = true) {
-  if (!selectedProjectID.value) {
+  const generation = ++projectRefreshGeneration
+  const projectID = selectedProjectID.value
+  if (!projectID) {
     repositories.value = []
     experiments.value = []
     cost.value = null
+    operationsFeed.value = null
     return
   }
   if (showSpinner) loading.value = true
   error.value = ''
   try {
-    const [loadedRepositories, loadedExperiments, loadedCost] = await Promise.all([
-      api.repositories(selectedProjectID.value),
-      api.experiments(selectedProjectID.value),
-      api.cost(selectedProjectID.value),
+    const [loadedRepositories, loadedExperiments, loadedCost, loadedOperations] = await Promise.all([
+      api.repositories(projectID),
+      api.experiments(projectID),
+      api.cost(projectID),
+      api.operations(projectID),
     ])
+    if (generation !== projectRefreshGeneration || selectedProjectID.value !== projectID) return
     repositories.value = loadedRepositories
     experiments.value = loadedExperiments
     cost.value = loadedCost
+    operationsFeed.value = loadedOperations
   } catch (caught) {
+    if (generation !== projectRefreshGeneration) return
     handleError(caught, t('Could not refresh this project.', '无法刷新此 Project。'))
   } finally {
-    if (showSpinner) loading.value = false
+    if (showSpinner && generation === projectRefreshGeneration) loading.value = false
+  }
+}
+
+async function refreshLive() {
+  if (liveRefreshInFlight || document.visibilityState !== 'visible' || !selectedProjectID.value || (!['overview', 'experiments'].includes(activeView.value) && !selectedExperiment.value)) return
+  liveRefreshInFlight = true
+  operationsLoading.value = true
+  const projectID = selectedProjectID.value
+  try {
+    const selectedID = selectedExperiment.value?.id
+    const [loadedExperiments, loadedOperations, detail, history] = await Promise.all([
+      api.experiments(projectID),
+      api.operations(projectID),
+      selectedID ? api.experiment(projectID, selectedID) : Promise.resolve(null),
+      selectedID ? api.attempts(projectID, selectedID) : Promise.resolve([]),
+    ])
+    if (selectedProjectID.value !== projectID) return
+    experiments.value = loadedExperiments
+    operationsFeed.value = loadedOperations
+    if (detail && selectedExperiment.value?.id === detail.id) {
+      selectedExperiment.value = detail
+      attempts.value = history
+    }
+  } catch (caught) {
+    if (caught instanceof APIError && caught.status === 401) emit('signedOut')
+  } finally {
+    liveRefreshInFlight = false
+    operationsLoading.value = false
   }
 }
 
@@ -158,6 +199,11 @@ function closeExperiment() {
   attempts.value = []
   attemptsError.value = ''
   attemptsLoading.value = false
+}
+
+function openExperimentByID(experimentID: string) {
+  const experiment = experiments.value.find((item) => item.id === experimentID)
+  if (experiment) void openExperiment(experiment)
 }
 
 async function signOut() {
@@ -246,15 +292,15 @@ function dateTime(value?: string) {
   return new Intl.DateTimeFormat(languageTag.value, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 }
 
-function metricsJSON(value?: Record<string, unknown>) {
-  return JSON.stringify(value ?? {}, null, 2)
-}
-
 function stateLabel(value: string) {
   return localizedState(value)
 }
 
-onMounted(refreshAll)
+onMounted(async () => {
+  await refreshAll()
+  liveTimer = window.setInterval(refreshLive, 5_000)
+})
+onBeforeUnmount(() => window.clearInterval(liveTimer))
 </script>
 
 <template>
@@ -304,6 +350,10 @@ onMounted(refreshAll)
             <div class="metric accent-coral"><span>{{ t('Available budget', '可用预算') }}</span><strong>{{ money(cost?.available_milli) }}</strong><small>{{ t('Operational estimate', '运行估算') }}</small></div>
           </div>
         </section>
+        <section class="workspace operations-workspace">
+          <div class="section-heading"><div><h2>{{ t('Live operations', '实时运行动态') }}</h2><p>{{ t('Agent preparation, approval and execution state for this Project.', '此 Project 的 Agent 准备、批准和执行状态。') }}</p></div><span class="live-label"><span />{{ operationsLoading ? t('Refreshing', '正在刷新') : t('Live', '实时') }}</span></div>
+          <RunActivityPanel :feed="operationsFeed" :loading="operationsLoading" compact @open-experiment="openExperimentByID" />
+        </section>
         <section class="workspace">
           <div class="section-heading"><div><h2>{{ t('Recent experiments', '最近实验') }}</h2><p>{{ t('Latest Agent submissions for', 'Agent 最近提交至') }} {{ selectedProject?.name ?? t('this project', '此 Project') }}。</p></div><button class="text-button" type="button" @click="activeView = 'experiments'">{{ t('View all', '查看全部') }}</button></div>
           <ExperimentTable :experiments="recentExperiments" compact @select="openExperiment" />
@@ -318,6 +368,7 @@ onMounted(refreshAll)
 
       <section v-else-if="activeView === 'experiments'" class="page-workspace">
         <div class="section-heading page-section-heading"><div><h2>{{ t('Experiments', '实验') }}</h2><p>{{ t('Immutable specifications and current lifecycle state.', '不可变规格和当前生命周期状态。') }}</p></div><div class="segmented-control" :aria-label="t('Experiment state filter', '实验状态筛选')"><button v-for="filter in ['all', 'queued', 'running', 'succeeded', 'failed']" :key="filter" type="button" :class="{ active: stateFilter === filter }" @click="stateFilter = filter">{{ filter === 'all' ? t('all', '全部') : stateLabel(filter) }}</button></div></div>
+        <div class="experiment-operations"><RunActivityPanel :feed="operationsFeed" :loading="operationsLoading" @open-experiment="openExperimentByID" /></div>
         <ExperimentTable :experiments="filteredExperiments" @select="openExperiment" />
       </section>
 
@@ -351,42 +402,7 @@ onMounted(refreshAll)
     </main>
   </div>
 
-  <div v-if="selectedExperiment" class="modal-backdrop" @click.self="closeExperiment">
-    <section class="detail-panel" role="dialog" aria-modal="true" :aria-label="t('Experiment details', '实验详情')">
-      <header><div><p class="eyebrow">Experiment</p><h2>{{ selectedExperiment.id.slice(0, 12) }}</h2></div><button class="icon-button" type="button" :title="t('Close details', '关闭详情')" @click="closeExperiment"><X :size="17" /></button></header>
-      <div class="detail-state"><span class="state-badge" :data-state="selectedExperiment.state"><span />{{ stateLabel(selectedExperiment.state) }}</span><span>{{ t('Desired', '期望状态') }}: {{ stateLabel(selectedExperiment.desired_state) }}</span></div>
-      <dl class="detail-list">
-        <div><dt>Commit</dt><dd><code>{{ selectedExperiment.commit_sha }}</code></dd></div>
-        <div><dt>{{ t('Command', '命令') }}</dt><dd><code>{{ selectedExperiment.command }}</code></dd></div>
-        <div><dt>{{ t('Reserved cost', '预留成本') }}</dt><dd>{{ money(selectedExperiment.reserved_cost_milli) }}</dd></div>
-        <div><dt>{{ t('Maximum runtime', '最长运行时间') }}</dt><dd>{{ Math.round(selectedExperiment.max_runtime_seconds / 60) }} {{ t('minutes', '分钟') }}</dd></div>
-        <div><dt>{{ t('Created', '创建时间') }}</dt><dd>{{ dateTime(selectedExperiment.created_at) }}</dd></div>
-        <div><dt>{{ t('Output path', '输出路径') }}</dt><dd><code>{{ selectedExperiment.output_path }}</code></dd></div>
-        <div v-if="selectedExperiment.runner_stage"><dt>{{ t('Runner startup', 'Runner 启动阶段') }}</dt><dd><code>{{ selectedExperiment.runner_stage }}</code><template v-if="selectedExperiment.runner_error_type"> ({{ selectedExperiment.runner_error_type }})</template></dd></div>
-        <div v-if="selectedExperiment.runner_source_downloads !== undefined"><dt>{{ t('Source downloads', '源码下载次数') }}</dt><dd>{{ selectedExperiment.runner_source_downloads }}<template v-if="selectedExperiment.runner_stage_updated_at"> · {{ dateTime(selectedExperiment.runner_stage_updated_at) }}</template></dd></div>
-        <div v-if="selectedExperiment.failure_reason"><dt>{{ t('Failure', '失败原因') }}</dt><dd>{{ selectedExperiment.failure_reason }}</dd></div>
-      </dl>
-      <section class="attempt-history">
-        <div class="attempt-heading"><div><h3>Attempts</h3><p>{{ t('Immutable infrastructure retries and the latest Runner result.', '不可变的基础设施重试和最新 Runner 结果。') }}</p></div><LoaderCircle v-if="attemptsLoading" :size="18" class="spinning" /></div>
-        <div v-if="attemptsError" class="form-error">{{ attemptsError }}</div>
-        <div v-else-if="attempts.length" class="table-scroll">
-          <table class="data-table attempt-table">
-            <thead><tr><th>#</th><th>{{ t('State', '状态') }}</th><th>Provider ID</th><th>{{ t('Exit', '退出码') }}</th><th>{{ t('Estimate', '估算') }}</th><th>{{ t('Finished', '完成时间') }}</th></tr></thead>
-            <tbody><tr v-for="item in attempts" :key="item.id"><td>{{ item.number }}</td><td><span class="state-badge" :data-state="item.state"><span />{{ stateLabel(item.state) }}</span></td><td><code>{{ item.provider_resource_id ?? t('Pending', '等待中') }}</code></td><td>{{ item.exit_code ?? '—' }}</td><td>{{ money(item.estimated_cost_milli) }}</td><td>{{ dateTime(item.finished_at) }}</td></tr></tbody>
-          </table>
-        </div>
-        <div v-else-if="!attemptsLoading" class="attempt-empty">{{ t('No Attempt has been dispatched.', '尚未调度 Attempt。') }}</div>
-        <template v-if="latestAttempt">
-          <dl v-if="latestAttempt.failure_reason || latestAttempt.retry_reason" class="attempt-result">
-            <div v-if="latestAttempt.retry_reason"><dt>{{ t('Retry reason', '重试原因') }}</dt><dd>{{ latestAttempt.retry_reason }}</dd></div>
-            <div v-if="latestAttempt.failure_reason"><dt>{{ t('Attempt failure', 'Attempt 失败') }}</dt><dd>{{ latestAttempt.failure_reason }}</dd></div>
-          </dl>
-          <div v-if="latestAttempt.metrics && Object.keys(latestAttempt.metrics).length" class="attempt-output"><span>{{ t('Metrics', '指标') }}</span><pre>{{ metricsJSON(latestAttempt.metrics) }}</pre></div>
-          <div v-if="latestAttempt.log_tail" class="attempt-output"><span>{{ t('Log tail', '日志尾部') }}</span><pre>{{ latestAttempt.log_tail }}</pre></div>
-        </template>
-      </section>
-    </section>
-  </div>
+  <ExperimentDetail v-if="selectedExperiment" :experiment="selectedExperiment" :attempts="attempts" :loading="attemptsLoading" :error="attemptsError" @close="closeExperiment" />
 
   <div v-if="repositoryDialog" class="modal-backdrop" @click.self="repositoryDialog = null">
     <section class="modal" role="dialog" aria-modal="true" :aria-label="repositoryDialog === 'create' ? t('Register repository', '注册仓库') : repositoryDialog === 'verify' ? t('Verify repository', '验证仓库') : t('Deploy public key', 'Deploy 公钥')">

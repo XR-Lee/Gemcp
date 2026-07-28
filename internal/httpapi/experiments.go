@@ -86,6 +86,29 @@ func (h *ExperimentHandlers) Cost(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": result})
 }
 
+func (h *ExperimentHandlers) Operations(c *gin.Context) {
+	principal, ok := currentPrincipal(c)
+	if !ok {
+		writeError(c, http.StatusUnauthorized, "UNAUTHENTICATED", "authentication required")
+		return
+	}
+	limit := 25
+	if value := strings.TrimSpace(c.Query("limit")); value != "" {
+		parsed, err := strconv.Atoi(value)
+		if err != nil {
+			writeError(c, http.StatusBadRequest, "INVALID_LIMIT", "limit must be an integer")
+			return
+		}
+		limit = parsed
+	}
+	result, err := h.service.OwnerOperations(c.Request.Context(), principal.TenantID, c.Param("id"), limit)
+	if err != nil {
+		h.writeError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": result})
+}
+
 func (h *ExperimentHandlers) writeError(c *gin.Context, err error) {
 	var validation *experiment.ValidationError
 	switch {

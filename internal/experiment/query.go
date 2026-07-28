@@ -43,6 +43,9 @@ func (s *Service) Get(ctx context.Context, principal agentauth.Principal, experi
 	if err := s.enrichRunnerStatus(ctx, record, &view); err != nil {
 		return View{}, err
 	}
+	if err := s.enrichExecutionObservation(ctx, record, &view); err != nil {
+		return View{}, err
+	}
 	return view, nil
 }
 

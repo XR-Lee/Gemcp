@@ -129,7 +129,11 @@ export type Experiment = {
   runner_stage?: string
   runner_stage_updated_at?: string
   runner_error_type?: string
+  log_tail?: string
   metrics?: Record<string, unknown>
+  execution_context: ExecutionContext
+  backend_observation?: BackendObservation
+  timeline?: RunTimelineEvent[]
   created_at: string
   updated_at: string
   started_at?: string
@@ -152,9 +156,89 @@ export type Attempt = {
   exit_code?: number
   log_tail?: string
   metrics?: Record<string, unknown>
+  last_heartbeat_at?: string
   created_at: string
   updated_at: string
 }
+
+export type RuntimeGPUDevice = { index: number; uuid: string; name: string }
+export type RuntimeInfo = {
+  source: 'runner_observed' | 'node_binding'
+  working_directory: string
+  output_directory: string
+  cuda_visible_devices?: string
+  gpu_devices: RuntimeGPUDevice[]
+}
+export type ExecutionContext = {
+  agent_label?: string
+  agent_token_prefix?: string
+  proposal_id?: string
+  repository_name: string
+  repository_ssh_url: string
+  requested_ref?: string
+  backend: string
+  environment_name: string
+  image: string
+  resource_profile_name: string
+  region: string
+  gpu_models: string[]
+  gpu_num: number
+  workspace_policy: 'runner_temporary' | 'container_fixed'
+  workspace_path?: string
+  container_output_path: string
+  runtime_info?: RuntimeInfo
+}
+export type BackendObservation = {
+  kind: string
+  id: string
+  provider_id?: string
+  state: string
+  status?: string
+  node_label?: string
+  stop_reason?: string
+  last_error?: string
+  cleanup_complete: boolean
+  updated_at: string
+  finished_at?: string
+}
+export type RunTimelineEvent = { at: string; code: string; detail?: string }
+
+export type AgentActivity = {
+  id: string
+  agent_label: string
+  agent_token_prefix: string
+  phase: string
+  repository_remote?: string
+  ref?: string
+  proposal_id?: string
+  experiment_id?: string
+  at: string
+}
+export type ProposalActivity = {
+  id: string
+  status: string
+  eligible: boolean
+  agent_label: string
+  agent_token_prefix: string
+  repository_name: string
+  requested_ref: string
+  commit_sha: string
+  display_command: string
+  backend: string
+  environment_name: string
+  image: string
+  resource_profile_name: string
+  gpu_models: string[]
+  gpu_num: number
+  reserved_cost_milli: number
+  checks: DiagnosticCheck[]
+  confirmation_digest: string
+  experiment_id?: string
+  created_at: string
+  updated_at: string
+  expires_at: string
+}
+export type OperationsFeed = { activities: AgentActivity[]; proposals: ProposalActivity[]; generated_at: string }
 
 export type DiagnosticBackend = 'autodl_private' | 'self_hosted'
 export type DiagnosticSuite = 'gpu_connectivity' | 'pytorch_cuda'
@@ -757,6 +841,8 @@ export const api = {
     request<Attempt[]>(
       `/api/v1/experiments/${encodeURIComponent(experimentID)}/attempts?project_id=${encodeURIComponent(projectID)}`,
     ),
+  operations: (projectID: string) =>
+    request<OperationsFeed>(`/api/v1/projects/${encodeURIComponent(projectID)}/operations?limit=50`),
   cost: (projectID: string) => request<Cost>(`/api/v1/projects/${encodeURIComponent(projectID)}/cost`),
   diagnosticOptions: (projectID: string) =>
     request<DiagnosticOptions>(`/api/v1/projects/${encodeURIComponent(projectID)}/diagnostics/options`),

@@ -10,6 +10,7 @@ import (
 
 	"entgo.io/ent/dialect"
 	"github.com/XR-Lee/Gemcp/ent"
+	"github.com/XR-Lee/Gemcp/ent/auditevent"
 	"github.com/XR-Lee/Gemcp/ent/enttest"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/nodecommand"
@@ -167,8 +168,73 @@ func TestAssignmentLifecycleIsUnmeteredAndTokenless(t *testing.T) {
 	if experiment.State != "succeeded" || experiment.EstimatedCostMilli != 0 || attempt.State != "succeeded" || assignment.State != nodeassignment.StateSucceeded {
 		t.Fatalf("final experiment=%+v attempt=%+v assignment=%+v", experiment, attempt, assignment)
 	}
+	tx, _ = f.client.Tx(ctx)
+	node, _ = tx.SelfHostedNode.Get(ctx, f.node.ID)
+	cleanup := nodeprotocol.Event{ID: uuid.NewString(), Sequence: 3, Kind: "workload_cleanup_complete", OccurredAt: f.now, Payload: map[string]any{
+		"assignment_id": assignment.PublicID.String(), "workload_id": "container-id",
+	}}
+	if err := f.service.ProjectNodeEvent(ctx, tx, node, cleanup, f.now.Add(3*time.Second)); err != nil {
+		_ = tx.Rollback()
+		t.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	if exists, _ := f.client.AuditEvent.Query().Where(auditevent.ActionEQ("experiment.cleanup_complete")).Exist(ctx); !exists {
+		t.Fatal("cleanup evidence was not recorded")
+	}
 	if entries, _ := f.client.BudgetEntry.Query().All(ctx); len(entries) != 2 || entries[1].AmountMilli != 0 || entries[1].Kind != "release" {
 		t.Fatalf("budget entries=%+v", entries)
+	}
+}
+
+func TestAssignmentProjectsRuntimeObservationAndLiveOutput(t *testing.T) {
+	f := newServiceFixture(t)
+	assignment := f.dispatch(t)
+	ctx := context.Background()
+
+	tx, _ := f.client.Tx(ctx)
+	node, _ := tx.SelfHostedNode.Get(ctx, f.node.ID)
+	started := nodeprotocol.Event{ID: uuid.NewString(), Sequence: 1, Kind: "workload_started", OccurredAt: f.now, Payload: map[string]any{
+		"assignment_id": assignment.PublicID.String(), "workload_id": "container-id",
+		"runtime_info": map[string]any{
+			"source": "node_binding", "working_directory": "/workspace", "output_directory": "/outputs",
+			"cuda_visible_devices": "GPU-test", "gpu_devices": []any{map[string]any{"index": float64(0), "uuid": "GPU-test", "name": "NVIDIA GeForce RTX 3090"}},
+		},
+	}}
+	if err := f.service.ProjectNodeEvent(ctx, tx, node, started, f.now.Add(time.Second)); err != nil {
+		_ = tx.Rollback()
+		t.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+
+	tx, _ = f.client.Tx(ctx)
+	node, _ = tx.SelfHostedNode.Get(ctx, f.node.ID)
+	heartbeat := nodeprotocol.Event{ID: uuid.NewString(), Sequence: 2, Kind: "workload_heartbeat", OccurredAt: f.now, Payload: map[string]any{
+		"assignment_id": assignment.PublicID.String(), "log_tail": "epoch 4 loss=0.38\n", "metrics": map[string]any{"epoch": float64(4), "loss": 0.38},
+	}}
+	if err := f.service.ProjectNodeEvent(ctx, tx, node, heartbeat, f.now.Add(16*time.Second)); err != nil {
+		_ = tx.Rollback()
+		t.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+
+	experimentRecord, _ := f.client.Experiment.Get(ctx, f.experiment.ID)
+	attemptRecord, _ := f.client.Attempt.Query().Only(ctx)
+	assignmentRecord, _ := f.client.NodeAssignment.Query().Only(ctx)
+	if experimentRecord.LogTail == nil || *experimentRecord.LogTail != "epoch 4 loss=0.38\n" || experimentRecord.Metrics["loss"] != 0.38 ||
+		attemptRecord.LastHeartbeatAt == nil || assignmentRecord.LastHeartbeatAt == nil || assignmentRecord.LogTail == nil {
+		t.Fatalf("live projection experiment=%+v attempt=%+v assignment=%+v", experimentRecord, attemptRecord, assignmentRecord)
+	}
+	startAudit, err := f.client.AuditEvent.Query().Where(
+		auditevent.ActionEQ("experiment.started"), auditevent.TargetIDEQ(f.experiment.PublicID.String()),
+	).Only(ctx)
+	if err != nil || startAudit.Metadata["runtime_info"] == nil {
+		t.Fatalf("start audit=%+v err=%v", startAudit, err)
 	}
 }
 

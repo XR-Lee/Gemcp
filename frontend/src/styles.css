@@ -365,6 +365,10 @@ label small { color: #858e88; font-size: 10px; font-weight: 500; }
 .metric.accent-coral { box-shadow: inset 0 3px #d97a67; }
 .workspace, .page-workspace { margin: 24px 28px; background: #fff; border: 1px solid #dfe4df; border-radius: 7px; }
 .page-workspace { min-height: 520px; }
+.operations-workspace { overflow: hidden; }
+.live-label { display: inline-flex; align-items: center; gap: 6px; color: #637069; font-size: 10px; font-weight: 650; }
+.live-label > span { width: 7px; height: 7px; background: #25a86f; border-radius: 50%; box-shadow: 0 0 0 3px #dff2e9; }
+.experiment-operations { border-bottom: 1px solid #dfe5e1; }
 .section-heading { min-height: 67px; padding: 13px 18px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid #e5e9e5; }
 .section-heading h2, .subsection-heading h2 { margin: 0; font-size: 14px; line-height: 20px; font-weight: 690; }
 .section-heading p, .subsection-heading p { margin: 2px 0 0; color: #7b847e; font-size: 12px; }

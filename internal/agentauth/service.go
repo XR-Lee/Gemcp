@@ -22,6 +22,7 @@ type Principal struct {
 	TokenID         int
 	TokenPublicID   string
 	TokenLabel      string
+	TokenPrefix     string
 	Scopes          []string
 	ExpiresAt       *time.Time
 }
@@ -94,6 +95,7 @@ func (s *Service) Authenticate(ctx context.Context, raw string) (Principal, erro
 		TokenID:         matched.ID,
 		TokenPublicID:   matched.PublicID.String(),
 		TokenLabel:      matched.Label,
+		TokenPrefix:     matched.Prefix,
 		Scopes:          append([]string(nil), matched.Scopes...),
 		ExpiresAt:       matched.ExpiresAt,
 	}, nil

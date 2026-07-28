@@ -101,14 +101,15 @@ def report_stage(stage, error_type="", retries=1):
     except Exception as error:
         launch_log("gemcp-launch-stage-report-failed-" + stage + "-" + type(error).__name__)
 
-def post_started(seconds_remaining):
+def post_started(seconds_remaining, runtime_info):
+    payload = {"type": "started", "runtime_info": runtime_info}
     if not seconds_remaining:
-        return post_event({"type": "started"}, retries=5)
+        return post_event(payload, retries=5)
     retry_until = time.monotonic() + max(0, float(seconds_remaining) - 30)
     delay = 1
     while True:
         try:
-            return post_event({"type": "started"}, retries=1)
+            return post_event(payload, retries=1)
         except urllib.error.HTTPError:
             raise
         except (urllib.error.URLError, http.client.HTTPException, TimeoutError, ConnectionError, OSError, ValueError) as error:
@@ -256,6 +257,28 @@ def metrics(output_path):
     except (FileNotFoundError, OSError, ValueError, RecursionError, OverflowError, TypeError):
         return {}
 
+def observed_runtime(source_path, output_path):
+    devices = []
+    try:
+        output = subprocess.check_output(
+            ["nvidia-smi", "--query-gpu=index,uuid,name", "--format=csv,noheader,nounits"],
+            stderr=subprocess.DEVNULL, timeout=5, text=True,
+        )
+        for line in output.splitlines()[:16]:
+            parts = [part.strip() for part in line.split(",", 2)]
+            if len(parts) != 3:
+                continue
+            devices.append({"index": int(parts[0]), "uuid": parts[1], "name": parts[2][:120]})
+    except (FileNotFoundError, OSError, ValueError, subprocess.SubprocessError):
+        devices = []
+    visible = os.environ.get("CUDA_VISIBLE_DEVICES", "")
+    if len(visible) > 255 or any(character not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,._:-" for character in visible):
+        visible = ""
+    return {
+        "source": "runner_observed", "working_directory": source_path, "output_directory": output_path,
+        "cuda_visible_devices": visible, "gpu_devices": devices,
+    }
+
 def write_result(output_path, result):
     temporary = os.path.join(output_path, ".gemcp-result.json.tmp")
     final = os.path.join(output_path, "gemcp-result.json")
@@ -287,7 +310,7 @@ def main():
     report_stage("source_extracted")
 
     FAILURE_STAGE = "bootstrap_failed_during_started_callback"
-    control = post_started(int(spec.get("provisioning_seconds_remaining", 0)))
+    control = post_started(int(spec.get("provisioning_seconds_remaining", 0)), observed_runtime(source_path, output_path))
     log_path = os.path.join(output_path, "run.log")
     reason = "completed"
     exit_code = 0
@@ -320,7 +343,9 @@ def main():
                         terminate(process, int(spec["termination_grace_seconds"]))
                         break
                     try:
-                        control = post_event({"type": "heartbeat"}, retries=3)
+                        control = post_event({
+                            "type": "heartbeat", "log_tail": log_tail(log_path, 60000), "metrics": metrics(output_path),
+                        }, retries=3)
                     except Exception:
                         control = {}
                     if control.get("stop_requested"):

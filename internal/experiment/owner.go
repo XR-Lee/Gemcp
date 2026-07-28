@@ -72,7 +72,7 @@ func (s *Service) OwnerAttempts(ctx context.Context, tenantID int, projectPublic
 			FailureCode: record.FailureCode, FailureReason: record.FailureReason,
 			StartedAt: record.StartedAt, FinishedAt: record.FinishedAt,
 			EstimatedCostMilli: record.EstimatedCostMilli, ExitCode: record.ExitCode,
-			LogTail: record.LogTail, Metrics: record.Metrics,
+			LogTail: record.LogTail, Metrics: record.Metrics, LastHeartbeatAt: record.LastHeartbeatAt,
 			CreatedAt: record.CreatedAt, UpdatedAt: record.UpdatedAt,
 		})
 	}

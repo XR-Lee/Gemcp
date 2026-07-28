@@ -116,7 +116,7 @@ export async function verifyConfiguredServer(configPath, serverName) {
 				"pi_config": map[string]any{
 					"type": "http", "url": serverURL + "/mcp", "auth": "bearer",
 					"bearerToken": "gmc_test_install_secret", "lifecycle": "lazy", "exposeResources": true,
-					"directTools": []string{"get_usage_guide", "prepare_experiment", "submit_prepared_experiment", "get_project_options", "get_project_cost", "submit_experiment", "get_experiment", "list_experiments", "cancel_experiment", "list_artifacts"},
+					"directTools": []string{"get_usage_guide", "report_agent_activity", "prepare_experiment", "submit_prepared_experiment", "get_project_options", "get_project_cost", "submit_experiment", "get_experiment", "list_experiments", "cancel_experiment", "list_artifacts"},
 				},
 			}})
 		case "/api/v1/agent-enrollments/complete":

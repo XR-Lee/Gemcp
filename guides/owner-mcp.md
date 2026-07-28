@@ -9,7 +9,7 @@ An Agent Token is bound to one project and a selected set of scopes:
 | Scope | Allows |
 | --- | --- |
 | `read` | Read project options, costs, experiments, artifacts, and the Agent guide |
-| `submit` | Verify and enqueue immutable experiments |
+| `submit` | Report controlled Agent phases and prepare or enqueue immutable experiments |
 | `cancel` | Request cancellation of queued or active experiments |
 
 The Token does not expose AutoDL credentials, repository Deploy Keys, Runner Tokens, arbitrary machines, or arbitrary Provider operations.
@@ -24,8 +24,9 @@ The Token does not expose AutoDL credentials, repository Deploy Keys, Runner Tok
 6. Let the Agent run the fixed installer. Its provisional credential is read-only until tool, guide, option, and cost verification succeeds.
 7. Confirm the setup row becomes **Completed**, then let the Agent run `/reload` once to expose the native `gemcp_*` tools.
 8. For other clients, use the advanced **Token** action and install the one-time secret through that client's secret store.
-9. Require the Agent to show the exact commit, command, resource, runtime, idempotency key, and worst-case reservation before paid work.
-10. Monitor Experiments and Provider resources from the Owner console. Revoke the issued Token immediately if its use is unexpected.
+9. Require the Agent to show the exact prepared Proposal, full commit, argv, resource, runtime, digest, expiry, and worst-case reservation before paid work.
+10. Monitor Agent phases, Proposals, Experiments, runtime evidence, live output, and backend cleanup from the Owner console. Activity is limited to controlled phases and must never contain prompts, reasoning, source contents, environment values, or credentials.
+11. Revoke the issued Token immediately if its use is unexpected.
 
 ## Endpoint and authentication
 
@@ -41,7 +42,7 @@ The Pi setup flow writes this authentication configuration automatically. The ad
 
 A Pi setup link stores its 256-bit setup code only in the URL fragment. Browsers do not include the fragment in the setup-page request, access log, or Referer. Previewing the public setup page does not consume the link.
 
-Claiming creates a short-lived `read`-only credential and writes it to the Pi agent directory's `mcp.json` with mode `0600`. The fixed installer preserves other MCP servers, discovers all ten Gemcp tools, calls `get_usage_guide`, `get_project_options`, and `get_project_cost`, and then completes enrollment. Completion atomically applies the Owner-selected scopes and credential lifetime. The database stores only HMAC-SHA-256 digests of the setup code and Agent Token.
+Claiming creates a short-lived `read`-only credential and writes it to the Pi agent directory's `mcp.json` with mode `0600`. The fixed installer preserves other MCP servers, discovers all eleven Gemcp tools, calls `get_usage_guide`, `get_project_options`, and `get_project_cost`, and then completes enrollment. Completion atomically applies the Owner-selected scopes and credential lifetime. The database stores only HMAC-SHA-256 digests of the setup code and Agent Token.
 
 The setup link is shown once, may be claimed repeatedly only until completion for retry safety, and becomes unusable after completion, expiry, or revocation. The Owner can revoke pending or claimed setup from the console; revoking a claimed setup also revokes its provisional Token.
 

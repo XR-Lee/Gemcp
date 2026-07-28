@@ -23,6 +23,7 @@ type fakeContainerRuntime struct {
 	started   int
 	stopped   int
 	removed   int
+	removeErr error
 	container string
 }
 
@@ -57,7 +58,7 @@ func (f *fakeContainerRuntime) SaveLogs(_ context.Context, _ string, filename st
 
 func (f *fakeContainerRuntime) Remove(context.Context, string) error {
 	f.removed++
-	return nil
+	return f.removeErr
 }
 
 func TestWorkloadManagerRunsWithoutPassingNodeCredentialToContainer(t *testing.T) {
@@ -99,7 +100,7 @@ func TestWorkloadManagerRunsWithoutPassingNodeCredentialToContainer(t *testing.T
 		"source_path": "/api/v1/node-assignments/" + assignmentID + "/source", "source_max_bytes": int64(1 << 20),
 		"output_ref":          "experiments/" + experimentID + "/attempts/" + attemptID + "/outputs",
 		"max_runtime_seconds": 300, "timeout_extension_seconds": 60, "termination_grace_seconds": 5,
-		"gpu_uuid": "GPU-test", "cpu_limit": 8, "memory_limit_bytes": int64(32 << 30),
+		"gpu_uuid": "GPU-test", "gpu_name": "NVIDIA GeForce RTX 3090", "cpu_limit": 8, "memory_limit_bytes": int64(32 << 30),
 	}
 	result, err := manager.Start(context.Background(), payload)
 	if err != nil {
@@ -118,6 +119,9 @@ func TestWorkloadManagerRunsWithoutPassingNodeCredentialToContainer(t *testing.T
 	if len(events) != 1 || events[0].Kind != "workload_started" {
 		t.Fatalf("start events=%+v", events)
 	}
+	if runtimeInfo, ok := events[0].Payload["runtime_info"].(map[string]any); !ok || runtimeInfo["cuda_visible_devices"] != "GPU-test" {
+		t.Fatalf("start runtime info=%v", events[0].Payload["runtime_info"])
+	}
 
 	outputPath, _ := managedOutputPath(config.StorageRoot, payload["output_ref"].(string))
 	if err := os.WriteFile(filepath.Join(outputPath, "metrics.json"), []byte(`{"accuracy":0.9}`), 0o600); err != nil {
@@ -125,17 +129,26 @@ func TestWorkloadManagerRunsWithoutPassingNodeCredentialToContainer(t *testing.T
 	}
 	runtime.state = ContainerState{Running: false, ExitCode: 0}
 	manager.now = func() time.Time { return now.Add(time.Minute) }
+	runtime.removeErr = context.DeadlineExceeded
+	if err := manager.Reconcile(context.Background()); err == nil {
+		t.Fatal("cleanup failure was ignored")
+	}
+	events, _ = store.PendingEvents(10)
+	if busy, _ := manager.Busy(); len(events) != 2 || events[1].Kind != "workload_finished" || !busy {
+		t.Fatalf("pre-cleanup events=%+v busy=%t", events, busy)
+	}
+	runtime.removeErr = nil
 	if err := manager.Reconcile(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 	events, _ = store.PendingEvents(10)
-	if len(events) != 2 || events[1].Kind != "workload_finished" || events[1].Payload["reason"] != "completed" {
+	if len(events) != 3 || events[1].Kind != "workload_finished" || events[1].Payload["reason"] != "completed" || events[2].Kind != "workload_cleanup_complete" {
 		t.Fatalf("completion events=%+v", events)
 	}
 	if metrics, ok := events[1].Payload["metrics"].(map[string]any); !ok || metrics["accuracy"] != 0.9 {
 		t.Fatalf("completion metrics=%v", events[1].Payload["metrics"])
 	}
-	if workloads, _ := store.Workloads(); len(workloads) != 0 || runtime.removed != 1 {
+	if workloads, _ := store.Workloads(); len(workloads) != 0 || runtime.removed != 2 {
 		t.Fatalf("workloads=%+v removed=%d", workloads, runtime.removed)
 	}
 	completeLog, err := os.ReadFile(filepath.Join(outputPath, "run.log"))

@@ -35,6 +35,7 @@ var (
 
 var piDirectTools = []string{
 	"get_usage_guide",
+	"report_agent_activity",
 	"prepare_experiment",
 	"submit_prepared_experiment",
 	"get_project_options",

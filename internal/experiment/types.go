@@ -1,6 +1,50 @@
 package experiment
 
-import "time"
+import (
+	"time"
+
+	"github.com/XR-Lee/Gemcp/internal/executionmeta"
+)
+
+type ExecutionContextView struct {
+	AgentLabel          string                     `json:"agent_label,omitempty"`
+	AgentTokenPrefix    string                     `json:"agent_token_prefix,omitempty"`
+	ProposalID          string                     `json:"proposal_id,omitempty"`
+	RepositoryName      string                     `json:"repository_name"`
+	RepositorySSHURL    string                     `json:"repository_ssh_url"`
+	RequestedRef        string                     `json:"requested_ref,omitempty"`
+	Backend             string                     `json:"backend"`
+	EnvironmentName     string                     `json:"environment_name"`
+	Image               string                     `json:"image"`
+	ResourceProfileName string                     `json:"resource_profile_name"`
+	Region              string                     `json:"region"`
+	GPUModels           []string                   `json:"gpu_models"`
+	GPUNum              int                        `json:"gpu_num"`
+	WorkspacePolicy     string                     `json:"workspace_policy"`
+	WorkspacePath       string                     `json:"workspace_path,omitempty"`
+	ContainerOutputPath string                     `json:"container_output_path"`
+	RuntimeInfo         *executionmeta.RuntimeInfo `json:"runtime_info,omitempty"`
+}
+
+type BackendObservationView struct {
+	Kind            string     `json:"kind"`
+	ID              string     `json:"id"`
+	ProviderID      string     `json:"provider_id,omitempty"`
+	State           string     `json:"state"`
+	Status          string     `json:"status,omitempty"`
+	NodeLabel       string     `json:"node_label,omitempty"`
+	StopReason      string     `json:"stop_reason,omitempty"`
+	LastError       string     `json:"last_error,omitempty"`
+	CleanupComplete bool       `json:"cleanup_complete"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+	FinishedAt      *time.Time `json:"finished_at,omitempty"`
+}
+
+type TimelineEvent struct {
+	At     time.Time `json:"at"`
+	Code   string    `json:"code"`
+	Detail string    `json:"detail,omitempty"`
+}
 
 type SubmitInput struct {
 	RepositoryID      string   `json:"repository_id" jsonschema:"ID of an active project repository"`
@@ -14,38 +58,42 @@ type SubmitInput struct {
 }
 
 type View struct {
-	ID                    string         `json:"id"`
-	ProjectID             string         `json:"project_id"`
-	RepositoryID          string         `json:"repository_id"`
-	EnvironmentID         string         `json:"environment_id"`
-	ResourceProfileID     string         `json:"resource_profile_id"`
-	State                 string         `json:"state"`
-	DesiredState          string         `json:"desired_state"`
-	CommitSHA             string         `json:"commit_sha"`
-	ExecutionMode         string         `json:"execution_mode"`
-	Argv                  []string       `json:"argv,omitempty"`
-	Command               string         `json:"command"`
-	MaxRuntimeSeconds     int            `json:"max_runtime_seconds"`
-	ReservedCostMilli     int64          `json:"reserved_cost_milli"`
-	EstimatedCostMilli    int64          `json:"estimated_cost_milli"`
-	OutputPath            string         `json:"output_path"`
-	ProviderResourceID    *string        `json:"provider_resource_id,omitempty"`
-	ProviderStatus        *string        `json:"provider_status,omitempty"`
-	ExitCode              *int           `json:"exit_code,omitempty"`
-	FailureCode           *string        `json:"failure_code,omitempty"`
-	FailureReason         *string        `json:"failure_reason,omitempty"`
-	RunnerAttemptID       *string        `json:"runner_attempt_id,omitempty"`
-	RunnerSourceDownloads *int           `json:"runner_source_downloads,omitempty"`
-	RunnerStage           *string        `json:"runner_stage,omitempty"`
-	RunnerStageUpdatedAt  *time.Time     `json:"runner_stage_updated_at,omitempty"`
-	RunnerErrorType       *string        `json:"runner_error_type,omitempty"`
-	Metrics               map[string]any `json:"metrics,omitempty"`
-	CreatedAt             time.Time      `json:"created_at"`
-	UpdatedAt             time.Time      `json:"updated_at"`
-	StartedAt             *time.Time     `json:"started_at,omitempty"`
-	DeadlineAt            *time.Time     `json:"deadline_at,omitempty"`
-	FinishedAt            *time.Time     `json:"finished_at,omitempty"`
-	CancelRequestedAt     *time.Time     `json:"cancel_requested_at,omitempty"`
+	ID                    string                  `json:"id"`
+	ProjectID             string                  `json:"project_id"`
+	RepositoryID          string                  `json:"repository_id"`
+	EnvironmentID         string                  `json:"environment_id"`
+	ResourceProfileID     string                  `json:"resource_profile_id"`
+	State                 string                  `json:"state"`
+	DesiredState          string                  `json:"desired_state"`
+	CommitSHA             string                  `json:"commit_sha"`
+	ExecutionMode         string                  `json:"execution_mode"`
+	Argv                  []string                `json:"argv,omitempty"`
+	Command               string                  `json:"command"`
+	MaxRuntimeSeconds     int                     `json:"max_runtime_seconds"`
+	ReservedCostMilli     int64                   `json:"reserved_cost_milli"`
+	EstimatedCostMilli    int64                   `json:"estimated_cost_milli"`
+	OutputPath            string                  `json:"output_path"`
+	ProviderResourceID    *string                 `json:"provider_resource_id,omitempty"`
+	ProviderStatus        *string                 `json:"provider_status,omitempty"`
+	ExitCode              *int                    `json:"exit_code,omitempty"`
+	FailureCode           *string                 `json:"failure_code,omitempty"`
+	FailureReason         *string                 `json:"failure_reason,omitempty"`
+	RunnerAttemptID       *string                 `json:"runner_attempt_id,omitempty"`
+	RunnerSourceDownloads *int                    `json:"runner_source_downloads,omitempty"`
+	RunnerStage           *string                 `json:"runner_stage,omitempty"`
+	RunnerStageUpdatedAt  *time.Time              `json:"runner_stage_updated_at,omitempty"`
+	RunnerErrorType       *string                 `json:"runner_error_type,omitempty"`
+	LogTail               *string                 `json:"log_tail,omitempty"`
+	Metrics               map[string]any          `json:"metrics,omitempty"`
+	ExecutionContext      ExecutionContextView    `json:"execution_context"`
+	BackendObservation    *BackendObservationView `json:"backend_observation,omitempty"`
+	Timeline              []TimelineEvent         `json:"timeline,omitempty"`
+	CreatedAt             time.Time               `json:"created_at"`
+	UpdatedAt             time.Time               `json:"updated_at"`
+	StartedAt             *time.Time              `json:"started_at,omitempty"`
+	DeadlineAt            *time.Time              `json:"deadline_at,omitempty"`
+	FinishedAt            *time.Time              `json:"finished_at,omitempty"`
+	CancelRequestedAt     *time.Time              `json:"cancel_requested_at,omitempty"`
 }
 
 type AttemptView struct {
@@ -62,6 +110,7 @@ type AttemptView struct {
 	ExitCode           *int           `json:"exit_code,omitempty"`
 	LogTail            *string        `json:"log_tail,omitempty"`
 	Metrics            map[string]any `json:"metrics,omitempty"`
+	LastHeartbeatAt    *time.Time     `json:"last_heartbeat_at,omitempty"`
 	CreatedAt          time.Time      `json:"created_at"`
 	UpdatedAt          time.Time      `json:"updated_at"`
 }

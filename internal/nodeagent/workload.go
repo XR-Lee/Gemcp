@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/XR-Lee/Gemcp/internal/executioncmd"
@@ -51,7 +52,7 @@ func (m *WorkloadManager) Busy() (bool, error) {
 		return false, err
 	}
 	for _, record := range records {
-		if record.State == "running" || record.State == "stopping" {
+		if !record.CleanupReported {
 			return true, nil
 		}
 	}
@@ -74,7 +75,7 @@ func (m *WorkloadManager) Start(ctx context.Context, payload map[string]any) (ma
 			}
 			return map[string]any{"workload_id": record.ContainerID, "state": record.State}, nil
 		}
-		if record.State == "running" || record.State == "stopping" {
+		if !record.CleanupReported {
 			return nil, fmt.Errorf("node already has an active workload")
 		}
 	}
@@ -107,7 +108,8 @@ func (m *WorkloadManager) Start(ctx context.Context, payload map[string]any) (ma
 	now := m.now().UTC()
 	record := WorkloadRecord{
 		AssignmentID: spec.AssignmentID, ExperimentID: spec.ExperimentID, AttemptID: spec.AttemptID,
-		ContainerID: containerID, OutputRef: spec.OutputRef, State: "running", StartedAt: now,
+		ContainerID: containerID, GPUUUID: spec.GPUUUID, GPUName: spec.GPUName,
+		OutputRef: spec.OutputRef, State: "running", StartedAt: now,
 		DeadlineAt:              now.Add(time.Duration(spec.MaxRuntimeSeconds+spec.TimeoutExtensionSeconds) * time.Second),
 		TerminationGraceSeconds: spec.TerminationGraceSeconds,
 	}
@@ -164,7 +166,16 @@ func (m *WorkloadManager) Reconcile(ctx context.Context) error {
 	for _, record := range records {
 		state, err := m.runtime.Inspect(ctx, record.ContainerID)
 		if errors.Is(err, ErrContainerNotFound) {
-			if err := m.finish(record, 70, "runner_error", "managed workload container disappeared"); err != nil {
+			if !record.FinishedReported {
+				if err := m.finish(record, 70, "runner_error", "managed workload container disappeared"); err != nil {
+					return err
+				}
+				record.State, record.FinishedReported = "finished", true
+				if err := m.store.SaveWorkload(record); err != nil {
+					return err
+				}
+			}
+			if err := m.reportCleanup(&record); err != nil {
 				return err
 			}
 			if err := m.store.DeleteWorkload(record.AssignmentID); err != nil {
@@ -187,8 +198,17 @@ func (m *WorkloadManager) Reconcile(ctx context.Context) error {
 				}
 				continue
 			}
-			if record.LastHeartbeatAt.IsZero() || !now.Before(record.LastHeartbeatAt.Add(time.Minute)) {
-				if _, err := m.store.AppendEvent("workload_heartbeat", map[string]any{"assignment_id": record.AssignmentID}, now); err != nil {
+			if record.LastHeartbeatAt.IsZero() || !now.Before(record.LastHeartbeatAt.Add(15*time.Second)) {
+				outputPath, outputErr := managedOutputPath(m.config.StorageRoot, record.OutputRef)
+				if outputErr != nil {
+					return outputErr
+				}
+				logTail, _ := m.runtime.Logs(ctx, record.ContainerID, maxLogTailBytes)
+				payload := map[string]any{
+					"assignment_id": record.AssignmentID, "log_tail": boundedUTF8Tail(logTail, maxLogTailBytes),
+					"metrics": readMetrics(outputPath),
+				}
+				if _, err := m.store.AppendEvent("workload_heartbeat", payload, now); err != nil {
 					return err
 				}
 				record.LastHeartbeatAt = now
@@ -205,19 +225,28 @@ func (m *WorkloadManager) Reconcile(ctx context.Context) error {
 				reason = "oom"
 			}
 		}
-		outputPath, err := managedOutputPath(m.config.StorageRoot, record.OutputRef)
-		if err != nil {
-			return err
-		}
-		logPath := filepath.Join(outputPath, "run.log")
-		if err := m.runtime.SaveLogs(ctx, record.ContainerID, logPath); err != nil {
-			return err
-		}
-		logs := fileTail(logPath, maxLogTailBytes)
-		if err := m.finish(record, state.ExitCode, reason, logs); err != nil {
-			return err
+		if !record.FinishedReported {
+			outputPath, err := managedOutputPath(m.config.StorageRoot, record.OutputRef)
+			if err != nil {
+				return err
+			}
+			logPath := filepath.Join(outputPath, "run.log")
+			if err := m.runtime.SaveLogs(ctx, record.ContainerID, logPath); err != nil {
+				return err
+			}
+			logs := fileTail(logPath, maxLogTailBytes)
+			if err := m.finish(record, state.ExitCode, reason, logs); err != nil {
+				return err
+			}
+			record.State, record.FinishedReported = "finished", true
+			if err := m.store.SaveWorkload(record); err != nil {
+				return err
+			}
 		}
 		if err := m.runtime.Remove(ctx, record.ContainerID); err != nil {
+			return err
+		}
+		if err := m.reportCleanup(&record); err != nil {
 			return err
 		}
 		if err := m.store.DeleteWorkload(record.AssignmentID); err != nil {
@@ -231,13 +260,32 @@ func (m *WorkloadManager) reportStarted(record WorkloadRecord) error {
 	if record.StartedReported {
 		return nil
 	}
-	if _, err := m.store.AppendEvent("workload_started", map[string]any{
-		"assignment_id": record.AssignmentID, "workload_id": record.ContainerID,
-	}, m.now().UTC()); err != nil {
+	payload := map[string]any{"assignment_id": record.AssignmentID, "workload_id": record.ContainerID}
+	if nvidiaGPUUUID.MatchString(record.GPUUUID) && validGPUName(record.GPUName) {
+		payload["runtime_info"] = map[string]any{
+			"source": "node_binding", "working_directory": "/workspace", "output_directory": "/outputs",
+			"cuda_visible_devices": record.GPUUUID,
+			"gpu_devices":          []map[string]any{{"index": 0, "uuid": record.GPUUUID, "name": record.GPUName}},
+		}
+	}
+	if _, err := m.store.AppendEvent("workload_started", payload, m.now().UTC()); err != nil {
 		return err
 	}
 	record.StartedReported = true
 	return m.store.SaveWorkload(record)
+}
+
+func (m *WorkloadManager) reportCleanup(record *WorkloadRecord) error {
+	if record.CleanupReported {
+		return nil
+	}
+	if _, err := m.store.AppendEvent("workload_cleanup_complete", map[string]any{
+		"assignment_id": record.AssignmentID, "workload_id": record.ContainerID,
+	}, m.now().UTC()); err != nil {
+		return err
+	}
+	record.CleanupReported = true
+	return m.store.SaveWorkload(*record)
 }
 
 func (m *WorkloadManager) finish(record WorkloadRecord, exitCode int, reason, logTail string) error {
@@ -292,11 +340,24 @@ func decodeStartWorkload(payload map[string]any) (nodeprotocol.StartWorkload, er
 		spec.SourcePath != "/api/v1/node-assignments/"+spec.AssignmentID+"/source" || spec.SourceMaxBytes <= 0 || spec.SourceMaxBytes > 1<<30 ||
 		!validOutputRef(spec.OutputRef) || spec.MaxRuntimeSeconds <= 0 || spec.MaxRuntimeSeconds > 30*24*3600 ||
 		spec.TimeoutExtensionSeconds < 0 || spec.TerminationGraceSeconds < 0 || spec.TerminationGraceSeconds > 3600 ||
-		!nvidiaGPUUUID.MatchString(spec.GPUUUID) || spec.CPULimit <= 0 || spec.CPULimit > 1024 || spec.MemoryLimitBytes <= 0 {
+		!nvidiaGPUUUID.MatchString(spec.GPUUUID) || !validGPUName(spec.GPUName) ||
+		spec.CPULimit <= 0 || spec.CPULimit > 1024 || spec.MemoryLimitBytes <= 0 {
 		return spec, fmt.Errorf("start workload command is invalid")
 	}
 	spec.ExecutionMode, spec.Command, spec.Argv = execution.Mode, execution.Command, execution.Argv
 	return spec, nil
+}
+
+func validGPUName(value string) bool {
+	if strings.TrimSpace(value) == "" || len(value) > 120 {
+		return false
+	}
+	for _, character := range value {
+		if unicode.IsControl(character) {
+			return false
+		}
+	}
+	return true
 }
 
 func decodePayload(payload map[string]any, target any) error {

@@ -18,7 +18,7 @@ For Pi, create a short-lived **Pi setup link** from the Owner console and let th
 
 Gemcp's preferred Pi flow requires the already-installed `pi-mcp-adapter`. The Owner sends one URL from `/agent/setup#code=...`; the Agent reads the public setup instructions and runs the fixed installer from the same configured origin. The code remains in the URL fragment and is not sent by link previews or ordinary page requests.
 
-The installer merges a `gemcp-<project>` server into `<Pi agent dir>/mcp.json`, preserves existing servers, writes mode `0600`, exposes all ten bounded Gemcp tools through `directTools`, and verifies tool discovery plus guide, options, and cost calls. A local credential-reading helper supports the current session without printing the Token. One `/reload` activates native `gemcp-<project>_*` tools through the adapter.
+The installer merges a `gemcp-<project>` server into `<Pi agent dir>/mcp.json`, preserves existing servers, writes mode `0600`, exposes all eleven bounded Gemcp tools through `directTools`, and verifies tool discovery plus guide, options, and cost calls. A local credential-reading helper supports the current session without printing the Token. One `/reload` activates native `gemcp-<project>_*` tools through the adapter.
 
 Claimed credentials remain `read`-only and expire at the setup deadline until verification completes. Completion activates the Owner-selected scopes and lifetime, clears the setup capability, and leaves only a credential-free local receipt. The complete API and installer are retry-safe if the final response is lost.
 

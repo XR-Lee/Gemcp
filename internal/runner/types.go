@@ -3,6 +3,8 @@ package runner
 import (
 	"errors"
 	"time"
+
+	"github.com/XR-Lee/Gemcp/internal/executionmeta"
 )
 
 const (
@@ -38,13 +40,14 @@ type Spec struct {
 }
 
 type EventInput struct {
-	Type      string         `json:"type"`
-	Stage     string         `json:"stage,omitempty"`
-	ErrorType string         `json:"error_type,omitempty"`
-	ExitCode  *int           `json:"exit_code,omitempty"`
-	Reason    string         `json:"reason,omitempty"`
-	LogTail   string         `json:"log_tail,omitempty"`
-	Metrics   map[string]any `json:"metrics,omitempty"`
+	Type        string                     `json:"type"`
+	Stage       string                     `json:"stage,omitempty"`
+	ErrorType   string                     `json:"error_type,omitempty"`
+	ExitCode    *int                       `json:"exit_code,omitempty"`
+	Reason      string                     `json:"reason,omitempty"`
+	LogTail     string                     `json:"log_tail,omitempty"`
+	Metrics     map[string]any             `json:"metrics,omitempty"`
+	RuntimeInfo *executionmeta.RuntimeInfo `json:"runtime_info,omitempty"`
 }
 
 type Control struct {

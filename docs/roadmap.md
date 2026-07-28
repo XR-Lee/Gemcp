@@ -112,6 +112,10 @@ Add durable 30-minute Experiment Proposals and the `prepare_experiment` and `sub
 
 Accept the narrowly validated PAX global commit header emitted by `git archive` in prepared source preflight and Self-hosted Node extraction. Continue rejecting arbitrary global metadata and unsupported archive entry types.
 
+### v0.14.0 - runtime observability workspace
+
+Add a bilingual Owner operations feed for controlled Agent phases and immutable prepared Proposals. Project validated working/output paths, GPU observations, bounded log tails, and metrics from AutoDL Runners and Self-hosted Nodes onto Attempts and Experiments. Distinguish immutable requests from observed runtime state, keep active visible views current with guarded polling, and require a durable post-removal Node event before presenting Self-hosted cleanup as complete. Serialize PostgreSQL schema migration with a session advisory lock during concurrent control-plane startup.
+
 ## In progress
 
 ### Repository readiness and Owner prepared experiments

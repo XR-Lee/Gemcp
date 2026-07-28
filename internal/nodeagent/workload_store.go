@@ -15,6 +15,8 @@ type WorkloadRecord struct {
 	ExperimentID            string    `json:"experiment_id"`
 	AttemptID               string    `json:"attempt_id"`
 	ContainerID             string    `json:"container_id"`
+	GPUUUID                 string    `json:"gpu_uuid,omitempty"`
+	GPUName                 string    `json:"gpu_name,omitempty"`
 	OutputRef               string    `json:"output_ref"`
 	State                   string    `json:"state"`
 	StartedAt               time.Time `json:"started_at"`
@@ -23,6 +25,8 @@ type WorkloadRecord struct {
 	StopReason              string    `json:"stop_reason,omitempty"`
 	LastHeartbeatAt         time.Time `json:"last_heartbeat_at,omitempty"`
 	StartedReported         bool      `json:"started_reported"`
+	FinishedReported        bool      `json:"finished_reported,omitempty"`
+	CleanupReported         bool      `json:"cleanup_reported,omitempty"`
 }
 
 func (s *Store) SaveWorkload(record WorkloadRecord) error {

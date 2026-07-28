@@ -23,6 +23,7 @@ import (
 	"entgo.io/ent/dialect"
 	"github.com/XR-Lee/Gemcp/ent"
 	"github.com/XR-Lee/Gemcp/ent/enttest"
+	"github.com/XR-Lee/Gemcp/internal/executionmeta"
 	"github.com/XR-Lee/Gemcp/internal/repository"
 	"github.com/XR-Lee/Gemcp/internal/secrets"
 	_ "github.com/mattn/go-sqlite3"
@@ -235,13 +236,26 @@ func TestDiagnosticEventsAreValidatedAndPersisted(t *testing.T) {
 func TestRunnerEventsStartExtendAndStopAtDeadline(t *testing.T) {
 	f := newRunnerFixture(t)
 	ctx := context.Background()
-	control, err := f.service.Event(ctx, f.token, EventInput{Type: "started"})
+	runtimeInfo := &executionmeta.RuntimeInfo{
+		Source: "runner_observed", WorkingDirectory: "/tmp/gemcp-attempt/source", OutputDirectory: f.experiment.OutputPath,
+		CUDAVisibleDevices: "0", GPUDevices: []executionmeta.GPUDevice{{Index: 0, UUID: "GPU-test", Name: "RTX 3090"}},
+	}
+	control, err := f.service.Event(ctx, f.token, EventInput{Type: "started", RuntimeInfo: runtimeInfo})
 	if err != nil || control.StopRequested {
 		t.Fatalf("started control=%+v err=%v", control, err)
 	}
+	if _, err := f.service.Event(ctx, f.token, EventInput{Type: "heartbeat", LogTail: "epoch 1\n", Metrics: map[string]any{"loss": 1.25}}); err != nil {
+		t.Fatal(err)
+	}
 	experimentRecord, _ := f.client.Experiment.Get(ctx, f.experiment.ID)
-	if experimentRecord.State != "running" || experimentRecord.DeadlineAt == nil {
+	attemptRecord, _ := f.client.Attempt.Get(ctx, f.attempt.ID)
+	if experimentRecord.State != "running" || experimentRecord.DeadlineAt == nil || experimentRecord.LogTail == nil || *experimentRecord.LogTail != "epoch 1\n" ||
+		attemptRecord.Metrics["loss"] != 1.25 {
 		t.Fatalf("started experiment = %+v", experimentRecord)
+	}
+	events, _ := f.client.AuditEvent.Query().All(ctx)
+	if len(events) == 0 || events[len(events)-1].Metadata["runtime_info"] == nil {
+		t.Fatalf("started audit events = %+v", events)
 	}
 	initialDeadline := *experimentRecord.DeadlineAt
 	f.now = initialDeadline

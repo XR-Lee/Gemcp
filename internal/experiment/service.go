@@ -508,6 +508,15 @@ func resourceSnapshot(record *ent.ResourceProfile) map[string]any {
 }
 
 func makeView(record *ent.Experiment) View {
+	backend := snapshotString(record.EnvironmentSnapshot, "backend")
+	workspacePolicy := "runner_temporary"
+	workspacePath := ""
+	containerOutputPath := record.OutputPath
+	if backend == "self_hosted" {
+		workspacePolicy = "container_fixed"
+		workspacePath = "/workspace"
+		containerOutputPath = "/outputs"
+	}
 	return View{
 		ID: record.PublicID.String(), ProjectID: snapshotString(record.RepositorySnapshot, "project_id"),
 		RepositoryID: snapshotString(record.RepositorySnapshot, "id"), EnvironmentID: snapshotString(record.EnvironmentSnapshot, "id"),
@@ -516,7 +525,14 @@ func makeView(record *ent.Experiment) View {
 		ExecutionMode: string(record.ExecutionMode), Argv: append([]string(nil), record.Argv...),
 		ReservedCostMilli: record.ReservedCostMilli, EstimatedCostMilli: record.EstimatedCostMilli, OutputPath: record.OutputPath,
 		ProviderResourceID: record.ProviderResourceID, ProviderStatus: record.ProviderStatus, ExitCode: record.ExitCode,
-		FailureCode: record.FailureCode, FailureReason: record.FailureReason, Metrics: record.Metrics,
+		FailureCode: record.FailureCode, FailureReason: record.FailureReason, LogTail: record.LogTail, Metrics: record.Metrics,
+		ExecutionContext: ExecutionContextView{
+			RepositoryName: snapshotString(record.RepositorySnapshot, "name"), RepositorySSHURL: snapshotString(record.RepositorySnapshot, "ssh_url"),
+			Backend: backend, EnvironmentName: snapshotString(record.EnvironmentSnapshot, "name"), Image: snapshotString(record.EnvironmentSnapshot, "image_uuid"),
+			ResourceProfileName: snapshotString(record.ResourceSnapshot, "name"), Region: snapshotString(record.ResourceSnapshot, "region"),
+			GPUModels: snapshotStrings(record.ResourceSnapshot, "gpu_names"), GPUNum: snapshotInt(record.ResourceSnapshot, "gpu_num"),
+			WorkspacePolicy: workspacePolicy, WorkspacePath: workspacePath, ContainerOutputPath: containerOutputPath,
+		},
 		CreatedAt: record.CreatedAt, UpdatedAt: record.UpdatedAt, StartedAt: record.StartedAt, DeadlineAt: record.DeadlineAt,
 		FinishedAt: record.FinishedAt, CancelRequestedAt: record.CancelRequestedAt,
 	}
@@ -525,4 +541,35 @@ func makeView(record *ent.Experiment) View {
 func snapshotString(snapshot map[string]any, key string) string {
 	value, _ := snapshot[key].(string)
 	return value
+}
+
+func snapshotStrings(snapshot map[string]any, key string) []string {
+	switch values := snapshot[key].(type) {
+	case []string:
+		return append([]string(nil), values...)
+	case []any:
+		result := make([]string, 0, len(values))
+		for _, value := range values {
+			if item, ok := value.(string); ok {
+				result = append(result, item)
+			}
+		}
+		return result
+	default:
+		return []string{}
+	}
+}
+
+func snapshotInt(snapshot map[string]any, key string) int {
+	switch value := snapshot[key].(type) {
+	case int:
+		return value
+	case float64:
+		return int(value)
+	case json.Number:
+		parsed, _ := value.Int64()
+		return int(parsed)
+	default:
+		return 0
+	}
 }

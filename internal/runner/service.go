@@ -11,6 +11,7 @@ import (
 
 	"github.com/XR-Lee/Gemcp/ent"
 	"github.com/XR-Lee/Gemcp/ent/attempt"
+	"github.com/XR-Lee/Gemcp/internal/executionmeta"
 	"github.com/XR-Lee/Gemcp/internal/notification"
 	"github.com/XR-Lee/Gemcp/internal/repository"
 	"github.com/XR-Lee/Gemcp/internal/secrets"
@@ -177,9 +178,9 @@ func (s *Service) Event(ctx context.Context, token string, input EventInput) (Co
 	case "diagnostic":
 		err = s.recordBootstrapDiagnostic(ctx, tx, record, experimentRecord, resourceRecord, input.Stage, input.ErrorType, now)
 	case "started":
-		err = s.recordStarted(ctx, tx, record, experimentRecord, resourceRecord, now)
+		err = s.recordStarted(ctx, tx, record, experimentRecord, resourceRecord, input, now)
 	case "heartbeat":
-		err = s.recordHeartbeat(ctx, tx, record, experimentRecord, resourceRecord, now)
+		err = s.recordHeartbeat(ctx, tx, record, experimentRecord, resourceRecord, input, now)
 	case "finished":
 		err = s.recordFinished(ctx, tx, record, experimentRecord, resourceRecord, input, now)
 	}
@@ -202,7 +203,15 @@ func (s *Service) Event(ctx context.Context, token string, input EventInput) (Co
 	return control, nil
 }
 
-func (s *Service) recordStarted(ctx context.Context, tx *ent.Tx, record *ent.Attempt, experimentRecord *ent.Experiment, resourceRecord *ent.ProviderResource, now time.Time) error {
+func (s *Service) recordStarted(ctx context.Context, tx *ent.Tx, record *ent.Attempt, experimentRecord *ent.Experiment, resourceRecord *ent.ProviderResource, input EventInput, now time.Time) error {
+	var runtimeInfo *executionmeta.RuntimeInfo
+	if input.RuntimeInfo != nil {
+		validated, err := executionmeta.Validate(*input.RuntimeInfo, experimentRecord.OutputPath)
+		if err != nil {
+			return ErrInvalidEvent
+		}
+		runtimeInfo = &validated
+	}
 	if record.State == "starting" {
 		update := tx.Attempt.UpdateOneID(record.ID).SetState("running").SetLastHeartbeatAt(now)
 		if record.StartedAt == nil {
@@ -227,9 +236,13 @@ func (s *Service) recordStarted(ctx context.Context, tx *ent.Tx, record *ent.Att
 		if err := s.recordDiagnostic(ctx, tx, record, experimentRecord, "started", "", now); err != nil {
 			return err
 		}
+		metadata := map[string]any{"attempt_id": record.PublicID.String(), "deadline_at": deadline}
+		if runtimeInfo != nil {
+			metadata["runtime_info"] = runtimeInfo
+		}
 		_, err := tx.AuditEvent.Create().SetTenantID(experimentRecord.TenantID).SetActorType("system").SetActorID("runner").
 			SetAction("experiment.started").SetTargetType("experiment").SetTargetID(experimentRecord.PublicID.String()).
-			SetMetadata(map[string]any{"attempt_id": record.PublicID.String(), "deadline_at": deadline}).Save(ctx)
+			SetMetadata(metadata).Save(ctx)
 		return err
 	}
 	return nil
@@ -272,9 +285,24 @@ func (s *Service) recordBootstrapDiagnostic(ctx context.Context, tx *ent.Tx, rec
 	return requestResourceStop(ctx, tx, resourceRecord, "runner_bootstrap_failed", now)
 }
 
-func (s *Service) recordHeartbeat(ctx context.Context, tx *ent.Tx, record *ent.Attempt, experimentRecord *ent.Experiment, resourceRecord *ent.ProviderResource, now time.Time) error {
-	if _, err := tx.Attempt.UpdateOneID(record.ID).SetLastHeartbeatAt(now).Save(ctx); err != nil {
+func (s *Service) recordHeartbeat(ctx context.Context, tx *ent.Tx, record *ent.Attempt, experimentRecord *ent.Experiment, resourceRecord *ent.ProviderResource, input EventInput, now time.Time) error {
+	attemptUpdate := tx.Attempt.UpdateOneID(record.ID).SetLastHeartbeatAt(now)
+	experimentUpdate := tx.Experiment.UpdateOneID(experimentRecord.ID)
+	if input.LogTail != "" {
+		attemptUpdate.SetLogTail(input.LogTail)
+		experimentUpdate.SetLogTail(input.LogTail)
+	}
+	if len(input.Metrics) > 0 {
+		attemptUpdate.SetMetrics(input.Metrics)
+		experimentUpdate.SetMetrics(input.Metrics)
+	}
+	if _, err := attemptUpdate.Save(ctx); err != nil {
 		return err
+	}
+	if input.LogTail != "" || len(input.Metrics) > 0 {
+		if _, err := experimentUpdate.Save(ctx); err != nil {
+			return err
+		}
 	}
 	if experimentRecord.DesiredState == "cancelled" {
 		return requestResourceStop(ctx, tx, resourceRecord, "cancelled", now)
@@ -400,15 +428,24 @@ func validateEvent(input EventInput) error {
 	case "diagnostic":
 		failure := strings.HasPrefix(input.Stage, "bootstrap_failed_")
 		if _, ok := diagnosticStages[input.Stage]; !ok || input.ExitCode != nil || input.LogTail != "" || len(input.Metrics) != 0 || input.Reason != "" ||
-			(failure && !validErrorType(input.ErrorType)) || (!failure && input.ErrorType != "") {
+			input.RuntimeInfo != nil || (failure && !validErrorType(input.ErrorType)) || (!failure && input.ErrorType != "") {
 			return ErrInvalidEvent
 		}
-	case "started", "heartbeat":
+	case "started":
 		if input.Stage != "" || input.ErrorType != "" || input.ExitCode != nil || input.LogTail != "" || len(input.Metrics) != 0 || input.Reason != "" {
 			return ErrInvalidEvent
 		}
+		if input.RuntimeInfo != nil {
+			if _, err := executionmeta.Validate(*input.RuntimeInfo); err != nil {
+				return ErrInvalidEvent
+			}
+		}
+	case "heartbeat":
+		if input.Stage != "" || input.ErrorType != "" || input.ExitCode != nil || input.Reason != "" || input.RuntimeInfo != nil || validateLiveOutput(input) != nil {
+			return ErrInvalidEvent
+		}
 	case "finished":
-		if input.Stage != "" || input.ErrorType != "" || input.ExitCode == nil || *input.ExitCode < 0 || *input.ExitCode > 255 {
+		if input.Stage != "" || input.ErrorType != "" || input.RuntimeInfo != nil || input.ExitCode == nil || *input.ExitCode < 0 || *input.ExitCode > 255 {
 			return ErrInvalidEvent
 		}
 		switch input.Reason {
@@ -416,14 +453,21 @@ func validateEvent(input EventInput) error {
 		default:
 			return ErrInvalidEvent
 		}
-		if len([]byte(input.LogTail)) > MaxLogTailBytes || !utf8.ValidString(input.LogTail) {
-			return ErrInvalidEvent
-		}
-		encoded, err := json.Marshal(input.Metrics)
-		if err != nil || len(encoded) > MaxMetricsBytes {
+		if validateLiveOutput(input) != nil {
 			return ErrInvalidEvent
 		}
 	default:
+		return ErrInvalidEvent
+	}
+	return nil
+}
+
+func validateLiveOutput(input EventInput) error {
+	if len([]byte(input.LogTail)) > MaxLogTailBytes || !utf8.ValidString(input.LogTail) {
+		return ErrInvalidEvent
+	}
+	encoded, err := json.Marshal(input.Metrics)
+	if err != nil || len(encoded) > MaxMetricsBytes {
 		return ErrInvalidEvent
 	}
 	return nil
