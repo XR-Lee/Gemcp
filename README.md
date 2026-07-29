@@ -4,6 +4,8 @@ Gemcp is a private, single-organization control plane for running bounded AutoDL
 
 ## Current release
 
+`v0.14.1` adds release-bound upgrade instructions to every enrolled Self-hosted Node in the Owner console. The generated bilingual handoff pins the control plane's exact tag and full commit, carries no Node credential, blocks on active Assignments, and invokes a new host-side atomic upgrade script. The script preserves enrollment configuration, credential, bbolt state, and storage, refuses to proceed while any managed container remains, and automatically restores the previous binary if the upgraded service does not remain active.
+
 `v0.14.0` adds an Owner operations workspace for live Agent, proposal, and Experiment evidence. Agents report only controlled workflow phases through the bounded `report_agent_activity` MCP tool. AutoDL Runners and Self-hosted Nodes project validated working/output paths, GPU observations, bounded log tails, and metrics onto Attempts and Experiments; Self-hosted cleanup is complete only after a durable post-removal event. The bilingual Experiment detail separates immutable execution requests from observed runtime state, backend lifecycle, Attempts, and timeline evidence. Visible-page polling keeps active views current without overlapping requests. PostgreSQL schema migration is serialized with a session advisory lock so concurrent control-plane startup cannot race Ent migration.
 
 `v0.13.1` accepts the bounded PAX commit header emitted by `git archive` during prepared source inspection and Self-hosted extraction. The accepted global metadata is restricted to a single 40- or 64-character hexadecimal commit comment; all other global tar metadata remains rejected.

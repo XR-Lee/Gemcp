@@ -394,7 +394,7 @@ onBeforeUnmount(() => window.clearInterval(liveTimer))
 
       <FinanceView v-if="activeView === 'finance'" :active="true" :projects="projects" @unauthorized="emit('signedOut')" />
       <AgentView v-if="activeView === 'agents'" :active="true" :project="selectedProject" @unauthorized="emit('signedOut')" />
-      <NodeView v-if="activeView === 'nodes'" :active="true" :projects="projects" @unauthorized="emit('signedOut')" />
+      <NodeView v-if="activeView === 'nodes'" :active="true" :projects="projects" :build="props.build" @unauthorized="emit('signedOut')" />
       <div v-show="activeView === 'provider'" class="persistent-view"><ProviderView :active="activeView === 'provider'" @unauthorized="emit('signedOut')" /></div>
       <NotificationView v-if="activeView === 'notifications'" :active="true" @unauthorized="emit('signedOut')" />
 

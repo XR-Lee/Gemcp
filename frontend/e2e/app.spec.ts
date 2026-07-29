@@ -1,7 +1,7 @@
 import { readFile, unlink } from 'node:fs/promises'
 import { expect, test, type Page, type Route } from '@playwright/test'
 
-const build = { name: 'Gemcp', version: '0.7.0', commit: 'abc1234', built_at: '2026-07-16T00:00:00Z' }
+const build = { name: 'Gemcp', version: '0.14.1', commit: 'b'.repeat(40), built_at: '2026-07-16T00:00:00Z' }
 const project = {
   id: 'b492cbe4-f198-4d87-bbf9-3f77d8a3ab0a', name: 'Point Models', slug: 'point-models', status: 'active',
   monthly_budget_milli: 100000, max_experiment_milli: 20000, max_concurrency: 2, max_runtime_seconds: 86400,
@@ -631,6 +631,11 @@ test('global language toggle switches immediately and persists', async ({ page }
 
   await page.getByRole('button', { name: '节点', exact: true }).click()
   await expect(page.locator('.node-heading h1')).toHaveText('自托管节点')
+  await page.getByRole('button', { name: '升级指引 lab-gpu-01' }).click()
+  const chineseUpgradeDialog = page.getByRole('dialog', { name: '升级 lab-gpu-01' })
+  await expect(chineseUpgradeDialog.getByText('复制 Agent 指令', { exact: true })).toBeVisible()
+  await expect(chineseUpgradeDialog.locator('.upgrade-instruction')).toContainText('目标版本：v0.14.1')
+  await chineseUpgradeDialog.getByRole('button', { name: '关闭', exact: true }).first().click()
   await page.getByRole('button', { name: 'Agent', exact: true }).click()
   await expect(page.locator('.agent-heading h2')).toHaveText('Agent 访问')
   await page.getByRole('button', { name: 'Provider', exact: true }).click()
@@ -667,6 +672,21 @@ test('Self-hosted nodes, Assignments and runtime configuration fit desktop and m
   await expect(page.getByText('gmn_test', { exact: true })).toHaveCount(0)
   await expectNoPageOverflow(page)
   await page.screenshot({ path: '/tmp/gemcp-nodes-desktop.png', fullPage: true })
+
+  await page.getByRole('button', { name: 'Upgrade instructions lab-gpu-01' }).click()
+  const upgradeDialog = page.getByRole('dialog', { name: 'Upgrade lab-gpu-01' })
+  await expect(upgradeDialog.getByText('v0.14.1', { exact: true })).toBeVisible()
+  await expect(upgradeDialog.getByText('An active Assignment is attached to this Node. Do not run the upgrade until it reaches a terminal state.', { exact: true })).toBeVisible()
+  await expect(upgradeDialog.locator('.upgrade-instruction')).toContainText(`TARGET_COMMIT='${'b'.repeat(40)}'`)
+  await expect(upgradeDialog.locator('.upgrade-instruction')).toContainText('deploy/upgrade-gemcp-node.sh')
+  await expect(upgradeDialog.locator('.upgrade-instruction')).not.toContainText('gmn_test')
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: '/tmp/gemcp-node-upgrade-desktop.png', fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: '/tmp/gemcp-node-upgrade-mobile.png', fullPage: true })
+  await upgradeDialog.getByRole('button', { name: 'Close', exact: true }).first().click()
+  await page.setViewportSize({ width: 1440, height: 1000 })
 
   await page.getByRole('button', { name: 'Create enrollment', exact: true }).click()
   const enrollmentDialog = page.locator('form.node-dialog').filter({ hasText: 'Create enrollment' })

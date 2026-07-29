@@ -116,6 +116,10 @@ Accept the narrowly validated PAX global commit header emitted by `git archive` 
 
 Add a bilingual Owner operations feed for controlled Agent phases and immutable prepared Proposals. Project validated working/output paths, GPU observations, bounded log tails, and metrics from AutoDL Runners and Self-hosted Nodes onto Attempts and Experiments. Distinguish immutable requests from observed runtime state, keep active visible views current with guarded polling, and require a durable post-removal Node event before presenting Self-hosted cleanup as complete. Serialize PostgreSQL schema migration with a session advisory lock during concurrent control-plane startup.
 
+### v0.14.1 - enrolled Node upgrade handoff
+
+Generate a bilingual, Node-specific coding-Agent upgrade handoff from the Owner console, bound to the control plane's exact release and full commit. Preserve enrollment identity, credentials, bbolt state, and managed storage while atomically replacing the Node binary. Refuse upgrades while managed containers remain and automatically restore the previous binary when the new systemd service does not stay active.
+
 ## In progress
 
 ### Repository readiness and Owner prepared experiments

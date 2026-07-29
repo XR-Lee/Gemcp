@@ -79,6 +79,12 @@ In **Nodes -> Runtime configuration**, select the Project and create a runtime w
 
 Agents can discover the resulting Environment and Resource Profile IDs through the existing Project options MCP tool. Self-hosted Experiments reserve zero CNY and remain subject to Project and global concurrency limits.
 
+## Upgrade an enrolled Node
+
+Do not run the enrollment installer again for an existing Node. In the Owner console, open **Nodes -> Machines -> Upgrade instructions** for the target Node and copy the release-bound handoff to a trusted coding Agent on that host. The handoff verifies the exact release commit, builds a static candidate, checks that no managed workload container remains before cleanup, and invokes `deploy/upgrade-gemcp-node.sh`.
+
+The upgrade script preserves `/etc/gemcp-node/config.json`, `/etc/gemcp-node/credential`, `/var/lib/gemcp-node/state.db`, and the managed storage root. It atomically replaces only `/usr/local/bin/gemcp-node`, restarts the existing systemd service, and restores `/usr/local/bin/gemcp-node.previous` if the new daemon does not remain active. It never enrolls a new Node or prints the Node credential.
+
 ## Diagnostics and operation
 
 ```bash

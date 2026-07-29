@@ -79,6 +79,12 @@ Owner 必须在 **Nodes -> Enrollment activity** 中核对 pairing code 和硬�
 
 Agent 可以通过现有 Project options MCP tool 获取 Environment 和 Resource Profile ID。Self-hosted Experiment 的 CNY 预留为零，但仍受 Project 和全局并发限制。
 
+## 升级已注册节点
+
+已有节点不得重新运行 enrollment 安装器。在 Owner 控制台中打开 **节点 -> 主机 -> 升级指引**，为目标节点复制绑定精确 release 的交接指令，并交给该主机上的可信编码 Agent。交接指令会校验准确 commit、构建静态候选二进制、确认清理前没有遗留的受管 workload container，然后调用 `deploy/upgrade-gemcp-node.sh`。
+
+升级脚本保留 `/etc/gemcp-node/config.json`、`/etc/gemcp-node/credential`、`/var/lib/gemcp-node/state.db` 和受管存储根目录。它只原子替换 `/usr/local/bin/gemcp-node` 并重启现有 systemd service；如果新 daemon 无法持续运行，则恢复 `/usr/local/bin/gemcp-node.previous`。脚本不会注册新节点，也不会输出 Node credential。
+
 ## 诊断与运行
 
 ```bash

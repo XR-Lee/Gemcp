@@ -60,7 +60,7 @@ func TestNodeSetupIsSelfContainedAgentHandoff(t *testing.T) {
 	for _, required := range []string{
 		origin + "/node/setup?lang=en#code=...", origin + "/node/setup?lang=zh", "v0.10.3", commit,
 		"git@github.com:XR-Lee/Gemcp.git", "make build-node", "pending_verification",
-		"Do not install or upgrade the NVIDIA Driver", "/var/lib/gemcp-node/storage",
+		"Do not install or upgrade the NVIDIA Driver", "/var/lib/gemcp-node/storage", "upgrade-gemcp-node.sh",
 	} {
 		if !strings.Contains(setup, required) {
 			t.Fatalf("node setup guide does not contain %q", required)
@@ -68,7 +68,7 @@ func TestNodeSetupIsSelfContainedAgentHandoff(t *testing.T) {
 	}
 	for _, required := range []string{
 		origin + "/node/setup?lang=zh#code=...", origin + "/node/setup?lang=en", "v0.10.3", commit,
-		"代码仓库", "不得安装或升级 NVIDIA Driver", "/var/lib/gemcp-node/storage", "pending_verification",
+		"代码仓库", "不得安装或升级 NVIDIA Driver", "/var/lib/gemcp-node/storage", "pending_verification", "upgrade-gemcp-node.sh",
 	} {
 		if !strings.Contains(chinese, required) {
 			t.Fatalf("Chinese node setup guide does not contain %q", required)
@@ -79,6 +79,36 @@ func TestNodeSetupIsSelfContainedAgentHandoff(t *testing.T) {
 			if strings.Contains(content, placeholder) {
 				t.Fatalf("node setup guide retained %q", placeholder)
 			}
+		}
+	}
+}
+
+func TestNodeUpgradeScriptPreservesEnrollmentAndRollsBack(t *testing.T) {
+	filename := filepath.Join("..", "deploy", "upgrade-gemcp-node.sh")
+	payload, err := os.ReadFile(filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode()&0o111 == 0 {
+		t.Fatal("node upgrade script is not executable")
+	}
+	script := string(payload)
+	for _, required := range []string{
+		"GEMCP_NODE_EXPECTED_VERSION", "GEMCP_NODE_EXPECTED_COMMIT", "docker ps -a",
+		"/etc/gemcp-node/config.json", "/etc/gemcp-node/credential", "/var/lib/gemcp-node/state.db",
+		"gemcp-node.previous", "systemctl is-active --quiet", "automatic rollback",
+	} {
+		if !strings.Contains(script, required) {
+			t.Fatalf("node upgrade script does not contain %q", required)
+		}
+	}
+	for _, forbidden := range []string{"gemcp-node enroll", "/node-enrollments", "cat /etc/gemcp-node/credential", "rm -rf /etc/gemcp-node"} {
+		if strings.Contains(script, forbidden) {
+			t.Fatalf("node upgrade script contains forbidden operation %q", forbidden)
 		}
 	}
 }

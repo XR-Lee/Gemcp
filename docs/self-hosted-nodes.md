@@ -67,6 +67,8 @@ Prepared Experiments use a structured argv instead of `/bin/sh -lc`. A compatibl
 
 Use `gemcp-node v0.13.1` or later for prepared argv execution. `v0.13.1` adds compatibility with the bounded PAX commit marker produced by `git archive` while preserving path, link, type, entry-count, and payload limits.
 
+Existing Nodes are upgraded without re-enrollment. The Owner console generates a Node-specific coding-Agent handoff bound to the control plane's exact release and full commit. The handoff builds a verified candidate and invokes `deploy/upgrade-gemcp-node.sh`, which refuses to proceed while any managed workload container remains, preserves the credential, config, bbolt state, and storage root, atomically replaces the binary, and rolls back if the service does not remain active.
+
 The Owner can validate this path from the [Backend diagnostics](diagnostics.md) workspace. A Self-hosted diagnostic uses a fixed built-in command but otherwise follows normal source download, Assignment, Docker, GPU, output, Event, cancellation, and cleanup behavior. It requires an online authorized Node that exactly matches the selected Resource Profile and records a zero-CNY reservation.
 
 ## Build Sessions and assets
