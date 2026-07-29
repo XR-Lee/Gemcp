@@ -30,6 +30,8 @@ type ContainerSpec struct {
 	MemoryLimitBytes int64
 	SourcePath       string
 	OutputPath       string
+	WorkspaceMode    string
+	WorkspacePath    string
 }
 
 type ContainerState struct {
@@ -48,6 +50,7 @@ type ContainerRuntime interface {
 	Logs(context.Context, string, int) (string, error)
 	SaveLogs(context.Context, string, string) error
 	Remove(context.Context, string) error
+	Image(context.Context, string) (string, error)
 }
 
 type DockerRuntime struct{ Binary string }
@@ -76,14 +79,19 @@ func (d DockerRuntime) Start(ctx context.Context, spec ContainerSpec) (string, e
 		return "", fmt.Errorf("pull workload image: %w", err)
 	}
 	digests, err := commandOutput(ctx, 32<<10, binary, "image", "inspect", "--format", "{{json .RepoDigests}}", spec.Image)
-	if err != nil || !strings.Contains(digests, spec.Image[strings.LastIndex(spec.Image, "@sha256:"):]) {
-		return "", fmt.Errorf("pulled image did not resolve to the required digest")
+	if err != nil {
+		return "", fmt.Errorf("inspect pulled workload image: %w", err)
+	}
+	resolvedImage, err := resolvedImageReference(spec.Image, digests)
+	if err != nil {
+		return "", err
 	}
 	name := "gemcp-" + strings.ReplaceAll(spec.AssignmentID, "-", "")[:16]
 	args := []string{
 		"create", "--name", name,
 		"--label", "io.gemcp.managed=true",
 		"--label", "io.gemcp.assignment=" + spec.AssignmentID,
+		"--label", "io.gemcp.image=" + resolvedImage,
 		"--runtime", "nvidia", "--gpus", "device=" + spec.GPUUUID,
 		"--network", "bridge", "--ipc", "private",
 		"--cpus", strconv.Itoa(spec.CPULimit), "--memory", strconv.FormatInt(spec.MemoryLimitBytes, 10),
@@ -93,11 +101,14 @@ func (d DockerRuntime) Start(ctx context.Context, spec ContainerSpec) (string, e
 		"--mount", "type=bind,src=" + spec.OutputPath + ",dst=/outputs",
 		"--workdir", "/workspace", "--env", "GEMCP_OUTPUT_DIR=/outputs",
 	}
+	if spec.WorkspaceMode == "trusted_rw" {
+		args = append(args, "--mount", "type=bind,src="+spec.WorkspacePath+",dst=/gemcp/workspace", "--env", "GEMCP_TRUSTED_WORKSPACE=/gemcp/workspace")
+	}
 	if spec.ExecutionMode == executioncmd.ModeArgv {
-		args = append(args, "--entrypoint", spec.Argv[0], spec.Image)
+		args = append(args, "--entrypoint", spec.Argv[0], resolvedImage)
 		args = append(args, spec.Argv[1:]...)
 	} else {
-		args = append(args, spec.Image, "/bin/sh", "-lc", spec.Command)
+		args = append(args, resolvedImage, "/bin/sh", "-lc", spec.Command)
 	}
 	containerID, err := commandOutput(ctx, 16<<10, binary, args...)
 	if err != nil {
@@ -112,6 +123,18 @@ func (d DockerRuntime) Start(ctx context.Context, spec ContainerSpec) (string, e
 		return "", fmt.Errorf("start workload container: %w", err)
 	}
 	return containerID, nil
+}
+
+func (d DockerRuntime) Image(ctx context.Context, containerID string) (string, error) {
+	value, err := commandOutput(ctx, 4<<10, d.binary(), "inspect", "--format", "{{index .Config.Labels \"io.gemcp.image\"}}", containerID)
+	if err != nil {
+		return "", err
+	}
+	value = strings.TrimSpace(value)
+	if !pinnedOCIImage.MatchString(value) {
+		return "", fmt.Errorf("managed workload image label is invalid")
+	}
+	return value, nil
 }
 
 func (d DockerRuntime) Inspect(ctx context.Context, containerID string) (ContainerState, error) {
@@ -213,12 +236,37 @@ func validateContainerSpec(spec ContainerSpec) error {
 	if _, err := executioncmd.Validate(executioncmd.Spec{Mode: spec.ExecutionMode, Command: spec.Command, Argv: spec.Argv}); err != nil {
 		return fmt.Errorf("workload execution specification is invalid: %w", err)
 	}
+	imageValid := pinnedOCIImage.MatchString(spec.Image)
+	if spec.WorkspaceMode == "trusted_rw" {
+		imageValid = workspaceOCIImage.MatchString(spec.Image) && validTrustedWorkspacePath(spec.WorkspacePath)
+	} else if spec.WorkspaceMode != "" || spec.WorkspacePath != "" {
+		imageValid = false
+	}
 	if len(strings.ReplaceAll(spec.AssignmentID, "-", "")) < 16 || !nvidiaGPUUUID.MatchString(spec.GPUUUID) ||
 		spec.CPULimit <= 0 || spec.MemoryLimitBytes <= 0 || strings.ContainsAny(spec.SourcePath+spec.OutputPath, ",\x00") ||
-		!pinnedOCIImage.MatchString(spec.Image) {
+		!imageValid {
 		return fmt.Errorf("workload container specification is invalid")
 	}
 	return nil
+}
+
+func resolvedImageReference(requested, raw string) (string, error) {
+	var digests []string
+	if err := json.Unmarshal([]byte(strings.TrimSpace(raw)), &digests); err != nil {
+		return "", fmt.Errorf("decode pulled image digests: %w", err)
+	}
+	requestedDigest := ""
+	if index := strings.LastIndex(requested, "@sha256:"); index >= 0 {
+		requestedDigest = requested[index:]
+	}
+	for _, candidate := range digests {
+		candidate = strings.TrimSpace(candidate)
+		if !pinnedOCIImage.MatchString(candidate) || (requestedDigest != "" && !strings.HasSuffix(candidate, requestedDigest)) {
+			continue
+		}
+		return candidate, nil
+	}
+	return "", fmt.Errorf("pulled image did not resolve to a repository digest")
 }
 
 func commandOutput(ctx context.Context, maximum int, binary string, args ...string) (string, error) {

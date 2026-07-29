@@ -18,6 +18,9 @@ func (NodeProjectAccess) Fields() []ent.Field {
 		field.Int("node_id").Immutable(),
 		field.Int("project_id").Immutable(),
 		field.Enum("status").Values("active", "revoked").Default("active"),
+		field.Enum("execution_policy").Values("strict", "trusted_workspace").Default("strict"),
+		field.String("workspace_path").Optional().Nillable().MaxLen(4096),
+		field.Strings("successful_images").Optional().Default([]string{}),
 	}
 }
 

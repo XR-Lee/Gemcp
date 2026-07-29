@@ -69,6 +69,8 @@ func TestNodeEnrollmentAndSyncHTTPContract(t *testing.T) {
 	router.GET("/node-assignments/:id/source", handlers.Source)
 	router.GET("/projects/:id/self-hosted-runtimes", handlers.ListRuntimeConfigs)
 	router.POST("/projects/:id/self-hosted-runtimes", handlers.CreateRuntimeConfig)
+	router.PUT("/projects/:id/self-hosted-trusted-workspace", handlers.EnableTrustedWorkspace)
+	router.DELETE("/projects/:id/self-hosted-trusted-workspace/:node_id", handlers.DisableTrustedWorkspace)
 
 	issue := jsonRequest(t, http.MethodPost, "/node-enrollments", nodeaccess.EnrollmentIssueInput{Label: "gpu-home-a"})
 	issueResponse := httptest.NewRecorder()
@@ -121,6 +123,18 @@ func TestNodeEnrollmentAndSyncHTTPContract(t *testing.T) {
 	router.ServeHTTP(syncResponse, syncRequest)
 	if syncResponse.Code != http.StatusOK || !strings.Contains(syncResponse.Body.String(), `"desired_state":"active"`) {
 		t.Fatalf("sync status=%d body=%s", syncResponse.Code, syncResponse.Body.String())
+	}
+	workspaceResponse := httptest.NewRecorder()
+	router.ServeHTTP(workspaceResponse, jsonRequest(t, http.MethodPut, "/projects/"+project.PublicID.String()+"/self-hosted-trusted-workspace", selfhosted.TrustedWorkspaceInput{
+		NodeID: claimed.Data.NodeID, WorkspacePath: "/home/campus.ncl.ac.uk/nxl51/gemcp_tmp",
+	}))
+	if workspaceResponse.Code != http.StatusOK || !strings.Contains(workspaceResponse.Body.String(), `"workspace_path":"/home/campus.ncl.ac.uk/nxl51/gemcp_tmp"`) || !strings.Contains(workspaceResponse.Body.String(), `"gpu_name":"RTX 3090"`) {
+		t.Fatalf("workspace status=%d body=%s", workspaceResponse.Code, workspaceResponse.Body.String())
+	}
+	disableWorkspaceResponse := httptest.NewRecorder()
+	router.ServeHTTP(disableWorkspaceResponse, httptest.NewRequest(http.MethodDelete, "/projects/"+project.PublicID.String()+"/self-hosted-trusted-workspace/"+claimed.Data.NodeID, nil))
+	if disableWorkspaceResponse.Code != http.StatusOK || !strings.Contains(disableWorkspaceResponse.Body.String(), `"disabled":true`) {
+		t.Fatalf("disable workspace status=%d body=%s", disableWorkspaceResponse.Code, disableWorkspaceResponse.Body.String())
 	}
 	runtimeResponse := httptest.NewRecorder()
 	router.ServeHTTP(runtimeResponse, jsonRequest(t, http.MethodPost, "/projects/"+project.PublicID.String()+"/self-hosted-runtimes", selfhosted.RuntimeConfigInput{

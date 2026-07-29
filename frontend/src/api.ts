@@ -647,6 +647,21 @@ export type SelfHostedRuntimeProfile = {
 export type SelfHostedRuntimeList = {
   environments: SelfHostedRuntimeEnvironment[]
   resource_profiles: SelfHostedRuntimeProfile[]
+  trusted_workspaces: TrustedWorkspace[]
+}
+
+export type TrustedWorkspace = {
+  node_id: string
+  node_label: string
+  workspace_path: string
+  environment_id: string
+  environment_name: string
+  resource_profile_id: string
+  gpu_name: string
+  cpu_limit: number
+  memory_gb: number
+  successful_images: string[]
+  node_ready: boolean
 }
 
 export type SelfHostedRuntimeConfig = {
@@ -798,6 +813,12 @@ export const api = {
   }) => request<SelfHostedRuntimeConfig>(`/api/v1/projects/${encodeURIComponent(projectID)}/self-hosted-runtimes`, {
     method: 'POST', body: JSON.stringify(payload),
   }),
+  enableTrustedWorkspace: (projectID: string, payload: { node_id: string; workspace_path: string; make_default: boolean }) =>
+    request<TrustedWorkspace>(`/api/v1/projects/${encodeURIComponent(projectID)}/self-hosted-trusted-workspace`, {
+      method: 'PUT', body: JSON.stringify(payload),
+    }),
+  disableTrustedWorkspace: (projectID: string, nodeID: string) =>
+    request<{ node_id: string; disabled: boolean }>(`/api/v1/projects/${encodeURIComponent(projectID)}/self-hosted-trusted-workspace/${encodeURIComponent(nodeID)}`, { method: 'DELETE' }),
   agentTokens: (projectID: string) =>
     request<AgentTokenList>(`/api/v1/projects/${encodeURIComponent(projectID)}/agent-tokens`),
   issueAgentToken: (projectID: string, payload: {

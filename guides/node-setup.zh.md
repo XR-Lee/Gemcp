@@ -70,6 +70,10 @@ Owner 必须在 **Nodes -> Enrollment activity** 中核对 pairing code 和硬�
 
 ## Runtime 配置
 
+对于可信开发主机，低操作成本路径是 **节点 -> 运行时配置 -> 启用工作区**。选择已授权的 Node 和 Project，然后只填写一个规范化的宿主机绝对目录。Gemcp 会根据当前 inventory 自动生成 GPU、CPU、内存、Environment 和 Resource Profile。目录必须已经存在，并且不得与 Gemcp 受管存储根目录重叠。容器通过 `GEMCP_TRUSTED_WORKSPACE` 在 `/gemcp/workspace` 访问它。只有此模式允许使用 public image tag；成功运行后会记录实际解析的 digest。
+
+严格的高级运行时仍用于不可变、接近生产的执行。创建时填写：
+
 在 **Nodes -> Runtime configuration** 中选择 Project，并创建包含以下内容的 runtime：
 
 - 使用 `@sha256:<64-hex-digest>` 固定的 public OCI image reference。

@@ -70,6 +70,10 @@ The node must remain `pending_verification` until the Owner compares the pairing
 
 ## Runtime configuration
 
+For a trusted development machine, the low-friction path is **Nodes -> Runtime configuration -> Enable workspace**. Select the authorized Node and Project, then enter one normalized absolute host directory. Gemcp derives the GPU, CPU, memory, Environment, and Resource Profile automatically. The directory must already exist and must not overlap the managed storage root. A container sees it at `/gemcp/workspace` through `GEMCP_TRUSTED_WORKSPACE`. Public image tags are allowed only in this mode; the resolved digest is recorded after a successful run.
+
+The strict Advanced runtime remains available for immutable production-like execution. Create it with:
+
 In **Nodes -> Runtime configuration**, select the Project and create a runtime with:
 
 - A public OCI image reference pinned with `@sha256:<64-hex-digest>`.

@@ -36,6 +36,15 @@ const (
 )
 
 var proposalPinnedImage = regexp.MustCompile(`^[^[:space:]@]+@sha256:[0-9a-f]{64}$`)
+var proposalWorkspaceImage = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/-]*(?:@sha256:[0-9a-f]{64})?$`)
+
+const proposalWorkspaceRecipePrefix = "trusted-workspace:"
+
+type proposalWorkspace struct {
+	nodeID    string
+	nodeLabel string
+	path      string
+}
 
 type proposalResolved struct {
 	id          uuid.UUID
@@ -43,6 +52,8 @@ type proposalResolved struct {
 	repository  *ent.Repository
 	environment *ent.Environment
 	profile     *ent.ResourceProfile
+	image       string
+	workspace   *proposalWorkspace
 	ref         string
 	commitSHA   string
 	execution   executioncmd.Spec
@@ -126,7 +137,7 @@ func (s *Service) Prepare(ctx context.Context, principal agentauth.Principal, in
 		SetTerminationGraceSeconds(resolved.project.TerminationGraceSeconds).
 		SetProjectSnapshot(proposalProjectSnapshot(resolved.project)).
 		SetRepositorySnapshot(repositorySnapshot(resolved.repository, resolved.project.PublicID.String())).
-		SetEnvironmentSnapshot(environmentSnapshot(resolved.environment)).
+		SetEnvironmentSnapshot(proposalEnvironmentSnapshot(resolved)).
 		SetResourceSnapshot(resourceSnapshot(resolved.profile)).
 		SetChecks(checkMaps).
 		SetReservedCostMilli(resolved.reservation).
@@ -205,6 +216,10 @@ func (s *Service) resolveProposal(ctx context.Context, principal agentauth.Princ
 	if err := validateProposalResource(profileRecord); err != nil {
 		return result, nil, err
 	}
+	image, workspace, err := s.resolveProposalRuntime(ctx, projectRecord, environmentRecord, profileRecord, input.Image, false)
+	if err != nil {
+		return result, nil, err
+	}
 	preset := strings.ToLower(strings.TrimSpace(input.RuntimePreset))
 	if preset == "" {
 		preset = "smoke"
@@ -250,6 +265,7 @@ func (s *Service) resolveProposal(ctx context.Context, principal agentauth.Princ
 	now := s.now().UTC().Truncate(time.Microsecond)
 	return proposalResolved{
 		id: uuid.New(), project: projectRecord, repository: repositoryRecord, environment: environmentRecord, profile: profileRecord,
+		image: image, workspace: workspace,
 		ref: ref, commitSHA: commitSHA, execution: executionSpec, preset: preset, runtime: runtimeSeconds,
 		reservation: reservation, expiresAt: now.Add(s.proposalConfig.Lifetime).Truncate(time.Microsecond),
 	}, nil, nil
@@ -298,6 +314,9 @@ func chooseProposalResources(environments []*ent.Environment, profiles []*ent.Re
 				continue
 			}
 			if string(environmentRecord.Backend) != string(profileRecord.Backend) {
+				continue
+			}
+			if strings.HasPrefix(environmentRecord.RecipeRef, proposalWorkspaceRecipePrefix) && environmentRecord.Name != profileRecord.Name {
 				continue
 			}
 			score := 0
@@ -377,6 +396,47 @@ func validateProposalResource(profileRecord *ent.ResourceProfile) error {
 		return &ValidationError{Message: "resource profile has invalid or empty execution bounds"}
 	}
 	return nil
+}
+
+func (s *Service) resolveProposalRuntime(ctx context.Context, projectRecord *ent.Project, environmentRecord *ent.Environment, profileRecord *ent.ResourceProfile, requestedImage string, persisted bool) (string, *proposalWorkspace, error) {
+	requestedImage = strings.TrimSpace(requestedImage)
+	recipeRef := strings.TrimSpace(environmentRecord.RecipeRef)
+	if !strings.HasPrefix(recipeRef, proposalWorkspaceRecipePrefix) {
+		if requestedImage != "" && (!persisted || requestedImage != environmentRecord.ImageUUID) {
+			return "", nil, &ValidationError{Message: "image can be selected only for an Owner-approved trusted Self-hosted workspace"}
+		}
+		return environmentRecord.ImageUUID, nil, nil
+	}
+	if profileRecord.Backend != resourceprofile.BackendSelfHosted || environmentRecord.Backend != environment.BackendSelfHosted || profileRecord.Name != environmentRecord.Name {
+		return "", nil, &ValidationError{Message: "trusted workspace Environment and Resource Profile are not a valid pair"}
+	}
+	nodePublicID, err := uuid.Parse(strings.TrimPrefix(recipeRef, proposalWorkspaceRecipePrefix))
+	if err != nil {
+		return "", nil, &ValidationError{Message: "trusted workspace binding is invalid"}
+	}
+	access, err := s.client.NodeProjectAccess.Query().Where(
+		nodeprojectaccess.ProjectIDEQ(projectRecord.ID), nodeprojectaccess.StatusEQ(nodeprojectaccess.StatusActive),
+		nodeprojectaccess.ExecutionPolicyEQ(nodeprojectaccess.ExecutionPolicyTrustedWorkspace), nodeprojectaccess.WorkspacePathNotNil(),
+		nodeprojectaccess.HasNodeWith(selfhostednode.PublicIDEQ(nodePublicID), selfhostednode.TenantIDEQ(projectRecord.TenantID)),
+	).WithNode().Only(ctx)
+	if ent.IsNotFound(err) {
+		return "", nil, &ValidationError{Message: "trusted workspace authorization is no longer active"}
+	}
+	if err != nil {
+		return "", nil, err
+	}
+	node, err := access.Edges.NodeOrErr()
+	if err != nil || access.WorkspacePath == nil {
+		return "", nil, &ValidationError{Message: "trusted workspace authorization is invalid"}
+	}
+	image := requestedImage
+	if image == "" && environmentRecord.ImageUUID != "workspace:any-public-image" {
+		image = environmentRecord.ImageUUID
+	}
+	if image == "" || len(image) > 512 || strings.Contains(image, "://") || !proposalWorkspaceImage.MatchString(image) {
+		return "", nil, &ValidationError{Message: "image must be a public OCI image name, tag, or sha256 digest for trusted workspace execution"}
+	}
+	return image, &proposalWorkspace{nodeID: node.PublicID.String(), nodeLabel: node.Label, path: *access.WorkspacePath}, nil
 }
 
 func (s *Service) proposalChecks(ctx context.Context, resolved proposalResolved) []ProposalCheck {
@@ -526,10 +586,21 @@ func (s *Service) proposalSelfHostedCheck(ctx context.Context, resolved proposal
 	if resolved.profile.GpuNum != 1 {
 		add("resource_profile", ProposalCheckFail, "Self-hosted prepared Experiments require one GPU", "")
 	}
-	if !proposalPinnedImage.MatchString(resolved.environment.ImageUUID) {
+	if resolved.workspace != nil && proposalWorkspaceImage.MatchString(resolved.image) {
+		status := ProposalCheckPass
+		summary := "Trusted workspace image is digest-pinned"
+		detail := resolved.image
+		if !proposalPinnedImage.MatchString(resolved.image) {
+			status = ProposalCheckWarn
+			summary = "Trusted workspace image uses a mutable name or tag"
+			detail = "The Owner-approved permissive policy allows this reference. The Node will record the resolved digest after a successful run."
+		}
+		add("image", status, summary, detail)
+		add("workspace", ProposalCheckWarn, "Trusted host workspace will be mounted read-write", resolved.workspace.path+" on "+resolved.workspace.nodeLabel+".")
+	} else if !proposalPinnedImage.MatchString(resolved.image) {
 		add("image", ProposalCheckFail, "Self-hosted image is not digest-pinned", "Use a public Linux AMD64 image with an @sha256 digest.")
 	} else {
-		add("image", ProposalCheckPass, "Self-hosted image is digest-pinned", resolved.environment.ImageUUID)
+		add("image", ProposalCheckPass, "Self-hosted image is digest-pinned", resolved.image)
 	}
 	nodes, err := s.client.SelfHostedNode.Query().Where(
 		selfhostednode.TenantIDEQ(resolved.project.TenantID), selfhostednode.StatusEQ(selfhostednode.StatusActive),
@@ -542,6 +613,9 @@ func (s *Service) proposalSelfHostedCheck(ctx context.Context, resolved proposal
 		return
 	}
 	for _, node := range nodes {
+		if resolved.workspace != nil && (node.PublicID.String() != resolved.workspace.nodeID || !proposalNodeSupportsWorkspace(node.Capabilities)) {
+			continue
+		}
 		if !proposalNodeSupportsArgv(node.Capabilities) || !proposalNodeMatchesGPU(node.Capabilities, resolved.profile.GpuNames) {
 			continue
 		}
@@ -557,7 +631,7 @@ func (s *Service) proposalSelfHostedCheck(ctx context.Context, resolved proposal
 			return
 		}
 	}
-	add("node", ProposalCheckFail, "No argv-capable authorized Node matches the profile", "Upgrade gemcp-node, verify heartbeat and Project access, and confirm the GPU is idle.")
+	add("node", ProposalCheckFail, "No compatible authorized Node matches the profile", "Upgrade gemcp-node when trusted workspace capability is required, verify heartbeat and Project access, and confirm the GPU is idle.")
 }
 
 func proposalNodeSupportsArgv(capabilities map[string]any) bool {
@@ -571,6 +645,24 @@ func proposalNodeSupportsArgv(capabilities map[string]any) bool {
 	case []string:
 		for _, candidate := range values {
 			if candidate == executioncmd.ModeArgv {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func proposalNodeSupportsWorkspace(capabilities map[string]any) bool {
+	switch values := capabilities["workspace_modes"].(type) {
+	case []any:
+		for _, value := range values {
+			if value == "trusted_rw" {
+				return true
+			}
+		}
+	case []string:
+		for _, value := range values {
+			if value == "trusted_rw" {
 				return true
 			}
 		}
@@ -628,7 +720,7 @@ func proposalDigest(resolved proposalResolved) string {
 	}{
 		ProposalID: resolved.id.String(), Project: proposalProjectSnapshot(resolved.project),
 		Repository:  repositorySnapshot(resolved.repository, resolved.project.PublicID.String()),
-		Environment: environmentSnapshot(resolved.environment), Resource: resourceSnapshot(resolved.profile),
+		Environment: proposalEnvironmentSnapshot(resolved), Resource: resourceSnapshot(resolved.profile),
 		RequestedRef: resolved.ref, CommitSHA: resolved.commitSHA, Execution: resolved.execution,
 		RuntimePreset: resolved.preset, RuntimeSeconds: resolved.runtime, ReservationMilli: resolved.reservation, ExpiresAt: resolved.expiresAt.UTC().Truncate(time.Microsecond),
 	}
@@ -658,19 +750,62 @@ func preparedProposal(resolved proposalResolved, digest string, createdAt time.T
 		Resource: ProposalResource{
 			EnvironmentID: resolved.environment.PublicID.String(), EnvironmentName: resolved.environment.Name,
 			ResourceProfileID: resolved.profile.PublicID.String(), ResourceProfileName: resolved.profile.Name,
-			Backend: string(resolved.profile.Backend), Image: resolved.environment.ImageUUID,
+			Backend: string(resolved.profile.Backend), Image: resolved.image,
 			GPUModels: append([]string(nil), resolved.profile.GpuNames...), GPUNum: resolved.profile.GpuNum,
 			Region: resolved.profile.Region, CUDAFrom: resolved.profile.CudaFrom, CUDATo: resolved.profile.CudaTo,
 			CPUFrom: resolved.profile.CPUFrom, CPUTo: resolved.profile.CPUTo,
 			MemoryFromGB: resolved.profile.MemoryFromGB, MemoryToGB: resolved.profile.MemoryToGB,
 			PriceFromMilli: resolved.profile.PriceFromMilli, PriceToMilli: resolved.profile.PriceToMilli,
 			ReuseContainer: resolved.profile.ReuseContainer, Billable: resolved.profile.Backend != resourceprofile.BackendSelfHosted,
+			ExecutionPolicy: proposalExecutionPolicy(resolved), WorkspacePath: proposalWorkspacePath(resolved),
+			NodeID: proposalWorkspaceNodeID(resolved), NodeLabel: proposalWorkspaceNodeLabel(resolved),
+			ImageMutable: resolved.workspace != nil && !proposalPinnedImage.MatchString(resolved.image),
 		},
 		RuntimePreset: resolved.preset, MaxRuntimeSeconds: resolved.runtime,
 		TimeoutExtensionSeconds: resolved.project.TimeoutExtensionSeconds, TerminationGraceSeconds: resolved.project.TerminationGraceSeconds,
 		ReservedCostMilli: resolved.reservation, ReservedCostCNY: milliCNY(resolved.reservation), Checks: append([]ProposalCheck(nil), resolved.checks...),
 		ConfirmationDigest: digest, ExpiresAt: resolved.expiresAt, CreatedAt: createdAt,
 	}
+}
+
+func proposalEnvironmentSnapshot(resolved proposalResolved) map[string]any {
+	snapshot := environmentSnapshot(resolved.environment)
+	snapshot["image_uuid"] = resolved.image
+	if resolved.workspace != nil {
+		snapshot["execution_policy"] = "trusted_workspace"
+		snapshot["workspace_path"] = resolved.workspace.path
+		snapshot["workspace_node_id"] = resolved.workspace.nodeID
+		snapshot["workspace_node_label"] = resolved.workspace.nodeLabel
+	}
+	return snapshot
+}
+
+func proposalExecutionPolicy(resolved proposalResolved) string {
+	if resolved.workspace != nil {
+		return "trusted_workspace"
+	}
+	return "strict"
+}
+
+func proposalWorkspacePath(resolved proposalResolved) string {
+	if resolved.workspace != nil {
+		return resolved.workspace.path
+	}
+	return ""
+}
+
+func proposalWorkspaceNodeID(resolved proposalResolved) string {
+	if resolved.workspace != nil {
+		return resolved.workspace.nodeID
+	}
+	return ""
+}
+
+func proposalWorkspaceNodeLabel(resolved proposalResolved) string {
+	if resolved.workspace != nil {
+		return resolved.workspace.nodeLabel
+	}
+	return ""
 }
 
 func proposalChecksEligible(checks []ProposalCheck) bool {

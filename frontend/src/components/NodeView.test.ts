@@ -27,7 +27,7 @@ const a4000Node = {
     execution_modes: ['shell', 'argv'],
   },
 }
-const build = { name: 'Gemcp', version: '0.14.2', commit: 'b'.repeat(40), built_at: '2026-07-29T08:00:00Z' }
+const build = { name: 'Gemcp', version: '0.15.0', commit: 'b'.repeat(40), built_at: '2026-07-29T08:00:00Z' }
 const activeAssignment = {
   id: 'assignment-id', node_id: node.id, node_label: node.label, project_id: 'project-id',
   experiment_id: 'experiment-id', attempt_id: 'attempt-id', attempt_number: 1, state: 'running', output_ref: 'managed://output',
@@ -41,6 +41,7 @@ afterEach(() => {
 describe('NodeView enrollment operations', () => {
   it('reveals a setup link once and verifies pairing approval explicitly', async () => {
     const copy = vi.fn()
+    let trustedWorkspaceEnabled = false
     const fetchMock = vi.fn(async (input: RequestInfo | URL, options?: RequestInit) => {
       const path = String(input)
       const method = options?.method ?? 'GET'
@@ -48,7 +49,24 @@ describe('NodeView enrollment operations', () => {
       if (path === '/api/v1/projects/project-id/self-hosted-runtimes' && method === 'GET') return response({
         environments: [{ id: 'environment-id', name: 'local-3090', image: `registry.example/train@sha256:${'a'.repeat(64)}`, is_default: true }],
         resource_profiles: [{ id: 'profile-id', name: 'local-3090', gpu_names: ['NVIDIA GeForce RTX 3090'], cpu_limit: 8, memory_gb: 32, is_default: true }],
+        trusted_workspaces: trustedWorkspaceEnabled ? [{
+          node_id: a4000Node.id, node_label: a4000Node.label, workspace_path: '/home/campus.ncl.ac.uk/nxl51/gemcp_tmp',
+          environment_id: 'workspace-environment', environment_name: 'workspace-usb-pc', resource_profile_id: 'workspace-profile',
+          gpu_name: 'NVIDIA RTX A4000', cpu_limit: 22, memory_gb: 29, successful_images: [], node_ready: false,
+        }] : [],
       })
+      if (path === '/api/v1/projects/project-id/self-hosted-trusted-workspace' && method === 'PUT') {
+        trustedWorkspaceEnabled = true
+        return response({
+          node_id: a4000Node.id, node_label: a4000Node.label, workspace_path: '/home/campus.ncl.ac.uk/nxl51/gemcp_tmp',
+          environment_id: 'workspace-environment', environment_name: 'workspace-usb-pc', resource_profile_id: 'workspace-profile',
+          gpu_name: 'NVIDIA RTX A4000', cpu_limit: 22, memory_gb: 29, successful_images: [], node_ready: false,
+        })
+      }
+      if (path === '/api/v1/projects/project-id/self-hosted-trusted-workspace/a4000-node-id' && method === 'DELETE') {
+        trustedWorkspaceEnabled = false
+        return response({ node_id: a4000Node.id, disabled: true })
+      }
       if (path === '/api/v1/node-enrollments' && method === 'POST') return response({
         enrollment: {
           id: 'enrollment-new', label: 'new-gpu', status: 'pending', expires_at: '2026-07-21T23:30:00Z',
@@ -79,22 +97,38 @@ describe('NodeView enrollment operations', () => {
     expect(wrapper.text()).toContain('Authorized GPU capacity is not exposed to Agents yet')
     expect(wrapper.text()).toContain('usb-pc · NVIDIA RTX A4000')
 
-    const configureButton = wrapper.findAll('button').find((button) => button.text() === 'Configure')
-    await configureButton!.trigger('click')
+    const workspaceButton = wrapper.findAll('button').find((button) => button.text().includes('Enable workspace'))
+    await workspaceButton!.trigger('click')
+    const workspaceDialog = wrapper.get('.workspace-dialog')
+    expect(workspaceDialog.findAll('input').length).toBe(2)
+    expect(workspaceDialog.find('input[placeholder="registry.example/train@sha256:..."]').exists()).toBe(false)
+    await workspaceDialog.get('input[placeholder="/home/user/gemcp_workspace"]').setValue('/home/campus.ncl.ac.uk/nxl51/gemcp_tmp')
+    await workspaceDialog.trigger('submit')
+    await flushPromises()
+    const workspaceRequest = fetchMock.mock.calls.find(([url, init]) => String(url).endsWith('/self-hosted-trusted-workspace') && init?.method === 'PUT')
+    expect(JSON.parse(String(workspaceRequest?.[1]?.body))).toEqual({ node_id: a4000Node.id, workspace_path: '/home/campus.ncl.ac.uk/nxl51/gemcp_tmp', make_default: false })
+    expect(wrapper.text()).toContain('/home/campus.ncl.ac.uk/nxl51/gemcp_tmp')
+    await wrapper.get('button[aria-label="Disable trusted workspace usb-pc"]').trigger('click')
+    const disableDialog = wrapper.get('[role="alertdialog"]')
+    await disableDialog.get('button.danger-button').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).not.toContain('/home/campus.ncl.ac.uk/nxl51/gemcp_tmp')
+
+    const advancedButton = wrapper.findAll('button').find((button) => button.text().includes('Advanced runtime'))
+    await advancedButton!.trigger('click')
     const runtimeDialog = wrapper.get('.runtime-dialog')
-    expect((runtimeDialog.get('input[placeholder="local-3090"]').element as HTMLInputElement).value).toBe('local-a4000')
-    expect((runtimeDialog.get('input[placeholder="NVIDIA GeForce RTX 3090"]').element as HTMLInputElement).value).toBe('NVIDIA RTX A4000')
+    expect((runtimeDialog.get('input[placeholder="local-3090"]').element as HTMLInputElement).value).toBe('local-3090')
     expect((runtimeDialog.get('input[type="number"][max="1024"]').element as HTMLInputElement).value).toBe('8')
     expect((runtimeDialog.get('input[type="number"][max="4096"]').element as HTMLInputElement).value).toBe('24')
     await runtimeDialog.get('button.close-button').trigger('click')
 
     await wrapper.get('button[aria-label="Upgrade instructions lab-gpu-02"]').trigger('click')
     const upgradeDialog = wrapper.get('.upgrade-dialog')
-    expect(upgradeDialog.text()).toContain('v0.14.2')
+    expect(upgradeDialog.text()).toContain('v0.15.0')
     expect(upgradeDialog.text()).toContain('An active Assignment is attached to this Node')
     await upgradeDialog.get('button.primary-button').trigger('click')
     const instruction = String(copy.mock.calls[0][0])
-    expect(instruction).toContain("TARGET_VERSION='0.14.2'")
+    expect(instruction).toContain("TARGET_VERSION='0.15.0'")
     expect(instruction).toContain(`TARGET_COMMIT='${'b'.repeat(40)}'`)
     expect(instruction).toContain('deploy/upgrade-gemcp-node.sh')
     expect(instruction).toContain("GEMCP_NODE_STORAGE_ROOT='/var/lib/gemcp-node/storage'")

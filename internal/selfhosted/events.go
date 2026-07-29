@@ -10,7 +10,9 @@ import (
 
 	"github.com/XR-Lee/Gemcp/ent"
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
+	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
+	"github.com/XR-Lee/Gemcp/ent/nodeprojectaccess"
 	"github.com/XR-Lee/Gemcp/internal/executionmeta"
 	"github.com/XR-Lee/Gemcp/internal/nodeprotocol"
 	"github.com/google/uuid"
@@ -163,11 +165,14 @@ func (s *Service) projectFinished(ctx context.Context, tx *ent.Tx, assignment *e
 	reason := strings.TrimSpace(payloadString(event.Payload, "reason"))
 	logTail := payloadString(event.Payload, "log_tail")
 	metrics, _ := event.Payload["metrics"].(map[string]any)
+	resolvedImage := strings.TrimSpace(payloadString(event.Payload, "resolved_image"))
 	if metrics == nil {
 		metrics = map[string]any{}
 	}
 	encodedMetrics, metricsErr := json.Marshal(metrics)
-	if !ok || exitCode < 0 || exitCode > 255 || !validFinishReason(reason) || !utf8.ValidString(logTail) || len([]byte(logTail)) > maxLogTailBytes || metricsErr != nil || len(encodedMetrics) > maxMetricsBytes {
+	workspaceMode := snapshotString(experiment.EnvironmentSnapshot, "execution_policy") == "trusted_workspace"
+	if !ok || exitCode < 0 || exitCode > 255 || !validFinishReason(reason) || !utf8.ValidString(logTail) || len([]byte(logTail)) > maxLogTailBytes || metricsErr != nil || len(encodedMetrics) > maxMetricsBytes ||
+		(workspaceMode && !pinnedImagePattern.MatchString(resolvedImage)) || (!workspaceMode && resolvedImage != "" && !pinnedImagePattern.MatchString(resolvedImage)) {
 		return ErrInvalidEvent
 	}
 	finalState, attemptState, failureCode, failureReason := selfHostedResult(experiment, exitCode, reason)
@@ -203,9 +208,47 @@ func (s *Service) projectFinished(ctx context.Context, tx *ent.Tx, assignment *e
 	if err := releaseReservation(ctx, tx, experiment); err != nil {
 		return err
 	}
+	if finalState == "succeeded" && workspaceMode {
+		if err := recordSuccessfulWorkspaceImage(ctx, tx, assignment, experiment, resolvedImage); err != nil {
+			return err
+		}
+	}
 	_, err := tx.AuditEvent.Create().SetTenantID(experiment.TenantID).SetActorType("self_hosted_node").SetActorID(fmt.Sprintf("node:%d", assignment.NodeID)).
 		SetAction("experiment.finalized").SetTargetType("experiment").SetTargetID(experiment.PublicID.String()).
-		SetMetadata(map[string]any{"state": finalState, "attempt_id": attempt.PublicID.String(), "assignment_id": assignment.PublicID.String(), "exit_code": exitCode}).Save(ctx)
+		SetMetadata(map[string]any{"state": finalState, "attempt_id": attempt.PublicID.String(), "assignment_id": assignment.PublicID.String(), "exit_code": exitCode, "resolved_image": resolvedImage}).Save(ctx)
+	return err
+}
+
+func recordSuccessfulWorkspaceImage(ctx context.Context, tx *ent.Tx, assignment *ent.NodeAssignment, experiment *ent.Experiment, resolvedImage string) error {
+	access, err := tx.NodeProjectAccess.Query().Where(
+		nodeprojectaccess.NodeIDEQ(assignment.NodeID), nodeprojectaccess.ProjectIDEQ(experiment.ProjectID), nodeprojectaccess.StatusEQ(nodeprojectaccess.StatusActive),
+		nodeprojectaccess.ExecutionPolicyEQ(nodeprojectaccess.ExecutionPolicyTrustedWorkspace),
+	).Only(ctx)
+	if err != nil || access.WorkspacePath == nil || *access.WorkspacePath != snapshotString(experiment.EnvironmentSnapshot, "workspace_path") {
+		return ErrInvalidEvent
+	}
+	images := []string{resolvedImage}
+	for _, candidate := range access.SuccessfulImages {
+		if candidate != resolvedImage && pinnedImagePattern.MatchString(candidate) {
+			images = append(images, candidate)
+		}
+		if len(images) == 16 {
+			break
+		}
+	}
+	if _, err := access.Update().SetSuccessfulImages(images).Save(ctx); err != nil {
+		return err
+	}
+	environmentRecord, err := tx.Environment.Query().Where(environment.IDEQ(experiment.EnvironmentID), environment.ProjectIDEQ(experiment.ProjectID), environment.BackendEQ(environment.BackendSelfHosted)).Only(ctx)
+	if err != nil || !strings.HasPrefix(environmentRecord.RecipeRef, trustedWorkspaceRecipePrefix) {
+		return ErrInvalidEvent
+	}
+	if _, err := environmentRecord.Update().SetImageUUID(resolvedImage).Save(ctx); err != nil {
+		return err
+	}
+	_, err = tx.AuditEvent.Create().SetTenantID(experiment.TenantID).SetActorType("self_hosted_node").SetActorID(fmt.Sprintf("node:%d", assignment.NodeID)).
+		SetAction("self_hosted.workspace_image_recorded").SetTargetType("environment").SetTargetID(environmentRecord.PublicID.String()).
+		SetMetadata(map[string]any{"project_id": experiment.ProjectID, "experiment_id": experiment.PublicID.String(), "resolved_image": resolvedImage}).Save(ctx)
 	return err
 }
 

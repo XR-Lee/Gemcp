@@ -20,6 +20,7 @@ import (
 )
 
 var pinnedOCIImage = regexp.MustCompile(`^[^[:space:]@]+@sha256:[0-9a-f]{64}$`)
+var workspaceOCIImage = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/-]*(?:@sha256:[0-9a-f]{64})?$`)
 var nvidiaGPUUUID = regexp.MustCompile(`^GPU-[A-Za-z0-9-]{1,116}$`)
 
 const (
@@ -64,6 +65,15 @@ func (m *WorkloadManager) Start(ctx context.Context, payload map[string]any) (ma
 	if err != nil {
 		return nil, err
 	}
+	if spec.WorkspaceMode == "trusted_rw" {
+		spec.WorkspacePath, err = resolvedTrustedWorkspacePath(spec.WorkspacePath)
+		if err != nil {
+			return nil, err
+		}
+		if pathContains(m.config.StorageRoot, spec.WorkspacePath) || pathContains(spec.WorkspacePath, m.config.StorageRoot) {
+			return nil, fmt.Errorf("trusted workspace must be separate from Gemcp managed storage")
+		}
+	}
 	records, err := m.store.Workloads()
 	if err != nil {
 		return nil, err
@@ -100,15 +110,22 @@ func (m *WorkloadManager) Start(ctx context.Context, payload map[string]any) (ma
 			AssignmentID: spec.AssignmentID, Image: spec.Image, ExecutionMode: spec.ExecutionMode,
 			Command: spec.Command, Argv: append([]string(nil), spec.Argv...), GPUUUID: spec.GPUUUID,
 			CPULimit: spec.CPULimit, MemoryLimitBytes: spec.MemoryLimitBytes, SourcePath: sourcePath, OutputPath: outputPath,
+			WorkspaceMode: spec.WorkspaceMode, WorkspacePath: spec.WorkspacePath,
 		})
 		if err != nil {
 			return nil, err
 		}
 	}
+	resolvedImage, err := m.runtime.Image(ctx, containerID)
+	if err != nil {
+		_ = m.runtime.Stop(context.Background(), containerID, 0)
+		_ = m.runtime.Remove(context.Background(), containerID)
+		return nil, fmt.Errorf("read managed workload image: %w", err)
+	}
 	now := m.now().UTC()
 	record := WorkloadRecord{
 		AssignmentID: spec.AssignmentID, ExperimentID: spec.ExperimentID, AttemptID: spec.AttemptID,
-		ContainerID: containerID, GPUUUID: spec.GPUUUID, GPUName: spec.GPUName,
+		ContainerID: containerID, GPUUUID: spec.GPUUUID, GPUName: spec.GPUName, ResolvedImage: resolvedImage,
 		OutputRef: spec.OutputRef, State: "running", StartedAt: now,
 		DeadlineAt:              now.Add(time.Duration(spec.MaxRuntimeSeconds+spec.TimeoutExtensionSeconds) * time.Second),
 		TerminationGraceSeconds: spec.TerminationGraceSeconds,
@@ -296,7 +313,7 @@ func (m *WorkloadManager) finish(record WorkloadRecord, exitCode int, reason, lo
 	logTail = boundedUTF8Tail(logTail, maxLogTailBytes)
 	payload := map[string]any{
 		"assignment_id": record.AssignmentID, "exit_code": exitCode, "reason": reason,
-		"log_tail": logTail, "metrics": readMetrics(outputPath),
+		"log_tail": logTail, "metrics": readMetrics(outputPath), "resolved_image": record.ResolvedImage,
 	}
 	if _, err := m.store.AppendEvent("workload_finished", payload, m.now().UTC()); err != nil {
 		return err
@@ -336,7 +353,7 @@ func decodeStartWorkload(payload map[string]any) (nodeprotocol.StartWorkload, er
 	}
 	execution, executionErr := executioncmd.Validate(executioncmd.Spec{Mode: spec.ExecutionMode, Command: spec.Command, Argv: spec.Argv})
 	if executionErr != nil || uuid.Validate(spec.AssignmentID) != nil || uuid.Validate(spec.ExperimentID) != nil || uuid.Validate(spec.AttemptID) != nil ||
-		!pinnedOCIImage.MatchString(spec.Image) ||
+		!validWorkloadImage(spec) ||
 		spec.SourcePath != "/api/v1/node-assignments/"+spec.AssignmentID+"/source" || spec.SourceMaxBytes <= 0 || spec.SourceMaxBytes > 1<<30 ||
 		!validOutputRef(spec.OutputRef) || spec.MaxRuntimeSeconds <= 0 || spec.MaxRuntimeSeconds > 30*24*3600 ||
 		spec.TimeoutExtensionSeconds < 0 || spec.TerminationGraceSeconds < 0 || spec.TerminationGraceSeconds > 3600 ||
@@ -346,6 +363,42 @@ func decodeStartWorkload(payload map[string]any) (nodeprotocol.StartWorkload, er
 	}
 	spec.ExecutionMode, spec.Command, spec.Argv = execution.Mode, execution.Command, execution.Argv
 	return spec, nil
+}
+
+func validWorkloadImage(spec nodeprotocol.StartWorkload) bool {
+	if spec.WorkspaceMode == "" && spec.WorkspacePath == "" {
+		return pinnedOCIImage.MatchString(spec.Image)
+	}
+	return spec.WorkspaceMode == "trusted_rw" && validTrustedWorkspacePath(spec.WorkspacePath) && workspaceOCIImage.MatchString(spec.Image)
+}
+
+func validTrustedWorkspacePath(value string) bool {
+	if value == "" || len(value) > 4096 || !filepath.IsAbs(value) || filepath.Clean(value) != value || strings.ContainsAny(value, ",\x00") {
+		return false
+	}
+	for _, character := range value {
+		if unicode.IsControl(character) {
+			return false
+		}
+	}
+	for _, protected := range []string{"/", "/boot", "/dev", "/etc", "/proc", "/run", "/sys", "/usr", "/var/lib/docker"} {
+		if value == protected || (protected != "/" && strings.HasPrefix(value, protected+string(filepath.Separator))) {
+			return false
+		}
+	}
+	return true
+}
+
+func resolvedTrustedWorkspacePath(value string) (string, error) {
+	if !validTrustedWorkspacePath(value) {
+		return "", fmt.Errorf("trusted workspace path is invalid")
+	}
+	return value, nil
+}
+
+func pathContains(parent, child string) bool {
+	relative, err := filepath.Rel(filepath.Clean(parent), filepath.Clean(child))
+	return err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator))
 }
 
 func validGPUName(value string) bool {

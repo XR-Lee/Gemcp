@@ -880,6 +880,9 @@ var (
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "revoked"}, Default: "active"},
+		{Name: "execution_policy", Type: field.TypeEnum, Enums: []string{"strict", "trusted_workspace"}, Default: "strict"},
+		{Name: "workspace_path", Type: field.TypeString, Nullable: true, Size: 4096},
+		{Name: "successful_images", Type: field.TypeJSON, Nullable: true},
 		{Name: "project_id", Type: field.TypeInt},
 		{Name: "node_id", Type: field.TypeInt},
 		{Name: "tenant_id", Type: field.TypeInt},
@@ -892,19 +895,19 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "node_project_accesses_projects_node_access",
-				Columns:    []*schema.Column{NodeProjectAccessesColumns[5]},
+				Columns:    []*schema.Column{NodeProjectAccessesColumns[8]},
 				RefColumns: []*schema.Column{ProjectsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "node_project_accesses_self_hosted_nodes_project_access",
-				Columns:    []*schema.Column{NodeProjectAccessesColumns[6]},
+				Columns:    []*schema.Column{NodeProjectAccessesColumns[9]},
 				RefColumns: []*schema.Column{SelfHostedNodesColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "node_project_accesses_tenants_node_project_access",
-				Columns:    []*schema.Column{NodeProjectAccessesColumns[7]},
+				Columns:    []*schema.Column{NodeProjectAccessesColumns[10]},
 				RefColumns: []*schema.Column{TenantsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -913,12 +916,12 @@ var (
 			{
 				Name:    "nodeprojectaccess_node_id_project_id",
 				Unique:  true,
-				Columns: []*schema.Column{NodeProjectAccessesColumns[6], NodeProjectAccessesColumns[5]},
+				Columns: []*schema.Column{NodeProjectAccessesColumns[9], NodeProjectAccessesColumns[8]},
 			},
 			{
 				Name:    "nodeprojectaccess_project_id_status",
 				Unique:  false,
-				Columns: []*schema.Column{NodeProjectAccessesColumns[5], NodeProjectAccessesColumns[4]},
+				Columns: []*schema.Column{NodeProjectAccessesColumns[8], NodeProjectAccessesColumns[4]},
 			},
 		},
 	}

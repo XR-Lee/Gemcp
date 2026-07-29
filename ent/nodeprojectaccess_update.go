@@ -10,6 +10,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"github.com/XR-Lee/Gemcp/ent/nodeprojectaccess"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
@@ -45,6 +46,58 @@ func (_u *NodeProjectAccessUpdate) SetNillableStatus(v *nodeprojectaccess.Status
 	if v != nil {
 		_u.SetStatus(*v)
 	}
+	return _u
+}
+
+// SetExecutionPolicy sets the "execution_policy" field.
+func (_u *NodeProjectAccessUpdate) SetExecutionPolicy(v nodeprojectaccess.ExecutionPolicy) *NodeProjectAccessUpdate {
+	_u.mutation.SetExecutionPolicy(v)
+	return _u
+}
+
+// SetNillableExecutionPolicy sets the "execution_policy" field if the given value is not nil.
+func (_u *NodeProjectAccessUpdate) SetNillableExecutionPolicy(v *nodeprojectaccess.ExecutionPolicy) *NodeProjectAccessUpdate {
+	if v != nil {
+		_u.SetExecutionPolicy(*v)
+	}
+	return _u
+}
+
+// SetWorkspacePath sets the "workspace_path" field.
+func (_u *NodeProjectAccessUpdate) SetWorkspacePath(v string) *NodeProjectAccessUpdate {
+	_u.mutation.SetWorkspacePath(v)
+	return _u
+}
+
+// SetNillableWorkspacePath sets the "workspace_path" field if the given value is not nil.
+func (_u *NodeProjectAccessUpdate) SetNillableWorkspacePath(v *string) *NodeProjectAccessUpdate {
+	if v != nil {
+		_u.SetWorkspacePath(*v)
+	}
+	return _u
+}
+
+// ClearWorkspacePath clears the value of the "workspace_path" field.
+func (_u *NodeProjectAccessUpdate) ClearWorkspacePath() *NodeProjectAccessUpdate {
+	_u.mutation.ClearWorkspacePath()
+	return _u
+}
+
+// SetSuccessfulImages sets the "successful_images" field.
+func (_u *NodeProjectAccessUpdate) SetSuccessfulImages(v []string) *NodeProjectAccessUpdate {
+	_u.mutation.SetSuccessfulImages(v)
+	return _u
+}
+
+// AppendSuccessfulImages appends value to the "successful_images" field.
+func (_u *NodeProjectAccessUpdate) AppendSuccessfulImages(v []string) *NodeProjectAccessUpdate {
+	_u.mutation.AppendSuccessfulImages(v)
+	return _u
+}
+
+// ClearSuccessfulImages clears the value of the "successful_images" field.
+func (_u *NodeProjectAccessUpdate) ClearSuccessfulImages() *NodeProjectAccessUpdate {
+	_u.mutation.ClearSuccessfulImages()
 	return _u
 }
 
@@ -96,6 +149,16 @@ func (_u *NodeProjectAccessUpdate) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "NodeProjectAccess.status": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ExecutionPolicy(); ok {
+		if err := nodeprojectaccess.ExecutionPolicyValidator(v); err != nil {
+			return &ValidationError{Name: "execution_policy", err: fmt.Errorf(`ent: validator failed for field "NodeProjectAccess.execution_policy": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.WorkspacePath(); ok {
+		if err := nodeprojectaccess.WorkspacePathValidator(v); err != nil {
+			return &ValidationError{Name: "workspace_path", err: fmt.Errorf(`ent: validator failed for field "NodeProjectAccess.workspace_path": %w`, err)}
+		}
+	}
 	if _u.mutation.TenantCleared() && len(_u.mutation.TenantIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "NodeProjectAccess.tenant"`)
 	}
@@ -125,6 +188,26 @@ func (_u *NodeProjectAccessUpdate) sqlSave(ctx context.Context) (_node int, err 
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(nodeprojectaccess.FieldStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.ExecutionPolicy(); ok {
+		_spec.SetField(nodeprojectaccess.FieldExecutionPolicy, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.WorkspacePath(); ok {
+		_spec.SetField(nodeprojectaccess.FieldWorkspacePath, field.TypeString, value)
+	}
+	if _u.mutation.WorkspacePathCleared() {
+		_spec.ClearField(nodeprojectaccess.FieldWorkspacePath, field.TypeString)
+	}
+	if value, ok := _u.mutation.SuccessfulImages(); ok {
+		_spec.SetField(nodeprojectaccess.FieldSuccessfulImages, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedSuccessfulImages(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, nodeprojectaccess.FieldSuccessfulImages, value)
+		})
+	}
+	if _u.mutation.SuccessfulImagesCleared() {
+		_spec.ClearField(nodeprojectaccess.FieldSuccessfulImages, field.TypeJSON)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -163,6 +246,58 @@ func (_u *NodeProjectAccessUpdateOne) SetNillableStatus(v *nodeprojectaccess.Sta
 	if v != nil {
 		_u.SetStatus(*v)
 	}
+	return _u
+}
+
+// SetExecutionPolicy sets the "execution_policy" field.
+func (_u *NodeProjectAccessUpdateOne) SetExecutionPolicy(v nodeprojectaccess.ExecutionPolicy) *NodeProjectAccessUpdateOne {
+	_u.mutation.SetExecutionPolicy(v)
+	return _u
+}
+
+// SetNillableExecutionPolicy sets the "execution_policy" field if the given value is not nil.
+func (_u *NodeProjectAccessUpdateOne) SetNillableExecutionPolicy(v *nodeprojectaccess.ExecutionPolicy) *NodeProjectAccessUpdateOne {
+	if v != nil {
+		_u.SetExecutionPolicy(*v)
+	}
+	return _u
+}
+
+// SetWorkspacePath sets the "workspace_path" field.
+func (_u *NodeProjectAccessUpdateOne) SetWorkspacePath(v string) *NodeProjectAccessUpdateOne {
+	_u.mutation.SetWorkspacePath(v)
+	return _u
+}
+
+// SetNillableWorkspacePath sets the "workspace_path" field if the given value is not nil.
+func (_u *NodeProjectAccessUpdateOne) SetNillableWorkspacePath(v *string) *NodeProjectAccessUpdateOne {
+	if v != nil {
+		_u.SetWorkspacePath(*v)
+	}
+	return _u
+}
+
+// ClearWorkspacePath clears the value of the "workspace_path" field.
+func (_u *NodeProjectAccessUpdateOne) ClearWorkspacePath() *NodeProjectAccessUpdateOne {
+	_u.mutation.ClearWorkspacePath()
+	return _u
+}
+
+// SetSuccessfulImages sets the "successful_images" field.
+func (_u *NodeProjectAccessUpdateOne) SetSuccessfulImages(v []string) *NodeProjectAccessUpdateOne {
+	_u.mutation.SetSuccessfulImages(v)
+	return _u
+}
+
+// AppendSuccessfulImages appends value to the "successful_images" field.
+func (_u *NodeProjectAccessUpdateOne) AppendSuccessfulImages(v []string) *NodeProjectAccessUpdateOne {
+	_u.mutation.AppendSuccessfulImages(v)
+	return _u
+}
+
+// ClearSuccessfulImages clears the value of the "successful_images" field.
+func (_u *NodeProjectAccessUpdateOne) ClearSuccessfulImages() *NodeProjectAccessUpdateOne {
+	_u.mutation.ClearSuccessfulImages()
 	return _u
 }
 
@@ -227,6 +362,16 @@ func (_u *NodeProjectAccessUpdateOne) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "NodeProjectAccess.status": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ExecutionPolicy(); ok {
+		if err := nodeprojectaccess.ExecutionPolicyValidator(v); err != nil {
+			return &ValidationError{Name: "execution_policy", err: fmt.Errorf(`ent: validator failed for field "NodeProjectAccess.execution_policy": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.WorkspacePath(); ok {
+		if err := nodeprojectaccess.WorkspacePathValidator(v); err != nil {
+			return &ValidationError{Name: "workspace_path", err: fmt.Errorf(`ent: validator failed for field "NodeProjectAccess.workspace_path": %w`, err)}
+		}
+	}
 	if _u.mutation.TenantCleared() && len(_u.mutation.TenantIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "NodeProjectAccess.tenant"`)
 	}
@@ -273,6 +418,26 @@ func (_u *NodeProjectAccessUpdateOne) sqlSave(ctx context.Context) (_node *NodeP
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(nodeprojectaccess.FieldStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.ExecutionPolicy(); ok {
+		_spec.SetField(nodeprojectaccess.FieldExecutionPolicy, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.WorkspacePath(); ok {
+		_spec.SetField(nodeprojectaccess.FieldWorkspacePath, field.TypeString, value)
+	}
+	if _u.mutation.WorkspacePathCleared() {
+		_spec.ClearField(nodeprojectaccess.FieldWorkspacePath, field.TypeString)
+	}
+	if value, ok := _u.mutation.SuccessfulImages(); ok {
+		_spec.SetField(nodeprojectaccess.FieldSuccessfulImages, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedSuccessfulImages(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, nodeprojectaccess.FieldSuccessfulImages, value)
+		})
+	}
+	if _u.mutation.SuccessfulImagesCleared() {
+		_spec.ClearField(nodeprojectaccess.FieldSuccessfulImages, field.TypeJSON)
 	}
 	_node = &NodeProjectAccess{config: _u.config}
 	_spec.Assign = _node.assignValues

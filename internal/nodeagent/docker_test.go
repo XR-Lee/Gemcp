@@ -84,3 +84,51 @@ esac
 		t.Fatalf("Docker argv used a shell:\n%s", args)
 	}
 }
+
+func TestDockerRuntimeMountsOnlyApprovedTrustedWorkspaceAndPinsResolvedImage(t *testing.T) {
+	directory := t.TempDir()
+	workspace := filepath.Join(directory, "trusted-workspace")
+	if err := os.Mkdir(workspace, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	logPath := filepath.Join(directory, "docker-workspace.log")
+	binary := filepath.Join(directory, "docker")
+	requested := "pytorch/pytorch:2.4.1-cuda12.1-cudnn9-runtime"
+	resolved := "pytorch/pytorch@sha256:" + strings.Repeat("e", 64)
+	script := `#!/bin/sh
+printf '%s\n' "$@" >> "$GEMCP_TEST_DOCKER_LOG"
+case "$1" in
+  image) printf '["` + resolved + `"]\n' ;;
+  create) printf 'container-id\n' ;;
+esac
+`
+	if err := os.WriteFile(binary, []byte(script), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GEMCP_TEST_DOCKER_LOG", logPath)
+	runtime := DockerRuntime{Binary: binary}
+	_, err := runtime.Start(context.Background(), ContainerSpec{
+		AssignmentID: "11111111-2222-4333-8444-777777777777", Image: requested, ExecutionMode: "argv", Argv: []string{"python", "train.py"},
+		GPUUUID: "GPU-test", CPULimit: 8, MemoryLimitBytes: 32 << 30, SourcePath: directory + "/source", OutputPath: directory + "/output",
+		WorkspaceMode: "trusted_rw", WorkspacePath: workspace,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload, _ := os.ReadFile(logPath)
+	args := string(payload)
+	for _, required := range []string{
+		"pull\n" + requested, "--label\nio.gemcp.image=" + resolved,
+		"--mount\ntype=bind,src=" + workspace + ",dst=/gemcp/workspace", "--env\nGEMCP_TRUSTED_WORKSPACE=/gemcp/workspace",
+		"--entrypoint\npython\n" + resolved + "\ntrain.py",
+	} {
+		if !strings.Contains(args, required) {
+			t.Fatalf("Docker workspace arguments do not contain %q:\n%s", required, args)
+		}
+	}
+	for _, forbidden := range []string{"--privileged", "--network=host", "docker.sock"} {
+		if strings.Contains(args, forbidden) {
+			t.Fatalf("Docker workspace arguments contain forbidden value %q:\n%s", forbidden, args)
+		}
+	}
+}

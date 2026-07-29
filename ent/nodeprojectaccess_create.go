@@ -98,6 +98,40 @@ func (_c *NodeProjectAccessCreate) SetNillableStatus(v *nodeprojectaccess.Status
 	return _c
 }
 
+// SetExecutionPolicy sets the "execution_policy" field.
+func (_c *NodeProjectAccessCreate) SetExecutionPolicy(v nodeprojectaccess.ExecutionPolicy) *NodeProjectAccessCreate {
+	_c.mutation.SetExecutionPolicy(v)
+	return _c
+}
+
+// SetNillableExecutionPolicy sets the "execution_policy" field if the given value is not nil.
+func (_c *NodeProjectAccessCreate) SetNillableExecutionPolicy(v *nodeprojectaccess.ExecutionPolicy) *NodeProjectAccessCreate {
+	if v != nil {
+		_c.SetExecutionPolicy(*v)
+	}
+	return _c
+}
+
+// SetWorkspacePath sets the "workspace_path" field.
+func (_c *NodeProjectAccessCreate) SetWorkspacePath(v string) *NodeProjectAccessCreate {
+	_c.mutation.SetWorkspacePath(v)
+	return _c
+}
+
+// SetNillableWorkspacePath sets the "workspace_path" field if the given value is not nil.
+func (_c *NodeProjectAccessCreate) SetNillableWorkspacePath(v *string) *NodeProjectAccessCreate {
+	if v != nil {
+		_c.SetWorkspacePath(*v)
+	}
+	return _c
+}
+
+// SetSuccessfulImages sets the "successful_images" field.
+func (_c *NodeProjectAccessCreate) SetSuccessfulImages(v []string) *NodeProjectAccessCreate {
+	_c.mutation.SetSuccessfulImages(v)
+	return _c
+}
+
 // SetTenant sets the "tenant" edge to the Tenant entity.
 func (_c *NodeProjectAccessCreate) SetTenant(v *Tenant) *NodeProjectAccessCreate {
 	return _c.SetTenantID(v.ID)
@@ -164,6 +198,14 @@ func (_c *NodeProjectAccessCreate) defaults() {
 		v := nodeprojectaccess.DefaultStatus
 		_c.mutation.SetStatus(v)
 	}
+	if _, ok := _c.mutation.ExecutionPolicy(); !ok {
+		v := nodeprojectaccess.DefaultExecutionPolicy
+		_c.mutation.SetExecutionPolicy(v)
+	}
+	if _, ok := _c.mutation.SuccessfulImages(); !ok {
+		v := nodeprojectaccess.DefaultSuccessfulImages
+		_c.mutation.SetSuccessfulImages(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -192,6 +234,19 @@ func (_c *NodeProjectAccessCreate) check() error {
 	if v, ok := _c.mutation.Status(); ok {
 		if err := nodeprojectaccess.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "NodeProjectAccess.status": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.ExecutionPolicy(); !ok {
+		return &ValidationError{Name: "execution_policy", err: errors.New(`ent: missing required field "NodeProjectAccess.execution_policy"`)}
+	}
+	if v, ok := _c.mutation.ExecutionPolicy(); ok {
+		if err := nodeprojectaccess.ExecutionPolicyValidator(v); err != nil {
+			return &ValidationError{Name: "execution_policy", err: fmt.Errorf(`ent: validator failed for field "NodeProjectAccess.execution_policy": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.WorkspacePath(); ok {
+		if err := nodeprojectaccess.WorkspacePathValidator(v); err != nil {
+			return &ValidationError{Name: "workspace_path", err: fmt.Errorf(`ent: validator failed for field "NodeProjectAccess.workspace_path": %w`, err)}
 		}
 	}
 	if len(_c.mutation.TenantIDs()) == 0 {
@@ -244,6 +299,18 @@ func (_c *NodeProjectAccessCreate) createSpec() (*NodeProjectAccess, *sqlgraph.C
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(nodeprojectaccess.FieldStatus, field.TypeEnum, value)
 		_node.Status = value
+	}
+	if value, ok := _c.mutation.ExecutionPolicy(); ok {
+		_spec.SetField(nodeprojectaccess.FieldExecutionPolicy, field.TypeEnum, value)
+		_node.ExecutionPolicy = value
+	}
+	if value, ok := _c.mutation.WorkspacePath(); ok {
+		_spec.SetField(nodeprojectaccess.FieldWorkspacePath, field.TypeString, value)
+		_node.WorkspacePath = &value
+	}
+	if value, ok := _c.mutation.SuccessfulImages(); ok {
+		_spec.SetField(nodeprojectaccess.FieldSuccessfulImages, field.TypeJSON, value)
+		_node.SuccessfulImages = value
 	}
 	if nodes := _c.mutation.TenantIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

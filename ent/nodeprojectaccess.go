@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -35,6 +36,12 @@ type NodeProjectAccess struct {
 	ProjectID int `json:"project_id,omitempty"`
 	// Status holds the value of the "status" field.
 	Status nodeprojectaccess.Status `json:"status,omitempty"`
+	// ExecutionPolicy holds the value of the "execution_policy" field.
+	ExecutionPolicy nodeprojectaccess.ExecutionPolicy `json:"execution_policy,omitempty"`
+	// WorkspacePath holds the value of the "workspace_path" field.
+	WorkspacePath *string `json:"workspace_path,omitempty"`
+	// SuccessfulImages holds the value of the "successful_images" field.
+	SuccessfulImages []string `json:"successful_images,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the NodeProjectAccessQuery when eager-loading is set.
 	Edges        NodeProjectAccessEdges `json:"edges"`
@@ -92,9 +99,11 @@ func (*NodeProjectAccess) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case nodeprojectaccess.FieldSuccessfulImages:
+			values[i] = new([]byte)
 		case nodeprojectaccess.FieldID, nodeprojectaccess.FieldTenantID, nodeprojectaccess.FieldNodeID, nodeprojectaccess.FieldProjectID:
 			values[i] = new(sql.NullInt64)
-		case nodeprojectaccess.FieldStatus:
+		case nodeprojectaccess.FieldStatus, nodeprojectaccess.FieldExecutionPolicy, nodeprojectaccess.FieldWorkspacePath:
 			values[i] = new(sql.NullString)
 		case nodeprojectaccess.FieldCreatedAt, nodeprojectaccess.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -162,6 +171,27 @@ func (_m *NodeProjectAccess) assignValues(columns []string, values []any) error 
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
 				_m.Status = nodeprojectaccess.Status(value.String)
+			}
+		case nodeprojectaccess.FieldExecutionPolicy:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field execution_policy", values[i])
+			} else if value.Valid {
+				_m.ExecutionPolicy = nodeprojectaccess.ExecutionPolicy(value.String)
+			}
+		case nodeprojectaccess.FieldWorkspacePath:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field workspace_path", values[i])
+			} else if value.Valid {
+				_m.WorkspacePath = new(string)
+				*_m.WorkspacePath = value.String
+			}
+		case nodeprojectaccess.FieldSuccessfulImages:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field successful_images", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.SuccessfulImages); err != nil {
+					return fmt.Errorf("unmarshal field successful_images: %w", err)
+				}
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -234,6 +264,17 @@ func (_m *NodeProjectAccess) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Status))
+	builder.WriteString(", ")
+	builder.WriteString("execution_policy=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ExecutionPolicy))
+	builder.WriteString(", ")
+	if v := _m.WorkspacePath; v != nil {
+		builder.WriteString("workspace_path=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	builder.WriteString("successful_images=")
+	builder.WriteString(fmt.Sprintf("%v", _m.SuccessfulImages))
 	builder.WriteByte(')')
 	return builder.String()
 }

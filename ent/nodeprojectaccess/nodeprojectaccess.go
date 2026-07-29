@@ -30,6 +30,12 @@ const (
 	FieldProjectID = "project_id"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
+	// FieldExecutionPolicy holds the string denoting the execution_policy field in the database.
+	FieldExecutionPolicy = "execution_policy"
+	// FieldWorkspacePath holds the string denoting the workspace_path field in the database.
+	FieldWorkspacePath = "workspace_path"
+	// FieldSuccessfulImages holds the string denoting the successful_images field in the database.
+	FieldSuccessfulImages = "successful_images"
 	// EdgeTenant holds the string denoting the tenant edge name in mutations.
 	EdgeTenant = "tenant"
 	// EdgeNode holds the string denoting the node edge name in mutations.
@@ -71,6 +77,9 @@ var Columns = []string{
 	FieldNodeID,
 	FieldProjectID,
 	FieldStatus,
+	FieldExecutionPolicy,
+	FieldWorkspacePath,
+	FieldSuccessfulImages,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -92,6 +101,10 @@ var (
 	DefaultUpdatedAt func() time.Time
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
 	UpdateDefaultUpdatedAt func() time.Time
+	// WorkspacePathValidator is a validator for the "workspace_path" field. It is called by the builders before save.
+	WorkspacePathValidator func(string) error
+	// DefaultSuccessfulImages holds the default value on creation for the "successful_images" field.
+	DefaultSuccessfulImages []string
 )
 
 // Status defines the type for the "status" enum field.
@@ -117,6 +130,32 @@ func StatusValidator(s Status) error {
 		return nil
 	default:
 		return fmt.Errorf("nodeprojectaccess: invalid enum value for status field: %q", s)
+	}
+}
+
+// ExecutionPolicy defines the type for the "execution_policy" enum field.
+type ExecutionPolicy string
+
+// ExecutionPolicyStrict is the default value of the ExecutionPolicy enum.
+const DefaultExecutionPolicy = ExecutionPolicyStrict
+
+// ExecutionPolicy values.
+const (
+	ExecutionPolicyStrict           ExecutionPolicy = "strict"
+	ExecutionPolicyTrustedWorkspace ExecutionPolicy = "trusted_workspace"
+)
+
+func (ep ExecutionPolicy) String() string {
+	return string(ep)
+}
+
+// ExecutionPolicyValidator is a validator for the "execution_policy" field enum values. It is called by the builders before save.
+func ExecutionPolicyValidator(ep ExecutionPolicy) error {
+	switch ep {
+	case ExecutionPolicyStrict, ExecutionPolicyTrustedWorkspace:
+		return nil
+	default:
+		return fmt.Errorf("nodeprojectaccess: invalid enum value for execution_policy field: %q", ep)
 	}
 }
 
@@ -161,6 +200,16 @@ func ByProjectID(opts ...sql.OrderTermOption) OrderOption {
 // ByStatus orders the results by the status field.
 func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+}
+
+// ByExecutionPolicy orders the results by the execution_policy field.
+func ByExecutionPolicy(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldExecutionPolicy, opts...).ToFunc()
+}
+
+// ByWorkspacePath orders the results by the workspace_path field.
+func ByWorkspacePath(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldWorkspacePath, opts...).ToFunc()
 }
 
 // ByTenantField orders the results by tenant field.

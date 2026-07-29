@@ -145,6 +145,45 @@ func (h *NodeHandlers) CreateRuntimeConfig(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"data": result})
 }
 
+func (h *NodeHandlers) EnableTrustedWorkspace(c *gin.Context) {
+	principal, ok := ownerPrincipal(c)
+	if !ok {
+		return
+	}
+	if h.assignments == nil {
+		writeError(c, http.StatusServiceUnavailable, "SELF_HOSTED_DISABLED", "Self-hosted execution is not enabled")
+		return
+	}
+	var input selfhosted.TrustedWorkspaceInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		writeError(c, http.StatusBadRequest, "INVALID_JSON", "request body must be valid JSON")
+		return
+	}
+	result, err := h.assignments.EnableTrustedWorkspace(c.Request.Context(), principal.TenantID, principal.UserPublicID, c.Param("id"), input)
+	if err != nil {
+		h.writeError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": result})
+}
+
+func (h *NodeHandlers) DisableTrustedWorkspace(c *gin.Context) {
+	principal, ok := ownerPrincipal(c)
+	if !ok {
+		return
+	}
+	if h.assignments == nil {
+		writeError(c, http.StatusServiceUnavailable, "SELF_HOSTED_DISABLED", "Self-hosted execution is not enabled")
+		return
+	}
+	result, err := h.assignments.DisableTrustedWorkspace(c.Request.Context(), principal.TenantID, principal.UserPublicID, c.Param("id"), c.Param("node_id"))
+	if err != nil {
+		h.writeError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": result})
+}
+
 func (h *NodeHandlers) Sync(c *gin.Context) {
 	token, ok := bearerToken(c.GetHeader("Authorization"))
 	if !ok {

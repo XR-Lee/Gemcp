@@ -326,6 +326,7 @@ func (s *Service) Options(ctx context.Context, principal agentauth.Principal) (P
 		return result, err
 	}
 	busyNodes := map[int]bool{}
+	accessByNode := map[int]*ent.NodeProjectAccess{}
 	if len(nodes) > 0 {
 		nodeIDs := make([]int, 0, len(nodes))
 		for _, node := range nodes {
@@ -341,14 +342,26 @@ func (s *Service) Options(ctx context.Context, principal agentauth.Principal) (P
 		for _, assignment := range assignments {
 			busyNodes[assignment.NodeID] = true
 		}
+		accesses, err := s.client.NodeProjectAccess.Query().Where(
+			nodeprojectaccess.ProjectIDEQ(principal.ProjectID), nodeprojectaccess.NodeIDIn(nodeIDs...), nodeprojectaccess.StatusEQ(nodeprojectaccess.StatusActive),
+		).All(ctx)
+		if err != nil {
+			return result, err
+		}
+		for _, access := range accesses {
+			accessByNode[access.NodeID] = access
+		}
 	}
 	result.SelfHostedNodes = make([]SelfHostedNodeOption, 0, len(nodes))
 	staleBefore := s.now().UTC().Add(-s.proposalConfig.NodeStaleAfter)
 	for _, node := range nodes {
+		access := accessByNode[node.ID]
 		gpus := selfHostedOptionGPUs(node.Capabilities)
 		executionModes := selfHostedOptionExecutionModes(node.Capabilities)
+		workspaceCapable := proposalNodeSupportsWorkspace(node.Capabilities)
 		runtimeConfigured := selfHostedOptionRuntimeConfigured(gpus, environments, profiles)
-		blockers := selfHostedOptionBlockers(node, executionModes, runtimeConfigured, busyNodes[node.ID], staleBefore)
+		workspaceEnabled := access != nil && access.ExecutionPolicy == nodeprojectaccess.ExecutionPolicyTrustedWorkspace
+		blockers := selfHostedOptionBlockers(node, executionModes, runtimeConfigured, workspaceEnabled, workspaceCapable, busyNodes[node.ID], staleBefore)
 		readiness := "ready"
 		if len(blockers) > 0 {
 			readiness = blockers[0]
@@ -358,6 +371,16 @@ func (s *Service) Options(ctx context.Context, principal agentauth.Principal) (P
 			AgentVersion: node.AgentVersion, GPUs: gpus, ExecutionModes: executionModes, LastSeenAt: node.LastSeenAt,
 			RuntimeConfigured: runtimeConfigured, Ready: len(blockers) == 0, Readiness: readiness, Blockers: blockers,
 		})
+		option := &result.SelfHostedNodes[len(result.SelfHostedNodes)-1]
+		option.WorkspaceCapable = workspaceCapable
+		option.ExecutionPolicy = "strict"
+		if access != nil {
+			option.ExecutionPolicy = string(access.ExecutionPolicy)
+			if access.WorkspacePath != nil {
+				option.WorkspacePath = *access.WorkspacePath
+			}
+			option.SuccessfulImages = append([]string(nil), access.SuccessfulImages...)
+		}
 	}
 	return result, nil
 }
@@ -438,7 +461,7 @@ func selfHostedOptionRuntimeConfigured(gpus []SelfHostedGPUOption, environments 
 	return false
 }
 
-func selfHostedOptionBlockers(node *ent.SelfHostedNode, executionModes []string, runtimeConfigured, busy bool, staleBefore time.Time) []string {
+func selfHostedOptionBlockers(node *ent.SelfHostedNode, executionModes []string, runtimeConfigured, workspaceEnabled, workspaceCapable, busy bool, staleBefore time.Time) []string {
 	result := make([]string, 0, 5)
 	if node.Status != selfhostednode.StatusActive {
 		result = append(result, "node_not_active")
@@ -457,6 +480,9 @@ func selfHostedOptionBlockers(node *ent.SelfHostedNode, executionModes []string,
 	}
 	if !slices.Contains(executionModes, "argv") {
 		result = append(result, "argv_upgrade_required")
+	}
+	if workspaceEnabled && !workspaceCapable {
+		result = append(result, "workspace_upgrade_required")
 	}
 	if busy {
 		result = append(result, "node_busy")

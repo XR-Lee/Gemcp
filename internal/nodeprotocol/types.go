@@ -100,6 +100,8 @@ type StartWorkload struct {
 	GPUName                 string   `json:"gpu_name"`
 	CPULimit                int      `json:"cpu_limit"`
 	MemoryLimitBytes        int64    `json:"memory_limit_bytes"`
+	WorkspaceMode           string   `json:"workspace_mode,omitempty"`
+	WorkspacePath           string   `json:"workspace_path,omitempty"`
 }
 
 type StopWorkload struct {

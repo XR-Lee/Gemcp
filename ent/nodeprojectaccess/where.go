@@ -86,6 +86,11 @@ func ProjectID(v int) predicate.NodeProjectAccess {
 	return predicate.NodeProjectAccess(sql.FieldEQ(FieldProjectID, v))
 }
 
+// WorkspacePath applies equality check predicate on the "workspace_path" field. It's identical to WorkspacePathEQ.
+func WorkspacePath(v string) predicate.NodeProjectAccess {
+	return predicate.NodeProjectAccess(sql.FieldEQ(FieldWorkspacePath, v))
+}
+
 // PublicIDEQ applies the EQ predicate on the "public_id" field.
 func PublicIDEQ(v uuid.UUID) predicate.NodeProjectAccess {
 	return predicate.NodeProjectAccess(sql.FieldEQ(FieldPublicID, v))
@@ -284,6 +289,111 @@ func StatusIn(vs ...Status) predicate.NodeProjectAccess {
 // StatusNotIn applies the NotIn predicate on the "status" field.
 func StatusNotIn(vs ...Status) predicate.NodeProjectAccess {
 	return predicate.NodeProjectAccess(sql.FieldNotIn(FieldStatus, vs...))
+}
+
+// ExecutionPolicyEQ applies the EQ predicate on the "execution_policy" field.
+func ExecutionPolicyEQ(v ExecutionPolicy) predicate.NodeProjectAccess {
+	return predicate.NodeProjectAccess(sql.FieldEQ(FieldExecutionPolicy, v))
+}
+
+// ExecutionPolicyNEQ applies the NEQ predicate on the "execution_policy" field.
+func ExecutionPolicyNEQ(v ExecutionPolicy) predicate.NodeProjectAccess {
+	return predicate.NodeProjectAccess(sql.FieldNEQ(FieldExecutionPolicy, v))
+}
+
+// ExecutionPolicyIn applies the In predicate on the "execution_policy" field.
+func ExecutionPolicyIn(vs ...ExecutionPolicy) predicate.NodeProjectAccess {
+	return predicate.NodeProjectAccess(sql.FieldIn(FieldExecutionPolicy, vs...))
+}
+
+// ExecutionPolicyNotIn applies the NotIn predicate on the "execution_policy" field.
+func ExecutionPolicyNotIn(vs ...ExecutionPolicy) predicate.NodeProjectAccess {
+	return predicate.NodeProjectAccess(sql.FieldNotIn(FieldExecutionPolicy, vs...))
+}
+
+// WorkspacePathEQ applies the EQ predicate on the "workspace_path" field.
+func WorkspacePathEQ(v string) predicate.NodeProjectAccess {
+	return predicate.NodeProjectAccess(sql.FieldEQ(FieldWorkspacePath, v))
+}
+
+// WorkspacePathNEQ applies the NEQ predicate on the "workspace_path" field.
+func WorkspacePathNEQ(v string) predicate.NodeProjectAccess {
+	return predicate.NodeProjectAccess(sql.FieldNEQ(FieldWorkspacePath, v))
+}
+
+// WorkspacePathIn applies the In predicate on the "workspace_path" field.
+func WorkspacePathIn(vs ...string) predicate.NodeProjectAccess {
+	return predicate.NodeProjectAccess(sql.FieldIn(FieldWorkspacePath, vs...))
+}
+
+// WorkspacePathNotIn applies the NotIn predicate on the "workspace_path" field.
+func WorkspacePathNotIn(vs ...string) predicate.NodeProjectAccess {
+	return predicate.NodeProjectAccess(sql.FieldNotIn(FieldWorkspacePath, vs...))
+}
+
+// WorkspacePathGT applies the GT predicate on the "workspace_path" field.
+func WorkspacePathGT(v string) predicate.NodeProjectAccess {
+	return predicate.NodeProjectAccess(sql.FieldGT(FieldWorkspacePath, v))
+}
+
+// WorkspacePathGTE applies the GTE predicate on the "workspace_path" field.
+func WorkspacePathGTE(v string) predicate.NodeProjectAccess {
+	return predicate.NodeProjectAccess(sql.FieldGTE(FieldWorkspacePath, v))
+}
+
+// WorkspacePathLT applies the LT predicate on the "workspace_path" field.
+func WorkspacePathLT(v string) predicate.NodeProjectAccess {
+	return predicate.NodeProjectAccess(sql.FieldLT(FieldWorkspacePath, v))
+}
+
+// WorkspacePathLTE applies the LTE predicate on the "workspace_path" field.
+func WorkspacePathLTE(v string) predicate.NodeProjectAccess {
+	return predicate.NodeProjectAccess(sql.FieldLTE(FieldWorkspacePath, v))
+}
+
+// WorkspacePathContains applies the Contains predicate on the "workspace_path" field.
+func WorkspacePathContains(v string) predicate.NodeProjectAccess {
+	return predicate.NodeProjectAccess(sql.FieldContains(FieldWorkspacePath, v))
+}
+
+// WorkspacePathHasPrefix applies the HasPrefix predicate on the "workspace_path" field.
+func WorkspacePathHasPrefix(v string) predicate.NodeProjectAccess {
+	return predicate.NodeProjectAccess(sql.FieldHasPrefix(FieldWorkspacePath, v))
+}
+
+// WorkspacePathHasSuffix applies the HasSuffix predicate on the "workspace_path" field.
+func WorkspacePathHasSuffix(v string) predicate.NodeProjectAccess {
+	return predicate.NodeProjectAccess(sql.FieldHasSuffix(FieldWorkspacePath, v))
+}
+
+// WorkspacePathIsNil applies the IsNil predicate on the "workspace_path" field.
+func WorkspacePathIsNil() predicate.NodeProjectAccess {
+	return predicate.NodeProjectAccess(sql.FieldIsNull(FieldWorkspacePath))
+}
+
+// WorkspacePathNotNil applies the NotNil predicate on the "workspace_path" field.
+func WorkspacePathNotNil() predicate.NodeProjectAccess {
+	return predicate.NodeProjectAccess(sql.FieldNotNull(FieldWorkspacePath))
+}
+
+// WorkspacePathEqualFold applies the EqualFold predicate on the "workspace_path" field.
+func WorkspacePathEqualFold(v string) predicate.NodeProjectAccess {
+	return predicate.NodeProjectAccess(sql.FieldEqualFold(FieldWorkspacePath, v))
+}
+
+// WorkspacePathContainsFold applies the ContainsFold predicate on the "workspace_path" field.
+func WorkspacePathContainsFold(v string) predicate.NodeProjectAccess {
+	return predicate.NodeProjectAccess(sql.FieldContainsFold(FieldWorkspacePath, v))
+}
+
+// SuccessfulImagesIsNil applies the IsNil predicate on the "successful_images" field.
+func SuccessfulImagesIsNil() predicate.NodeProjectAccess {
+	return predicate.NodeProjectAccess(sql.FieldIsNull(FieldSuccessfulImages))
+}
+
+// SuccessfulImagesNotNil applies the NotNil predicate on the "successful_images" field.
+func SuccessfulImagesNotNil() predicate.NodeProjectAccess {
+	return predicate.NodeProjectAccess(sql.FieldNotNull(FieldSuccessfulImages))
 }
 
 // HasTenant applies the HasEdge predicate on the "tenant" edge.

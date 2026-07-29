@@ -124,6 +124,10 @@ Generate a bilingual, Node-specific coding-Agent upgrade handoff from the Owner 
 
 Project authorized Node hardware and readiness into `get_project_options` directly from current heartbeats, even before an approved runtime exists. Return fixed blockers such as `runtime_configuration_required` rather than hiding discovered GPUs. Highlight missing runtime boundaries in the Nodes workspace and pre-fill hardware-derived configuration while requiring explicit Owner selection of a digest-pinned image.
 
+### v0.15.0 - trusted Self-hosted workspaces
+
+Allow an Owner to authorize one normalized host directory for one Project and Node with a single form field. Generate hardware bounds and runtime records from current inventory, accept public image tags only for that explicit policy, bind the path and image into prepared confirmation, mount only the approved directory, resolve the image to a digest before launch, and record successful digests for reuse. Keep strict digest-pinned execution as the default policy.
+
 ## In progress
 
 ### Repository readiness and Owner prepared experiments

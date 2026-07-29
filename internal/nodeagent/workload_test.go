@@ -61,6 +61,10 @@ func (f *fakeContainerRuntime) Remove(context.Context, string) error {
 	return f.removeErr
 }
 
+func (f *fakeContainerRuntime) Image(context.Context, string) (string, error) {
+	return "registry.example/train@sha256:" + strings.Repeat("a", 64), nil
+}
+
 func TestWorkloadManagerRunsWithoutPassingNodeCredentialToContainer(t *testing.T) {
 	archive := sourceArchive(t, map[string]string{"train.py": "print('ok')\n"})
 	server := httptest.NewTLSServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
@@ -148,12 +152,35 @@ func TestWorkloadManagerRunsWithoutPassingNodeCredentialToContainer(t *testing.T
 	if metrics, ok := events[1].Payload["metrics"].(map[string]any); !ok || metrics["accuracy"] != 0.9 {
 		t.Fatalf("completion metrics=%v", events[1].Payload["metrics"])
 	}
+	if events[1].Payload["resolved_image"] != "registry.example/train@sha256:"+strings.Repeat("a", 64) {
+		t.Fatalf("resolved image=%v", events[1].Payload["resolved_image"])
+	}
 	if workloads, _ := store.Workloads(); len(workloads) != 0 || runtime.removed != 2 {
 		t.Fatalf("workloads=%+v removed=%d", workloads, runtime.removed)
 	}
 	completeLog, err := os.ReadFile(filepath.Join(outputPath, "run.log"))
 	if err != nil || string(completeLog) != "training complete\n" {
 		t.Fatalf("complete log=%q err=%v", completeLog, err)
+	}
+}
+
+func TestTrustedWorkspaceContainerSpecAllowsTagOnlyWithApprovedPath(t *testing.T) {
+	workspace := t.TempDir()
+	spec := ContainerSpec{
+		AssignmentID: uuid.NewString(), Image: "pytorch/pytorch:2.4.1-cuda12.1-cudnn9-runtime", ExecutionMode: "argv", Argv: []string{"python", "train.py"},
+		GPUUUID: "GPU-test", CPULimit: 8, MemoryLimitBytes: 16 << 30, SourcePath: t.TempDir(), OutputPath: t.TempDir(),
+		WorkspaceMode: "trusted_rw", WorkspacePath: workspace,
+	}
+	if err := validateContainerSpec(spec); err != nil {
+		t.Fatal(err)
+	}
+	spec.WorkspaceMode, spec.WorkspacePath = "", ""
+	if err := validateContainerSpec(spec); err == nil {
+		t.Fatal("strict container accepted a mutable image tag")
+	}
+	resolved := "pytorch/pytorch@sha256:" + strings.Repeat("c", 64)
+	if value, err := resolvedImageReference("pytorch/pytorch:2.4.1", `["`+resolved+`"]`); err != nil || value != resolved {
+		t.Fatalf("resolved image=%q err=%v", value, err)
 	}
 }
 

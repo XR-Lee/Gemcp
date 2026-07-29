@@ -10,9 +10,11 @@ import (
 	"github.com/XR-Lee/Gemcp/ent"
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
+	"github.com/XR-Lee/Gemcp/ent/nodeprojectaccess"
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/repository"
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
+	"github.com/XR-Lee/Gemcp/ent/selfhostednode"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
 	"github.com/XR-Lee/Gemcp/internal/executioncmd"
 	"github.com/google/uuid"
@@ -127,8 +129,13 @@ func (s *Service) currentProposal(ctx context.Context, principal agentauth.Princ
 	if err != nil {
 		return result, ErrProposalChanged
 	}
+	image, workspace, err := s.resolveProposalRuntime(ctx, projectRecord, environmentRecord, profileRecord, snapshotString(record.EnvironmentSnapshot, "image_uuid"), true)
+	if err != nil {
+		return result, ErrProposalChanged
+	}
 	return proposalResolved{
 		id: record.PublicID, project: projectRecord, repository: repositoryRecord, environment: environmentRecord, profile: profileRecord,
+		image: image, workspace: workspace,
 		ref: record.RequestedRef, commitSHA: record.CommitSha, execution: executionSpec, preset: record.RuntimePreset,
 		runtime: record.MaxRuntimeSeconds, reservation: reservation, expiresAt: record.ExpiresAt,
 	}, nil
@@ -199,8 +206,13 @@ func (s *Service) createPreparedExperiment(ctx context.Context, principal agenta
 	if err != nil {
 		return result, ErrProposalChanged
 	}
+	image, workspace, err := proposalRuntimeInTransaction(ctx, tx, projectRecord, environmentRecord, profileRecord, proposalRecord.EnvironmentSnapshot)
+	if err != nil {
+		return result, ErrProposalChanged
+	}
 	current := proposalResolved{
 		id: proposalRecord.PublicID, project: projectRecord, repository: repositoryRecord, environment: environmentRecord, profile: profileRecord,
+		image: image, workspace: workspace,
 		ref: proposalRecord.RequestedRef, commitSHA: proposalRecord.CommitSha, execution: executionSpec, preset: proposalRecord.RuntimePreset,
 		runtime: proposalRecord.MaxRuntimeSeconds, reservation: reservation, expiresAt: proposalRecord.ExpiresAt,
 	}
@@ -245,7 +257,7 @@ func (s *Service) createPreparedExperiment(ctx context.Context, principal agenta
 		SetTimeoutExtensionSeconds(projectRecord.TimeoutExtensionSeconds).
 		SetTerminationGraceSeconds(projectRecord.TerminationGraceSeconds).
 		SetRepositorySnapshot(repositorySnapshot(repositoryRecord, projectRecord.PublicID.String())).
-		SetEnvironmentSnapshot(environmentSnapshot(environmentRecord)).
+		SetEnvironmentSnapshot(proposalRecord.EnvironmentSnapshot).
 		SetResourceSnapshot(resourceSnapshot(profileRecord)).
 		SetSecretNames([]string{}).
 		SetOutputPath(outputPath).
@@ -295,6 +307,37 @@ func (s *Service) createPreparedExperiment(ctx context.Context, principal agenta
 		return result, err
 	}
 	return SubmitPreparedResult{Experiment: makeView(experimentRecord)}, nil
+}
+
+func proposalRuntimeInTransaction(ctx context.Context, tx *ent.Tx, projectRecord *ent.Project, environmentRecord *ent.Environment, profileRecord *ent.ResourceProfile, snapshot map[string]any) (string, *proposalWorkspace, error) {
+	image := snapshotString(snapshot, "image_uuid")
+	recipeRef := strings.TrimSpace(environmentRecord.RecipeRef)
+	if !strings.HasPrefix(recipeRef, proposalWorkspaceRecipePrefix) {
+		if image == "" || image != environmentRecord.ImageUUID {
+			return "", nil, ErrProposalChanged
+		}
+		return image, nil, nil
+	}
+	if profileRecord.Backend != resourceprofile.BackendSelfHosted || profileRecord.Name != environmentRecord.Name || !proposalWorkspaceImage.MatchString(image) {
+		return "", nil, ErrProposalChanged
+	}
+	nodePublicID, err := uuid.Parse(strings.TrimPrefix(recipeRef, proposalWorkspaceRecipePrefix))
+	if err != nil || snapshotString(snapshot, "workspace_node_id") != nodePublicID.String() {
+		return "", nil, ErrProposalChanged
+	}
+	access, err := tx.NodeProjectAccess.Query().Where(
+		nodeprojectaccess.ProjectIDEQ(projectRecord.ID), nodeprojectaccess.StatusEQ(nodeprojectaccess.StatusActive),
+		nodeprojectaccess.ExecutionPolicyEQ(nodeprojectaccess.ExecutionPolicyTrustedWorkspace), nodeprojectaccess.WorkspacePathNotNil(),
+		nodeprojectaccess.HasNodeWith(selfhostednode.PublicIDEQ(nodePublicID), selfhostednode.TenantIDEQ(projectRecord.TenantID)),
+	).WithNode().Only(ctx)
+	if err != nil || access.WorkspacePath == nil || *access.WorkspacePath != snapshotString(snapshot, "workspace_path") {
+		return "", nil, ErrProposalChanged
+	}
+	node, err := access.Edges.NodeOrErr()
+	if err != nil || node.Label != snapshotString(snapshot, "workspace_node_label") {
+		return "", nil, ErrProposalChanged
+	}
+	return image, &proposalWorkspace{nodeID: node.PublicID.String(), nodeLabel: node.Label, path: *access.WorkspacePath}, nil
 }
 
 func proposalReservation(projectRecord *ent.Project, profileRecord *ent.ResourceProfile, runtimeSeconds int) (int64, error) {

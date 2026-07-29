@@ -484,7 +484,8 @@ func TestOptionsDiscoversAuthorizedSelfHostedNodeBeforeRuntimeConfiguration(t *t
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := f.client.NodeProjectAccess.Create().SetTenantID(f.principal.TenantID).SetNodeID(node.ID).SetProjectID(f.project.ID).Save(ctx); err != nil {
+	access, err := f.client.NodeProjectAccess.Create().SetTenantID(f.principal.TenantID).SetNodeID(node.ID).SetProjectID(f.project.ID).Save(ctx)
+	if err != nil {
 		t.Fatal(err)
 	}
 
@@ -512,13 +513,25 @@ func TestOptionsDiscoversAuthorizedSelfHostedNodeBeforeRuntimeConfiguration(t *t
 		SetPriceFromMilli(0).SetPriceToMilli(0).Save(ctx); err != nil {
 		t.Fatal(err)
 	}
+	workspacePath := "/home/campus.ncl.ac.uk/nxl51/gemcp_tmp"
+	resolvedImage := "pytorch/pytorch@sha256:" + strings.Repeat("c", 64)
+	if _, err := access.Update().SetExecutionPolicy("trusted_workspace").SetWorkspacePath(workspacePath).SetSuccessfulImages([]string{resolvedImage}).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := node.Update().SetCapabilities(map[string]any{
+		"gpus":            []any{map[string]any{"name": "NVIDIA RTX A4000", "uuid": "GPU-test", "memory_bytes": float64(16 << 30)}},
+		"execution_modes": []any{"shell", "argv"}, "workspace_modes": []any{"trusted_rw"},
+	}).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
 
 	options, err = f.service.Options(ctx, f.principal)
 	if err != nil {
 		t.Fatal(err)
 	}
 	discovered = options.SelfHostedNodes[0]
-	if !discovered.RuntimeConfigured || !discovered.Ready || discovered.Readiness != "ready" || len(discovered.Blockers) != 0 {
+	if !discovered.RuntimeConfigured || !discovered.Ready || discovered.Readiness != "ready" || len(discovered.Blockers) != 0 ||
+		discovered.ExecutionPolicy != "trusted_workspace" || discovered.WorkspacePath != workspacePath || !discovered.WorkspaceCapable || len(discovered.SuccessfulImages) != 1 || discovered.SuccessfulImages[0] != resolvedImage {
 		t.Fatalf("configured Node = %+v", discovered)
 	}
 }

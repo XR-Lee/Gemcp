@@ -17,6 +17,7 @@ type WorkloadRecord struct {
 	ContainerID             string    `json:"container_id"`
 	GPUUUID                 string    `json:"gpu_uuid,omitempty"`
 	GPUName                 string    `json:"gpu_name,omitempty"`
+	ResolvedImage           string    `json:"resolved_image,omitempty"`
 	OutputRef               string    `json:"output_ref"`
 	State                   string    `json:"state"`
 	StartedAt               time.Time `json:"started_at"`

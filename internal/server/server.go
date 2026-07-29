@@ -119,6 +119,8 @@ func New(deps Dependencies) *http.Server {
 	protected.DELETE("/node-enrollments/:id", nodeHandlers.RevokeEnrollment)
 	protected.GET("/projects/:id/self-hosted-runtimes", nodeHandlers.ListRuntimeConfigs)
 	protected.POST("/projects/:id/self-hosted-runtimes", nodeHandlers.CreateRuntimeConfig)
+	protected.PUT("/projects/:id/self-hosted-trusted-workspace", nodeHandlers.EnableTrustedWorkspace)
+	protected.DELETE("/projects/:id/self-hosted-trusted-workspace/:node_id", nodeHandlers.DisableTrustedWorkspace)
 
 	providerService := providerservice.NewService(deps.Ent, deps.Secrets, deps.Build.Version)
 	providerHandlers := httpapi.NewProviderHandlers(providerService)

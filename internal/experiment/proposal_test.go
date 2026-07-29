@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/XR-Lee/Gemcp/ent/nodeprojectaccess"
 	"github.com/XR-Lee/Gemcp/internal/execution"
 	"github.com/XR-Lee/Gemcp/internal/provider"
 	gitrepository "github.com/XR-Lee/Gemcp/internal/repository"
@@ -300,5 +301,71 @@ func TestPreparedSelfHostedRequiresArgvCapabilityAndIsUnmetered(t *testing.T) {
 				t.Fatalf("Self-hosted SubmitPrepared() = %+v, %v", submitted, err)
 			}
 		})
+	}
+}
+
+func TestPreparedTrustedWorkspaceAcceptsTagAndBindsOwnerPath(t *testing.T) {
+	f := newFixture(t, 1, 1)
+	ctx := context.Background()
+	node, err := f.client.SelfHostedNode.Create().SetTenantID(f.principal.TenantID).SetLabel("usb-pc").
+		SetTokenPrefix("gmn_workspace").SetTokenHash([]byte("workspace-node-hash")).SetStatus("active").SetObservedState("online").
+		SetInstallationID(uuid.NewString()).SetMachineFingerprint(strings.Repeat("d", 64)).SetHostname("workspace-node").
+		SetOperatingSystem("linux").SetArchitecture("amd64").SetAgentVersion("test").SetProtocolVersion("1").
+		SetCapabilities(map[string]any{
+			"gpus":            []any{map[string]any{"uuid": "GPU-workspace", "name": "NVIDIA RTX A4000"}},
+			"execution_modes": []any{"shell", "argv"}, "workspace_modes": []any{"trusted_rw"},
+		}).SetStorage(map[string]any{}).SetLastSeenAt(time.Now().UTC()).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	workspacePath := "/home/campus.ncl.ac.uk/nxl51/gemcp_tmp"
+	access, err := f.client.NodeProjectAccess.Create().SetTenantID(f.principal.TenantID).SetNodeID(node.ID).SetProjectID(f.project.ID).
+		SetExecutionPolicy(nodeprojectaccess.ExecutionPolicyTrustedWorkspace).SetWorkspacePath(workspacePath).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	environmentRecord, err := f.client.Environment.Create().SetProjectID(f.project.ID).SetBackend("self_hosted").SetName("workspace-usb-pc").
+		SetImageUUID("workspace:any-public-image").SetRecipeRef("trusted-workspace:" + node.PublicID.String()).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	profileRecord, err := f.client.ResourceProfile.Create().SetProjectID(f.project.ID).SetBackend("self_hosted").SetName("workspace-usb-pc").
+		SetRegion("trusted_workspace").SetGpuNames([]string{"NVIDIA RTX A4000"}).SetGpuNum(1).SetCudaFrom(1).SetCudaTo(1).
+		SetCPUFrom(1).SetCPUTo(22).SetMemoryFromGB(1).SetMemoryToGB(29).SetPriceFromMilli(0).SetPriceToMilli(0).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	git := &proposalGit{resolved: proposalCommit, archive: proposalArchive(t)}
+	service := NewService(f.client, f.box, git, WithPreparedExperiments(
+		git, git, nil, proposalRuntime{healthy: true, selfHosted: true}, ProposalConfig{SourceMaxBytes: 1 << 20, SelfHostedEnabled: true},
+	))
+	input := validPrepare()
+	input.Environment, input.ResourceProfile, input.Image = environmentRecord.Name, profileRecord.Name, "pytorch/pytorch:2.4.1-cuda12.1-cudnn9-runtime"
+	prepared, err := service.Prepare(ctx, f.principal, input)
+	if err != nil || prepared.Proposal == nil || !prepared.Proposal.Eligible {
+		t.Fatalf("workspace Prepare()=%+v err=%v", prepared, err)
+	}
+	resource := prepared.Proposal.Resource
+	if resource.ExecutionPolicy != "trusted_workspace" || resource.WorkspacePath != workspacePath || resource.NodeID != node.PublicID.String() || !resource.ImageMutable || resource.Image != input.Image {
+		t.Fatalf("workspace resource=%+v", resource)
+	}
+	submitted, err := service.SubmitPrepared(ctx, f.principal, SubmitPreparedInput{ProposalID: prepared.Proposal.ID, ConfirmationDigest: prepared.Proposal.ConfirmationDigest})
+	if err != nil {
+		t.Fatal(err)
+	}
+	experimentRecord, err := f.client.Experiment.Query().Where().Only(ctx)
+	if err != nil || experimentRecord.PublicID.String() != submitted.Experiment.ID || snapshotString(experimentRecord.EnvironmentSnapshot, "workspace_path") != workspacePath || snapshotString(experimentRecord.EnvironmentSnapshot, "image_uuid") != input.Image {
+		t.Fatalf("workspace experiment=%+v err=%v", experimentRecord, err)
+	}
+
+	second, err := service.Prepare(ctx, f.principal, input)
+	if err != nil || second.Proposal == nil {
+		t.Fatalf("second Prepare()=%+v err=%v", second, err)
+	}
+	if _, err := access.Update().SetWorkspacePath("/home/campus.ncl.ac.uk/nxl51/other").Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.SubmitPrepared(ctx, f.principal, SubmitPreparedInput{ProposalID: second.Proposal.ID, ConfirmationDigest: second.Proposal.ConfirmationDigest}); !errors.Is(err, ErrProposalChanged) {
+		t.Fatalf("workspace path drift error=%v", err)
 	}
 }

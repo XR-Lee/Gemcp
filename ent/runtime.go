@@ -886,6 +886,14 @@ func init() {
 	nodeprojectaccess.DefaultUpdatedAt = nodeprojectaccessDescUpdatedAt.Default.(func() time.Time)
 	// nodeprojectaccess.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	nodeprojectaccess.UpdateDefaultUpdatedAt = nodeprojectaccessDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// nodeprojectaccessDescWorkspacePath is the schema descriptor for workspace_path field.
+	nodeprojectaccessDescWorkspacePath := nodeprojectaccessFields[5].Descriptor()
+	// nodeprojectaccess.WorkspacePathValidator is a validator for the "workspace_path" field. It is called by the builders before save.
+	nodeprojectaccess.WorkspacePathValidator = nodeprojectaccessDescWorkspacePath.Validators[0].(func(string) error)
+	// nodeprojectaccessDescSuccessfulImages is the schema descriptor for successful_images field.
+	nodeprojectaccessDescSuccessfulImages := nodeprojectaccessFields[6].Descriptor()
+	// nodeprojectaccess.DefaultSuccessfulImages holds the default value on creation for the successful_images field.
+	nodeprojectaccess.DefaultSuccessfulImages = nodeprojectaccessDescSuccessfulImages.Default.([]string)
 	notificationMixin := schema.Notification{}.Mixin()
 	notificationMixinFields0 := notificationMixin[0].Fields()
 	_ = notificationMixinFields0

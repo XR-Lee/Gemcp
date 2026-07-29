@@ -12,8 +12,10 @@ import (
 	"github.com/XR-Lee/Gemcp/ent"
 	"github.com/XR-Lee/Gemcp/ent/auditevent"
 	"github.com/XR-Lee/Gemcp/ent/enttest"
+	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/nodecommand"
+	"github.com/XR-Lee/Gemcp/ent/nodeprojectaccess"
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
 	"github.com/XR-Lee/Gemcp/internal/nodeprotocol"
 	"github.com/google/uuid"
@@ -279,5 +281,148 @@ func TestRuntimeConfigCreatesPinnedUnmeteredPair(t *testing.T) {
 		Name: "tagged", Image: "registry.example/training:latest", GPUNames: []string{"RTX 3090"}, CPULimit: 8, MemoryGB: 32,
 	}); err == nil {
 		t.Fatal("runtime config accepted a mutable image tag")
+	}
+}
+
+func TestTrustedWorkspaceAutomaticallyCreatesRuntimeFromNodeInventory(t *testing.T) {
+	f := newServiceFixture(t)
+	ctx := context.Background()
+	project, _ := f.client.Project.Query().Only(ctx)
+	capabilities := map[string]any{
+		"cpu_count": float64(24), "memory_bytes": float64(int64(31) << 30), "execution_modes": []any{"shell", "argv"}, "workspace_modes": []any{"trusted_rw"},
+		"gpus": []any{map[string]any{"uuid": "GPU-test", "name": "NVIDIA RTX A4000", "memory_bytes": float64(int64(16) << 30)}},
+	}
+	if _, err := f.node.Update().SetCapabilities(capabilities).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	input := TrustedWorkspaceInput{NodeID: f.node.PublicID.String(), WorkspacePath: "/home/campus.ncl.ac.uk/nxl51/gemcp_tmp"}
+	workspace, err := f.service.EnableTrustedWorkspace(ctx, project.TenantID, "owner-1", project.PublicID.String(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if workspace.WorkspacePath != input.WorkspacePath || workspace.GPUName != "NVIDIA RTX A4000" || workspace.CPULimit != 22 || workspace.MemoryGB != 29 || !workspace.NodeReady {
+		t.Fatalf("workspace=%+v", workspace)
+	}
+	environmentRecord, err := f.client.Environment.Query().Where(environment.PublicIDEQ(uuid.MustParse(workspace.EnvironmentID))).Only(ctx)
+	if err != nil || environmentRecord.ImageUUID != workspaceImagePlaceholder || environmentRecord.RecipeRef != trustedWorkspaceRecipePrefix+f.node.PublicID.String() {
+		t.Fatalf("environment=%+v err=%v", environmentRecord, err)
+	}
+	access, err := f.client.NodeProjectAccess.Query().Where(nodeprojectaccess.NodeIDEQ(f.node.ID), nodeprojectaccess.ProjectIDEQ(project.ID)).Only(ctx)
+	if err != nil || access.ExecutionPolicy != nodeprojectaccess.ExecutionPolicyTrustedWorkspace || access.WorkspacePath == nil || *access.WorkspacePath != input.WorkspacePath {
+		t.Fatalf("access=%+v err=%v", access, err)
+	}
+	listed, err := f.service.ListRuntimeConfigs(ctx, project.TenantID, project.PublicID.String())
+	if err != nil || len(listed.Workspaces) != 1 || listed.Workspaces[0].EnvironmentID != workspace.EnvironmentID {
+		t.Fatalf("listed=%+v err=%v", listed, err)
+	}
+	second, err := f.service.EnableTrustedWorkspace(ctx, project.TenantID, "owner-1", project.PublicID.String(), input)
+	if err != nil || second.EnvironmentID != workspace.EnvironmentID {
+		t.Fatalf("idempotent enable=%+v err=%v", second, err)
+	}
+	if count, _ := f.client.Environment.Query().Where(environment.RecipeRefEQ(trustedWorkspaceRecipePrefix + f.node.PublicID.String())).Count(ctx); count != 1 {
+		t.Fatalf("workspace environment count=%d", count)
+	}
+	if _, err := f.service.EnableTrustedWorkspace(ctx, project.TenantID, "owner-1", project.PublicID.String(), TrustedWorkspaceInput{NodeID: f.node.PublicID.String(), WorkspacePath: "/etc"}); err == nil {
+		t.Fatal("protected host root was accepted")
+	}
+	if _, err := f.service.EnableTrustedWorkspace(ctx, project.TenantID, "owner-1", project.PublicID.String(), TrustedWorkspaceInput{NodeID: f.node.PublicID.String(), WorkspacePath: "/etc/gemcp"}); err == nil {
+		t.Fatal("protected host subtree was accepted")
+	}
+	disabled, err := f.service.DisableTrustedWorkspace(ctx, project.TenantID, "owner-1", project.PublicID.String(), f.node.PublicID.String())
+	if err != nil || !disabled.Disabled {
+		t.Fatalf("DisableTrustedWorkspace()=%+v err=%v", disabled, err)
+	}
+	access, _ = f.client.NodeProjectAccess.Get(ctx, access.ID)
+	environmentRecord, _ = f.client.Environment.Get(ctx, environmentRecord.ID)
+	if access.ExecutionPolicy != nodeprojectaccess.ExecutionPolicyStrict || access.WorkspacePath != nil || environmentRecord.Status != environment.StatusDisabled {
+		t.Fatalf("disabled access=%+v environment=%+v", access, environmentRecord)
+	}
+}
+
+func TestTrustedWorkspaceDispatchBindsApprovedNodePathAndTag(t *testing.T) {
+	f := newServiceFixture(t)
+	ctx := context.Background()
+	project, _ := f.client.Project.Query().Only(ctx)
+	capabilities := map[string]any{
+		"cpu_count": float64(24), "memory_bytes": float64(int64(31) << 30), "execution_modes": []any{"shell", "argv"}, "workspace_modes": []any{"trusted_rw"},
+		"gpus": []any{map[string]any{"uuid": "GPU-test", "name": "NVIDIA RTX A4000", "memory_bytes": float64(int64(16) << 30)}},
+	}
+	if _, err := f.node.Update().SetCapabilities(capabilities).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	workspacePath := "/home/campus.ncl.ac.uk/nxl51/gemcp_tmp"
+	workspace, err := f.service.EnableTrustedWorkspace(ctx, project.TenantID, "owner-1", project.PublicID.String(), TrustedWorkspaceInput{
+		NodeID: f.node.PublicID.String(), WorkspacePath: workspacePath,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	environmentRecord, _ := f.client.Environment.Query().Where(environment.PublicIDEQ(uuid.MustParse(workspace.EnvironmentID))).Only(ctx)
+	profileRecord, _ := f.client.ResourceProfile.Query().Where(resourceprofile.PublicIDEQ(uuid.MustParse(workspace.ResourceProfileID))).Only(ctx)
+	base := f.experiment
+	experimentID := uuid.New()
+	experimentRecord, err := f.client.Experiment.Create().SetPublicID(experimentID).SetTenantID(base.TenantID).SetProjectID(base.ProjectID).
+		SetAgentTokenID(*base.AgentTokenID).SetRepositoryID(base.RepositoryID).SetEnvironmentID(environmentRecord.ID).SetResourceProfileID(profileRecord.ID).
+		SetCommitSha(strings.Repeat("1", 40)).SetExecutionMode("argv").SetArgv([]string{"python", "train.py"}).SetCommand("python train.py").
+		SetMaxRuntimeSeconds(300).SetTimeoutExtensionSeconds(60).SetTerminationGraceSeconds(5).
+		SetRepositorySnapshot(base.RepositorySnapshot).SetEnvironmentSnapshot(map[string]any{
+		"id": environmentRecord.PublicID.String(), "backend": Backend, "image_uuid": "pytorch/pytorch:2.4.1-cuda12.1-cudnn9-runtime",
+		"execution_policy": "trusted_workspace", "workspace_path": workspacePath, "workspace_node_id": f.node.PublicID.String(), "workspace_node_label": f.node.Label,
+	}).SetResourceSnapshot(map[string]any{"id": profileRecord.PublicID.String(), "backend": Backend}).SetOutputPath("managed://experiments/" + experimentID.String() + "/outputs").SetReservedCostMilli(0).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.client.BudgetEntry.Create().SetTenantID(base.TenantID).SetProjectID(base.ProjectID).SetExperimentID(experimentRecord.ID).
+		SetPeriod("2026-07").SetKind("reservation").SetAmountMilli(0).SetDescription("unmetered workspace").Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	tx, err := f.client.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		t.Fatal(err)
+	}
+	transactionExperiment, _ := tx.Experiment.Get(ctx, experimentRecord.ID)
+	dispatched, err := f.service.Dispatch(ctx, tx, transactionExperiment, f.now)
+	if err != nil || !dispatched {
+		_ = tx.Rollback()
+		t.Fatalf("Dispatch()=%t err=%v", dispatched, err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	command, err := f.client.NodeCommand.Query().Where(nodecommand.KindEQ("start_workload")).Only(ctx)
+	if err != nil || command.Payload["workspace_mode"] != "trusted_rw" || command.Payload["workspace_path"] != workspacePath || command.Payload["image"] != "pytorch/pytorch:2.4.1-cuda12.1-cudnn9-runtime" {
+		t.Fatalf("workspace command=%+v err=%v", command, err)
+	}
+	if _, err := f.service.DisableTrustedWorkspace(ctx, project.TenantID, "owner-1", project.PublicID.String(), f.node.PublicID.String()); err == nil {
+		t.Fatal("trusted workspace was disabled during an active Assignment")
+	}
+	assignment, _ := f.client.NodeAssignment.Query().Only(ctx)
+	tx, _ = f.client.Tx(ctx)
+	node, _ := tx.SelfHostedNode.Get(ctx, f.node.ID)
+	if err := f.service.ProjectNodeEvent(ctx, tx, node, nodeprotocol.Event{ID: uuid.NewString(), Sequence: 1, Kind: "workload_started", Payload: map[string]any{
+		"assignment_id": assignment.PublicID.String(), "workload_id": "workspace-container",
+	}}, f.now.Add(time.Second)); err != nil {
+		_ = tx.Rollback()
+		t.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	resolvedImage := "pytorch/pytorch@sha256:" + strings.Repeat("e", 64)
+	tx, _ = f.client.Tx(ctx)
+	node, _ = tx.SelfHostedNode.Get(ctx, f.node.ID)
+	if err := f.service.ProjectNodeEvent(ctx, tx, node, nodeprotocol.Event{ID: uuid.NewString(), Sequence: 2, Kind: "workload_finished", Payload: map[string]any{
+		"assignment_id": assignment.PublicID.String(), "exit_code": float64(0), "reason": "completed", "log_tail": "done\n", "metrics": map[string]any{}, "resolved_image": resolvedImage,
+	}}, f.now.Add(2*time.Second)); err != nil {
+		_ = tx.Rollback()
+		t.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	environmentRecord, _ = f.client.Environment.Get(ctx, environmentRecord.ID)
+	access, _ := f.client.NodeProjectAccess.Query().Where(nodeprojectaccess.NodeIDEQ(f.node.ID), nodeprojectaccess.ProjectIDEQ(project.ID)).Only(ctx)
+	if environmentRecord.ImageUUID != resolvedImage || len(access.SuccessfulImages) != 1 || access.SuccessfulImages[0] != resolvedImage {
+		t.Fatalf("recorded environment=%+v access=%+v", environmentRecord, access)
 	}
 }

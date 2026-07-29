@@ -18,6 +18,7 @@ import (
 )
 
 var pinnedImagePattern = regexp.MustCompile(`^[^[:space:]@]+@sha256:[0-9a-f]{64}$`)
+var workspaceImagePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/-]*(?:@sha256:[0-9a-f]{64})?$`)
 
 func (s *Service) Dispatch(ctx context.Context, tx *ent.Tx, experiment *ent.Experiment, now time.Time) (bool, error) {
 	if !s.config.Enabled {
@@ -37,8 +38,18 @@ func (s *Service) Dispatch(ctx context.Context, tx *ent.Tx, experiment *ent.Expe
 		return false, fmt.Errorf("Self-hosted experiment has an incompatible reservation or Secret specification")
 	}
 	image := snapshotString(experiment.EnvironmentSnapshot, "image_uuid")
-	if snapshotString(experiment.EnvironmentSnapshot, "backend") != Backend || !pinnedImagePattern.MatchString(image) {
-		return false, fmt.Errorf("Self-hosted environment must use a digest-pinned public OCI image")
+	workspaceMode := snapshotString(experiment.EnvironmentSnapshot, "execution_policy") == "trusted_workspace"
+	workspacePath := snapshotString(experiment.EnvironmentSnapshot, "workspace_path")
+	workspaceNodeID := snapshotString(experiment.EnvironmentSnapshot, "workspace_node_id")
+	if snapshotString(experiment.EnvironmentSnapshot, "backend") != Backend ||
+		(!workspaceMode && !pinnedImagePattern.MatchString(image)) ||
+		(workspaceMode && (!workspaceImagePattern.MatchString(image) || workspaceNodeID == "" || workspacePath == "")) {
+		return false, fmt.Errorf("Self-hosted environment image or trusted workspace binding is invalid")
+	}
+	if workspaceMode {
+		if _, err := normalizedWorkspacePath(workspacePath); err != nil {
+			return false, fmt.Errorf("trusted workspace path is invalid")
+		}
 	}
 	attemptNumber, err := tx.Attempt.Query().Where(attempt.ExperimentIDEQ(experiment.ID)).Count(ctx)
 	if err != nil {
@@ -104,6 +115,10 @@ func (s *Service) Dispatch(ctx context.Context, tx *ent.Tx, experiment *ent.Expe
 		"cpu_limit":                 profile.CPUTo,
 		"memory_limit_bytes":        int64(profile.MemoryToGB) << 30,
 	}
+	if workspaceMode {
+		payload["workspace_mode"] = "trusted_rw"
+		payload["workspace_path"] = workspacePath
+	}
 	commandRecord, err := enqueueCommand(ctx, tx, experiment.TenantID, node.ID, assignment.ID, "start_workload", "start:"+assignmentID.String(), payload, now)
 	if err != nil {
 		return false, err
@@ -123,7 +138,7 @@ func (s *Service) Dispatch(ctx context.Context, tx *ent.Tx, experiment *ent.Expe
 	if _, err := tx.AuditEvent.Create().
 		SetTenantID(experiment.TenantID).SetActorType("system").SetActorID(s.config.InstanceID).
 		SetAction("self_hosted.assignment_created").SetTargetType("node_assignment").SetTargetID(assignmentID.String()).
-		SetMetadata(map[string]any{"experiment_id": experiment.PublicID.String(), "attempt_id": attemptID.String(), "node_id": node.PublicID.String()}).
+		SetMetadata(map[string]any{"experiment_id": experiment.PublicID.String(), "attempt_id": attemptID.String(), "node_id": node.PublicID.String(), "execution_policy": snapshotString(experiment.EnvironmentSnapshot, "execution_policy")}).
 		Save(ctx); err != nil {
 		return false, err
 	}
@@ -159,6 +174,22 @@ func (s *Service) availableNode(ctx context.Context, tx *ent.Tx, experiment *ent
 		}
 		if experiment.ExecutionMode == executioncmd.ModeArgv && !supportsExecutionMode(node.Capabilities, executioncmd.ModeArgv) {
 			continue
+		}
+		if snapshotString(experiment.EnvironmentSnapshot, "execution_policy") == "trusted_workspace" {
+			if node.PublicID.String() != snapshotString(experiment.EnvironmentSnapshot, "workspace_node_id") || !supportsWorkspaceMode(node.Capabilities) {
+				continue
+			}
+			accessOK, err := tx.NodeProjectAccess.Query().Where(
+				nodeprojectaccess.NodeIDEQ(node.ID), nodeprojectaccess.ProjectIDEQ(experiment.ProjectID), nodeprojectaccess.StatusEQ(nodeprojectaccess.StatusActive),
+				nodeprojectaccess.ExecutionPolicyEQ(nodeprojectaccess.ExecutionPolicyTrustedWorkspace),
+				nodeprojectaccess.WorkspacePathEQ(snapshotString(experiment.EnvironmentSnapshot, "workspace_path")),
+			).Exist(ctx)
+			if err != nil {
+				return nil, "", err
+			}
+			if !accessOK {
+				continue
+			}
 		}
 		gpuUUID, ok := matchingGPU(node.Capabilities, profile.GpuNames)
 		if ok {

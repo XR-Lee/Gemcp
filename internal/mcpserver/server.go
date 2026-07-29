@@ -56,7 +56,7 @@ func New(agentAuth *agentauth.Service, experiments *experiment.Service, version 
 		Name: "report_agent_activity", Description: "Report a controlled workflow phase so the Owner console can show what the Agent is doing without collecting prompts or reasoning.",
 	}, server.reportAgentActivity)
 	mcp.AddTool(mcpServer, &mcp.Tool{
-		Name: "prepare_experiment", Description: "Prepare a zero-cost immutable argv proposal. Gemcp resolves an unambiguous repository, ref, compatible defaults, preflight checks, cost, and idempotency.",
+		Name: "prepare_experiment", Description: "Prepare a zero-cost immutable argv proposal. Gemcp resolves repository, ref, compatible defaults, capacity, cost, and idempotency; an image tag or digest may be selected only for an Owner-approved trusted Self-hosted workspace.",
 	}, server.prepareExperiment)
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "submit_prepared_experiment", Description: "Submit one confirmed prepared proposal by ID and exact confirmation digest. Identical retries return the same Experiment.",

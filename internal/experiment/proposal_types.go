@@ -55,6 +55,7 @@ type PrepareInput struct {
 	MaxRuntimeSeconds int      `json:"max_runtime_seconds,omitempty" jsonschema:"runtime at most 300 seconds for the smoke preset"`
 	Environment       string   `json:"environment,omitempty" jsonschema:"approved environment name or ID; omit to resolve a compatible default"`
 	ResourceProfile   string   `json:"resource_profile,omitempty" jsonschema:"active resource profile name or ID; omit to resolve a compatible default"`
+	Image             string   `json:"image,omitempty" jsonschema:"public OCI image tag or digest; accepted only by an Owner-approved trusted Self-hosted workspace"`
 }
 
 type ProposalChoice struct {
@@ -108,6 +109,11 @@ type ProposalResource struct {
 	PriceToMilli        int64    `json:"price_to_milli"`
 	ReuseContainer      bool     `json:"reuse_container"`
 	Billable            bool     `json:"billable"`
+	ExecutionPolicy     string   `json:"execution_policy,omitempty"`
+	WorkspacePath       string   `json:"workspace_path,omitempty"`
+	NodeID              string   `json:"node_id,omitempty"`
+	NodeLabel           string   `json:"node_label,omitempty"`
+	ImageMutable        bool     `json:"image_mutable,omitempty"`
 }
 
 type PreparedProposal struct {

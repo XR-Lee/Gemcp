@@ -193,6 +193,10 @@ type SelfHostedNodeOption struct {
 	AgentVersion      string                `json:"agent_version"`
 	GPUs              []SelfHostedGPUOption `json:"gpus"`
 	ExecutionModes    []string              `json:"execution_modes"`
+	ExecutionPolicy   string                `json:"execution_policy"`
+	WorkspacePath     string                `json:"workspace_path,omitempty"`
+	SuccessfulImages  []string              `json:"successful_images,omitempty"`
+	WorkspaceCapable  bool                  `json:"workspace_capable"`
 	LastSeenAt        *time.Time            `json:"last_seen_at,omitempty"`
 	RuntimeConfigured bool                  `json:"runtime_configured"`
 	Ready             bool                  `json:"ready"`

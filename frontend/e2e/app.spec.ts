@@ -1,7 +1,7 @@
 import { readFile, unlink } from 'node:fs/promises'
 import { expect, test, type Page, type Route } from '@playwright/test'
 
-const build = { name: 'Gemcp', version: '0.14.2', commit: 'b'.repeat(40), built_at: '2026-07-16T00:00:00Z' }
+const build = { name: 'Gemcp', version: '0.15.0', commit: 'b'.repeat(40), built_at: '2026-07-16T00:00:00Z' }
 const project = {
   id: 'b492cbe4-f198-4d87-bbf9-3f77d8a3ab0a', name: 'Point Models', slug: 'point-models', status: 'active',
   monthly_budget_milli: 100000, max_experiment_milli: 20000, max_concurrency: 2, max_runtime_seconds: 86400,
@@ -188,6 +188,7 @@ const selfHostedAssignment = {
 const selfHostedRuntimes = {
   environments: [{ id: 'environment-self-hosted', name: 'local-3090', image: `registry.example/train@sha256:${'b'.repeat(64)}`, is_default: true }],
   resource_profiles: [{ id: 'profile-self-hosted', name: 'local-3090', gpu_names: ['NVIDIA GeForce RTX 3090'], cpu_limit: 8, memory_gb: 32, is_default: true }],
+  trusted_workspaces: [],
 }
 const issuedNodeEnrollment = {
   id: 'node-enrollment-issued-1', label: 'second-gpu-node', status: 'pending', expires_at: '2026-07-17T02:30:00Z',
@@ -375,6 +376,14 @@ async function mockConsole(page: Page, counters?: { providerQueries: number; sel
         enrollment: issuedNodeEnrollment, setup_url: issuedNodeSetupURL,
         claim_url: 'https://gemcp.example.com/api/v1/node-enrollments/claim',
       }, 201)
+    }
+    if (path === `/api/v1/projects/${project.id}/self-hosted-trusted-workspace` && route.request().method() === 'PUT' && counters?.selfHosted) {
+      expect(route.request().postDataJSON()).toEqual({ node_id: discoveredA4000Node.id, workspace_path: '/home/campus.ncl.ac.uk/nxl51/gemcp_tmp', make_default: false })
+      return fulfill(route, {
+        node_id: discoveredA4000Node.id, node_label: discoveredA4000Node.label, workspace_path: '/home/campus.ncl.ac.uk/nxl51/gemcp_tmp',
+        environment_id: 'workspace-environment', environment_name: 'workspace-usb-pc', resource_profile_id: 'workspace-profile',
+        gpu_name: 'NVIDIA RTX A4000', cpu_limit: 22, memory_gb: 28, successful_images: [], node_ready: false,
+      })
     }
     if (path === `/api/v1/projects/${project.id}/self-hosted-runtimes` && counters?.selfHosted) return fulfill(route, selfHostedRuntimes)
     if (path === '/api/v1/provider' && route.request().method() === 'GET') return fulfill(route, provider)
@@ -644,7 +653,7 @@ test('global language toggle switches immediately and persists', async ({ page }
   await page.getByRole('button', { name: '升级指引 lab-gpu-01' }).click()
   const chineseUpgradeDialog = page.getByRole('dialog', { name: '升级 lab-gpu-01' })
   await expect(chineseUpgradeDialog.getByText('复制 Agent 指令', { exact: true })).toBeVisible()
-  await expect(chineseUpgradeDialog.locator('.upgrade-instruction')).toContainText('目标版本：v0.14.2')
+  await expect(chineseUpgradeDialog.locator('.upgrade-instruction')).toContainText('目标版本：v0.15.0')
   await chineseUpgradeDialog.getByRole('button', { name: '关闭', exact: true }).first().click()
   await page.getByRole('button', { name: 'Agent', exact: true }).click()
   await expect(page.locator('.agent-heading h2')).toHaveText('Agent 访问')
@@ -685,17 +694,23 @@ test('Self-hosted nodes, Assignments and runtime configuration fit desktop and m
   await expectNoPageOverflow(page)
   await page.screenshot({ path: '/tmp/gemcp-nodes-desktop.png', fullPage: true })
 
-  await page.getByRole('button', { name: 'Configure', exact: true }).click()
-  const discoveredRuntimeDialog = page.locator('.runtime-dialog')
-  await expect(discoveredRuntimeDialog.getByLabel('Runtime name')).toHaveValue('local-a4000')
-  await expect(discoveredRuntimeDialog.getByLabel('Accepted GPU models')).toHaveValue('NVIDIA RTX A4000')
-  await expect(discoveredRuntimeDialog.getByLabel('CPU limit')).toHaveValue('8')
-  await expect(discoveredRuntimeDialog.getByLabel('Memory limit (GB)')).toHaveValue('24')
-  await discoveredRuntimeDialog.getByRole('button', { name: 'Close' }).click()
+  await page.getByRole('button', { name: 'Enable workspace', exact: true }).click()
+  const workspaceDialog = page.locator('.workspace-dialog')
+  await expect(workspaceDialog.getByRole('heading', { name: 'Trusted workspace · usb-pc' })).toBeVisible()
+  await expect(workspaceDialog.getByText('Hardware limits and the Self-hosted profile are generated automatically from the latest Node heartbeat.', { exact: true })).toBeVisible()
+  await workspaceDialog.getByLabel('Approved host workspace').fill('/home/campus.ncl.ac.uk/nxl51/gemcp_tmp')
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: '/tmp/gemcp-workspace-dialog-desktop.png', fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: '/tmp/gemcp-workspace-dialog-mobile.png', fullPage: true })
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await workspaceDialog.getByRole('button', { name: 'Approve workspace', exact: true }).click()
+  await expect(workspaceDialog).toHaveCount(0)
 
   await page.getByRole('button', { name: 'Upgrade instructions lab-gpu-01' }).click()
   const upgradeDialog = page.getByRole('dialog', { name: 'Upgrade lab-gpu-01' })
-  await expect(upgradeDialog.getByText('v0.14.2', { exact: true })).toBeVisible()
+  await expect(upgradeDialog.getByText('v0.15.0', { exact: true })).toBeVisible()
   await expect(upgradeDialog.getByText('An active Assignment is attached to this Node. Do not run the upgrade until it reaches a terminal state.', { exact: true })).toBeVisible()
   await expect(upgradeDialog.locator('.upgrade-instruction')).toContainText(`TARGET_COMMIT='${'b'.repeat(40)}'`)
   await expect(upgradeDialog.locator('.upgrade-instruction')).toContainText('deploy/upgrade-gemcp-node.sh')
@@ -724,7 +739,7 @@ test('Self-hosted nodes, Assignments and runtime configuration fit desktop and m
   await setupLinkDialog.getByRole('button', { name: 'Done', exact: true }).click()
   await page.setViewportSize({ width: 1440, height: 1000 })
 
-  await page.getByRole('button', { name: 'Add runtime', exact: true }).click()
+  await page.getByRole('button', { name: 'Advanced runtime', exact: true }).click()
   const runtimeDialog = page.locator('.runtime-dialog')
   await expect(runtimeDialog.getByRole('heading', { name: 'Add Self-hosted runtime' })).toBeVisible()
   await expect(runtimeDialog.getByLabel('Accepted GPU models')).toHaveValue('NVIDIA GeForce RTX 3090, NVIDIA RTX A4000')

@@ -22431,23 +22431,27 @@ func (m *NodeEventMutation) ResetEdge(name string) error {
 // NodeProjectAccessMutation represents an operation that mutates the NodeProjectAccess nodes in the graph.
 type NodeProjectAccessMutation struct {
 	config
-	op             Op
-	typ            string
-	id             *int
-	public_id      *uuid.UUID
-	created_at     *time.Time
-	updated_at     *time.Time
-	status         *nodeprojectaccess.Status
-	clearedFields  map[string]struct{}
-	tenant         *int
-	clearedtenant  bool
-	node           *int
-	clearednode    bool
-	project        *int
-	clearedproject bool
-	done           bool
-	oldValue       func(context.Context) (*NodeProjectAccess, error)
-	predicates     []predicate.NodeProjectAccess
+	op                      Op
+	typ                     string
+	id                      *int
+	public_id               *uuid.UUID
+	created_at              *time.Time
+	updated_at              *time.Time
+	status                  *nodeprojectaccess.Status
+	execution_policy        *nodeprojectaccess.ExecutionPolicy
+	workspace_path          *string
+	successful_images       *[]string
+	appendsuccessful_images []string
+	clearedFields           map[string]struct{}
+	tenant                  *int
+	clearedtenant           bool
+	node                    *int
+	clearednode             bool
+	project                 *int
+	clearedproject          bool
+	done                    bool
+	oldValue                func(context.Context) (*NodeProjectAccess, error)
+	predicates              []predicate.NodeProjectAccess
 }
 
 var _ ent.Mutation = (*NodeProjectAccessMutation)(nil)
@@ -22800,6 +22804,156 @@ func (m *NodeProjectAccessMutation) ResetStatus() {
 	m.status = nil
 }
 
+// SetExecutionPolicy sets the "execution_policy" field.
+func (m *NodeProjectAccessMutation) SetExecutionPolicy(np nodeprojectaccess.ExecutionPolicy) {
+	m.execution_policy = &np
+}
+
+// ExecutionPolicy returns the value of the "execution_policy" field in the mutation.
+func (m *NodeProjectAccessMutation) ExecutionPolicy() (r nodeprojectaccess.ExecutionPolicy, exists bool) {
+	v := m.execution_policy
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExecutionPolicy returns the old "execution_policy" field's value of the NodeProjectAccess entity.
+// If the NodeProjectAccess object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NodeProjectAccessMutation) OldExecutionPolicy(ctx context.Context) (v nodeprojectaccess.ExecutionPolicy, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExecutionPolicy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExecutionPolicy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExecutionPolicy: %w", err)
+	}
+	return oldValue.ExecutionPolicy, nil
+}
+
+// ResetExecutionPolicy resets all changes to the "execution_policy" field.
+func (m *NodeProjectAccessMutation) ResetExecutionPolicy() {
+	m.execution_policy = nil
+}
+
+// SetWorkspacePath sets the "workspace_path" field.
+func (m *NodeProjectAccessMutation) SetWorkspacePath(s string) {
+	m.workspace_path = &s
+}
+
+// WorkspacePath returns the value of the "workspace_path" field in the mutation.
+func (m *NodeProjectAccessMutation) WorkspacePath() (r string, exists bool) {
+	v := m.workspace_path
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWorkspacePath returns the old "workspace_path" field's value of the NodeProjectAccess entity.
+// If the NodeProjectAccess object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NodeProjectAccessMutation) OldWorkspacePath(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWorkspacePath is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWorkspacePath requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWorkspacePath: %w", err)
+	}
+	return oldValue.WorkspacePath, nil
+}
+
+// ClearWorkspacePath clears the value of the "workspace_path" field.
+func (m *NodeProjectAccessMutation) ClearWorkspacePath() {
+	m.workspace_path = nil
+	m.clearedFields[nodeprojectaccess.FieldWorkspacePath] = struct{}{}
+}
+
+// WorkspacePathCleared returns if the "workspace_path" field was cleared in this mutation.
+func (m *NodeProjectAccessMutation) WorkspacePathCleared() bool {
+	_, ok := m.clearedFields[nodeprojectaccess.FieldWorkspacePath]
+	return ok
+}
+
+// ResetWorkspacePath resets all changes to the "workspace_path" field.
+func (m *NodeProjectAccessMutation) ResetWorkspacePath() {
+	m.workspace_path = nil
+	delete(m.clearedFields, nodeprojectaccess.FieldWorkspacePath)
+}
+
+// SetSuccessfulImages sets the "successful_images" field.
+func (m *NodeProjectAccessMutation) SetSuccessfulImages(s []string) {
+	m.successful_images = &s
+	m.appendsuccessful_images = nil
+}
+
+// SuccessfulImages returns the value of the "successful_images" field in the mutation.
+func (m *NodeProjectAccessMutation) SuccessfulImages() (r []string, exists bool) {
+	v := m.successful_images
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSuccessfulImages returns the old "successful_images" field's value of the NodeProjectAccess entity.
+// If the NodeProjectAccess object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NodeProjectAccessMutation) OldSuccessfulImages(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSuccessfulImages is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSuccessfulImages requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSuccessfulImages: %w", err)
+	}
+	return oldValue.SuccessfulImages, nil
+}
+
+// AppendSuccessfulImages adds s to the "successful_images" field.
+func (m *NodeProjectAccessMutation) AppendSuccessfulImages(s []string) {
+	m.appendsuccessful_images = append(m.appendsuccessful_images, s...)
+}
+
+// AppendedSuccessfulImages returns the list of values that were appended to the "successful_images" field in this mutation.
+func (m *NodeProjectAccessMutation) AppendedSuccessfulImages() ([]string, bool) {
+	if len(m.appendsuccessful_images) == 0 {
+		return nil, false
+	}
+	return m.appendsuccessful_images, true
+}
+
+// ClearSuccessfulImages clears the value of the "successful_images" field.
+func (m *NodeProjectAccessMutation) ClearSuccessfulImages() {
+	m.successful_images = nil
+	m.appendsuccessful_images = nil
+	m.clearedFields[nodeprojectaccess.FieldSuccessfulImages] = struct{}{}
+}
+
+// SuccessfulImagesCleared returns if the "successful_images" field was cleared in this mutation.
+func (m *NodeProjectAccessMutation) SuccessfulImagesCleared() bool {
+	_, ok := m.clearedFields[nodeprojectaccess.FieldSuccessfulImages]
+	return ok
+}
+
+// ResetSuccessfulImages resets all changes to the "successful_images" field.
+func (m *NodeProjectAccessMutation) ResetSuccessfulImages() {
+	m.successful_images = nil
+	m.appendsuccessful_images = nil
+	delete(m.clearedFields, nodeprojectaccess.FieldSuccessfulImages)
+}
+
 // ClearTenant clears the "tenant" edge to the Tenant entity.
 func (m *NodeProjectAccessMutation) ClearTenant() {
 	m.clearedtenant = true
@@ -22915,7 +23069,7 @@ func (m *NodeProjectAccessMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *NodeProjectAccessMutation) Fields() []string {
-	fields := make([]string, 0, 7)
+	fields := make([]string, 0, 10)
 	if m.public_id != nil {
 		fields = append(fields, nodeprojectaccess.FieldPublicID)
 	}
@@ -22936,6 +23090,15 @@ func (m *NodeProjectAccessMutation) Fields() []string {
 	}
 	if m.status != nil {
 		fields = append(fields, nodeprojectaccess.FieldStatus)
+	}
+	if m.execution_policy != nil {
+		fields = append(fields, nodeprojectaccess.FieldExecutionPolicy)
+	}
+	if m.workspace_path != nil {
+		fields = append(fields, nodeprojectaccess.FieldWorkspacePath)
+	}
+	if m.successful_images != nil {
+		fields = append(fields, nodeprojectaccess.FieldSuccessfulImages)
 	}
 	return fields
 }
@@ -22959,6 +23122,12 @@ func (m *NodeProjectAccessMutation) Field(name string) (ent.Value, bool) {
 		return m.ProjectID()
 	case nodeprojectaccess.FieldStatus:
 		return m.Status()
+	case nodeprojectaccess.FieldExecutionPolicy:
+		return m.ExecutionPolicy()
+	case nodeprojectaccess.FieldWorkspacePath:
+		return m.WorkspacePath()
+	case nodeprojectaccess.FieldSuccessfulImages:
+		return m.SuccessfulImages()
 	}
 	return nil, false
 }
@@ -22982,6 +23151,12 @@ func (m *NodeProjectAccessMutation) OldField(ctx context.Context, name string) (
 		return m.OldProjectID(ctx)
 	case nodeprojectaccess.FieldStatus:
 		return m.OldStatus(ctx)
+	case nodeprojectaccess.FieldExecutionPolicy:
+		return m.OldExecutionPolicy(ctx)
+	case nodeprojectaccess.FieldWorkspacePath:
+		return m.OldWorkspacePath(ctx)
+	case nodeprojectaccess.FieldSuccessfulImages:
+		return m.OldSuccessfulImages(ctx)
 	}
 	return nil, fmt.Errorf("unknown NodeProjectAccess field %s", name)
 }
@@ -23040,6 +23215,27 @@ func (m *NodeProjectAccessMutation) SetField(name string, value ent.Value) error
 		}
 		m.SetStatus(v)
 		return nil
+	case nodeprojectaccess.FieldExecutionPolicy:
+		v, ok := value.(nodeprojectaccess.ExecutionPolicy)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExecutionPolicy(v)
+		return nil
+	case nodeprojectaccess.FieldWorkspacePath:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWorkspacePath(v)
+		return nil
+	case nodeprojectaccess.FieldSuccessfulImages:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSuccessfulImages(v)
+		return nil
 	}
 	return fmt.Errorf("unknown NodeProjectAccess field %s", name)
 }
@@ -23072,7 +23268,14 @@ func (m *NodeProjectAccessMutation) AddField(name string, value ent.Value) error
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *NodeProjectAccessMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(nodeprojectaccess.FieldWorkspacePath) {
+		fields = append(fields, nodeprojectaccess.FieldWorkspacePath)
+	}
+	if m.FieldCleared(nodeprojectaccess.FieldSuccessfulImages) {
+		fields = append(fields, nodeprojectaccess.FieldSuccessfulImages)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -23085,6 +23288,14 @@ func (m *NodeProjectAccessMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *NodeProjectAccessMutation) ClearField(name string) error {
+	switch name {
+	case nodeprojectaccess.FieldWorkspacePath:
+		m.ClearWorkspacePath()
+		return nil
+	case nodeprojectaccess.FieldSuccessfulImages:
+		m.ClearSuccessfulImages()
+		return nil
+	}
 	return fmt.Errorf("unknown NodeProjectAccess nullable field %s", name)
 }
 
@@ -23112,6 +23323,15 @@ func (m *NodeProjectAccessMutation) ResetField(name string) error {
 		return nil
 	case nodeprojectaccess.FieldStatus:
 		m.ResetStatus()
+		return nil
+	case nodeprojectaccess.FieldExecutionPolicy:
+		m.ResetExecutionPolicy()
+		return nil
+	case nodeprojectaccess.FieldWorkspacePath:
+		m.ResetWorkspacePath()
+		return nil
+	case nodeprojectaccess.FieldSuccessfulImages:
+		m.ResetSuccessfulImages()
 		return nil
 	}
 	return fmt.Errorf("unknown NodeProjectAccess field %s", name)

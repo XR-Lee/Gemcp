@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
-import { ArrowUpCircle, Check, Clipboard, Cpu, HardDrive, LoaderCircle, Plus, RefreshCw, Server, ShieldCheck, TriangleAlert, Trash2, X } from '@lucide/vue'
+import { ArrowUpCircle, Check, Clipboard, Cpu, FolderOpen, HardDrive, LoaderCircle, Plus, RefreshCw, Server, ShieldCheck, TriangleAlert, Trash2, X } from '@lucide/vue'
 import {
   APIError, api, type BuildInfo, type NodeEnrollment, type NodeEnrollmentIssue, type NodeList, type Project,
-  type SelfHostedNode, type SelfHostedRuntimeList,
+  type SelfHostedNode, type SelfHostedRuntimeList, type TrustedWorkspace,
 } from '../api'
 import { localizedState, useI18n } from '../i18n'
 
@@ -27,15 +27,21 @@ const upgradeTarget = ref<SelfHostedNode | null>(null)
 const upgradeCopied = ref(false)
 const { languageTag, locale, t } = useI18n()
 const setupLanguage = ref<'zh' | 'en'>(locale.value)
-const runtimes = ref<SelfHostedRuntimeList>({ environments: [], resource_profiles: [] })
+const runtimes = ref<SelfHostedRuntimeList>({ environments: [], resource_profiles: [], trusted_workspaces: [] })
 const runtimeProjectID = ref(props.projects[0]?.id ?? '')
 const runtimeLoading = ref(false)
 const runtimeDialog = ref(false)
 const runtimeBusy = ref(false)
 const runtimeError = ref('')
+const workspaceDialog = ref(false)
+const workspaceTarget = ref<SelfHostedNode | null>(null)
+const workspaceBusy = ref(false)
+const workspaceError = ref('')
+const workspaceDisableTarget = ref<TrustedWorkspace | null>(null)
 const createForm = reactive({ label: '', expires: '30' })
 const approveForm = reactive({ pairingCode: '', projects: {} as Record<string, boolean> })
 const runtimeForm = reactive({ projectID: '', name: '', image: '', gpuNames: '', cpuLimit: 8, memoryGB: 32, makeDefault: false })
+const workspaceForm = reactive({ projectID: '', path: '', makeDefault: false })
 let timer: number | undefined
 
 const activeNodes = computed(() => data.value.nodes.filter((node) => node.status === 'active').length)
@@ -142,7 +148,7 @@ async function loadRuntimes() {
   runtimeError.value = ''
   try {
     const result = await api.selfHostedRuntimes(runtimeProjectID.value)
-    runtimes.value = { environments: result.environments ?? [], resource_profiles: result.resource_profiles ?? [] }
+    runtimes.value = { environments: result.environments ?? [], resource_profiles: result.resource_profiles ?? [], trusted_workspaces: result.trusted_workspaces ?? [] }
   } catch (caught) {
     runtimeError.value = apiMessage(caught, t('Could not load Self-hosted runtime configuration.', '无法加载自托管运行时配置。'))
   } finally {
@@ -162,6 +168,50 @@ function openRuntime(node?: SelfHostedNode) {
   })
   runtimeError.value = ''
   runtimeDialog.value = true
+}
+
+function openTrustedWorkspace(node: SelfHostedNode) {
+  const existing = runtimes.value.trusted_workspaces.find((item) => item.node_id === node.id)
+  workspaceTarget.value = node
+  Object.assign(workspaceForm, {
+    projectID: runtimeProjectID.value || props.projects[0]?.id || '', path: existing?.workspace_path ?? '', makeDefault: false,
+  })
+  workspaceError.value = ''
+  workspaceDialog.value = true
+}
+
+async function enableTrustedWorkspace() {
+  if (!workspaceTarget.value) return
+  workspaceBusy.value = true
+  workspaceError.value = ''
+  try {
+    await api.enableTrustedWorkspace(workspaceForm.projectID, {
+      node_id: workspaceTarget.value.id, workspace_path: workspaceForm.path.trim(), make_default: workspaceForm.makeDefault,
+    })
+    runtimeProjectID.value = workspaceForm.projectID
+    workspaceDialog.value = false
+    workspaceTarget.value = null
+    await loadRuntimes()
+  } catch (caught) {
+    workspaceError.value = apiMessage(caught, t('Could not enable the trusted workspace.', '无法启用可信工作区。'))
+  } finally {
+    workspaceBusy.value = false
+  }
+}
+
+async function disableTrustedWorkspace() {
+  if (!workspaceDisableTarget.value) return
+  workspaceBusy.value = true
+  workspaceError.value = ''
+  try {
+    await api.disableTrustedWorkspace(runtimeProjectID.value, workspaceDisableTarget.value.node_id)
+    workspaceDisableTarget.value = null
+    await loadRuntimes()
+  } catch (caught) {
+    workspaceError.value = apiMessage(caught, t('Could not disable the trusted workspace.', '无法停用可信工作区。'))
+  } finally {
+    workspaceBusy.value = false
+  }
 }
 
 function nodeHasMatchingRuntime(node: SelfHostedNode) {
@@ -391,7 +441,7 @@ onUnmounted(() => timer !== undefined && window.clearTimeout(timer))
                 <td><span class="project-cell" :title="projectLabel(node)">{{ projectLabel(node) }}</span></td>
                 <td>{{ formatBytes(node.storage.available_bytes) }}</td>
                 <td>{{ formatDate(node.last_seen_at) }}</td>
-                <td><button class="table-command" type="button" :disabled="!releaseMetadata" :title="t('Upgrade instructions', '升级指引')" :aria-label="`${t('Upgrade instructions', '升级指引')} ${node.label}`" @click="openUpgrade(node)"><ArrowUpCircle :size="16" /></button></td>
+                <td><div class="row-actions"><button class="table-command" type="button" :disabled="!node.project_ids.includes(runtimeProjectID)" :title="t('Enable trusted workspace', '启用可信工作区')" :aria-label="`${t('Enable trusted workspace', '启用可信工作区')} ${node.label}`" @click="openTrustedWorkspace(node)"><FolderOpen :size="16" /></button><button class="table-command" type="button" :disabled="!releaseMetadata" :title="t('Upgrade instructions', '升级指引')" :aria-label="`${t('Upgrade instructions', '升级指引')} ${node.label}`" @click="openUpgrade(node)"><ArrowUpCircle :size="16" /></button></div></td>
               </tr>
             </tbody>
           </table>
@@ -430,14 +480,19 @@ onUnmounted(() => timer !== undefined && window.clearTimeout(timer))
             <select v-model="runtimeProjectID" class="compact-select" :aria-label="t('Runtime Project', '运行时 Project')">
               <option v-for="project in projects" :key="project.id" :value="project.id">{{ project.name }}</option>
             </select>
-            <button class="primary-button small-button icon-command" type="button" :disabled="projects.length === 0" @click="openRuntime()"><Plus :size="15" /> {{ t('Add runtime', '添加运行时') }}</button>
+            <button class="secondary-button small-button icon-command" type="button" :disabled="projects.length === 0" @click="openRuntime()"><Plus :size="15" /> {{ t('Advanced runtime', '高级运行时') }}</button>
           </div>
         </div>
         <div v-if="runtimeError && !runtimeDialog" class="section-alert inline-alert danger" role="alert">{{ runtimeError }}</div>
         <div v-if="!runtimeLoading && nodesMissingRuntime.length" class="runtime-discovery-alert" role="status">
           <TriangleAlert :size="19" />
-          <div><strong>{{ t('Authorized GPU capacity is not exposed to Agents yet', '已授权 GPU 算力尚未向 Agent 暴露') }}</strong><span>{{ nodesMissingRuntime.map((node) => `${node.label} · ${gpuLabel(node)}`).join(', ') }}</span><small>{{ t('Hardware and heartbeat are synchronized automatically. Add only the approved digest-pinned image to complete the runtime boundary.', '硬件与心跳已自动同步。只需补充经过批准且按 digest 固定的镜像，即可完成 runtime 边界。') }}</small></div>
-          <button class="secondary-button small-button" type="button" @click="openRuntime(nodesMissingRuntime[0])">{{ t('Configure', '配置') }}</button>
+          <div><strong>{{ t('Authorized GPU capacity is not exposed to Agents yet', '已授权 GPU 算力尚未向 Agent 暴露') }}</strong><span>{{ nodesMissingRuntime.map((node) => `${node.label} · ${gpuLabel(node)}`).join(', ') }}</span><small>{{ t('Enable a trusted workspace with one host path, or use Advanced runtime for a strict digest-pinned boundary.', '只需填写一个宿主目录即可启用可信工作区；也可使用高级运行时配置严格的 digest 边界。') }}</small></div>
+          <button class="secondary-button small-button icon-command" type="button" @click="openTrustedWorkspace(nodesMissingRuntime[0])"><FolderOpen :size="15" /> {{ t('Enable workspace', '启用工作区') }}</button>
+        </div>
+        <div v-if="runtimes.trusted_workspaces.length" class="trusted-workspace-list">
+          <div v-for="workspace in runtimes.trusted_workspaces" :key="workspace.node_id" class="trusted-workspace-row">
+            <FolderOpen :size="17" /><div><strong>{{ workspace.node_label }}</strong><code>{{ workspace.workspace_path }}</code></div><div class="workspace-row-actions"><span>{{ workspace.gpu_name }} · {{ workspace.cpu_limit }} CPU · {{ workspace.memory_gb }} GB · {{ workspace.node_ready ? t('Ready', '就绪') : t('Node upgrade required', '需要升级节点') }}</span><button class="table-command danger" type="button" :title="t('Disable trusted workspace', '停用可信工作区')" :aria-label="`${t('Disable trusted workspace', '停用可信工作区')} ${workspace.node_label}`" @click="workspaceDisableTarget = workspace"><Trash2 :size="15" /></button></div><small>{{ workspace.successful_images[0] ?? t('Choose an image per Proposal; the first successful digest will be recorded.', '每个 Proposal 可选择镜像；首次成功后会记录实际 digest。') }}</small>
+          </div>
         </div>
         <div class="table-scroll">
           <table class="data-table runtime-table">
@@ -447,7 +502,7 @@ onUnmounted(() => timer !== undefined && window.clearTimeout(timer))
               <tr v-else-if="runtimeRows.length === 0"><td colspan="6" class="empty-cell">{{ t('No Self-hosted runtime is configured for this Project.', '此 Project 尚未配置自托管运行时。') }}</td></tr>
               <tr v-for="row in runtimeRows" :key="row.profile.id">
                 <td><strong>{{ row.profile.name }}</strong></td>
-                <td><code class="image-reference" :title="row.environment?.image">{{ row.environment?.image ?? t('Environment missing', '缺少 Environment') }}</code></td>
+                <td><code class="image-reference" :title="row.environment?.image">{{ row.environment?.image === 'workspace:any-public-image' ? t('Selected per Proposal', '由 Proposal 选择') : (row.environment?.image ?? t('Environment missing', '缺少 Environment')) }}</code></td>
                 <td><span class="gpu-cell">{{ row.profile.gpu_names.join(', ') }}</span></td>
                 <td>{{ row.profile.cpu_limit }}</td>
                 <td>{{ row.profile.memory_gb }} GB</td>
@@ -516,6 +571,29 @@ onUnmounted(() => timer !== undefined && window.clearTimeout(timer))
         </template>
         <div class="modal-actions"><button class="secondary-button" type="button" @click="upgradeTarget = null">{{ t('Close', '关闭') }}</button><button class="primary-button icon-command" type="button" :disabled="!upgradeInstruction" @click="copyUpgradeInstruction"><Check v-if="upgradeCopied" :size="16" /><Clipboard v-else :size="16" /> {{ upgradeCopied ? t('Copied', '已复制') : t('Copy Agent instruction', '复制 Agent 指令') }}</button></div>
       </section>
+    </div>
+
+    <div v-if="workspaceDisableTarget" class="modal-backdrop" @click.self="workspaceDisableTarget = null">
+      <section class="modal-card node-dialog compact-dialog" role="alertdialog" aria-modal="true">
+        <div class="modal-heading"><div><p class="eyebrow">{{ t('Host access boundary', '宿主访问边界') }}</p><h2>{{ t('Disable trusted workspace', '停用可信工作区') }}?</h2></div><button class="close-button" type="button" :aria-label="t('Close', '关闭')" @click="workspaceDisableTarget = null"><X :size="18" /></button></div>
+        <p class="dialog-note"><strong>{{ workspaceDisableTarget.node_label }}</strong><br /><code>{{ workspaceDisableTarget.workspace_path }}</code></p>
+        <p class="dialog-note">{{ t('New Experiments will lose access immediately. Gemcp refuses this change while the Node has an active Assignment. Successful image history remains in the audit record.', '新的 Experiment 将立即失去访问权限。节点存在活跃 Assignment 时 Gemcp 会拒绝此操作；成功镜像历史仍保留在审计记录中。') }}</p>
+        <div v-if="workspaceError" class="inline-alert danger" role="alert">{{ workspaceError }}</div>
+        <div class="modal-actions"><button class="secondary-button" type="button" @click="workspaceDisableTarget = null">{{ t('Cancel', '取消') }}</button><button class="danger-button icon-command" type="button" :disabled="workspaceBusy" @click="disableTrustedWorkspace"><LoaderCircle v-if="workspaceBusy" :size="16" class="spinning" /><Trash2 v-else :size="16" /> {{ t('Disable', '停用') }}</button></div>
+      </section>
+    </div>
+
+    <div v-if="workspaceDialog && workspaceTarget" class="modal-backdrop" @click.self="workspaceDialog = false">
+      <form class="modal-card node-dialog workspace-dialog" @submit.prevent="enableTrustedWorkspace">
+        <div class="modal-heading"><div><p class="eyebrow">{{ t('Owner-approved permissive mode', 'Owner 批准的宽松模式') }}</p><h2>{{ t('Trusted workspace', '可信工作区') }} · {{ workspaceTarget.label }}</h2></div><button class="close-button" type="button" :aria-label="t('Close', '关闭')" @click="workspaceDialog = false"><X :size="18" /></button></div>
+        <div class="workspace-boundary"><FolderOpen :size="20" /><div><strong>{{ gpuLabel(workspaceTarget) }}</strong><span>{{ t('Hardware limits and the Self-hosted profile are generated automatically from the latest Node heartbeat.', '硬件限制和 Self-hosted profile 将根据节点最新 heartbeat 自动生成。') }}</span></div></div>
+        <label class="field-label">Project<select v-model="workspaceForm.projectID" class="text-input" required><option v-for="project in projects.filter((item) => workspaceTarget?.project_ids.includes(item.id))" :key="project.id" :value="project.id">{{ project.name }}</option></select></label>
+        <label class="field-label">{{ t('Approved host workspace', '批准的宿主工作区') }}<input v-model="workspaceForm.path" class="text-input code-input" required maxlength="4096" autocomplete="off" placeholder="/home/user/gemcp_workspace" /></label>
+        <div class="inline-alert workspace-warning" role="status">{{ t('Containers may read and write only this additional host directory. Public image tags are allowed for experiments, while privileged mode, Docker socket, host networking, and arbitrary mounts remain blocked. A successful run records the resolved image digest for reuse.', '容器可额外读写的宿主目录仅限此处。实验可使用公共镜像 tag；privileged、Docker socket、host network 和任意挂载仍被禁止。成功运行后会记录解析出的镜像 digest 供复用。') }}</div>
+        <label class="runtime-checkbox"><input v-model="workspaceForm.makeDefault" type="checkbox" /><span>{{ t('Use this workspace as the Project default Self-hosted runtime', '将此工作区设为 Project 默认 Self-hosted runtime') }}</span></label>
+        <div v-if="workspaceError" class="inline-alert danger" role="alert">{{ workspaceError }}</div>
+        <div class="modal-actions"><button class="secondary-button" type="button" @click="workspaceDialog = false">{{ t('Cancel', '取消') }}</button><button class="primary-button icon-command" type="submit" :disabled="workspaceBusy"><LoaderCircle v-if="workspaceBusy" :size="16" class="spinning" /><FolderOpen v-else :size="16" /> {{ t('Approve workspace', '批准工作区') }}</button></div>
+      </form>
     </div>
 
     <div v-if="runtimeDialog" class="modal-backdrop" @click.self="runtimeDialog = false">
@@ -698,6 +776,22 @@ onUnmounted(() => timer !== undefined && window.clearTimeout(timer))
 .runtime-discovery-alert strong { font-size: 12px; }
 .runtime-discovery-alert span { margin-top: 2px; color: #4f5c54; font-size: 11px; }
 .runtime-discovery-alert small { margin-top: 3px; color: #776b4d; font-size: 10px; line-height: 15px; }
+.trusted-workspace-list { margin: 0 15px 14px; border: 1px solid #cddbd2; background: #f4f8f5; }
+.trusted-workspace-row { min-width: 0; padding: 11px 13px; display: grid; grid-template-columns: auto minmax(180px, 1fr) auto; align-items: center; gap: 10px 13px; }
+.trusted-workspace-row + .trusted-workspace-row { border-top: 1px solid #dbe4de; }
+.trusted-workspace-row > svg { color: #28684f; }
+.trusted-workspace-row div { min-width: 0; display: grid; gap: 2px; }
+.trusted-workspace-row strong { color: #26332c; font-size: 12px; }
+.trusted-workspace-row code { overflow: hidden; color: #506158; font-size: 10px; text-overflow: ellipsis; }
+.trusted-workspace-row > span { color: #4f5d55; font-size: 11px; }
+.trusted-workspace-row > small { min-width: 0; grid-column: 2 / -1; overflow: hidden; color: #6a766f; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 9px; color: #4f5d55; font-size: 11px; }
+.workspace-dialog { width: min(620px, 100%); }
+.workspace-boundary { margin-bottom: 17px; padding: 12px; display: flex; align-items: center; gap: 11px; color: #265f49; background: #eff6f2; border: 1px solid #cce0d4; }
+.workspace-boundary div { display: grid; gap: 3px; }
+.workspace-boundary strong { font-size: 12px; }
+.workspace-boundary span { color: #5b6961; font-size: 11px; line-height: 16px; }
+.workspace-warning { margin-top: 15px; color: #66511f; background: #fff8e8; border-color: #ead59f; }
 .image-reference { display: block; max-width: 310px; overflow: hidden; text-overflow: ellipsis; }
 .runtime-dialog { width: min(620px, 100%); }
 .runtime-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -730,6 +824,8 @@ onUnmounted(() => timer !== undefined && window.clearTimeout(timer))
   .runtime-actions { display: grid; grid-template-columns: 1fr 1fr; }
   .runtime-discovery-alert { grid-template-columns: auto minmax(0, 1fr); }
   .runtime-discovery-alert .secondary-button { grid-column: 1 / -1; width: 100%; }
+  .trusted-workspace-row { grid-template-columns: auto minmax(0, 1fr); }
+  .workspace-row-actions, .trusted-workspace-row > small { grid-column: 2; }
   .compact-select { width: 100%; }
   .runtime-form-grid { grid-template-columns: 1fr; }
   .full-runtime-field { grid-column: auto; }
