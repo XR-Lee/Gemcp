@@ -74,9 +74,11 @@ type TenantEdges struct {
 	DiagnosticRuns []*DiagnosticRun `json:"diagnostic_runs,omitempty"`
 	// ExperimentProposals holds the value of the experiment_proposals edge.
 	ExperimentProposals []*ExperimentProposal `json:"experiment_proposals,omitempty"`
+	// WorkspaceDatasets holds the value of the workspace_datasets edge.
+	WorkspaceDatasets []*WorkspaceDataset `json:"workspace_datasets,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [19]bool
+	loadedTypes [20]bool
 }
 
 // UsersOrErr returns the Users value or an error if the edge
@@ -250,6 +252,15 @@ func (e TenantEdges) ExperimentProposalsOrErr() ([]*ExperimentProposal, error) {
 	return nil, &NotLoadedError{edge: "experiment_proposals"}
 }
 
+// WorkspaceDatasetsOrErr returns the WorkspaceDatasets value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) WorkspaceDatasetsOrErr() ([]*WorkspaceDataset, error) {
+	if e.loadedTypes[19] {
+		return e.WorkspaceDatasets, nil
+	}
+	return nil, &NotLoadedError{edge: "workspace_datasets"}
+}
+
 // scanValues returns the types for scanning values from sql.Rows.
 func (*Tenant) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
@@ -420,6 +431,11 @@ func (_m *Tenant) QueryDiagnosticRuns() *DiagnosticRunQuery {
 // QueryExperimentProposals queries the "experiment_proposals" edge of the Tenant entity.
 func (_m *Tenant) QueryExperimentProposals() *ExperimentProposalQuery {
 	return NewTenantClient(_m.config).QueryExperimentProposals(_m)
+}
+
+// QueryWorkspaceDatasets queries the "workspace_datasets" edge of the Tenant entity.
+func (_m *Tenant) QueryWorkspaceDatasets() *WorkspaceDatasetQuery {
+	return NewTenantClient(_m.config).QueryWorkspaceDatasets(_m)
 }
 
 // Update returns a builder for updating this Tenant.

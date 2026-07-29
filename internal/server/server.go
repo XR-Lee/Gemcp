@@ -30,6 +30,7 @@ import (
 	"github.com/XR-Lee/Gemcp/internal/selfhosted"
 	setupservice "github.com/XR-Lee/Gemcp/internal/setup"
 	"github.com/XR-Lee/Gemcp/internal/web"
+	"github.com/XR-Lee/Gemcp/internal/workspacecatalog"
 	"github.com/gin-gonic/gin"
 )
 
@@ -110,6 +111,7 @@ func New(deps Dependencies) *http.Server {
 	protected.POST("/projects/:id/budget-adjustments", financeHandlers.Adjust)
 	protected.GET("/projects/:id/agent-tokens", agentTokenHandlers.List)
 	protected.POST("/projects/:id/agent-tokens", agentTokenHandlers.Issue)
+	protected.PATCH("/projects/:id/agent-tokens/:tokenID", agentTokenHandlers.UpdateScopes)
 	protected.DELETE("/projects/:id/agent-tokens/:tokenID", agentTokenHandlers.Revoke)
 	protected.POST("/projects/:id/agent-enrollments", agentTokenHandlers.IssueEnrollment)
 	protected.DELETE("/projects/:id/agent-enrollments/:enrollmentID", agentTokenHandlers.RevokeEnrollment)
@@ -177,7 +179,10 @@ func New(deps Dependencies) *http.Server {
 	protected.POST("/projects/:id/diagnostics/:runID/cancel", diagnosticHandlers.Cancel)
 
 	agentAuthService := agentauth.NewService(deps.Ent, deps.Secrets)
-	mcpHandler := mcpserver.New(agentAuthService, experimentService, deps.Build.Version, nil).Handler()
+	mcpHandler := mcpserver.New(
+		agentAuthService, experimentService, deps.Build.Version, nil,
+		mcpserver.WithConfiguration(repositoryService, workspacecatalog.NewService(deps.Ent)),
+	).Handler()
 	router.Any("/mcp", gin.WrapH(mcpHandler))
 
 	frontend := web.Handler()

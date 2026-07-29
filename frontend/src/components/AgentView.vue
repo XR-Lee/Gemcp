@@ -45,6 +45,9 @@ const issueDialog = ref(false)
 const issuing = ref(false)
 const issueError = ref('')
 const reveal = ref<AgentTokenIssue | null>(null)
+const scopeTarget = ref<AgentToken | null>(null)
+const scopeSaving = ref(false)
+const scopeError = ref('')
 const copied = ref('')
 const guideDialog = ref(false)
 const guideError = ref('')
@@ -56,13 +59,14 @@ const setupForm = reactive({
   label: '',
   expiration: '90',
   linkExpiration: '30',
-  scopes: { read: true, submit: true, cancel: true } as Record<AgentScope, boolean>,
+  scopes: { read: true, submit: true, cancel: true, configure: false } as Record<AgentScope, boolean>,
 })
 const form = reactive({
   label: '',
   expiration: '90',
-  scopes: { read: true, submit: true, cancel: true } as Record<AgentScope, boolean>,
+  scopes: { read: true, submit: true, cancel: true, configure: false } as Record<AgentScope, boolean>,
 })
+const scopeForm = reactive({ read: true, submit: false, cancel: false, configure: false } as Record<AgentScope, boolean>)
 const { languageTag, t } = useI18n()
 
 const activeTokens = computed(() => data.value?.tokens.filter((item) => item.status === 'active').length ?? 0)
@@ -126,6 +130,7 @@ function openSetup() {
   setupForm.scopes.read = true
   setupForm.scopes.submit = true
   setupForm.scopes.cancel = true
+  setupForm.scopes.configure = false
   setupError.value = ''
   setupDialog.value = true
 }
@@ -179,6 +184,7 @@ function openIssue() {
   form.scopes.read = true
   form.scopes.submit = true
   form.scopes.cancel = true
+  form.scopes.configure = false
   issueError.value = ''
   issueDialog.value = true
 }
@@ -188,6 +194,33 @@ function closeIssue() {
   form.label = ''
   issueError.value = ''
   issueDialog.value = false
+}
+
+function openScopes(token: AgentToken) {
+  scopeTarget.value = token
+  for (const scope of Object.keys(scopeForm) as AgentScope[]) scopeForm[scope] = token.scopes.includes(scope)
+  scopeError.value = ''
+}
+
+async function updateScopes() {
+  if (!props.project || !scopeTarget.value) return
+  const scopes = (Object.keys(scopeForm) as AgentScope[]).filter((scope) => scopeForm[scope])
+  if (!scopes.length) {
+    scopeError.value = t('Select at least one scope.', '请至少选择一个 scope。')
+    return
+  }
+  scopeSaving.value = true
+  scopeError.value = ''
+  try {
+    const updated = await api.updateAgentTokenScopes(props.project.id, scopeTarget.value.id, scopes)
+    if (data.value) data.value.tokens = data.value.tokens.map((token) => token.id === updated.id ? updated : token)
+    scopeTarget.value = null
+  } catch (caught) {
+    if (caught instanceof APIError && caught.status === 401) emit('unauthorized')
+    else scopeError.value = caught instanceof APIError ? caught.message : t('Could not update Agent scopes.', '无法更新 Agent scope。')
+  } finally {
+    scopeSaving.value = false
+  }
 }
 
 async function issueToken() {
@@ -414,7 +447,7 @@ watch(() => [props.active, props.project?.id] as const, ([active, projectID]) =>
                 <td>{{ item.expires_at ? dateTime(item.expires_at) : t('No expiry', '永不过期') }}</td>
                 <td>{{ dateTime(item.last_used_at) }}</td>
                 <td>{{ dateTime(item.created_at) }}</td>
-                <td><button class="icon-button danger-icon" type="button" :title="t('Revoke Agent token', '撤销 Agent Token')" :disabled="item.status === 'revoked'" @click="revokeTarget = item"><Trash2 :size="16" /></button></td>
+                <td><div class="row-actions"><button class="icon-button" type="button" :title="t('Edit Agent scopes', '编辑 Agent scope')" :disabled="item.status !== 'active'" @click="openScopes(item)"><ShieldCheck :size="16" /></button><button class="icon-button danger-icon" type="button" :title="t('Revoke Agent token', '撤销 Agent Token')" :disabled="item.status === 'revoked'" @click="revokeTarget = item"><Trash2 :size="16" /></button></div></td>
               </tr>
             </tbody>
           </table>
@@ -433,8 +466,8 @@ watch(() => [props.active, props.project?.id] as const, ([active, projectID]) =>
           <label>{{ t('Credential expiration', '凭据有效期') }}<select v-model="setupForm.expiration"><option value="30">30 {{ t('days', '天') }}</option><option value="90">90 {{ t('days', '天') }}</option><option value="365">1 {{ t('year', '年') }}</option><option value="never">{{ t('No expiry', '永不过期') }}</option></select></label>
           <label>{{ t('Link validity', '链接有效期') }}<select v-model="setupForm.linkExpiration"><option value="15">15 {{ t('minutes', '分钟') }}</option><option value="30">30 {{ t('minutes', '分钟') }}</option><option value="60">1 {{ t('hour', '小时') }}</option><option value="240">4 {{ t('hours', '小时') }}</option></select></label>
         </div>
-        <fieldset class="scope-fieldset"><legend>Scopes</legend><label :title="t('Required for setup verification', '设置验证所必需')"><input v-model="setupForm.scopes.read" type="checkbox" disabled /><span>Read</span></label><label><input v-model="setupForm.scopes.submit" type="checkbox" /><span>Submit</span></label><label><input v-model="setupForm.scopes.cancel" type="checkbox" /><span>Cancel</span></label></fieldset>
-        <p class="form-note">{{ t('The provisional credential is read-only. Selected write scopes activate after verification; Submit is technical capability, not standing approval for paid work.', '临时凭据仅有读取权限。验证完成后才激活所选写入 scope；Submit 是技术能力，不代表对付费任务的长期批准。') }}</p>
+        <fieldset class="scope-fieldset"><legend>Scopes</legend><label :title="t('Required for setup verification', '设置验证所必需')"><input v-model="setupForm.scopes.read" type="checkbox" disabled /><span>Read</span></label><label><input v-model="setupForm.scopes.submit" type="checkbox" /><span>Submit</span></label><label><input v-model="setupForm.scopes.cancel" type="checkbox" /><span>Cancel</span></label><label :title="t('Register Project repositories and dataset paths under an approved workspace root', '在已批准工作区根目录下注册 Project 仓库和数据路径')"><input v-model="setupForm.scopes.configure" type="checkbox" /><span>Configure</span></label></fieldset>
+        <p class="form-note">{{ t('The provisional credential is read-only. Selected write scopes activate after verification. Configure cannot authorize a new host root; Submit is not standing approval for paid work.', '临时凭据仅有读取权限，验证后才激活所选写入 scope。Configure 不能批准新的宿主根目录；Submit 也不代表对付费任务的长期批准。') }}</p>
         <div v-if="setupError" class="form-error" role="alert">{{ setupError }}</div>
         <button class="primary-button" type="submit" :disabled="settingUp"><LoaderCircle v-if="settingUp" :size="16" class="spinning" /><Link2 v-else :size="16" />{{ t('Create setup link', '创建 Setup Link') }}</button>
       </form>
@@ -462,7 +495,7 @@ watch(() => [props.active, props.project?.id] as const, ([active, projectID]) =>
           <li><span>1</span><div><strong>{{ t('Set the boundary', '设置边界') }}</strong><p>{{ t('Choose the project scopes, credential lifetime, budget policy, and whether every paid run requires explicit approval.', '选择 Project scope、凭据有效期、预算策略，以及每次付费运行是否都需要显式批准。') }}</p></div></li>
           <li><span>2</span><div><strong>{{ t('Create one setup link', '创建一个 Setup Link') }}</strong><p>{{ t('The short-lived fragment capability is shown once. No long-lived Token is exposed to the Owner or placed in the link.', '短期 fragment capability 只显示一次，不会向 Owner 暴露长期 Token，也不会把长期 Token 放入链接。') }}</p></div></li>
           <li><span>3</span><div><strong>{{ t('Send only the link', '只发送链接') }}</strong><p>{{ t('The Pi Agent runs the fixed installer, stores its credential, discovers all tools, and tests the guide, options and cost itself.', 'Pi Agent 运行固定安装器、保存凭据、发现所有工具，并自行测试指南、选项和成本。') }}</p></div></li>
-          <li><span>4</span><div><strong>{{ t('Reload once', '重载一次') }}</strong><p>{{ t('After setup reports all checks passed, one Pi reload makes the eight Gemcp operations available as native direct tools.', '设置报告所有检查通过后，重载一次 Pi，即可将八项 Gemcp 操作作为原生直接工具使用。') }}</p></div></li>
+          <li><span>4</span><div><strong>{{ t('Reload once', '重载一次') }}</strong><p>{{ t('After setup reports all checks passed, one Pi reload makes all bounded Gemcp operations available as native direct tools.', '设置报告所有检查通过后，重载一次 Pi，即可将所有受限 Gemcp 操作作为原生直接工具使用。') }}</p></div></li>
           <li><span>5</span><div><strong>{{ t('Approve and supervise', '批准并监督') }}</strong><p>{{ t('The Agent must still present the immutable run and worst-case reservation before paid submission, then monitor it to a terminal state.', 'Agent 在付费提交前仍必须展示不可变运行规格和最坏情况预留，随后监控至终态。') }}</p></div></li>
         </ol>
         <div class="agent-discovery-list">
@@ -488,7 +521,7 @@ watch(() => [props.active, props.project?.id] as const, ([active, projectID]) =>
       <form class="dialog-form agent-token-form" @submit.prevent="issueToken">
         <label>{{ t('Label', '标签') }}<input v-model="form.label" required maxlength="120" autocomplete="off" placeholder="training-agent" /></label>
         <label>{{ t('Expiration', '有效期') }}<select v-model="form.expiration"><option value="30">30 {{ t('days', '天') }}</option><option value="90">90 {{ t('days', '天') }}</option><option value="365">1 {{ t('year', '年') }}</option><option value="never">{{ t('No expiry', '永不过期') }}</option></select></label>
-        <fieldset class="scope-fieldset"><legend>Scopes</legend><label><input v-model="form.scopes.read" type="checkbox" /><span>Read</span></label><label><input v-model="form.scopes.submit" type="checkbox" /><span>Submit</span></label><label><input v-model="form.scopes.cancel" type="checkbox" /><span>Cancel</span></label></fieldset>
+        <fieldset class="scope-fieldset"><legend>Scopes</legend><label><input v-model="form.scopes.read" type="checkbox" /><span>Read</span></label><label><input v-model="form.scopes.submit" type="checkbox" /><span>Submit</span></label><label><input v-model="form.scopes.cancel" type="checkbox" /><span>Cancel</span></label><label :title="t('Register Project repositories and dataset paths under an approved workspace root', '在已批准工作区根目录下注册 Project 仓库和数据路径')"><input v-model="form.scopes.configure" type="checkbox" /><span>Configure</span></label></fieldset>
         <p class="form-note">{{ t('The secret and complete MCP configuration are returned once. Lost credentials must be revoked and replaced.', 'secret 和完整 MCP 配置仅返回一次；丢失的凭据必须撤销并替换。') }}</p>
         <div v-if="issueError" class="form-error" role="alert">{{ issueError }}</div>
         <button class="primary-button" type="submit" :disabled="issuing"><LoaderCircle v-if="issuing" :size="16" class="spinning" /><KeyRound v-else :size="16" />{{ t('Generate token', '生成 Token') }}</button>
@@ -505,6 +538,18 @@ watch(() => [props.active, props.project?.id] as const, ([active, projectID]) =>
         <p class="form-note">{{ t('The MCP JSON contains the live secret. The separate Agent handoff guide does not and is safe to give to the Agent after its client is configured.', 'MCP JSON 包含有效 secret；单独的 Agent handoff 指南不含 secret，可在配置客户端后安全交给 Agent。') }}</p>
         <div class="agent-reveal-actions"><button class="secondary-button" type="button" @click="copy(configJSON, 'config')"><Check v-if="copied === 'config'" :size="16" /><Clipboard v-else :size="16" />{{ copied === 'config' ? t('Copied', '已复制') : t('Copy JSON', '复制 JSON') }}</button><a class="secondary-button" :href="agentGuideURL" download="gemcp-agent-mcp.md"><FileDown :size="16" />Agent handoff</a><button class="primary-button" type="button" @click="downloadConfig"><Download :size="16" />{{ t('Download JSON', '下载 JSON') }}</button></div>
       </div>
+    </section>
+  </div>
+
+  <div v-if="scopeTarget" class="modal-backdrop" @click.self="scopeTarget = null">
+    <section class="modal agent-token-modal" role="dialog" aria-modal="true" :aria-label="t('Edit Agent scopes', '编辑 Agent scope')">
+      <header><div><p class="eyebrow">{{ t('Existing credential', '现有凭据') }}</p><h2>{{ t('Edit Agent scopes', '编辑 Agent scope') }} · {{ scopeTarget.label }}</h2></div><button class="icon-button" type="button" :disabled="scopeSaving" :title="t('Close scope form', '关闭 scope 表单')" @click="scopeTarget = null"><X :size="17" /></button></header>
+      <form class="dialog-form agent-token-form" @submit.prevent="updateScopes">
+        <fieldset class="scope-fieldset"><legend>Scopes</legend><label><input v-model="scopeForm.read" type="checkbox" /><span>Read</span></label><label><input v-model="scopeForm.submit" type="checkbox" /><span>Submit</span></label><label><input v-model="scopeForm.cancel" type="checkbox" /><span>Cancel</span></label><label :title="t('Register Project repositories and dataset paths under an approved workspace root', '在已批准工作区根目录下注册 Project 仓库和数据路径')"><input v-model="scopeForm.configure" type="checkbox" /><span>Configure</span></label></fieldset>
+        <p class="form-note">{{ t('Changes apply to the existing Token on its next authenticated request and are written to the audit log. Configure cannot authorize a new host root.', '变更会在现有 Token 的下一次认证请求生效并写入审计日志；Configure 不能批准新的宿主根目录。') }}</p>
+        <div v-if="scopeError" class="form-error" role="alert">{{ scopeError }}</div>
+        <button class="primary-button" type="submit" :disabled="scopeSaving"><LoaderCircle v-if="scopeSaving" :size="16" class="spinning" /><ShieldCheck v-else :size="16" />{{ t('Update scopes', '更新 scope') }}</button>
+      </form>
     </section>
   </div>
 

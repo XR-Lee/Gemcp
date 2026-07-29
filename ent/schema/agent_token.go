@@ -31,6 +31,7 @@ func (AgentToken) Edges() []ent.Edge {
 		edge.To("experiments", Experiment.Type),
 		edge.To("idempotency_records", IdempotencyRecord.Type),
 		edge.To("experiment_proposals", ExperimentProposal.Type),
+		edge.To("workspace_datasets", WorkspaceDataset.Type),
 	}
 }
 

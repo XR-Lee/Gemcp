@@ -34,6 +34,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/session"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
 	"github.com/XR-Lee/Gemcp/ent/user"
+	"github.com/XR-Lee/Gemcp/ent/workspacedataset"
 	"github.com/google/uuid"
 )
 
@@ -1798,6 +1799,79 @@ func init() {
 		return func(email string) error {
 			for _, fn := range fns {
 				if err := fn(email); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	workspacedatasetMixin := schema.WorkspaceDataset{}.Mixin()
+	workspacedatasetMixinFields0 := workspacedatasetMixin[0].Fields()
+	_ = workspacedatasetMixinFields0
+	workspacedatasetFields := schema.WorkspaceDataset{}.Fields()
+	_ = workspacedatasetFields
+	// workspacedatasetDescPublicID is the schema descriptor for public_id field.
+	workspacedatasetDescPublicID := workspacedatasetMixinFields0[0].Descriptor()
+	// workspacedataset.DefaultPublicID holds the default value on creation for the public_id field.
+	workspacedataset.DefaultPublicID = workspacedatasetDescPublicID.Default.(func() uuid.UUID)
+	// workspacedatasetDescCreatedAt is the schema descriptor for created_at field.
+	workspacedatasetDescCreatedAt := workspacedatasetMixinFields0[1].Descriptor()
+	// workspacedataset.DefaultCreatedAt holds the default value on creation for the created_at field.
+	workspacedataset.DefaultCreatedAt = workspacedatasetDescCreatedAt.Default.(func() time.Time)
+	// workspacedatasetDescUpdatedAt is the schema descriptor for updated_at field.
+	workspacedatasetDescUpdatedAt := workspacedatasetMixinFields0[2].Descriptor()
+	// workspacedataset.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	workspacedataset.DefaultUpdatedAt = workspacedatasetDescUpdatedAt.Default.(func() time.Time)
+	// workspacedataset.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	workspacedataset.UpdateDefaultUpdatedAt = workspacedatasetDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// workspacedatasetDescName is the schema descriptor for name field.
+	workspacedatasetDescName := workspacedatasetFields[4].Descriptor()
+	// workspacedataset.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	workspacedataset.NameValidator = func() func(string) error {
+		validators := workspacedatasetDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// workspacedatasetDescRelativePath is the schema descriptor for relative_path field.
+	workspacedatasetDescRelativePath := workspacedatasetFields[5].Descriptor()
+	// workspacedataset.RelativePathValidator is a validator for the "relative_path" field. It is called by the builders before save.
+	workspacedataset.RelativePathValidator = func() func(string) error {
+		validators := workspacedatasetDescRelativePath.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(relative_path string) error {
+			for _, fn := range fns {
+				if err := fn(relative_path); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// workspacedatasetDescEnvironmentVariable is the schema descriptor for environment_variable field.
+	workspacedatasetDescEnvironmentVariable := workspacedatasetFields[6].Descriptor()
+	// workspacedataset.EnvironmentVariableValidator is a validator for the "environment_variable" field. It is called by the builders before save.
+	workspacedataset.EnvironmentVariableValidator = func() func(string) error {
+		validators := workspacedatasetDescEnvironmentVariable.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(environment_variable string) error {
+			for _, fn := range fns {
+				if err := fn(environment_variable); err != nil {
 					return err
 				}
 			}

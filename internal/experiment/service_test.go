@@ -534,4 +534,28 @@ func TestOptionsDiscoversAuthorizedSelfHostedNodeBeforeRuntimeConfiguration(t *t
 		discovered.ExecutionPolicy != "trusted_workspace" || discovered.WorkspacePath != workspacePath || !discovered.WorkspaceCapable || len(discovered.SuccessfulImages) != 1 || discovered.SuccessfulImages[0] != resolvedImage {
 		t.Fatalf("configured Node = %+v", discovered)
 	}
+	if _, err := f.client.WorkspaceDataset.Create().SetTenantID(f.principal.TenantID).SetProjectID(f.project.ID).SetNodeID(node.ID).
+		SetAgentTokenID(f.principal.TokenID).SetName("scanobjectnn-objbg").SetRelativePath("data/ScanObjectNN/main_split").
+		SetEnvironmentVariable("GEMCP_DATASET_SCANOBJECTNN_OBJBG").Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	options, err = f.service.Options(ctx, f.principal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	discovered = options.SelfHostedNodes[0]
+	if discovered.Ready || discovered.Readiness != "dataset_upgrade_required" || len(options.WorkspaceDatasets) != 1 ||
+		options.WorkspaceDatasets[0].ContainerPath != "/gemcp/workspace/data/ScanObjectNN/main_split" {
+		t.Fatalf("dataset-blocked options = %+v", options)
+	}
+	if _, err := node.Update().SetCapabilities(map[string]any{
+		"gpus":            []any{map[string]any{"name": "NVIDIA RTX A4000", "uuid": "GPU-test", "memory_bytes": float64(16 << 30)}},
+		"execution_modes": []any{"shell", "argv"}, "workspace_modes": []any{"trusted_rw"}, "dataset_modes": []any{"workspace_env_v1"},
+	}).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	options, err = f.service.Options(ctx, f.principal)
+	if err != nil || !options.SelfHostedNodes[0].Ready || !options.SelfHostedNodes[0].DatasetCapable {
+		t.Fatalf("dataset-ready options = %+v, %v", options, err)
+	}
 }

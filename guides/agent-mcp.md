@@ -32,6 +32,37 @@ Authorization: Bearer <Gemcp Agent Token>
 
 A 401 response means the Token is missing, malformed, expired, revoked, or no longer valid for the Project. Do not ask the human to paste the Token into the conversation. Ask them to update the MCP client's secret store.
 
+## Project configuration scope
+
+The optional `configure` scope lets an Agent maintain bounded inputs inside its authenticated Project. It does not authorize paid execution, a new host workspace root, arbitrary mounts, Provider access, or cross-Project changes.
+
+To onboard a GitHub SSH repository:
+
+1. Call `list_repository_registrations` and reuse an existing matching record when present.
+2. Call `register_repository` with its name, `git@github.com:owner/repository.git` URL, and default branch. Gemcp returns a pending record and a read-only deploy public key.
+3. Show the public key and repository to the human. Wait while a repository administrator adds it as a read-only GitHub Deploy Key. Never request a GitHub credential or claim the key was installed yourself.
+4. Call `verify_repository`. Omit `host_key_fingerprint` only when Gemcp can reuse the Project's established GitHub host pin. A successful fetch changes the record to `active`.
+5. Confirm the active repository appears in `get_project_options` before preparing work.
+
+To declare existing data below a trusted workspace root, call `register_workspace_dataset` with a stable name and normalized relative path. Absolute paths, traversal, symlink escape, and a new host root are forbidden. The tool returns a container path and a fixed environment variable. For example:
+
+```json
+{
+  "name": "scanobjectnn-objbg",
+  "relative_path": "data/ScanObjectNN/main_split"
+}
+```
+
+The resulting workload value is:
+
+```text
+GEMCP_DATASET_SCANOBJECTNN_OBJBG=/gemcp/workspace/data/ScanObjectNN/main_split
+```
+
+Use this environment variable in a reviewed repository script instead of searching the host or assuming a machine-specific absolute path. Registration does not copy, download, alter, or validate dataset contents at the control plane. `gemcp-node` confirms that the declared path exists and resolves inside the approved root before container creation. Dataset declarations are included in the Proposal digest; adding, removing, or changing one invalidates an earlier confirmation. `remove_workspace_dataset` disables only the declaration and never deletes host data.
+
+Host Conda environments are not container environments and must not be registered as datasets. Select a public OCI image through trusted-workspace `prepare_experiment`, then keep dependency setup reproducible in that image or the verified repository.
+
 ## Required workflow
 
 ### 1. Inspect the local repository
@@ -59,7 +90,7 @@ The tool call contains transport context that the user should not have to copy:
 
 Omit `repository` and `repository_remote` when the authenticated Project has exactly one active repository. Omit `ref` to use its default branch. Omit Environment and Resource Profile selectors to use an unambiguous compatible default.
 
-For Self-hosted inspection, `get_project_options.self_hosted_nodes` is generated from current Node heartbeats and Project authorization rather than runtime records. A discovered GPU can therefore appear before it is selectable. Treat `readiness=runtime_configuration_required` as an Owner configuration requirement: report the Node label and GPU model and ask the Owner either to approve one trusted host workspace or to create an Advanced digest-pinned runtime. Do not invent a host path or silently fall back to AutoDL. Other fixed blockers include `gpu_busy`, `node_incompatible`, `node_not_online`, `node_stale`, `argv_upgrade_required`, `workspace_upgrade_required`, and `node_busy`.
+For Self-hosted inspection, `get_project_options.self_hosted_nodes` is generated from current Node heartbeats and Project authorization rather than runtime records. A discovered GPU can therefore appear before it is selectable. Treat `readiness=runtime_configuration_required` as an Owner configuration requirement: report the Node label and GPU model and ask the Owner either to approve one trusted host workspace or to create an Advanced digest-pinned runtime. Do not invent a host path or silently fall back to AutoDL. Other fixed blockers include `gpu_busy`, `node_incompatible`, `node_not_online`, `node_stale`, `argv_upgrade_required`, `workspace_upgrade_required`, `dataset_upgrade_required`, and `node_busy`.
 
 When `execution_policy=trusted_workspace`, the Owner has intentionally exposed the returned `workspace_path` to this Project. Select that Environment and same-named Resource Profile together. You may pass an `image` such as `pytorch/pytorch:2.4.1-cuda12.1-cudnn9-runtime`; this parameter is rejected for every other Environment. Present the mutable-image warning and workspace path during confirmation. Inside the container use `${GEMCP_TRUSTED_WORKSPACE:?GEMCP_TRUSTED_WORKSPACE is required}` for shared code and data. A successful run records the resolved digest in `successful_images`, after which omitting `image` reuses the latest successful image. Physical Node selection otherwise remains server-owned.
 
@@ -94,6 +125,7 @@ Resolved full commit SHA
 Exact ordered argv and display command
 Environment image and Resource Profile
 Backend, GPU model and count
+Trusted workspace and registered dataset environment variables
 Runtime, timeout extension, and termination grace
 Preflight failures and warnings
 Worst-case reservation in CNY
@@ -190,6 +222,12 @@ The optional context is limited to repository remote, ref, and Experiment ID. `m
 | Tool | Purpose | Scope |
 | --- | --- | --- |
 | `get_usage_guide` | Return this operating guide and discovery metadata | `read` |
+| `list_repository_registrations` | List active and pending Project repositories and deploy public keys | `read` |
+| `register_repository` | Create a pending GitHub SSH repository registration | `configure` |
+| `verify_repository` | Verify access after the read-only Deploy Key is installed | `configure` |
+| `list_workspace_datasets` | List declared dataset paths below approved workspace roots | `read` |
+| `register_workspace_dataset` | Declare a normalized relative dataset path | `configure` |
+| `remove_workspace_dataset` | Disable a dataset declaration without deleting data | `configure` |
 | `report_agent_activity` | Report a controlled workflow phase without prompts or reasoning | `submit` |
 | `prepare_experiment` | Resolve and persist a zero-cost immutable argv proposal | `submit` |
 | `submit_prepared_experiment` | Submit one confirmed proposal, idempotently | `submit` |
@@ -218,6 +256,9 @@ The reservation is released at terminal settlement and replaced by an estimated 
 
 - `401 Unauthorized`: verify or rotate the MCP credential without placing it in chat.
 - `forbidden`: the Token lacks the required scope.
+- pending repository: show the returned Deploy Public Key and wait for a repository administrator to add it read-only before verification.
+- repository verification failure: confirm the Deploy Key, repository URL, target ref, and established GitHub host pin; never ask for a GitHub credential.
+- dataset registration failure: use a normalized relative path below the already approved trusted workspace; never substitute an absolute host path.
 - `choice_required`: present the returned candidates and prepare again with the selected name or ID.
 - commit or ref verification failure: push the intended source or correct repository access, then prepare again.
 - proposal blocked: report failed checks; create no paid Experiment.

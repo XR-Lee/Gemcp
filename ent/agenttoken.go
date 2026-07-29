@@ -60,9 +60,11 @@ type AgentTokenEdges struct {
 	IdempotencyRecords []*IdempotencyRecord `json:"idempotency_records,omitempty"`
 	// ExperimentProposals holds the value of the experiment_proposals edge.
 	ExperimentProposals []*ExperimentProposal `json:"experiment_proposals,omitempty"`
+	// WorkspaceDatasets holds the value of the workspace_datasets edge.
+	WorkspaceDatasets []*WorkspaceDataset `json:"workspace_datasets,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [4]bool
+	loadedTypes [5]bool
 }
 
 // ProjectOrErr returns the Project value or an error if the edge
@@ -101,6 +103,15 @@ func (e AgentTokenEdges) ExperimentProposalsOrErr() ([]*ExperimentProposal, erro
 		return e.ExperimentProposals, nil
 	}
 	return nil, &NotLoadedError{edge: "experiment_proposals"}
+}
+
+// WorkspaceDatasetsOrErr returns the WorkspaceDatasets value or an error if the edge
+// was not loaded in eager-loading.
+func (e AgentTokenEdges) WorkspaceDatasetsOrErr() ([]*WorkspaceDataset, error) {
+	if e.loadedTypes[4] {
+		return e.WorkspaceDatasets, nil
+	}
+	return nil, &NotLoadedError{edge: "workspace_datasets"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -246,6 +257,11 @@ func (_m *AgentToken) QueryIdempotencyRecords() *IdempotencyRecordQuery {
 // QueryExperimentProposals queries the "experiment_proposals" edge of the AgentToken entity.
 func (_m *AgentToken) QueryExperimentProposals() *ExperimentProposalQuery {
 	return NewAgentTokenClient(_m.config).QueryExperimentProposals(_m)
+}
+
+// QueryWorkspaceDatasets queries the "workspace_datasets" edge of the AgentToken entity.
+func (_m *AgentToken) QueryWorkspaceDatasets() *WorkspaceDatasetQuery {
+	return NewAgentTokenClient(_m.config).QueryWorkspaceDatasets(_m)
 }
 
 // Update returns a builder for updating this AgentToken.

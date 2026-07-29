@@ -68,6 +68,8 @@ const (
 	EdgeEvents = "events"
 	// EdgeAssignments holds the string denoting the assignments edge name in mutations.
 	EdgeAssignments = "assignments"
+	// EdgeWorkspaceDatasets holds the string denoting the workspace_datasets edge name in mutations.
+	EdgeWorkspaceDatasets = "workspace_datasets"
 	// Table holds the table name of the selfhostednode in the database.
 	Table = "self_hosted_nodes"
 	// TenantTable is the table that holds the tenant relation/edge.
@@ -105,6 +107,13 @@ const (
 	AssignmentsInverseTable = "node_assignments"
 	// AssignmentsColumn is the table column denoting the assignments relation/edge.
 	AssignmentsColumn = "node_id"
+	// WorkspaceDatasetsTable is the table that holds the workspace_datasets relation/edge.
+	WorkspaceDatasetsTable = "workspace_datasets"
+	// WorkspaceDatasetsInverseTable is the table name for the WorkspaceDataset entity.
+	// It exists in this package in order to avoid circular dependency with the "workspacedataset" package.
+	WorkspaceDatasetsInverseTable = "workspace_datasets"
+	// WorkspaceDatasetsColumn is the table column denoting the workspace_datasets relation/edge.
+	WorkspaceDatasetsColumn = "node_id"
 )
 
 // Columns holds all SQL columns for selfhostednode fields.
@@ -394,6 +403,20 @@ func ByAssignments(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newAssignmentsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByWorkspaceDatasetsCount orders the results by workspace_datasets count.
+func ByWorkspaceDatasetsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newWorkspaceDatasetsStep(), opts...)
+	}
+}
+
+// ByWorkspaceDatasets orders the results by workspace_datasets terms.
+func ByWorkspaceDatasets(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newWorkspaceDatasetsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newTenantStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -427,5 +450,12 @@ func newAssignmentsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(AssignmentsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, AssignmentsTable, AssignmentsColumn),
+	)
+}
+func newWorkspaceDatasetsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(WorkspaceDatasetsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, WorkspaceDatasetsTable, WorkspaceDatasetsColumn),
 	)
 }

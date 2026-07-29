@@ -41,6 +41,10 @@ type IssueInput struct {
 	NeverExpires  bool     `json:"never_expires"`
 }
 
+type UpdateScopesInput struct {
+	Scopes []string `json:"scopes"`
+}
+
 type View struct {
 	ID         string     `json:"id"`
 	ProjectID  string     `json:"project_id"`
@@ -272,6 +276,57 @@ func (s *Service) Revoke(ctx context.Context, tenantID int, actorID, projectPubl
 	return makeView(record, projectRecord.PublicID.String(), s.now().UTC()), nil
 }
 
+func (s *Service) UpdateScopes(ctx context.Context, tenantID int, actorID, projectPublicID, tokenPublicID string, input UpdateScopesInput) (View, error) {
+	if len(input.Scopes) == 0 {
+		return View{}, invalid("at least one scope is required")
+	}
+	_, scopes, _, err := validateIssueInput(IssueInput{Label: "scope-update", Scopes: input.Scopes, NeverExpires: true})
+	if err != nil {
+		return View{}, err
+	}
+	tx, err := s.client.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return View{}, fmt.Errorf("begin Agent token transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	projectRecord, err := findProject(ctx, tx.Client(), tenantID, projectPublicID)
+	if err != nil {
+		return View{}, err
+	}
+	tokenID, err := uuid.Parse(strings.TrimSpace(tokenPublicID))
+	if err != nil {
+		return View{}, ErrNotFound
+	}
+	record, err := tx.AgentToken.Query().Where(agenttoken.PublicIDEQ(tokenID), agenttoken.ProjectIDEQ(projectRecord.ID)).Only(ctx)
+	if ent.IsNotFound(err) {
+		return View{}, ErrNotFound
+	}
+	if err != nil {
+		return View{}, fmt.Errorf("find Agent token: %w", err)
+	}
+	if record.Status != agenttoken.StatusActive {
+		return View{}, ErrNotFound
+	}
+	previous := append([]string(nil), record.Scopes...)
+	record, err = record.Update().SetScopes(scopes).Save(ctx)
+	if err != nil {
+		return View{}, fmt.Errorf("update Agent token scopes: %w", err)
+	}
+	if _, err := tx.AuditEvent.Create().SetTenantID(tenantID).
+		SetActorType("user").SetActorID(strings.TrimSpace(actorID)).
+		SetAction("agent_token.scopes_updated").SetTargetType("agent_token").SetTargetID(record.PublicID.String()).
+		SetMetadata(map[string]any{
+			"project_id": projectRecord.PublicID.String(), "label": record.Label, "prefix": record.Prefix,
+			"previous_scopes": previous, "scopes": scopes,
+		}).Save(ctx); err != nil {
+		return View{}, fmt.Errorf("write Agent token scope audit event: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return View{}, fmt.Errorf("commit Agent token transaction: %w", err)
+	}
+	return makeView(record, projectRecord.PublicID.String(), s.now().UTC()), nil
+}
+
 func (s *Service) findProject(ctx context.Context, tenantID int, value string) (*ent.Project, error) {
 	return findProject(ctx, s.client, tenantID, value)
 }
@@ -318,8 +373,8 @@ func validateIssueInput(input IssueInput) (string, []string, *int, error) {
 	seen := make(map[string]bool, len(requested))
 	for _, value := range requested {
 		value = strings.ToLower(strings.TrimSpace(value))
-		if value != "read" && value != "submit" && value != "cancel" {
-			return "", nil, nil, invalid("scopes may contain only read, submit, and cancel")
+		if value != "read" && value != "submit" && value != "cancel" && value != "configure" {
+			return "", nil, nil, invalid("scopes may contain only read, submit, cancel, and configure")
 		}
 		if seen[value] {
 			return "", nil, nil, invalid("scopes must not contain duplicates")
@@ -327,7 +382,7 @@ func validateIssueInput(input IssueInput) (string, []string, *int, error) {
 		seen[value] = true
 	}
 	scopes := make([]string, 0, len(seen))
-	for _, value := range []string{"read", "submit", "cancel"} {
+	for _, value := range []string{"read", "submit", "cancel", "configure"} {
 		if seen[value] {
 			scopes = append(scopes, value)
 		}

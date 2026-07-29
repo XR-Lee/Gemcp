@@ -79,7 +79,7 @@ POST /api/v1/agent-enrollments/complete
 
 Installer downloads, enrollment requests, and MCP verification use `User-Agent: Gemcp-Pi-Setup/1` so reverse proxies can identify the machine client. This header is not authentication; setup code and Agent Bearer Token checks remain mandatory.
 
-Claim is retryable until setup completes and creates a provisional Token limited to `read` and the setup deadline. After all eleven tools plus the guide, options, and cost checks pass, complete atomically applies the Owner-selected scopes and full credential lifetime. Completion is idempotent so a lost final HTTP response can be retried safely. Invalid, expired, revoked, or completed claims return the same `410 AGENT_SETUP_INVALID` response.
+Claim is retryable until setup completes and creates a provisional Token limited to `read` and the setup deadline. After all seventeen tools plus the guide, options, and cost checks pass, complete atomically applies the Owner-selected scopes and full credential lifetime. Completion is idempotent so a lost final HTTP response can be retried safely. Invalid, expired, revoked, or completed claims return the same `410 AGENT_SETUP_INVALID` response.
 
 The Owner can revoke pending or claimed enrollment:
 
@@ -110,7 +110,7 @@ X-CSRF-Token: <session-csrf-token>
 Rules:
 
 - `label` is required and at most 120 characters.
-- Allowed scopes are `read`, `submit`, and `cancel`; at least one is required.
+- Allowed scopes are `read`, `submit`, `cancel`, and `configure`; at least one is required. `configure` can register repositories in the Token's Project and dataset paths below an already Owner-approved trusted workspace root, but cannot authorize a new host root.
 - `expires_in_days` must be between 1 and 3650. It defaults to 90 when omitted.
 - Set `never_expires` to `true` and omit `expires_in_days` for a non-expiring credential.
 - A project can have at most 50 unexpired active Tokens.
@@ -154,6 +154,22 @@ The `201 Created` response contains the plaintext secret and complete JSON expor
 The exported file contains a live bearer credential. Keep it outside source control, restrict it to the intended OS account, and delete it after importing into a client secret store. Prefer the environment-variable template for shared project configuration.
 
 Token creation and its `agent_token.issued` audit event commit in one transaction. If the HTTP response is lost after commit, the secret cannot be replayed; revoke the visible prefix and issue another Token.
+
+## Update active token scopes
+
+An Owner may change an existing active Token's scopes without exposing or rotating its secret:
+
+```http
+PATCH /api/v1/projects/<project-uuid>/agent-tokens/<token-uuid>
+Content-Type: application/json
+X-CSRF-Token: <session-csrf-token>
+```
+
+```json
+{"scopes":["read","submit","cancel","configure"]}
+```
+
+The change applies on the next authenticated request and writes an `agent_token.scopes_updated` audit event containing the previous and new scope sets, never the Token secret.
 
 ## Revoke a token
 

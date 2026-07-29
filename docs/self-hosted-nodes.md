@@ -59,7 +59,9 @@ Gemcp offers two explicitly separate Self-hosted policies. Strict runtime config
 
 Trusted workspace mode allows a prepared Experiment to select a public OCI image by name, tag, or digest. The approved host directory is mounted read-write at `/gemcp/workspace`, exposed through `GEMCP_TRUSTED_WORKSPACE`; the verified repository remains `/workspace` and managed outputs remain `/outputs`. Docker resolves a tag before container creation and launches the resolved repository digest. After a successful Experiment, Gemcp records that digest as the workspace Environment default and retains up to 16 successful digests for reuse. Changing the approved directory or authorization invalidates an unsubmitted Proposal.
 
-The Owner may disable the workspace from the same Nodes view. Gemcp refuses revocation while that Node has an active Assignment, then clears the directory authorization and disables the generated Environment/Profile. Successful image history and audit records are retained.
+An Agent with explicit `configure` scope may register repository records inside its authenticated Project and declare up to 32 dataset paths below that approved root. Dataset declarations accept only normalized relative paths; they never create another bind mount or expand the Owner's host authorization. Each declaration produces a fixed variable such as `GEMCP_DATASET_SCANOBJECTNN_OBJBG=/gemcp/workspace/data/ScanObjectNN/main_split`. The active declarations are bound into the Proposal digest and Experiment Environment Snapshot. Before container creation, `gemcp-node` resolves every declared path, requires it to exist, and rejects symlink escape from the approved root. Disabling a declaration changes metadata only and never deletes host data.
+
+The Owner may disable the workspace from the same Nodes view. Gemcp refuses revocation while that Node has an active Assignment, then clears the directory authorization and disables the generated Environment/Profile and active dataset declarations. Successful image history, disabled dataset records, and audit records are retained.
 
 This permissive mode does not grant arbitrary Docker authority. Privileged mode, the Docker socket, Host Network, host namespaces, arbitrary devices, arbitrary additional mounts, published ports, Node credentials, and control-plane credentials remain unavailable. The Node rejects a protected host root or a workspace lexically overlapping Gemcp managed storage; Docker requires the bind source to exist when it creates the container. Strict mode remains the default and continues to reject mutable image references and host workspaces.
 
@@ -76,6 +78,8 @@ Prepared Experiments use a structured argv instead of `/bin/sh -lc`. A compatibl
 Use `gemcp-node v0.13.1` or later for prepared argv execution. `v0.13.1` adds compatibility with the bounded PAX commit marker produced by `git archive` while preserving path, link, type, entry-count, and payload limits.
 
 Trusted workspace execution requires `gemcp-node v0.15.0` or later and the advertised `workspace_modes: [trusted_rw]` capability. Older Nodes remain usable for strict digest-pinned execution and report `workspace_upgrade_required` after an Owner enables the permissive policy.
+
+Workspace dataset environment variables require `gemcp-node v0.15.1` or later and `dataset_modes: [workspace_env_v1]`. When active dataset declarations exist, an older Node reports `dataset_upgrade_required` and cannot receive that Proposal.
 
 Existing Nodes are upgraded without re-enrollment. The Owner console generates a Node-specific coding-Agent handoff bound to the control plane's exact release and full commit. The handoff builds a verified candidate and invokes `deploy/upgrade-gemcp-node.sh`, which refuses to proceed while any managed workload container remains, preserves the credential, config, bbolt state, and storage root, atomically replaces the binary, and rolls back if the service does not remain active.
 

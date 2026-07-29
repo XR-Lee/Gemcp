@@ -23,7 +23,9 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/repository"
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
 	"github.com/XR-Lee/Gemcp/ent/selfhostednode"
+	"github.com/XR-Lee/Gemcp/ent/workspacedataset"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
+	"github.com/XR-Lee/Gemcp/internal/workspacecatalog"
 	"github.com/google/uuid"
 )
 
@@ -289,6 +291,12 @@ func (s *Service) Options(ctx context.Context, principal agentauth.Principal) (P
 	if err != nil {
 		return result, err
 	}
+	datasets, err := s.client.WorkspaceDataset.Query().Where(
+		workspacedataset.ProjectIDEQ(principal.ProjectID), workspacedataset.StatusEQ(workspacedataset.StatusActive),
+	).WithNode().Order(ent.Asc(workspacedataset.FieldName)).All(ctx)
+	if err != nil {
+		return result, err
+	}
 	result.Project = ProjectPolicy{
 		ID: projectRecord.PublicID.String(), Name: projectRecord.Name, MonthlyBudgetMilli: projectRecord.MonthlyBudgetMilli,
 		MaxExperimentMilli: projectRecord.MaxExperimentMilli, MaxConcurrency: projectRecord.MaxConcurrency,
@@ -313,6 +321,20 @@ func (s *Service) Options(ctx context.Context, principal agentauth.Principal) (P
 			ID: record.PublicID.String(), Name: record.Name, Backend: string(record.Backend), Region: record.Region, GPUNames: record.GpuNames,
 			GPUNum: record.GpuNum, PriceFromMilli: record.PriceFromMilli, PriceToMilli: record.PriceToMilli,
 			ReuseContainer: record.ReuseContainer, IsDefault: record.IsDefault,
+		})
+	}
+	result.WorkspaceDatasets = make([]WorkspaceDatasetOption, 0, len(datasets))
+	datasetsByNode := map[int]bool{}
+	for _, record := range datasets {
+		node, edgeErr := record.Edges.NodeOrErr()
+		if edgeErr != nil {
+			return result, edgeErr
+		}
+		datasetsByNode[node.ID] = true
+		result.WorkspaceDatasets = append(result.WorkspaceDatasets, WorkspaceDatasetOption{
+			ID: record.PublicID.String(), NodeID: node.PublicID.String(), NodeLabel: node.Label, Name: record.Name,
+			RelativePath: record.RelativePath, ContainerPath: workspacecatalog.ContainerPath(record.RelativePath),
+			EnvironmentVariable: record.EnvironmentVariable,
 		})
 	}
 	nodes, err := s.client.SelfHostedNode.Query().Where(
@@ -359,9 +381,10 @@ func (s *Service) Options(ctx context.Context, principal agentauth.Principal) (P
 		gpus := selfHostedOptionGPUs(node.Capabilities)
 		executionModes := selfHostedOptionExecutionModes(node.Capabilities)
 		workspaceCapable := proposalNodeSupportsWorkspace(node.Capabilities)
+		datasetCapable := proposalNodeSupportsDatasets(node.Capabilities)
 		runtimeConfigured := selfHostedOptionRuntimeConfigured(gpus, environments, profiles)
 		workspaceEnabled := access != nil && access.ExecutionPolicy == nodeprojectaccess.ExecutionPolicyTrustedWorkspace
-		blockers := selfHostedOptionBlockers(node, executionModes, runtimeConfigured, workspaceEnabled, workspaceCapable, busyNodes[node.ID], staleBefore)
+		blockers := selfHostedOptionBlockers(node, executionModes, runtimeConfigured, workspaceEnabled, workspaceCapable, datasetsByNode[node.ID], datasetCapable, busyNodes[node.ID], staleBefore)
 		readiness := "ready"
 		if len(blockers) > 0 {
 			readiness = blockers[0]
@@ -373,6 +396,7 @@ func (s *Service) Options(ctx context.Context, principal agentauth.Principal) (P
 		})
 		option := &result.SelfHostedNodes[len(result.SelfHostedNodes)-1]
 		option.WorkspaceCapable = workspaceCapable
+		option.DatasetCapable = datasetCapable
 		option.ExecutionPolicy = "strict"
 		if access != nil {
 			option.ExecutionPolicy = string(access.ExecutionPolicy)
@@ -461,7 +485,7 @@ func selfHostedOptionRuntimeConfigured(gpus []SelfHostedGPUOption, environments 
 	return false
 }
 
-func selfHostedOptionBlockers(node *ent.SelfHostedNode, executionModes []string, runtimeConfigured, workspaceEnabled, workspaceCapable, busy bool, staleBefore time.Time) []string {
+func selfHostedOptionBlockers(node *ent.SelfHostedNode, executionModes []string, runtimeConfigured, workspaceEnabled, workspaceCapable, datasetsEnabled, datasetCapable, busy bool, staleBefore time.Time) []string {
 	result := make([]string, 0, 5)
 	if node.Status != selfhostednode.StatusActive {
 		result = append(result, "node_not_active")
@@ -483,6 +507,9 @@ func selfHostedOptionBlockers(node *ent.SelfHostedNode, executionModes []string,
 	}
 	if workspaceEnabled && !workspaceCapable {
 		result = append(result, "workspace_upgrade_required")
+	}
+	if datasetsEnabled && !datasetCapable {
+		result = append(result, "dataset_upgrade_required")
 	}
 	if busy {
 		result = append(result, "node_busy")

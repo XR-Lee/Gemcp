@@ -35,6 +35,12 @@ var (
 
 var piDirectTools = []string{
 	"get_usage_guide",
+	"list_repository_registrations",
+	"register_repository",
+	"verify_repository",
+	"list_workspace_datasets",
+	"register_workspace_dataset",
+	"remove_workspace_dataset",
 	"report_agent_activity",
 	"prepare_experiment",
 	"submit_prepared_experiment",

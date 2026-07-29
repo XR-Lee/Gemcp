@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/XR-Lee/Gemcp/internal/execution"
+	"github.com/XR-Lee/Gemcp/internal/nodeprotocol"
 	"github.com/XR-Lee/Gemcp/internal/provider"
 	gitrepository "github.com/XR-Lee/Gemcp/internal/repository"
 )
@@ -90,30 +91,31 @@ type ProposalExecution struct {
 }
 
 type ProposalResource struct {
-	EnvironmentID       string   `json:"environment_id"`
-	EnvironmentName     string   `json:"environment_name"`
-	ResourceProfileID   string   `json:"resource_profile_id"`
-	ResourceProfileName string   `json:"resource_profile_name"`
-	Backend             string   `json:"backend"`
-	Image               string   `json:"image"`
-	GPUModels           []string `json:"gpu_models"`
-	GPUNum              int      `json:"gpu_num"`
-	Region              string   `json:"region"`
-	CUDAFrom            int      `json:"cuda_from"`
-	CUDATo              int      `json:"cuda_to"`
-	CPUFrom             int      `json:"cpu_from"`
-	CPUTo               int      `json:"cpu_to"`
-	MemoryFromGB        int      `json:"memory_from_gb"`
-	MemoryToGB          int      `json:"memory_to_gb"`
-	PriceFromMilli      int64    `json:"price_from_milli"`
-	PriceToMilli        int64    `json:"price_to_milli"`
-	ReuseContainer      bool     `json:"reuse_container"`
-	Billable            bool     `json:"billable"`
-	ExecutionPolicy     string   `json:"execution_policy,omitempty"`
-	WorkspacePath       string   `json:"workspace_path,omitempty"`
-	NodeID              string   `json:"node_id,omitempty"`
-	NodeLabel           string   `json:"node_label,omitempty"`
-	ImageMutable        bool     `json:"image_mutable,omitempty"`
+	EnvironmentID       string                          `json:"environment_id"`
+	EnvironmentName     string                          `json:"environment_name"`
+	ResourceProfileID   string                          `json:"resource_profile_id"`
+	ResourceProfileName string                          `json:"resource_profile_name"`
+	Backend             string                          `json:"backend"`
+	Image               string                          `json:"image"`
+	GPUModels           []string                        `json:"gpu_models"`
+	GPUNum              int                             `json:"gpu_num"`
+	Region              string                          `json:"region"`
+	CUDAFrom            int                             `json:"cuda_from"`
+	CUDATo              int                             `json:"cuda_to"`
+	CPUFrom             int                             `json:"cpu_from"`
+	CPUTo               int                             `json:"cpu_to"`
+	MemoryFromGB        int                             `json:"memory_from_gb"`
+	MemoryToGB          int                             `json:"memory_to_gb"`
+	PriceFromMilli      int64                           `json:"price_from_milli"`
+	PriceToMilli        int64                           `json:"price_to_milli"`
+	ReuseContainer      bool                            `json:"reuse_container"`
+	Billable            bool                            `json:"billable"`
+	ExecutionPolicy     string                          `json:"execution_policy,omitempty"`
+	WorkspacePath       string                          `json:"workspace_path,omitempty"`
+	NodeID              string                          `json:"node_id,omitempty"`
+	NodeLabel           string                          `json:"node_label,omitempty"`
+	ImageMutable        bool                            `json:"image_mutable,omitempty"`
+	WorkspaceDatasets   []nodeprotocol.WorkspaceDataset `json:"workspace_datasets,omitempty"`
 }
 
 type PreparedProposal struct {

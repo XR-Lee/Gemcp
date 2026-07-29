@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/XR-Lee/Gemcp/internal/nodeprotocol"
 )
 
 func TestDockerRuntimeUsesFixedIsolationBoundary(t *testing.T) {
@@ -111,6 +113,7 @@ esac
 		AssignmentID: "11111111-2222-4333-8444-777777777777", Image: requested, ExecutionMode: "argv", Argv: []string{"python", "train.py"},
 		GPUUUID: "GPU-test", CPULimit: 8, MemoryLimitBytes: 32 << 30, SourcePath: directory + "/source", OutputPath: directory + "/output",
 		WorkspaceMode: "trusted_rw", WorkspacePath: workspace,
+		WorkspaceDatasets: []nodeprotocol.WorkspaceDataset{{Name: "scanobjectnn-objbg", RelativePath: "data/ScanObjectNN/main_split", EnvironmentVariable: "GEMCP_DATASET_SCANOBJECTNN_OBJBG"}},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -120,6 +123,7 @@ esac
 	for _, required := range []string{
 		"pull\n" + requested, "--label\nio.gemcp.image=" + resolved,
 		"--mount\ntype=bind,src=" + workspace + ",dst=/gemcp/workspace", "--env\nGEMCP_TRUSTED_WORKSPACE=/gemcp/workspace",
+		"--env\nGEMCP_DATASET_SCANOBJECTNN_OBJBG=/gemcp/workspace/data/ScanObjectNN/main_split",
 		"--entrypoint\npython\n" + resolved + "\ntrain.py",
 	} {
 		if !strings.Contains(args, required) {

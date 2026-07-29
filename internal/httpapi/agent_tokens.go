@@ -130,6 +130,24 @@ func (h *AgentTokenHandlers) Revoke(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": result})
 }
 
+func (h *AgentTokenHandlers) UpdateScopes(c *gin.Context) {
+	principal, ok := ownerPrincipal(c)
+	if !ok {
+		return
+	}
+	var input agentaccess.UpdateScopesInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		writeError(c, http.StatusBadRequest, "INVALID_JSON", "request body must be valid JSON")
+		return
+	}
+	result, err := h.service.UpdateScopes(c.Request.Context(), principal.TenantID, principal.UserPublicID, c.Param("id"), c.Param("tokenID"), input)
+	if err != nil {
+		h.writeError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": result})
+}
+
 func (h *AgentTokenHandlers) writeError(c *gin.Context, err error) {
 	var validation *agentaccess.ValidationError
 	switch {

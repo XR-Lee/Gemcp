@@ -17,6 +17,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
+	"github.com/XR-Lee/Gemcp/ent/workspacedataset"
 )
 
 // AgentTokenUpdate is the builder for updating AgentToken entities.
@@ -197,6 +198,21 @@ func (_u *AgentTokenUpdate) AddExperimentProposals(v ...*ExperimentProposal) *Ag
 	return _u.AddExperimentProposalIDs(ids...)
 }
 
+// AddWorkspaceDatasetIDs adds the "workspace_datasets" edge to the WorkspaceDataset entity by IDs.
+func (_u *AgentTokenUpdate) AddWorkspaceDatasetIDs(ids ...int) *AgentTokenUpdate {
+	_u.mutation.AddWorkspaceDatasetIDs(ids...)
+	return _u
+}
+
+// AddWorkspaceDatasets adds the "workspace_datasets" edges to the WorkspaceDataset entity.
+func (_u *AgentTokenUpdate) AddWorkspaceDatasets(v ...*WorkspaceDataset) *AgentTokenUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddWorkspaceDatasetIDs(ids...)
+}
+
 // Mutation returns the AgentTokenMutation object of the builder.
 func (_u *AgentTokenUpdate) Mutation() *AgentTokenMutation {
 	return _u.mutation
@@ -263,6 +279,27 @@ func (_u *AgentTokenUpdate) RemoveExperimentProposals(v ...*ExperimentProposal) 
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveExperimentProposalIDs(ids...)
+}
+
+// ClearWorkspaceDatasets clears all "workspace_datasets" edges to the WorkspaceDataset entity.
+func (_u *AgentTokenUpdate) ClearWorkspaceDatasets() *AgentTokenUpdate {
+	_u.mutation.ClearWorkspaceDatasets()
+	return _u
+}
+
+// RemoveWorkspaceDatasetIDs removes the "workspace_datasets" edge to WorkspaceDataset entities by IDs.
+func (_u *AgentTokenUpdate) RemoveWorkspaceDatasetIDs(ids ...int) *AgentTokenUpdate {
+	_u.mutation.RemoveWorkspaceDatasetIDs(ids...)
+	return _u
+}
+
+// RemoveWorkspaceDatasets removes "workspace_datasets" edges to WorkspaceDataset entities.
+func (_u *AgentTokenUpdate) RemoveWorkspaceDatasets(v ...*WorkspaceDataset) *AgentTokenUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveWorkspaceDatasetIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -514,6 +551,51 @@ func (_u *AgentTokenUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.WorkspaceDatasetsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.WorkspaceDatasetsTable,
+			Columns: []string{agenttoken.WorkspaceDatasetsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(workspacedataset.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedWorkspaceDatasetsIDs(); len(nodes) > 0 && !_u.mutation.WorkspaceDatasetsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.WorkspaceDatasetsTable,
+			Columns: []string{agenttoken.WorkspaceDatasetsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(workspacedataset.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.WorkspaceDatasetsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.WorkspaceDatasetsTable,
+			Columns: []string{agenttoken.WorkspaceDatasetsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(workspacedataset.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{agenttoken.Label}
@@ -699,6 +781,21 @@ func (_u *AgentTokenUpdateOne) AddExperimentProposals(v ...*ExperimentProposal) 
 	return _u.AddExperimentProposalIDs(ids...)
 }
 
+// AddWorkspaceDatasetIDs adds the "workspace_datasets" edge to the WorkspaceDataset entity by IDs.
+func (_u *AgentTokenUpdateOne) AddWorkspaceDatasetIDs(ids ...int) *AgentTokenUpdateOne {
+	_u.mutation.AddWorkspaceDatasetIDs(ids...)
+	return _u
+}
+
+// AddWorkspaceDatasets adds the "workspace_datasets" edges to the WorkspaceDataset entity.
+func (_u *AgentTokenUpdateOne) AddWorkspaceDatasets(v ...*WorkspaceDataset) *AgentTokenUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddWorkspaceDatasetIDs(ids...)
+}
+
 // Mutation returns the AgentTokenMutation object of the builder.
 func (_u *AgentTokenUpdateOne) Mutation() *AgentTokenMutation {
 	return _u.mutation
@@ -765,6 +862,27 @@ func (_u *AgentTokenUpdateOne) RemoveExperimentProposals(v ...*ExperimentProposa
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveExperimentProposalIDs(ids...)
+}
+
+// ClearWorkspaceDatasets clears all "workspace_datasets" edges to the WorkspaceDataset entity.
+func (_u *AgentTokenUpdateOne) ClearWorkspaceDatasets() *AgentTokenUpdateOne {
+	_u.mutation.ClearWorkspaceDatasets()
+	return _u
+}
+
+// RemoveWorkspaceDatasetIDs removes the "workspace_datasets" edge to WorkspaceDataset entities by IDs.
+func (_u *AgentTokenUpdateOne) RemoveWorkspaceDatasetIDs(ids ...int) *AgentTokenUpdateOne {
+	_u.mutation.RemoveWorkspaceDatasetIDs(ids...)
+	return _u
+}
+
+// RemoveWorkspaceDatasets removes "workspace_datasets" edges to WorkspaceDataset entities.
+func (_u *AgentTokenUpdateOne) RemoveWorkspaceDatasets(v ...*WorkspaceDataset) *AgentTokenUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveWorkspaceDatasetIDs(ids...)
 }
 
 // Where appends a list predicates to the AgentTokenUpdate builder.
@@ -1039,6 +1157,51 @@ func (_u *AgentTokenUpdateOne) sqlSave(ctx context.Context) (_node *AgentToken, 
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(experimentproposal.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.WorkspaceDatasetsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.WorkspaceDatasetsTable,
+			Columns: []string{agenttoken.WorkspaceDatasetsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(workspacedataset.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedWorkspaceDatasetsIDs(); len(nodes) > 0 && !_u.mutation.WorkspaceDatasetsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.WorkspaceDatasetsTable,
+			Columns: []string{agenttoken.WorkspaceDatasetsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(workspacedataset.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.WorkspaceDatasetsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.WorkspaceDatasetsTable,
+			Columns: []string{agenttoken.WorkspaceDatasetsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(workspacedataset.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

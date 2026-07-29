@@ -11,8 +11,11 @@ An Agent Token is bound to one project and a selected set of scopes:
 | `read` | Read project options, costs, experiments, artifacts, and the Agent guide |
 | `submit` | Report controlled Agent phases and prepare or enqueue immutable experiments |
 | `cancel` | Request cancellation of queued or active experiments |
+| `configure` | Register and verify repositories in this Project, and declare dataset paths below an already approved trusted workspace root |
 
-The Token does not expose AutoDL credentials, repository Deploy Keys, Runner Tokens, arbitrary machines, or arbitrary Provider operations.
+The Token does not expose AutoDL credentials, repository deploy private keys, Runner Tokens, arbitrary machines, or arbitrary Provider operations. A `configure` Agent receives only the generated deploy public key so a repository administrator can install it read-only.
+
+Existing active Token scopes can be edited from the Agents table. The update takes effect on the next authenticated request and is audited; no Token secret is displayed or rotated.
 
 ## Owner onboarding checklist
 
@@ -42,7 +45,7 @@ The Pi setup flow writes this authentication configuration automatically. The ad
 
 A Pi setup link stores its 256-bit setup code only in the URL fragment. Browsers do not include the fragment in the setup-page request, access log, or Referer. Previewing the public setup page does not consume the link.
 
-Claiming creates a short-lived `read`-only credential and writes it to the Pi agent directory's `mcp.json` with mode `0600`. The fixed installer preserves other MCP servers, discovers all eleven Gemcp tools, calls `get_usage_guide`, `get_project_options`, and `get_project_cost`, and then completes enrollment. Completion atomically applies the Owner-selected scopes and credential lifetime. The database stores only HMAC-SHA-256 digests of the setup code and Agent Token.
+Claiming creates a short-lived `read`-only credential and writes it to the Pi agent directory's `mcp.json` with mode `0600`. The fixed installer preserves other MCP servers, discovers all seventeen Gemcp tools, calls `get_usage_guide`, `get_project_options`, and `get_project_cost`, and then completes enrollment. Completion atomically applies the Owner-selected scopes and credential lifetime. The database stores only HMAC-SHA-256 digests of the setup code and Agent Token.
 
 The setup link is shown once, may be claimed repeatedly only until completion for retry safety, and becomes unusable after completion, expiry, or revocation. The Owner can revoke pending or claimed setup from the console; revoking a claimed setup also revokes its provisional Token.
 

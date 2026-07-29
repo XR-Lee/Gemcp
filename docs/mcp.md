@@ -18,7 +18,7 @@ For Pi, create a short-lived **Pi setup link** from the Owner console and let th
 
 Gemcp's preferred Pi flow requires the already-installed `pi-mcp-adapter`. The Owner sends one URL from `/agent/setup#code=...`; the Agent reads the public setup instructions and runs the fixed installer from the same configured origin. The code remains in the URL fragment and is not sent by link previews or ordinary page requests.
 
-The installer merges a `gemcp-<project>` server into `<Pi agent dir>/mcp.json`, preserves existing servers, writes mode `0600`, exposes all eleven bounded Gemcp tools through `directTools`, and verifies tool discovery plus guide, options, and cost calls. A local credential-reading helper supports the current session without printing the Token. One `/reload` activates native `gemcp-<project>_*` tools through the adapter.
+The installer merges a `gemcp-<project>` server into `<Pi agent dir>/mcp.json`, preserves existing servers, writes mode `0600`, exposes all seventeen bounded Gemcp tools through `directTools`, and verifies tool discovery plus guide, options, and cost calls. A local credential-reading helper supports the current session without printing the Token. One `/reload` activates native `gemcp-<project>_*` tools through the adapter.
 
 Claimed credentials remain `read`-only and expire at the setup deadline until verification completes. Completion activates the Owner-selected scopes and lifetime, clears the setup capability, and leaves only a credential-free local receipt. The complete API and installer are retry-safe if the final response is lost.
 
@@ -220,6 +220,12 @@ before calling submit_prepared_experiment.
 ## Tools
 
 - `get_usage_guide`: current Agent operating guide, authenticated project ID, Token scopes, Resource URI, and Prompt name.
+- `list_repository_registrations`: active and pending repositories in the authenticated Project, including non-secret deploy public keys.
+- `register_repository`: create a pending GitHub SSH registration in the authenticated Project; requires `configure`.
+- `verify_repository`: activate a pending repository after its read-only Deploy Key is installed; requires `configure`.
+- `list_workspace_datasets`: declared dataset paths below Owner-approved trusted workspace roots.
+- `register_workspace_dataset`: declare one normalized relative dataset path without authorizing a new host root; requires `configure`.
+- `remove_workspace_dataset`: disable one declaration without deleting host data; requires `configure`.
 - `prepare_experiment`: resolve a repository/ref, safe argv, compatible defaults, preflight checks, cost, and a short-lived immutable proposal without reserving budget. Its optional `image` accepts a public name, tag, or digest only when the selected Environment is an Owner-approved trusted Self-hosted workspace.
 - `submit_prepared_experiment`: submit one confirmed proposal by ID and digest; identical retries return the same Experiment.
 - `get_project_options`: approved repositories, environments, resource profiles, project limits, and dynamically discovered authorized Self-hosted Node readiness.
@@ -237,6 +243,7 @@ Scope mapping:
 | `read` | usage guide, options, experiment queries, artifact listing, and cost queries |
 | `submit` | prepare, prepared submission, and Advanced direct submission |
 | `cancel` | `cancel_experiment` |
+| `configure` | register and verify Project repositories; register or disable dataset paths below an approved workspace root |
 
 Issue the minimum scopes needed by the third-party Agent.
 

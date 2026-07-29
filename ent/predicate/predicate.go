@@ -89,3 +89,6 @@ type Tenant func(*sql.Selector)
 
 // User is the predicate function for user builders.
 type User func(*sql.Selector)
+
+// WorkspaceDataset is the predicate function for workspacedataset builders.
+type WorkspaceDataset func(*sql.Selector)

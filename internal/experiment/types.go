@@ -138,11 +138,12 @@ type CancelInput struct {
 }
 
 type ProjectOptions struct {
-	Project          ProjectPolicy           `json:"project"`
-	Repositories     []RepositoryOption      `json:"repositories"`
-	Environments     []EnvironmentOption     `json:"environments"`
-	ResourceProfiles []ResourceProfileOption `json:"resource_profiles"`
-	SelfHostedNodes  []SelfHostedNodeOption  `json:"self_hosted_nodes"`
+	Project           ProjectPolicy            `json:"project"`
+	Repositories      []RepositoryOption       `json:"repositories"`
+	Environments      []EnvironmentOption      `json:"environments"`
+	ResourceProfiles  []ResourceProfileOption  `json:"resource_profiles"`
+	SelfHostedNodes   []SelfHostedNodeOption   `json:"self_hosted_nodes"`
+	WorkspaceDatasets []WorkspaceDatasetOption `json:"workspace_datasets"`
 }
 
 type ProjectPolicy struct {
@@ -197,6 +198,7 @@ type SelfHostedNodeOption struct {
 	WorkspacePath     string                `json:"workspace_path,omitempty"`
 	SuccessfulImages  []string              `json:"successful_images,omitempty"`
 	WorkspaceCapable  bool                  `json:"workspace_capable"`
+	DatasetCapable    bool                  `json:"dataset_capable"`
 	LastSeenAt        *time.Time            `json:"last_seen_at,omitempty"`
 	RuntimeConfigured bool                  `json:"runtime_configured"`
 	Ready             bool                  `json:"ready"`
@@ -207,6 +209,16 @@ type SelfHostedNodeOption struct {
 type SelfHostedGPUOption struct {
 	Name        string `json:"name"`
 	MemoryBytes int64  `json:"memory_bytes"`
+}
+
+type WorkspaceDatasetOption struct {
+	ID                  string `json:"id"`
+	NodeID              string `json:"node_id"`
+	NodeLabel           string `json:"node_label"`
+	Name                string `json:"name"`
+	RelativePath        string `json:"relative_path"`
+	ContainerPath       string `json:"container_path"`
+	EnvironmentVariable string `json:"environment_variable"`
 }
 
 type CostView struct {

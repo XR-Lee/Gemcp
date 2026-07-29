@@ -33,6 +33,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/selfhostednode"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
 	"github.com/XR-Lee/Gemcp/ent/user"
+	"github.com/XR-Lee/Gemcp/ent/workspacedataset"
 )
 
 // TenantQuery is the builder for querying Tenant entities.
@@ -61,6 +62,7 @@ type TenantQuery struct {
 	withNodeAssignments      *NodeAssignmentQuery
 	withDiagnosticRuns       *DiagnosticRunQuery
 	withExperimentProposals  *ExperimentProposalQuery
+	withWorkspaceDatasets    *WorkspaceDatasetQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -515,6 +517,28 @@ func (_q *TenantQuery) QueryExperimentProposals() *ExperimentProposalQuery {
 	return query
 }
 
+// QueryWorkspaceDatasets chains the current query on the "workspace_datasets" edge.
+func (_q *TenantQuery) QueryWorkspaceDatasets() *WorkspaceDatasetQuery {
+	query := (&WorkspaceDatasetClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(workspacedataset.Table, workspacedataset.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.WorkspaceDatasetsTable, tenant.WorkspaceDatasetsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
 // First returns the first Tenant entity from the query.
 // Returns a *NotFoundError when no Tenant was found.
 func (_q *TenantQuery) First(ctx context.Context) (*Tenant, error) {
@@ -726,6 +750,7 @@ func (_q *TenantQuery) Clone() *TenantQuery {
 		withNodeAssignments:      _q.withNodeAssignments.Clone(),
 		withDiagnosticRuns:       _q.withDiagnosticRuns.Clone(),
 		withExperimentProposals:  _q.withExperimentProposals.Clone(),
+		withWorkspaceDatasets:    _q.withWorkspaceDatasets.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -941,6 +966,17 @@ func (_q *TenantQuery) WithExperimentProposals(opts ...func(*ExperimentProposalQ
 	return _q
 }
 
+// WithWorkspaceDatasets tells the query-builder to eager-load the nodes that are connected to
+// the "workspace_datasets" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithWorkspaceDatasets(opts ...func(*WorkspaceDatasetQuery)) *TenantQuery {
+	query := (&WorkspaceDatasetClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withWorkspaceDatasets = query
+	return _q
+}
+
 // GroupBy is used to group vertices by one or more fields/columns.
 // It is often used with aggregate functions, like: count, max, mean, min, sum.
 //
@@ -1019,7 +1055,7 @@ func (_q *TenantQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Tenan
 	var (
 		nodes       = []*Tenant{}
 		_spec       = _q.querySpec()
-		loadedTypes = [19]bool{
+		loadedTypes = [20]bool{
 			_q.withUsers != nil,
 			_q.withProviderAccounts != nil,
 			_q.withProjects != nil,
@@ -1039,6 +1075,7 @@ func (_q *TenantQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Tenan
 			_q.withNodeAssignments != nil,
 			_q.withDiagnosticRuns != nil,
 			_q.withExperimentProposals != nil,
+			_q.withWorkspaceDatasets != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -1197,6 +1234,13 @@ func (_q *TenantQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Tenan
 			func(n *Tenant, e *ExperimentProposal) {
 				n.Edges.ExperimentProposals = append(n.Edges.ExperimentProposals, e)
 			}); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withWorkspaceDatasets; query != nil {
+		if err := _q.loadWorkspaceDatasets(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.WorkspaceDatasets = []*WorkspaceDataset{} },
+			func(n *Tenant, e *WorkspaceDataset) { n.Edges.WorkspaceDatasets = append(n.Edges.WorkspaceDatasets, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -1758,6 +1802,36 @@ func (_q *TenantQuery) loadExperimentProposals(ctx context.Context, query *Exper
 	}
 	query.Where(predicate.ExperimentProposal(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(tenant.ExperimentProposalsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TenantQuery) loadWorkspaceDatasets(ctx context.Context, query *WorkspaceDatasetQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *WorkspaceDataset)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(workspacedataset.FieldTenantID)
+	}
+	query.Where(predicate.WorkspaceDataset(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.WorkspaceDatasetsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

@@ -40,6 +40,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/session"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
 	"github.com/XR-Lee/Gemcp/ent/user"
+	"github.com/XR-Lee/Gemcp/ent/workspacedataset"
 	"github.com/google/uuid"
 )
 
@@ -80,6 +81,7 @@ const (
 	TypeSession             = "Session"
 	TypeTenant              = "Tenant"
 	TypeUser                = "User"
+	TypeWorkspaceDataset    = "WorkspaceDataset"
 )
 
 // AgentEnrollmentMutation represents an operation that mutates the AgentEnrollment nodes in the graph.
@@ -1391,6 +1393,9 @@ type AgentTokenMutation struct {
 	experiment_proposals        map[int]struct{}
 	removedexperiment_proposals map[int]struct{}
 	clearedexperiment_proposals bool
+	workspace_datasets          map[int]struct{}
+	removedworkspace_datasets   map[int]struct{}
+	clearedworkspace_datasets   bool
 	done                        bool
 	oldValue                    func(context.Context) (*AgentToken, error)
 	predicates                  []predicate.AgentToken
@@ -2156,6 +2161,60 @@ func (m *AgentTokenMutation) ResetExperimentProposals() {
 	m.removedexperiment_proposals = nil
 }
 
+// AddWorkspaceDatasetIDs adds the "workspace_datasets" edge to the WorkspaceDataset entity by ids.
+func (m *AgentTokenMutation) AddWorkspaceDatasetIDs(ids ...int) {
+	if m.workspace_datasets == nil {
+		m.workspace_datasets = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.workspace_datasets[ids[i]] = struct{}{}
+	}
+}
+
+// ClearWorkspaceDatasets clears the "workspace_datasets" edge to the WorkspaceDataset entity.
+func (m *AgentTokenMutation) ClearWorkspaceDatasets() {
+	m.clearedworkspace_datasets = true
+}
+
+// WorkspaceDatasetsCleared reports if the "workspace_datasets" edge to the WorkspaceDataset entity was cleared.
+func (m *AgentTokenMutation) WorkspaceDatasetsCleared() bool {
+	return m.clearedworkspace_datasets
+}
+
+// RemoveWorkspaceDatasetIDs removes the "workspace_datasets" edge to the WorkspaceDataset entity by IDs.
+func (m *AgentTokenMutation) RemoveWorkspaceDatasetIDs(ids ...int) {
+	if m.removedworkspace_datasets == nil {
+		m.removedworkspace_datasets = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.workspace_datasets, ids[i])
+		m.removedworkspace_datasets[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedWorkspaceDatasets returns the removed IDs of the "workspace_datasets" edge to the WorkspaceDataset entity.
+func (m *AgentTokenMutation) RemovedWorkspaceDatasetsIDs() (ids []int) {
+	for id := range m.removedworkspace_datasets {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// WorkspaceDatasetsIDs returns the "workspace_datasets" edge IDs in the mutation.
+func (m *AgentTokenMutation) WorkspaceDatasetsIDs() (ids []int) {
+	for id := range m.workspace_datasets {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetWorkspaceDatasets resets all changes to the "workspace_datasets" edge.
+func (m *AgentTokenMutation) ResetWorkspaceDatasets() {
+	m.workspace_datasets = nil
+	m.clearedworkspace_datasets = false
+	m.removedworkspace_datasets = nil
+}
+
 // Where appends a list predicates to the AgentTokenMutation builder.
 func (m *AgentTokenMutation) Where(ps ...predicate.AgentToken) {
 	m.predicates = append(m.predicates, ps...)
@@ -2494,7 +2553,7 @@ func (m *AgentTokenMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *AgentTokenMutation) AddedEdges() []string {
-	edges := make([]string, 0, 4)
+	edges := make([]string, 0, 5)
 	if m.project != nil {
 		edges = append(edges, agenttoken.EdgeProject)
 	}
@@ -2506,6 +2565,9 @@ func (m *AgentTokenMutation) AddedEdges() []string {
 	}
 	if m.experiment_proposals != nil {
 		edges = append(edges, agenttoken.EdgeExperimentProposals)
+	}
+	if m.workspace_datasets != nil {
+		edges = append(edges, agenttoken.EdgeWorkspaceDatasets)
 	}
 	return edges
 }
@@ -2536,13 +2598,19 @@ func (m *AgentTokenMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case agenttoken.EdgeWorkspaceDatasets:
+		ids := make([]ent.Value, 0, len(m.workspace_datasets))
+		for id := range m.workspace_datasets {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *AgentTokenMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 4)
+	edges := make([]string, 0, 5)
 	if m.removedexperiments != nil {
 		edges = append(edges, agenttoken.EdgeExperiments)
 	}
@@ -2551,6 +2619,9 @@ func (m *AgentTokenMutation) RemovedEdges() []string {
 	}
 	if m.removedexperiment_proposals != nil {
 		edges = append(edges, agenttoken.EdgeExperimentProposals)
+	}
+	if m.removedworkspace_datasets != nil {
+		edges = append(edges, agenttoken.EdgeWorkspaceDatasets)
 	}
 	return edges
 }
@@ -2577,13 +2648,19 @@ func (m *AgentTokenMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case agenttoken.EdgeWorkspaceDatasets:
+		ids := make([]ent.Value, 0, len(m.removedworkspace_datasets))
+		for id := range m.removedworkspace_datasets {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *AgentTokenMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 4)
+	edges := make([]string, 0, 5)
 	if m.clearedproject {
 		edges = append(edges, agenttoken.EdgeProject)
 	}
@@ -2595,6 +2672,9 @@ func (m *AgentTokenMutation) ClearedEdges() []string {
 	}
 	if m.clearedexperiment_proposals {
 		edges = append(edges, agenttoken.EdgeExperimentProposals)
+	}
+	if m.clearedworkspace_datasets {
+		edges = append(edges, agenttoken.EdgeWorkspaceDatasets)
 	}
 	return edges
 }
@@ -2611,6 +2691,8 @@ func (m *AgentTokenMutation) EdgeCleared(name string) bool {
 		return m.clearedidempotency_records
 	case agenttoken.EdgeExperimentProposals:
 		return m.clearedexperiment_proposals
+	case agenttoken.EdgeWorkspaceDatasets:
+		return m.clearedworkspace_datasets
 	}
 	return false
 }
@@ -2641,6 +2723,9 @@ func (m *AgentTokenMutation) ResetEdge(name string) error {
 		return nil
 	case agenttoken.EdgeExperimentProposals:
 		m.ResetExperimentProposals()
+		return nil
+	case agenttoken.EdgeWorkspaceDatasets:
+		m.ResetWorkspaceDatasets()
 		return nil
 	}
 	return fmt.Errorf("unknown AgentToken edge %s", name)
@@ -25940,6 +26025,9 @@ type ProjectMutation struct {
 	experiment_proposals         map[int]struct{}
 	removedexperiment_proposals  map[int]struct{}
 	clearedexperiment_proposals  bool
+	workspace_datasets           map[int]struct{}
+	removedworkspace_datasets    map[int]struct{}
+	clearedworkspace_datasets    bool
 	done                         bool
 	oldValue                     func(context.Context) (*Project, error)
 	predicates                   []predicate.Project
@@ -27396,6 +27484,60 @@ func (m *ProjectMutation) ResetExperimentProposals() {
 	m.removedexperiment_proposals = nil
 }
 
+// AddWorkspaceDatasetIDs adds the "workspace_datasets" edge to the WorkspaceDataset entity by ids.
+func (m *ProjectMutation) AddWorkspaceDatasetIDs(ids ...int) {
+	if m.workspace_datasets == nil {
+		m.workspace_datasets = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.workspace_datasets[ids[i]] = struct{}{}
+	}
+}
+
+// ClearWorkspaceDatasets clears the "workspace_datasets" edge to the WorkspaceDataset entity.
+func (m *ProjectMutation) ClearWorkspaceDatasets() {
+	m.clearedworkspace_datasets = true
+}
+
+// WorkspaceDatasetsCleared reports if the "workspace_datasets" edge to the WorkspaceDataset entity was cleared.
+func (m *ProjectMutation) WorkspaceDatasetsCleared() bool {
+	return m.clearedworkspace_datasets
+}
+
+// RemoveWorkspaceDatasetIDs removes the "workspace_datasets" edge to the WorkspaceDataset entity by IDs.
+func (m *ProjectMutation) RemoveWorkspaceDatasetIDs(ids ...int) {
+	if m.removedworkspace_datasets == nil {
+		m.removedworkspace_datasets = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.workspace_datasets, ids[i])
+		m.removedworkspace_datasets[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedWorkspaceDatasets returns the removed IDs of the "workspace_datasets" edge to the WorkspaceDataset entity.
+func (m *ProjectMutation) RemovedWorkspaceDatasetsIDs() (ids []int) {
+	for id := range m.removedworkspace_datasets {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// WorkspaceDatasetsIDs returns the "workspace_datasets" edge IDs in the mutation.
+func (m *ProjectMutation) WorkspaceDatasetsIDs() (ids []int) {
+	for id := range m.workspace_datasets {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetWorkspaceDatasets resets all changes to the "workspace_datasets" edge.
+func (m *ProjectMutation) ResetWorkspaceDatasets() {
+	m.workspace_datasets = nil
+	m.clearedworkspace_datasets = false
+	m.removedworkspace_datasets = nil
+}
+
 // Where appends a list predicates to the ProjectMutation builder.
 func (m *ProjectMutation) Where(ps ...predicate.Project) {
 	m.predicates = append(m.predicates, ps...)
@@ -27825,7 +27967,7 @@ func (m *ProjectMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *ProjectMutation) AddedEdges() []string {
-	edges := make([]string, 0, 14)
+	edges := make([]string, 0, 15)
 	if m.tenant != nil {
 		edges = append(edges, project.EdgeTenant)
 	}
@@ -27867,6 +28009,9 @@ func (m *ProjectMutation) AddedEdges() []string {
 	}
 	if m.experiment_proposals != nil {
 		edges = append(edges, project.EdgeExperimentProposals)
+	}
+	if m.workspace_datasets != nil {
+		edges = append(edges, project.EdgeWorkspaceDatasets)
 	}
 	return edges
 }
@@ -27957,13 +28102,19 @@ func (m *ProjectMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case project.EdgeWorkspaceDatasets:
+		ids := make([]ent.Value, 0, len(m.workspace_datasets))
+		for id := range m.workspace_datasets {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *ProjectMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 14)
+	edges := make([]string, 0, 15)
 	if m.removedenvironments != nil {
 		edges = append(edges, project.EdgeEnvironments)
 	}
@@ -28002,6 +28153,9 @@ func (m *ProjectMutation) RemovedEdges() []string {
 	}
 	if m.removedexperiment_proposals != nil {
 		edges = append(edges, project.EdgeExperimentProposals)
+	}
+	if m.removedworkspace_datasets != nil {
+		edges = append(edges, project.EdgeWorkspaceDatasets)
 	}
 	return edges
 }
@@ -28088,13 +28242,19 @@ func (m *ProjectMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case project.EdgeWorkspaceDatasets:
+		ids := make([]ent.Value, 0, len(m.removedworkspace_datasets))
+		for id := range m.removedworkspace_datasets {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *ProjectMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 14)
+	edges := make([]string, 0, 15)
 	if m.clearedtenant {
 		edges = append(edges, project.EdgeTenant)
 	}
@@ -28137,6 +28297,9 @@ func (m *ProjectMutation) ClearedEdges() []string {
 	if m.clearedexperiment_proposals {
 		edges = append(edges, project.EdgeExperimentProposals)
 	}
+	if m.clearedworkspace_datasets {
+		edges = append(edges, project.EdgeWorkspaceDatasets)
+	}
 	return edges
 }
 
@@ -28172,6 +28335,8 @@ func (m *ProjectMutation) EdgeCleared(name string) bool {
 		return m.cleareddiagnostic_runs
 	case project.EdgeExperimentProposals:
 		return m.clearedexperiment_proposals
+	case project.EdgeWorkspaceDatasets:
+		return m.clearedworkspace_datasets
 	}
 	return false
 }
@@ -28232,6 +28397,9 @@ func (m *ProjectMutation) ResetEdge(name string) error {
 		return nil
 	case project.EdgeExperimentProposals:
 		m.ResetExperimentProposals()
+		return nil
+	case project.EdgeWorkspaceDatasets:
+		m.ResetWorkspaceDatasets()
 		return nil
 	}
 	return fmt.Errorf("unknown Project edge %s", name)
@@ -35305,47 +35473,50 @@ func (m *ResourceProfileMutation) ResetEdge(name string) error {
 // SelfHostedNodeMutation represents an operation that mutates the SelfHostedNode nodes in the graph.
 type SelfHostedNodeMutation struct {
 	config
-	op                    Op
-	typ                   string
-	id                    *int
-	public_id             *uuid.UUID
-	created_at            *time.Time
-	updated_at            *time.Time
-	label                 *string
-	token_prefix          *string
-	token_hash            *[]byte
-	status                *selfhostednode.Status
-	observed_state        *selfhostednode.ObservedState
-	installation_id       *string
-	machine_fingerprint   *string
-	hostname              *string
-	operating_system      *string
-	architecture          *string
-	agent_version         *string
-	protocol_version      *string
-	capabilities          *map[string]interface{}
-	storage               *map[string]interface{}
-	last_seen_at          *time.Time
-	approved_at           *time.Time
-	revoked_at            *time.Time
-	clearedFields         map[string]struct{}
-	tenant                *int
-	clearedtenant         bool
-	project_access        map[int]struct{}
-	removedproject_access map[int]struct{}
-	clearedproject_access bool
-	commands              map[int]struct{}
-	removedcommands       map[int]struct{}
-	clearedcommands       bool
-	events                map[int]struct{}
-	removedevents         map[int]struct{}
-	clearedevents         bool
-	assignments           map[int]struct{}
-	removedassignments    map[int]struct{}
-	clearedassignments    bool
-	done                  bool
-	oldValue              func(context.Context) (*SelfHostedNode, error)
-	predicates            []predicate.SelfHostedNode
+	op                        Op
+	typ                       string
+	id                        *int
+	public_id                 *uuid.UUID
+	created_at                *time.Time
+	updated_at                *time.Time
+	label                     *string
+	token_prefix              *string
+	token_hash                *[]byte
+	status                    *selfhostednode.Status
+	observed_state            *selfhostednode.ObservedState
+	installation_id           *string
+	machine_fingerprint       *string
+	hostname                  *string
+	operating_system          *string
+	architecture              *string
+	agent_version             *string
+	protocol_version          *string
+	capabilities              *map[string]interface{}
+	storage                   *map[string]interface{}
+	last_seen_at              *time.Time
+	approved_at               *time.Time
+	revoked_at                *time.Time
+	clearedFields             map[string]struct{}
+	tenant                    *int
+	clearedtenant             bool
+	project_access            map[int]struct{}
+	removedproject_access     map[int]struct{}
+	clearedproject_access     bool
+	commands                  map[int]struct{}
+	removedcommands           map[int]struct{}
+	clearedcommands           bool
+	events                    map[int]struct{}
+	removedevents             map[int]struct{}
+	clearedevents             bool
+	assignments               map[int]struct{}
+	removedassignments        map[int]struct{}
+	clearedassignments        bool
+	workspace_datasets        map[int]struct{}
+	removedworkspace_datasets map[int]struct{}
+	clearedworkspace_datasets bool
+	done                      bool
+	oldValue                  func(context.Context) (*SelfHostedNode, error)
+	predicates                []predicate.SelfHostedNode
 }
 
 var _ ent.Mutation = (*SelfHostedNodeMutation)(nil)
@@ -36510,6 +36681,60 @@ func (m *SelfHostedNodeMutation) ResetAssignments() {
 	m.removedassignments = nil
 }
 
+// AddWorkspaceDatasetIDs adds the "workspace_datasets" edge to the WorkspaceDataset entity by ids.
+func (m *SelfHostedNodeMutation) AddWorkspaceDatasetIDs(ids ...int) {
+	if m.workspace_datasets == nil {
+		m.workspace_datasets = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.workspace_datasets[ids[i]] = struct{}{}
+	}
+}
+
+// ClearWorkspaceDatasets clears the "workspace_datasets" edge to the WorkspaceDataset entity.
+func (m *SelfHostedNodeMutation) ClearWorkspaceDatasets() {
+	m.clearedworkspace_datasets = true
+}
+
+// WorkspaceDatasetsCleared reports if the "workspace_datasets" edge to the WorkspaceDataset entity was cleared.
+func (m *SelfHostedNodeMutation) WorkspaceDatasetsCleared() bool {
+	return m.clearedworkspace_datasets
+}
+
+// RemoveWorkspaceDatasetIDs removes the "workspace_datasets" edge to the WorkspaceDataset entity by IDs.
+func (m *SelfHostedNodeMutation) RemoveWorkspaceDatasetIDs(ids ...int) {
+	if m.removedworkspace_datasets == nil {
+		m.removedworkspace_datasets = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.workspace_datasets, ids[i])
+		m.removedworkspace_datasets[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedWorkspaceDatasets returns the removed IDs of the "workspace_datasets" edge to the WorkspaceDataset entity.
+func (m *SelfHostedNodeMutation) RemovedWorkspaceDatasetsIDs() (ids []int) {
+	for id := range m.removedworkspace_datasets {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// WorkspaceDatasetsIDs returns the "workspace_datasets" edge IDs in the mutation.
+func (m *SelfHostedNodeMutation) WorkspaceDatasetsIDs() (ids []int) {
+	for id := range m.workspace_datasets {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetWorkspaceDatasets resets all changes to the "workspace_datasets" edge.
+func (m *SelfHostedNodeMutation) ResetWorkspaceDatasets() {
+	m.workspace_datasets = nil
+	m.clearedworkspace_datasets = false
+	m.removedworkspace_datasets = nil
+}
+
 // Where appends a list predicates to the SelfHostedNodeMutation builder.
 func (m *SelfHostedNodeMutation) Where(ps ...predicate.SelfHostedNode) {
 	m.predicates = append(m.predicates, ps...)
@@ -37019,7 +37244,7 @@ func (m *SelfHostedNodeMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *SelfHostedNodeMutation) AddedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 6)
 	if m.tenant != nil {
 		edges = append(edges, selfhostednode.EdgeTenant)
 	}
@@ -37034,6 +37259,9 @@ func (m *SelfHostedNodeMutation) AddedEdges() []string {
 	}
 	if m.assignments != nil {
 		edges = append(edges, selfhostednode.EdgeAssignments)
+	}
+	if m.workspace_datasets != nil {
+		edges = append(edges, selfhostednode.EdgeWorkspaceDatasets)
 	}
 	return edges
 }
@@ -37070,13 +37298,19 @@ func (m *SelfHostedNodeMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case selfhostednode.EdgeWorkspaceDatasets:
+		ids := make([]ent.Value, 0, len(m.workspace_datasets))
+		for id := range m.workspace_datasets {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *SelfHostedNodeMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 6)
 	if m.removedproject_access != nil {
 		edges = append(edges, selfhostednode.EdgeProjectAccess)
 	}
@@ -37088,6 +37322,9 @@ func (m *SelfHostedNodeMutation) RemovedEdges() []string {
 	}
 	if m.removedassignments != nil {
 		edges = append(edges, selfhostednode.EdgeAssignments)
+	}
+	if m.removedworkspace_datasets != nil {
+		edges = append(edges, selfhostednode.EdgeWorkspaceDatasets)
 	}
 	return edges
 }
@@ -37120,13 +37357,19 @@ func (m *SelfHostedNodeMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case selfhostednode.EdgeWorkspaceDatasets:
+		ids := make([]ent.Value, 0, len(m.removedworkspace_datasets))
+		for id := range m.removedworkspace_datasets {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *SelfHostedNodeMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 6)
 	if m.clearedtenant {
 		edges = append(edges, selfhostednode.EdgeTenant)
 	}
@@ -37141,6 +37384,9 @@ func (m *SelfHostedNodeMutation) ClearedEdges() []string {
 	}
 	if m.clearedassignments {
 		edges = append(edges, selfhostednode.EdgeAssignments)
+	}
+	if m.clearedworkspace_datasets {
+		edges = append(edges, selfhostednode.EdgeWorkspaceDatasets)
 	}
 	return edges
 }
@@ -37159,6 +37405,8 @@ func (m *SelfHostedNodeMutation) EdgeCleared(name string) bool {
 		return m.clearedevents
 	case selfhostednode.EdgeAssignments:
 		return m.clearedassignments
+	case selfhostednode.EdgeWorkspaceDatasets:
+		return m.clearedworkspace_datasets
 	}
 	return false
 }
@@ -37192,6 +37440,9 @@ func (m *SelfHostedNodeMutation) ResetEdge(name string) error {
 		return nil
 	case selfhostednode.EdgeAssignments:
 		m.ResetAssignments()
+		return nil
+	case selfhostednode.EdgeWorkspaceDatasets:
+		m.ResetWorkspaceDatasets()
 		return nil
 	}
 	return fmt.Errorf("unknown SelfHostedNode edge %s", name)
@@ -38807,6 +39058,9 @@ type TenantMutation struct {
 	experiment_proposals         map[int]struct{}
 	removedexperiment_proposals  map[int]struct{}
 	clearedexperiment_proposals  bool
+	workspace_datasets           map[int]struct{}
+	removedworkspace_datasets    map[int]struct{}
+	clearedworkspace_datasets    bool
 	done                         bool
 	oldValue                     func(context.Context) (*Tenant, error)
 	predicates                   []predicate.Tenant
@@ -40116,6 +40370,60 @@ func (m *TenantMutation) ResetExperimentProposals() {
 	m.removedexperiment_proposals = nil
 }
 
+// AddWorkspaceDatasetIDs adds the "workspace_datasets" edge to the WorkspaceDataset entity by ids.
+func (m *TenantMutation) AddWorkspaceDatasetIDs(ids ...int) {
+	if m.workspace_datasets == nil {
+		m.workspace_datasets = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.workspace_datasets[ids[i]] = struct{}{}
+	}
+}
+
+// ClearWorkspaceDatasets clears the "workspace_datasets" edge to the WorkspaceDataset entity.
+func (m *TenantMutation) ClearWorkspaceDatasets() {
+	m.clearedworkspace_datasets = true
+}
+
+// WorkspaceDatasetsCleared reports if the "workspace_datasets" edge to the WorkspaceDataset entity was cleared.
+func (m *TenantMutation) WorkspaceDatasetsCleared() bool {
+	return m.clearedworkspace_datasets
+}
+
+// RemoveWorkspaceDatasetIDs removes the "workspace_datasets" edge to the WorkspaceDataset entity by IDs.
+func (m *TenantMutation) RemoveWorkspaceDatasetIDs(ids ...int) {
+	if m.removedworkspace_datasets == nil {
+		m.removedworkspace_datasets = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.workspace_datasets, ids[i])
+		m.removedworkspace_datasets[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedWorkspaceDatasets returns the removed IDs of the "workspace_datasets" edge to the WorkspaceDataset entity.
+func (m *TenantMutation) RemovedWorkspaceDatasetsIDs() (ids []int) {
+	for id := range m.removedworkspace_datasets {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// WorkspaceDatasetsIDs returns the "workspace_datasets" edge IDs in the mutation.
+func (m *TenantMutation) WorkspaceDatasetsIDs() (ids []int) {
+	for id := range m.workspace_datasets {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetWorkspaceDatasets resets all changes to the "workspace_datasets" edge.
+func (m *TenantMutation) ResetWorkspaceDatasets() {
+	m.workspace_datasets = nil
+	m.clearedworkspace_datasets = false
+	m.removedworkspace_datasets = nil
+}
+
 // Where appends a list predicates to the TenantMutation builder.
 func (m *TenantMutation) Where(ps ...predicate.Tenant) {
 	m.predicates = append(m.predicates, ps...)
@@ -40317,7 +40625,7 @@ func (m *TenantMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *TenantMutation) AddedEdges() []string {
-	edges := make([]string, 0, 19)
+	edges := make([]string, 0, 20)
 	if m.users != nil {
 		edges = append(edges, tenant.EdgeUsers)
 	}
@@ -40374,6 +40682,9 @@ func (m *TenantMutation) AddedEdges() []string {
 	}
 	if m.experiment_proposals != nil {
 		edges = append(edges, tenant.EdgeExperimentProposals)
+	}
+	if m.workspace_datasets != nil {
+		edges = append(edges, tenant.EdgeWorkspaceDatasets)
 	}
 	return edges
 }
@@ -40496,13 +40807,19 @@ func (m *TenantMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case tenant.EdgeWorkspaceDatasets:
+		ids := make([]ent.Value, 0, len(m.workspace_datasets))
+		for id := range m.workspace_datasets {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *TenantMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 19)
+	edges := make([]string, 0, 20)
 	if m.removedusers != nil {
 		edges = append(edges, tenant.EdgeUsers)
 	}
@@ -40559,6 +40876,9 @@ func (m *TenantMutation) RemovedEdges() []string {
 	}
 	if m.removedexperiment_proposals != nil {
 		edges = append(edges, tenant.EdgeExperimentProposals)
+	}
+	if m.removedworkspace_datasets != nil {
+		edges = append(edges, tenant.EdgeWorkspaceDatasets)
 	}
 	return edges
 }
@@ -40681,13 +41001,19 @@ func (m *TenantMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case tenant.EdgeWorkspaceDatasets:
+		ids := make([]ent.Value, 0, len(m.removedworkspace_datasets))
+		for id := range m.removedworkspace_datasets {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *TenantMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 19)
+	edges := make([]string, 0, 20)
 	if m.clearedusers {
 		edges = append(edges, tenant.EdgeUsers)
 	}
@@ -40745,6 +41071,9 @@ func (m *TenantMutation) ClearedEdges() []string {
 	if m.clearedexperiment_proposals {
 		edges = append(edges, tenant.EdgeExperimentProposals)
 	}
+	if m.clearedworkspace_datasets {
+		edges = append(edges, tenant.EdgeWorkspaceDatasets)
+	}
 	return edges
 }
 
@@ -40790,6 +41119,8 @@ func (m *TenantMutation) EdgeCleared(name string) bool {
 		return m.cleareddiagnostic_runs
 	case tenant.EdgeExperimentProposals:
 		return m.clearedexperiment_proposals
+	case tenant.EdgeWorkspaceDatasets:
+		return m.clearedworkspace_datasets
 	}
 	return false
 }
@@ -40862,6 +41193,9 @@ func (m *TenantMutation) ResetEdge(name string) error {
 		return nil
 	case tenant.EdgeExperimentProposals:
 		m.ResetExperimentProposals()
+		return nil
+	case tenant.EdgeWorkspaceDatasets:
+		m.ResetWorkspaceDatasets()
 		return nil
 	}
 	return fmt.Errorf("unknown Tenant edge %s", name)
@@ -41711,4 +42045,1087 @@ func (m *UserMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown User edge %s", name)
+}
+
+// WorkspaceDatasetMutation represents an operation that mutates the WorkspaceDataset nodes in the graph.
+type WorkspaceDatasetMutation struct {
+	config
+	op                   Op
+	typ                  string
+	id                   *int
+	public_id            *uuid.UUID
+	created_at           *time.Time
+	updated_at           *time.Time
+	name                 *string
+	relative_path        *string
+	environment_variable *string
+	status               *workspacedataset.Status
+	clearedFields        map[string]struct{}
+	tenant               *int
+	clearedtenant        bool
+	project              *int
+	clearedproject       bool
+	node                 *int
+	clearednode          bool
+	agent_token          *int
+	clearedagent_token   bool
+	done                 bool
+	oldValue             func(context.Context) (*WorkspaceDataset, error)
+	predicates           []predicate.WorkspaceDataset
+}
+
+var _ ent.Mutation = (*WorkspaceDatasetMutation)(nil)
+
+// workspacedatasetOption allows management of the mutation configuration using functional options.
+type workspacedatasetOption func(*WorkspaceDatasetMutation)
+
+// newWorkspaceDatasetMutation creates new mutation for the WorkspaceDataset entity.
+func newWorkspaceDatasetMutation(c config, op Op, opts ...workspacedatasetOption) *WorkspaceDatasetMutation {
+	m := &WorkspaceDatasetMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeWorkspaceDataset,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withWorkspaceDatasetID sets the ID field of the mutation.
+func withWorkspaceDatasetID(id int) workspacedatasetOption {
+	return func(m *WorkspaceDatasetMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *WorkspaceDataset
+		)
+		m.oldValue = func(ctx context.Context) (*WorkspaceDataset, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().WorkspaceDataset.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withWorkspaceDataset sets the old WorkspaceDataset of the mutation.
+func withWorkspaceDataset(node *WorkspaceDataset) workspacedatasetOption {
+	return func(m *WorkspaceDatasetMutation) {
+		m.oldValue = func(context.Context) (*WorkspaceDataset, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m WorkspaceDatasetMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m WorkspaceDatasetMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *WorkspaceDatasetMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *WorkspaceDatasetMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().WorkspaceDataset.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetPublicID sets the "public_id" field.
+func (m *WorkspaceDatasetMutation) SetPublicID(u uuid.UUID) {
+	m.public_id = &u
+}
+
+// PublicID returns the value of the "public_id" field in the mutation.
+func (m *WorkspaceDatasetMutation) PublicID() (r uuid.UUID, exists bool) {
+	v := m.public_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPublicID returns the old "public_id" field's value of the WorkspaceDataset entity.
+// If the WorkspaceDataset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WorkspaceDatasetMutation) OldPublicID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPublicID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPublicID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPublicID: %w", err)
+	}
+	return oldValue.PublicID, nil
+}
+
+// ResetPublicID resets all changes to the "public_id" field.
+func (m *WorkspaceDatasetMutation) ResetPublicID() {
+	m.public_id = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *WorkspaceDatasetMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *WorkspaceDatasetMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the WorkspaceDataset entity.
+// If the WorkspaceDataset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WorkspaceDatasetMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *WorkspaceDatasetMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *WorkspaceDatasetMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *WorkspaceDatasetMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the WorkspaceDataset entity.
+// If the WorkspaceDataset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WorkspaceDatasetMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *WorkspaceDatasetMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *WorkspaceDatasetMutation) SetTenantID(i int) {
+	m.tenant = &i
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *WorkspaceDatasetMutation) TenantID() (r int, exists bool) {
+	v := m.tenant
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the WorkspaceDataset entity.
+// If the WorkspaceDataset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WorkspaceDatasetMutation) OldTenantID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *WorkspaceDatasetMutation) ResetTenantID() {
+	m.tenant = nil
+}
+
+// SetProjectID sets the "project_id" field.
+func (m *WorkspaceDatasetMutation) SetProjectID(i int) {
+	m.project = &i
+}
+
+// ProjectID returns the value of the "project_id" field in the mutation.
+func (m *WorkspaceDatasetMutation) ProjectID() (r int, exists bool) {
+	v := m.project
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProjectID returns the old "project_id" field's value of the WorkspaceDataset entity.
+// If the WorkspaceDataset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WorkspaceDatasetMutation) OldProjectID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProjectID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProjectID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProjectID: %w", err)
+	}
+	return oldValue.ProjectID, nil
+}
+
+// ResetProjectID resets all changes to the "project_id" field.
+func (m *WorkspaceDatasetMutation) ResetProjectID() {
+	m.project = nil
+}
+
+// SetNodeID sets the "node_id" field.
+func (m *WorkspaceDatasetMutation) SetNodeID(i int) {
+	m.node = &i
+}
+
+// NodeID returns the value of the "node_id" field in the mutation.
+func (m *WorkspaceDatasetMutation) NodeID() (r int, exists bool) {
+	v := m.node
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNodeID returns the old "node_id" field's value of the WorkspaceDataset entity.
+// If the WorkspaceDataset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WorkspaceDatasetMutation) OldNodeID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNodeID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNodeID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNodeID: %w", err)
+	}
+	return oldValue.NodeID, nil
+}
+
+// ResetNodeID resets all changes to the "node_id" field.
+func (m *WorkspaceDatasetMutation) ResetNodeID() {
+	m.node = nil
+}
+
+// SetAgentTokenID sets the "agent_token_id" field.
+func (m *WorkspaceDatasetMutation) SetAgentTokenID(i int) {
+	m.agent_token = &i
+}
+
+// AgentTokenID returns the value of the "agent_token_id" field in the mutation.
+func (m *WorkspaceDatasetMutation) AgentTokenID() (r int, exists bool) {
+	v := m.agent_token
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAgentTokenID returns the old "agent_token_id" field's value of the WorkspaceDataset entity.
+// If the WorkspaceDataset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WorkspaceDatasetMutation) OldAgentTokenID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAgentTokenID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAgentTokenID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAgentTokenID: %w", err)
+	}
+	return oldValue.AgentTokenID, nil
+}
+
+// ClearAgentTokenID clears the value of the "agent_token_id" field.
+func (m *WorkspaceDatasetMutation) ClearAgentTokenID() {
+	m.agent_token = nil
+	m.clearedFields[workspacedataset.FieldAgentTokenID] = struct{}{}
+}
+
+// AgentTokenIDCleared returns if the "agent_token_id" field was cleared in this mutation.
+func (m *WorkspaceDatasetMutation) AgentTokenIDCleared() bool {
+	_, ok := m.clearedFields[workspacedataset.FieldAgentTokenID]
+	return ok
+}
+
+// ResetAgentTokenID resets all changes to the "agent_token_id" field.
+func (m *WorkspaceDatasetMutation) ResetAgentTokenID() {
+	m.agent_token = nil
+	delete(m.clearedFields, workspacedataset.FieldAgentTokenID)
+}
+
+// SetName sets the "name" field.
+func (m *WorkspaceDatasetMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *WorkspaceDatasetMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the WorkspaceDataset entity.
+// If the WorkspaceDataset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WorkspaceDatasetMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *WorkspaceDatasetMutation) ResetName() {
+	m.name = nil
+}
+
+// SetRelativePath sets the "relative_path" field.
+func (m *WorkspaceDatasetMutation) SetRelativePath(s string) {
+	m.relative_path = &s
+}
+
+// RelativePath returns the value of the "relative_path" field in the mutation.
+func (m *WorkspaceDatasetMutation) RelativePath() (r string, exists bool) {
+	v := m.relative_path
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRelativePath returns the old "relative_path" field's value of the WorkspaceDataset entity.
+// If the WorkspaceDataset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WorkspaceDatasetMutation) OldRelativePath(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRelativePath is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRelativePath requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRelativePath: %w", err)
+	}
+	return oldValue.RelativePath, nil
+}
+
+// ResetRelativePath resets all changes to the "relative_path" field.
+func (m *WorkspaceDatasetMutation) ResetRelativePath() {
+	m.relative_path = nil
+}
+
+// SetEnvironmentVariable sets the "environment_variable" field.
+func (m *WorkspaceDatasetMutation) SetEnvironmentVariable(s string) {
+	m.environment_variable = &s
+}
+
+// EnvironmentVariable returns the value of the "environment_variable" field in the mutation.
+func (m *WorkspaceDatasetMutation) EnvironmentVariable() (r string, exists bool) {
+	v := m.environment_variable
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEnvironmentVariable returns the old "environment_variable" field's value of the WorkspaceDataset entity.
+// If the WorkspaceDataset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WorkspaceDatasetMutation) OldEnvironmentVariable(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEnvironmentVariable is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEnvironmentVariable requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEnvironmentVariable: %w", err)
+	}
+	return oldValue.EnvironmentVariable, nil
+}
+
+// ResetEnvironmentVariable resets all changes to the "environment_variable" field.
+func (m *WorkspaceDatasetMutation) ResetEnvironmentVariable() {
+	m.environment_variable = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *WorkspaceDatasetMutation) SetStatus(w workspacedataset.Status) {
+	m.status = &w
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *WorkspaceDatasetMutation) Status() (r workspacedataset.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the WorkspaceDataset entity.
+// If the WorkspaceDataset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WorkspaceDatasetMutation) OldStatus(ctx context.Context) (v workspacedataset.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *WorkspaceDatasetMutation) ResetStatus() {
+	m.status = nil
+}
+
+// ClearTenant clears the "tenant" edge to the Tenant entity.
+func (m *WorkspaceDatasetMutation) ClearTenant() {
+	m.clearedtenant = true
+	m.clearedFields[workspacedataset.FieldTenantID] = struct{}{}
+}
+
+// TenantCleared reports if the "tenant" edge to the Tenant entity was cleared.
+func (m *WorkspaceDatasetMutation) TenantCleared() bool {
+	return m.clearedtenant
+}
+
+// TenantIDs returns the "tenant" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// TenantID instead. It exists only for internal usage by the builders.
+func (m *WorkspaceDatasetMutation) TenantIDs() (ids []int) {
+	if id := m.tenant; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetTenant resets all changes to the "tenant" edge.
+func (m *WorkspaceDatasetMutation) ResetTenant() {
+	m.tenant = nil
+	m.clearedtenant = false
+}
+
+// ClearProject clears the "project" edge to the Project entity.
+func (m *WorkspaceDatasetMutation) ClearProject() {
+	m.clearedproject = true
+	m.clearedFields[workspacedataset.FieldProjectID] = struct{}{}
+}
+
+// ProjectCleared reports if the "project" edge to the Project entity was cleared.
+func (m *WorkspaceDatasetMutation) ProjectCleared() bool {
+	return m.clearedproject
+}
+
+// ProjectIDs returns the "project" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ProjectID instead. It exists only for internal usage by the builders.
+func (m *WorkspaceDatasetMutation) ProjectIDs() (ids []int) {
+	if id := m.project; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetProject resets all changes to the "project" edge.
+func (m *WorkspaceDatasetMutation) ResetProject() {
+	m.project = nil
+	m.clearedproject = false
+}
+
+// ClearNode clears the "node" edge to the SelfHostedNode entity.
+func (m *WorkspaceDatasetMutation) ClearNode() {
+	m.clearednode = true
+	m.clearedFields[workspacedataset.FieldNodeID] = struct{}{}
+}
+
+// NodeCleared reports if the "node" edge to the SelfHostedNode entity was cleared.
+func (m *WorkspaceDatasetMutation) NodeCleared() bool {
+	return m.clearednode
+}
+
+// NodeIDs returns the "node" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// NodeID instead. It exists only for internal usage by the builders.
+func (m *WorkspaceDatasetMutation) NodeIDs() (ids []int) {
+	if id := m.node; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetNode resets all changes to the "node" edge.
+func (m *WorkspaceDatasetMutation) ResetNode() {
+	m.node = nil
+	m.clearednode = false
+}
+
+// ClearAgentToken clears the "agent_token" edge to the AgentToken entity.
+func (m *WorkspaceDatasetMutation) ClearAgentToken() {
+	m.clearedagent_token = true
+	m.clearedFields[workspacedataset.FieldAgentTokenID] = struct{}{}
+}
+
+// AgentTokenCleared reports if the "agent_token" edge to the AgentToken entity was cleared.
+func (m *WorkspaceDatasetMutation) AgentTokenCleared() bool {
+	return m.AgentTokenIDCleared() || m.clearedagent_token
+}
+
+// AgentTokenIDs returns the "agent_token" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// AgentTokenID instead. It exists only for internal usage by the builders.
+func (m *WorkspaceDatasetMutation) AgentTokenIDs() (ids []int) {
+	if id := m.agent_token; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetAgentToken resets all changes to the "agent_token" edge.
+func (m *WorkspaceDatasetMutation) ResetAgentToken() {
+	m.agent_token = nil
+	m.clearedagent_token = false
+}
+
+// Where appends a list predicates to the WorkspaceDatasetMutation builder.
+func (m *WorkspaceDatasetMutation) Where(ps ...predicate.WorkspaceDataset) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the WorkspaceDatasetMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *WorkspaceDatasetMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.WorkspaceDataset, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *WorkspaceDatasetMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *WorkspaceDatasetMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (WorkspaceDataset).
+func (m *WorkspaceDatasetMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *WorkspaceDatasetMutation) Fields() []string {
+	fields := make([]string, 0, 11)
+	if m.public_id != nil {
+		fields = append(fields, workspacedataset.FieldPublicID)
+	}
+	if m.created_at != nil {
+		fields = append(fields, workspacedataset.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, workspacedataset.FieldUpdatedAt)
+	}
+	if m.tenant != nil {
+		fields = append(fields, workspacedataset.FieldTenantID)
+	}
+	if m.project != nil {
+		fields = append(fields, workspacedataset.FieldProjectID)
+	}
+	if m.node != nil {
+		fields = append(fields, workspacedataset.FieldNodeID)
+	}
+	if m.agent_token != nil {
+		fields = append(fields, workspacedataset.FieldAgentTokenID)
+	}
+	if m.name != nil {
+		fields = append(fields, workspacedataset.FieldName)
+	}
+	if m.relative_path != nil {
+		fields = append(fields, workspacedataset.FieldRelativePath)
+	}
+	if m.environment_variable != nil {
+		fields = append(fields, workspacedataset.FieldEnvironmentVariable)
+	}
+	if m.status != nil {
+		fields = append(fields, workspacedataset.FieldStatus)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *WorkspaceDatasetMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case workspacedataset.FieldPublicID:
+		return m.PublicID()
+	case workspacedataset.FieldCreatedAt:
+		return m.CreatedAt()
+	case workspacedataset.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case workspacedataset.FieldTenantID:
+		return m.TenantID()
+	case workspacedataset.FieldProjectID:
+		return m.ProjectID()
+	case workspacedataset.FieldNodeID:
+		return m.NodeID()
+	case workspacedataset.FieldAgentTokenID:
+		return m.AgentTokenID()
+	case workspacedataset.FieldName:
+		return m.Name()
+	case workspacedataset.FieldRelativePath:
+		return m.RelativePath()
+	case workspacedataset.FieldEnvironmentVariable:
+		return m.EnvironmentVariable()
+	case workspacedataset.FieldStatus:
+		return m.Status()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *WorkspaceDatasetMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case workspacedataset.FieldPublicID:
+		return m.OldPublicID(ctx)
+	case workspacedataset.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case workspacedataset.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case workspacedataset.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case workspacedataset.FieldProjectID:
+		return m.OldProjectID(ctx)
+	case workspacedataset.FieldNodeID:
+		return m.OldNodeID(ctx)
+	case workspacedataset.FieldAgentTokenID:
+		return m.OldAgentTokenID(ctx)
+	case workspacedataset.FieldName:
+		return m.OldName(ctx)
+	case workspacedataset.FieldRelativePath:
+		return m.OldRelativePath(ctx)
+	case workspacedataset.FieldEnvironmentVariable:
+		return m.OldEnvironmentVariable(ctx)
+	case workspacedataset.FieldStatus:
+		return m.OldStatus(ctx)
+	}
+	return nil, fmt.Errorf("unknown WorkspaceDataset field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *WorkspaceDatasetMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case workspacedataset.FieldPublicID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPublicID(v)
+		return nil
+	case workspacedataset.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case workspacedataset.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case workspacedataset.FieldTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case workspacedataset.FieldProjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProjectID(v)
+		return nil
+	case workspacedataset.FieldNodeID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNodeID(v)
+		return nil
+	case workspacedataset.FieldAgentTokenID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAgentTokenID(v)
+		return nil
+	case workspacedataset.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case workspacedataset.FieldRelativePath:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRelativePath(v)
+		return nil
+	case workspacedataset.FieldEnvironmentVariable:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEnvironmentVariable(v)
+		return nil
+	case workspacedataset.FieldStatus:
+		v, ok := value.(workspacedataset.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	}
+	return fmt.Errorf("unknown WorkspaceDataset field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *WorkspaceDatasetMutation) AddedFields() []string {
+	var fields []string
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *WorkspaceDatasetMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *WorkspaceDatasetMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown WorkspaceDataset numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *WorkspaceDatasetMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(workspacedataset.FieldAgentTokenID) {
+		fields = append(fields, workspacedataset.FieldAgentTokenID)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *WorkspaceDatasetMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *WorkspaceDatasetMutation) ClearField(name string) error {
+	switch name {
+	case workspacedataset.FieldAgentTokenID:
+		m.ClearAgentTokenID()
+		return nil
+	}
+	return fmt.Errorf("unknown WorkspaceDataset nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *WorkspaceDatasetMutation) ResetField(name string) error {
+	switch name {
+	case workspacedataset.FieldPublicID:
+		m.ResetPublicID()
+		return nil
+	case workspacedataset.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case workspacedataset.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case workspacedataset.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case workspacedataset.FieldProjectID:
+		m.ResetProjectID()
+		return nil
+	case workspacedataset.FieldNodeID:
+		m.ResetNodeID()
+		return nil
+	case workspacedataset.FieldAgentTokenID:
+		m.ResetAgentTokenID()
+		return nil
+	case workspacedataset.FieldName:
+		m.ResetName()
+		return nil
+	case workspacedataset.FieldRelativePath:
+		m.ResetRelativePath()
+		return nil
+	case workspacedataset.FieldEnvironmentVariable:
+		m.ResetEnvironmentVariable()
+		return nil
+	case workspacedataset.FieldStatus:
+		m.ResetStatus()
+		return nil
+	}
+	return fmt.Errorf("unknown WorkspaceDataset field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *WorkspaceDatasetMutation) AddedEdges() []string {
+	edges := make([]string, 0, 4)
+	if m.tenant != nil {
+		edges = append(edges, workspacedataset.EdgeTenant)
+	}
+	if m.project != nil {
+		edges = append(edges, workspacedataset.EdgeProject)
+	}
+	if m.node != nil {
+		edges = append(edges, workspacedataset.EdgeNode)
+	}
+	if m.agent_token != nil {
+		edges = append(edges, workspacedataset.EdgeAgentToken)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *WorkspaceDatasetMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case workspacedataset.EdgeTenant:
+		if id := m.tenant; id != nil {
+			return []ent.Value{*id}
+		}
+	case workspacedataset.EdgeProject:
+		if id := m.project; id != nil {
+			return []ent.Value{*id}
+		}
+	case workspacedataset.EdgeNode:
+		if id := m.node; id != nil {
+			return []ent.Value{*id}
+		}
+	case workspacedataset.EdgeAgentToken:
+		if id := m.agent_token; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *WorkspaceDatasetMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 4)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *WorkspaceDatasetMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *WorkspaceDatasetMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 4)
+	if m.clearedtenant {
+		edges = append(edges, workspacedataset.EdgeTenant)
+	}
+	if m.clearedproject {
+		edges = append(edges, workspacedataset.EdgeProject)
+	}
+	if m.clearednode {
+		edges = append(edges, workspacedataset.EdgeNode)
+	}
+	if m.clearedagent_token {
+		edges = append(edges, workspacedataset.EdgeAgentToken)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *WorkspaceDatasetMutation) EdgeCleared(name string) bool {
+	switch name {
+	case workspacedataset.EdgeTenant:
+		return m.clearedtenant
+	case workspacedataset.EdgeProject:
+		return m.clearedproject
+	case workspacedataset.EdgeNode:
+		return m.clearednode
+	case workspacedataset.EdgeAgentToken:
+		return m.clearedagent_token
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *WorkspaceDatasetMutation) ClearEdge(name string) error {
+	switch name {
+	case workspacedataset.EdgeTenant:
+		m.ClearTenant()
+		return nil
+	case workspacedataset.EdgeProject:
+		m.ClearProject()
+		return nil
+	case workspacedataset.EdgeNode:
+		m.ClearNode()
+		return nil
+	case workspacedataset.EdgeAgentToken:
+		m.ClearAgentToken()
+		return nil
+	}
+	return fmt.Errorf("unknown WorkspaceDataset unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *WorkspaceDatasetMutation) ResetEdge(name string) error {
+	switch name {
+	case workspacedataset.EdgeTenant:
+		m.ResetTenant()
+		return nil
+	case workspacedataset.EdgeProject:
+		m.ResetProject()
+		return nil
+	case workspacedataset.EdgeNode:
+		m.ResetNode()
+		return nil
+	case workspacedataset.EdgeAgentToken:
+		m.ResetAgentToken()
+		return nil
+	}
+	return fmt.Errorf("unknown WorkspaceDataset edge %s", name)
 }

@@ -30,6 +30,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/selfhostednode"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
 	"github.com/XR-Lee/Gemcp/ent/user"
+	"github.com/XR-Lee/Gemcp/ent/workspacedataset"
 	"github.com/google/uuid"
 )
 
@@ -385,6 +386,21 @@ func (_c *TenantCreate) AddExperimentProposals(v ...*ExperimentProposal) *Tenant
 		ids[i] = v[i].ID
 	}
 	return _c.AddExperimentProposalIDs(ids...)
+}
+
+// AddWorkspaceDatasetIDs adds the "workspace_datasets" edge to the WorkspaceDataset entity by IDs.
+func (_c *TenantCreate) AddWorkspaceDatasetIDs(ids ...int) *TenantCreate {
+	_c.mutation.AddWorkspaceDatasetIDs(ids...)
+	return _c
+}
+
+// AddWorkspaceDatasets adds the "workspace_datasets" edges to the WorkspaceDataset entity.
+func (_c *TenantCreate) AddWorkspaceDatasets(v ...*WorkspaceDataset) *TenantCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddWorkspaceDatasetIDs(ids...)
 }
 
 // Mutation returns the TenantMutation object of the builder.
@@ -810,6 +826,22 @@ func (_c *TenantCreate) createSpec() (*Tenant, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(experimentproposal.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.WorkspaceDatasetsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.WorkspaceDatasetsTable,
+			Columns: []string{tenant.WorkspaceDatasetsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(workspacedataset.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

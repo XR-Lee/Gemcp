@@ -21,8 +21,10 @@ import (
 	entrepository "github.com/XR-Lee/Gemcp/ent/repository"
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
 	"github.com/XR-Lee/Gemcp/ent/selfhostednode"
+	"github.com/XR-Lee/Gemcp/ent/workspacedataset"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
 	"github.com/XR-Lee/Gemcp/internal/executioncmd"
+	"github.com/XR-Lee/Gemcp/internal/nodeprotocol"
 	"github.com/XR-Lee/Gemcp/internal/provider"
 	"github.com/XR-Lee/Gemcp/internal/sourcearchive"
 	"github.com/google/uuid"
@@ -44,6 +46,7 @@ type proposalWorkspace struct {
 	nodeID    string
 	nodeLabel string
 	path      string
+	datasets  []nodeprotocol.WorkspaceDataset
 }
 
 type proposalResolved struct {
@@ -436,7 +439,16 @@ func (s *Service) resolveProposalRuntime(ctx context.Context, projectRecord *ent
 	if image == "" || len(image) > 512 || strings.Contains(image, "://") || !proposalWorkspaceImage.MatchString(image) {
 		return "", nil, &ValidationError{Message: "image must be a public OCI image name, tag, or sha256 digest for trusted workspace execution"}
 	}
-	return image, &proposalWorkspace{nodeID: node.PublicID.String(), nodeLabel: node.Label, path: *access.WorkspacePath}, nil
+	datasetRecords, err := s.client.WorkspaceDataset.Query().Where(
+		workspacedataset.ProjectIDEQ(projectRecord.ID), workspacedataset.NodeIDEQ(node.ID), workspacedataset.StatusEQ(workspacedataset.StatusActive),
+	).Order(ent.Asc(workspacedataset.FieldName)).All(ctx)
+	if err != nil {
+		return "", nil, err
+	}
+	return image, &proposalWorkspace{
+		nodeID: node.PublicID.String(), nodeLabel: node.Label, path: *access.WorkspacePath,
+		datasets: proposalWorkspaceDatasets(datasetRecords),
+	}, nil
 }
 
 func (s *Service) proposalChecks(ctx context.Context, resolved proposalResolved) []ProposalCheck {
@@ -597,6 +609,13 @@ func (s *Service) proposalSelfHostedCheck(ctx context.Context, resolved proposal
 		}
 		add("image", status, summary, detail)
 		add("workspace", ProposalCheckWarn, "Trusted host workspace will be mounted read-write", resolved.workspace.path+" on "+resolved.workspace.nodeLabel+".")
+		if len(resolved.workspace.datasets) > 0 {
+			paths := make([]string, 0, len(resolved.workspace.datasets))
+			for _, dataset := range resolved.workspace.datasets {
+				paths = append(paths, dataset.EnvironmentVariable+"=/gemcp/workspace/"+dataset.RelativePath)
+			}
+			add("workspace_datasets", ProposalCheckWarn, "Registered workspace datasets will be exposed", strings.Join(paths, ", "))
+		}
 	} else if !proposalPinnedImage.MatchString(resolved.image) {
 		add("image", ProposalCheckFail, "Self-hosted image is not digest-pinned", "Use a public Linux AMD64 image with an @sha256 digest.")
 	} else {
@@ -613,7 +632,8 @@ func (s *Service) proposalSelfHostedCheck(ctx context.Context, resolved proposal
 		return
 	}
 	for _, node := range nodes {
-		if resolved.workspace != nil && (node.PublicID.String() != resolved.workspace.nodeID || !proposalNodeSupportsWorkspace(node.Capabilities)) {
+		if resolved.workspace != nil && (node.PublicID.String() != resolved.workspace.nodeID || !proposalNodeSupportsWorkspace(node.Capabilities) ||
+			len(resolved.workspace.datasets) > 0 && !proposalNodeSupportsDatasets(node.Capabilities)) {
 			continue
 		}
 		if !proposalNodeSupportsArgv(node.Capabilities) || !proposalNodeMatchesGPU(node.Capabilities, resolved.profile.GpuNames) {
@@ -663,6 +683,24 @@ func proposalNodeSupportsWorkspace(capabilities map[string]any) bool {
 	case []string:
 		for _, value := range values {
 			if value == "trusted_rw" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func proposalNodeSupportsDatasets(capabilities map[string]any) bool {
+	switch values := capabilities["dataset_modes"].(type) {
+	case []any:
+		for _, value := range values {
+			if value == "workspace_env_v1" {
+				return true
+			}
+		}
+	case []string:
+		for _, value := range values {
+			if value == "workspace_env_v1" {
 				return true
 			}
 		}
@@ -759,7 +797,8 @@ func preparedProposal(resolved proposalResolved, digest string, createdAt time.T
 			ReuseContainer: resolved.profile.ReuseContainer, Billable: resolved.profile.Backend != resourceprofile.BackendSelfHosted,
 			ExecutionPolicy: proposalExecutionPolicy(resolved), WorkspacePath: proposalWorkspacePath(resolved),
 			NodeID: proposalWorkspaceNodeID(resolved), NodeLabel: proposalWorkspaceNodeLabel(resolved),
-			ImageMutable: resolved.workspace != nil && !proposalPinnedImage.MatchString(resolved.image),
+			ImageMutable:      resolved.workspace != nil && !proposalPinnedImage.MatchString(resolved.image),
+			WorkspaceDatasets: proposalWorkspaceDatasetsCopy(resolved.workspace),
 		},
 		RuntimePreset: resolved.preset, MaxRuntimeSeconds: resolved.runtime,
 		TimeoutExtensionSeconds: resolved.project.TimeoutExtensionSeconds, TerminationGraceSeconds: resolved.project.TerminationGraceSeconds,
@@ -776,8 +815,26 @@ func proposalEnvironmentSnapshot(resolved proposalResolved) map[string]any {
 		snapshot["workspace_path"] = resolved.workspace.path
 		snapshot["workspace_node_id"] = resolved.workspace.nodeID
 		snapshot["workspace_node_label"] = resolved.workspace.nodeLabel
+		snapshot["workspace_datasets"] = proposalWorkspaceDatasetsCopy(resolved.workspace)
 	}
 	return snapshot
+}
+
+func proposalWorkspaceDatasets(records []*ent.WorkspaceDataset) []nodeprotocol.WorkspaceDataset {
+	result := make([]nodeprotocol.WorkspaceDataset, 0, len(records))
+	for _, record := range records {
+		result = append(result, nodeprotocol.WorkspaceDataset{
+			Name: record.Name, RelativePath: record.RelativePath, EnvironmentVariable: record.EnvironmentVariable,
+		})
+	}
+	return result
+}
+
+func proposalWorkspaceDatasetsCopy(workspace *proposalWorkspace) []nodeprotocol.WorkspaceDataset {
+	if workspace == nil {
+		return nil
+	}
+	return append([]nodeprotocol.WorkspaceDataset(nil), workspace.datasets...)
 }
 
 func proposalExecutionPolicy(resolved proposalResolved) string {

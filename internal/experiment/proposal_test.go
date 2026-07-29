@@ -313,7 +313,7 @@ func TestPreparedTrustedWorkspaceAcceptsTagAndBindsOwnerPath(t *testing.T) {
 		SetOperatingSystem("linux").SetArchitecture("amd64").SetAgentVersion("test").SetProtocolVersion("1").
 		SetCapabilities(map[string]any{
 			"gpus":            []any{map[string]any{"uuid": "GPU-workspace", "name": "NVIDIA RTX A4000"}},
-			"execution_modes": []any{"shell", "argv"}, "workspace_modes": []any{"trusted_rw"},
+			"execution_modes": []any{"shell", "argv"}, "workspace_modes": []any{"trusted_rw"}, "dataset_modes": []any{"workspace_env_v1"},
 		}).SetStorage(map[string]any{}).SetLastSeenAt(time.Now().UTC()).Save(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -321,6 +321,12 @@ func TestPreparedTrustedWorkspaceAcceptsTagAndBindsOwnerPath(t *testing.T) {
 	workspacePath := "/home/campus.ncl.ac.uk/nxl51/gemcp_tmp"
 	access, err := f.client.NodeProjectAccess.Create().SetTenantID(f.principal.TenantID).SetNodeID(node.ID).SetProjectID(f.project.ID).
 		SetExecutionPolicy(nodeprojectaccess.ExecutionPolicyTrustedWorkspace).SetWorkspacePath(workspacePath).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dataset, err := f.client.WorkspaceDataset.Create().SetTenantID(f.principal.TenantID).SetProjectID(f.project.ID).SetNodeID(node.ID).
+		SetAgentTokenID(f.principal.TokenID).SetName("scanobjectnn-objbg").SetRelativePath("data/ScanObjectNN/main_split").
+		SetEnvironmentVariable("GEMCP_DATASET_SCANOBJECTNN_OBJBG").Save(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -346,7 +352,8 @@ func TestPreparedTrustedWorkspaceAcceptsTagAndBindsOwnerPath(t *testing.T) {
 		t.Fatalf("workspace Prepare()=%+v err=%v", prepared, err)
 	}
 	resource := prepared.Proposal.Resource
-	if resource.ExecutionPolicy != "trusted_workspace" || resource.WorkspacePath != workspacePath || resource.NodeID != node.PublicID.String() || !resource.ImageMutable || resource.Image != input.Image {
+	if resource.ExecutionPolicy != "trusted_workspace" || resource.WorkspacePath != workspacePath || resource.NodeID != node.PublicID.String() || !resource.ImageMutable || resource.Image != input.Image ||
+		len(resource.WorkspaceDatasets) != 1 || resource.WorkspaceDatasets[0].EnvironmentVariable != "GEMCP_DATASET_SCANOBJECTNN_OBJBG" {
 		t.Fatalf("workspace resource=%+v", resource)
 	}
 	submitted, err := service.SubmitPrepared(ctx, f.principal, SubmitPreparedInput{ProposalID: prepared.Proposal.ID, ConfirmationDigest: prepared.Proposal.ConfirmationDigest})
@@ -367,5 +374,18 @@ func TestPreparedTrustedWorkspaceAcceptsTagAndBindsOwnerPath(t *testing.T) {
 	}
 	if _, err := service.SubmitPrepared(ctx, f.principal, SubmitPreparedInput{ProposalID: second.Proposal.ID, ConfirmationDigest: second.Proposal.ConfirmationDigest}); !errors.Is(err, ErrProposalChanged) {
 		t.Fatalf("workspace path drift error=%v", err)
+	}
+	if _, err := access.Update().SetWorkspacePath(workspacePath).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	third, err := service.Prepare(ctx, f.principal, input)
+	if err != nil || third.Proposal == nil {
+		t.Fatalf("third Prepare()=%+v err=%v", third, err)
+	}
+	if _, err := dataset.Update().SetStatus("disabled").Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.SubmitPrepared(ctx, f.principal, SubmitPreparedInput{ProposalID: third.Proposal.ID, ConfirmationDigest: third.Proposal.ConfirmationDigest}); !errors.Is(err, ErrProposalChanged) {
+		t.Fatalf("workspace dataset drift error=%v", err)
 	}
 }

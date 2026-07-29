@@ -67,12 +67,17 @@ describe('API security headers', () => {
     expect(JSON.parse(String(options.body))).toEqual({ confirmation: 'STOP' })
   })
 
-  it('issues and revokes Agent tokens only through CSRF-protected project endpoints', async () => {
+  it('issues, updates, and revokes Agent tokens only through CSRF-protected project endpoints', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce({
         ok: true,
         status: 201,
         json: async () => ({ data: { token: { id: 'token-id' }, agent_token: 'gmc_secret', mcp_config: {} } }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ data: { id: 'token-id', status: 'active', scopes: ['read', 'submit', 'configure'] } }),
       })
       .mockResolvedValueOnce({
         ok: true,
@@ -85,6 +90,7 @@ describe('API security headers', () => {
     await api.issueAgentToken('project/id', {
       label: 'third-party', scopes: ['read', 'submit'], expires_in_days: 90, never_expires: false,
     })
+    await api.updateAgentTokenScopes('project/id', 'token/id', ['read', 'submit', 'configure'])
     await api.revokeAgentToken('project/id', 'token/id')
 
     const [issuePath, issueOptions] = fetchMock.mock.calls[0]
@@ -96,7 +102,12 @@ describe('API security headers', () => {
       label: 'third-party', scopes: ['read', 'submit'], expires_in_days: 90, never_expires: false,
     })
 
-    const [revokePath, revokeOptions] = fetchMock.mock.calls[1]
+    const [scopePath, scopeOptions] = fetchMock.mock.calls[1]
+    expect(scopePath).toBe('/api/v1/projects/project%2Fid/agent-tokens/token%2Fid')
+    expect(scopeOptions.method).toBe('PATCH')
+    expect(JSON.parse(String(scopeOptions.body))).toEqual({ scopes: ['read', 'submit', 'configure'] })
+
+    const [revokePath, revokeOptions] = fetchMock.mock.calls[2]
     const revokeHeaders = revokeOptions.headers as Headers
     expect(revokePath).toBe('/api/v1/projects/project%2Fid/agent-tokens/token%2Fid')
     expect(revokeOptions.method).toBe('DELETE')

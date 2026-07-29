@@ -17,6 +17,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
 	"github.com/XR-Lee/Gemcp/ent/selfhostednode"
+	"github.com/XR-Lee/Gemcp/ent/workspacedataset"
 	"github.com/google/uuid"
 )
 
@@ -238,6 +239,11 @@ func (s *Service) DisableTrustedWorkspace(ctx context.Context, tenantID int, act
 		return result, invalid("trusted workspace cannot be disabled while the Node has an active Assignment")
 	}
 	if _, err := access.Update().SetExecutionPolicy(nodeprojectaccess.ExecutionPolicyStrict).ClearWorkspacePath().Save(ctx); err != nil {
+		return result, err
+	}
+	if _, err := tx.WorkspaceDataset.Update().Where(
+		workspacedataset.ProjectIDEQ(projectRecord.ID), workspacedataset.NodeIDEQ(nodeRecord.ID), workspacedataset.StatusEQ(workspacedataset.StatusActive),
+	).SetStatus(workspacedataset.StatusDisabled).Save(ctx); err != nil {
 		return result, err
 	}
 	recipeRef := trustedWorkspaceRecipePrefix + nodeRecord.PublicID.String()

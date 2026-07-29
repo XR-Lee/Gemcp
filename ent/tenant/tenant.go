@@ -63,6 +63,8 @@ const (
 	EdgeDiagnosticRuns = "diagnostic_runs"
 	// EdgeExperimentProposals holds the string denoting the experiment_proposals edge name in mutations.
 	EdgeExperimentProposals = "experiment_proposals"
+	// EdgeWorkspaceDatasets holds the string denoting the workspace_datasets edge name in mutations.
+	EdgeWorkspaceDatasets = "workspace_datasets"
 	// Table holds the table name of the tenant in the database.
 	Table = "tenants"
 	// UsersTable is the table that holds the users relation/edge.
@@ -198,6 +200,13 @@ const (
 	ExperimentProposalsInverseTable = "experiment_proposals"
 	// ExperimentProposalsColumn is the table column denoting the experiment_proposals relation/edge.
 	ExperimentProposalsColumn = "tenant_id"
+	// WorkspaceDatasetsTable is the table that holds the workspace_datasets relation/edge.
+	WorkspaceDatasetsTable = "workspace_datasets"
+	// WorkspaceDatasetsInverseTable is the table name for the WorkspaceDataset entity.
+	// It exists in this package in order to avoid circular dependency with the "workspacedataset" package.
+	WorkspaceDatasetsInverseTable = "workspace_datasets"
+	// WorkspaceDatasetsColumn is the table column denoting the workspace_datasets relation/edge.
+	WorkspaceDatasetsColumn = "tenant_id"
 )
 
 // Columns holds all SQL columns for tenant fields.
@@ -535,6 +544,20 @@ func ByExperimentProposals(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOpti
 		sqlgraph.OrderByNeighborTerms(s, newExperimentProposalsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByWorkspaceDatasetsCount orders the results by workspace_datasets count.
+func ByWorkspaceDatasetsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newWorkspaceDatasetsStep(), opts...)
+	}
+}
+
+// ByWorkspaceDatasets orders the results by workspace_datasets terms.
+func ByWorkspaceDatasets(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newWorkspaceDatasetsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newUsersStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -666,5 +689,12 @@ func newExperimentProposalsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(ExperimentProposalsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, ExperimentProposalsTable, ExperimentProposalsColumn),
+	)
+}
+func newWorkspaceDatasetsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(WorkspaceDatasetsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, WorkspaceDatasetsTable, WorkspaceDatasetsColumn),
 	)
 }

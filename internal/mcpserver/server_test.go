@@ -10,10 +10,14 @@ import (
 
 	"entgo.io/ent/dialect"
 	"github.com/XR-Lee/Gemcp/ent/enttest"
+	"github.com/XR-Lee/Gemcp/ent/nodeprojectaccess"
 	"github.com/XR-Lee/Gemcp/guides"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
 	"github.com/XR-Lee/Gemcp/internal/experiment"
+	repositoryservice "github.com/XR-Lee/Gemcp/internal/repository"
 	"github.com/XR-Lee/Gemcp/internal/secrets"
+	"github.com/XR-Lee/Gemcp/internal/workspacecatalog"
+	"github.com/google/uuid"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -73,12 +77,17 @@ func TestStreamableHTTPToolsWithAgentToken(t *testing.T) {
 	rawToken, prefix, _ := secrets.RandomToken("gmc", 32)
 	_, _ = client.AgentToken.Create().
 		SetProjectID(project.ID).SetLabel("test-agent").SetPrefix(prefix).
-		SetTokenHash(box.Digest("agent-token", rawToken)).Save(ctx)
+		SetTokenHash(box.Digest("agent-token", rawToken)).SetScopes([]string{"read", "submit", "cancel", "configure"}).Save(ctx)
+	node, _ := client.SelfHostedNode.Create().SetTenantID(tenant.ID).SetLabel("usb-pc").SetTokenPrefix("gmn_test").SetTokenHash([]byte("mcp-node-hash")).
+		SetStatus("active").SetObservedState("online").SetInstallationID(uuid.NewString()).SetMachineFingerprint("fingerprint").SetHostname("node").
+		SetOperatingSystem("linux").SetArchitecture("amd64").SetAgentVersion("test").SetProtocolVersion("1").Save(ctx)
+	_, _ = client.NodeProjectAccess.Create().SetTenantID(tenant.ID).SetProjectID(project.ID).SetNodeID(node.ID).
+		SetExecutionPolicy(nodeprojectaccess.ExecutionPolicyTrustedWorkspace).SetWorkspacePath("/srv/gemcp-workspace").Save(ctx)
 
 	handler := New(
 		agentauth.NewService(client, box),
 		experiment.NewService(client, box, allowCommitVerifier{}),
-		"test", nil,
+		"test", nil, WithConfiguration(repositoryservice.NewService(client, box, nil), workspacecatalog.NewService(client)),
 	).Handler()
 	httpServer := httptest.NewServer(handler)
 	defer httpServer.Close()
@@ -107,14 +116,15 @@ func TestStreamableHTTPToolsWithAgentToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListTools() error = %v", err)
 	}
-	if len(tools.Tools) != 11 {
-		t.Fatalf("tool count = %d, want 11", len(tools.Tools))
+	if len(tools.Tools) != 17 {
+		t.Fatalf("tool count = %d, want 17", len(tools.Tools))
 	}
 	toolNames := map[string]bool{}
 	for _, tool := range tools.Tools {
 		toolNames[tool.Name] = true
 	}
-	if !toolNames["report_agent_activity"] || !toolNames["prepare_experiment"] || !toolNames["submit_prepared_experiment"] || !toolNames["submit_experiment"] {
+	if !toolNames["report_agent_activity"] || !toolNames["prepare_experiment"] || !toolNames["submit_prepared_experiment"] || !toolNames["submit_experiment"] ||
+		!toolNames["register_repository"] || !toolNames["verify_repository"] || !toolNames["register_workspace_dataset"] {
 		t.Fatalf("prepared and Advanced tools are not all registered: %+v", toolNames)
 	}
 	usage, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "get_usage_guide", Arguments: map[string]any{}})
@@ -156,6 +166,28 @@ func TestStreamableHTTPToolsWithAgentToken(t *testing.T) {
 	decodeStructured(t, options.StructuredContent, &optionsOutput)
 	if optionsOutput.Project.ID != project.PublicID.String() || len(optionsOutput.Repositories) != 1 || optionsOutput.SelfHostedNodes == nil {
 		t.Fatalf("unexpected project options: %+v", optionsOutput)
+	}
+	registeredRepository, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "register_repository", Arguments: map[string]any{
+		"name": "dynamic-point-mamba", "ssh_url": "git@github.com:zhangtianyu00824/DynamicPointMamba.git", "default_branch": "main",
+	}})
+	if err != nil || registeredRepository.IsError {
+		t.Fatalf("register_repository = %+v, %v", registeredRepository, err)
+	}
+	var repositoryOutput repositoryservice.View
+	decodeStructured(t, registeredRepository.StructuredContent, &repositoryOutput)
+	if repositoryOutput.Status != "pending_key" || !strings.HasPrefix(repositoryOutput.DeployPublicKey, "ssh-ed25519 ") {
+		t.Fatalf("registered repository = %+v", repositoryOutput)
+	}
+	registeredDataset, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "register_workspace_dataset", Arguments: map[string]any{
+		"name": "scanobjectnn-objbg", "relative_path": "data/ScanObjectNN/main_split",
+	}})
+	if err != nil || registeredDataset.IsError {
+		t.Fatalf("register_workspace_dataset = %+v, %v", registeredDataset, err)
+	}
+	var datasetOutput workspacecatalog.View
+	decodeStructured(t, registeredDataset.StructuredContent, &datasetOutput)
+	if datasetOutput.EnvironmentVariable != "GEMCP_DATASET_SCANOBJECTNN_OBJBG" || datasetOutput.ContainerPath != "/gemcp/workspace/data/ScanObjectNN/main_split" {
+		t.Fatalf("registered dataset = %+v", datasetOutput)
 	}
 
 	submitted, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "submit_experiment", Arguments: map[string]any{

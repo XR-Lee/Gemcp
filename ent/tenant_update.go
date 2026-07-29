@@ -32,6 +32,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/selfhostednode"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
 	"github.com/XR-Lee/Gemcp/ent/user"
+	"github.com/XR-Lee/Gemcp/ent/workspacedataset"
 )
 
 // TenantUpdate is the builder for updating Tenant entities.
@@ -364,6 +365,21 @@ func (_u *TenantUpdate) AddExperimentProposals(v ...*ExperimentProposal) *Tenant
 		ids[i] = v[i].ID
 	}
 	return _u.AddExperimentProposalIDs(ids...)
+}
+
+// AddWorkspaceDatasetIDs adds the "workspace_datasets" edge to the WorkspaceDataset entity by IDs.
+func (_u *TenantUpdate) AddWorkspaceDatasetIDs(ids ...int) *TenantUpdate {
+	_u.mutation.AddWorkspaceDatasetIDs(ids...)
+	return _u
+}
+
+// AddWorkspaceDatasets adds the "workspace_datasets" edges to the WorkspaceDataset entity.
+func (_u *TenantUpdate) AddWorkspaceDatasets(v ...*WorkspaceDataset) *TenantUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddWorkspaceDatasetIDs(ids...)
 }
 
 // Mutation returns the TenantMutation object of the builder.
@@ -768,6 +784,27 @@ func (_u *TenantUpdate) RemoveExperimentProposals(v ...*ExperimentProposal) *Ten
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveExperimentProposalIDs(ids...)
+}
+
+// ClearWorkspaceDatasets clears all "workspace_datasets" edges to the WorkspaceDataset entity.
+func (_u *TenantUpdate) ClearWorkspaceDatasets() *TenantUpdate {
+	_u.mutation.ClearWorkspaceDatasets()
+	return _u
+}
+
+// RemoveWorkspaceDatasetIDs removes the "workspace_datasets" edge to WorkspaceDataset entities by IDs.
+func (_u *TenantUpdate) RemoveWorkspaceDatasetIDs(ids ...int) *TenantUpdate {
+	_u.mutation.RemoveWorkspaceDatasetIDs(ids...)
+	return _u
+}
+
+// RemoveWorkspaceDatasets removes "workspace_datasets" edges to WorkspaceDataset entities.
+func (_u *TenantUpdate) RemoveWorkspaceDatasets(v ...*WorkspaceDataset) *TenantUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveWorkspaceDatasetIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -1697,6 +1734,51 @@ func (_u *TenantUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.WorkspaceDatasetsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.WorkspaceDatasetsTable,
+			Columns: []string{tenant.WorkspaceDatasetsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(workspacedataset.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedWorkspaceDatasetsIDs(); len(nodes) > 0 && !_u.mutation.WorkspaceDatasetsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.WorkspaceDatasetsTable,
+			Columns: []string{tenant.WorkspaceDatasetsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(workspacedataset.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.WorkspaceDatasetsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.WorkspaceDatasetsTable,
+			Columns: []string{tenant.WorkspaceDatasetsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(workspacedataset.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{tenant.Label}
@@ -2034,6 +2116,21 @@ func (_u *TenantUpdateOne) AddExperimentProposals(v ...*ExperimentProposal) *Ten
 		ids[i] = v[i].ID
 	}
 	return _u.AddExperimentProposalIDs(ids...)
+}
+
+// AddWorkspaceDatasetIDs adds the "workspace_datasets" edge to the WorkspaceDataset entity by IDs.
+func (_u *TenantUpdateOne) AddWorkspaceDatasetIDs(ids ...int) *TenantUpdateOne {
+	_u.mutation.AddWorkspaceDatasetIDs(ids...)
+	return _u
+}
+
+// AddWorkspaceDatasets adds the "workspace_datasets" edges to the WorkspaceDataset entity.
+func (_u *TenantUpdateOne) AddWorkspaceDatasets(v ...*WorkspaceDataset) *TenantUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddWorkspaceDatasetIDs(ids...)
 }
 
 // Mutation returns the TenantMutation object of the builder.
@@ -2438,6 +2535,27 @@ func (_u *TenantUpdateOne) RemoveExperimentProposals(v ...*ExperimentProposal) *
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveExperimentProposalIDs(ids...)
+}
+
+// ClearWorkspaceDatasets clears all "workspace_datasets" edges to the WorkspaceDataset entity.
+func (_u *TenantUpdateOne) ClearWorkspaceDatasets() *TenantUpdateOne {
+	_u.mutation.ClearWorkspaceDatasets()
+	return _u
+}
+
+// RemoveWorkspaceDatasetIDs removes the "workspace_datasets" edge to WorkspaceDataset entities by IDs.
+func (_u *TenantUpdateOne) RemoveWorkspaceDatasetIDs(ids ...int) *TenantUpdateOne {
+	_u.mutation.RemoveWorkspaceDatasetIDs(ids...)
+	return _u
+}
+
+// RemoveWorkspaceDatasets removes "workspace_datasets" edges to WorkspaceDataset entities.
+func (_u *TenantUpdateOne) RemoveWorkspaceDatasets(v ...*WorkspaceDataset) *TenantUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveWorkspaceDatasetIDs(ids...)
 }
 
 // Where appends a list predicates to the TenantUpdate builder.
@@ -3390,6 +3508,51 @@ func (_u *TenantUpdateOne) sqlSave(ctx context.Context) (_node *Tenant, err erro
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(experimentproposal.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.WorkspaceDatasetsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.WorkspaceDatasetsTable,
+			Columns: []string{tenant.WorkspaceDatasetsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(workspacedataset.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedWorkspaceDatasetsIDs(); len(nodes) > 0 && !_u.mutation.WorkspaceDatasetsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.WorkspaceDatasetsTable,
+			Columns: []string{tenant.WorkspaceDatasetsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(workspacedataset.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.WorkspaceDatasetsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.WorkspaceDatasetsTable,
+			Columns: []string{tenant.WorkspaceDatasetsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(workspacedataset.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

@@ -174,3 +174,49 @@ func TestVerifyDoesNotActivateOnFailure(t *testing.T) {
 		t.Fatalf("repository status = %s", record.Status)
 	}
 }
+
+func TestAgentRepositoryRegistrationIsProjectScopedAndAudited(t *testing.T) {
+	client := enttest.Open(t, dialect.SQLite, "file:repository-agent?mode=memory&cache=shared&_fk=1")
+	defer client.Close()
+	ctx := context.Background()
+	tenant, _ := client.Tenant.Create().SetName("Test").Save(ctx)
+	project, _ := client.Project.Create().SetTenantID(tenant.ID).SetName("Project").SetSlug("project").SetMonthlyBudgetMilli(1).SetMaxExperimentMilli(1).Save(ctx)
+	other, _ := client.Project.Create().SetTenantID(tenant.ID).SetName("Other").SetSlug("other").SetMonthlyBudgetMilli(1).SetMaxExperimentMilli(1).Save(ctx)
+	key, _ := secrets.GenerateMasterKey()
+	box, _ := secrets.New(key)
+	verifier := &fakeGitVerifier{}
+	service := NewService(client, box, verifier)
+	pinned, err := service.Create(ctx, tenant.ID, Input{ProjectID: project.PublicID.String(), Name: "pinned", SSHURL: "git@github.com:XR-Lee/Gemcp.git"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Verify(ctx, tenant.ID, pinned.ID, "SHA256:established-github-host-key"); err != nil {
+		t.Fatal(err)
+	}
+	created, err := service.CreateForAgent(ctx, tenant.ID, "agent-public-id", project.PublicID.String(), AgentInput{
+		Name: "dynamic-point-mamba", SSHURL: "git@github.com:zhangtianyu00824/DynamicPointMamba.git", DefaultBranch: "main",
+	})
+	if err != nil || created.Status != "pending_key" || !strings.HasPrefix(created.DeployPublicKey, "ssh-ed25519 ") {
+		t.Fatalf("CreateForAgent() = %+v, %v", created, err)
+	}
+	retried, err := service.CreateForAgent(ctx, tenant.ID, "agent-public-id", project.PublicID.String(), AgentInput{
+		Name: "dynamic-point-mamba", SSHURL: "git@github.com:zhangtianyu00824/DynamicPointMamba.git", DefaultBranch: "main",
+	})
+	if err != nil || retried.ID != created.ID || retried.DeployPublicKey != created.DeployPublicKey {
+		t.Fatalf("idempotent CreateForAgent() = %+v, %v", retried, err)
+	}
+	verified, err := service.VerifyForAgent(ctx, tenant.ID, "agent-public-id", project.PublicID.String(), AgentVerifyInput{RepositoryID: created.ID})
+	if err != nil || verified.Status != "active" || verified.HostKeyFingerprint == nil || *verified.HostKeyFingerprint != "SHA256:established-github-host-key" {
+		t.Fatalf("VerifyForAgent() = %+v, %v", verified, err)
+	}
+	otherRepository, err := service.Create(ctx, tenant.ID, Input{ProjectID: other.PublicID.String(), Name: "other", SSHURL: "git@github.com:owner/other.git"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.VerifyForAgent(ctx, tenant.ID, "agent-public-id", project.PublicID.String(), AgentVerifyInput{RepositoryID: otherRepository.ID}); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("cross-project VerifyForAgent() error = %v", err)
+	}
+	if audits, _ := client.AuditEvent.Query().Count(ctx); audits != 2 {
+		t.Fatalf("agent audit count = %d", audits)
+	}
+}

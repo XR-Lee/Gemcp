@@ -1456,6 +1456,75 @@ var (
 			},
 		},
 	}
+	// WorkspaceDatasetsColumns holds the columns for the "workspace_datasets" table.
+	WorkspaceDatasetsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "public_id", Type: field.TypeUUID, Unique: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "name", Type: field.TypeString, Size: 120},
+		{Name: "relative_path", Type: field.TypeString, Size: 1024},
+		{Name: "environment_variable", Type: field.TypeString, Size: 128},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "disabled"}, Default: "active"},
+		{Name: "agent_token_id", Type: field.TypeInt, Nullable: true},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "node_id", Type: field.TypeInt},
+		{Name: "tenant_id", Type: field.TypeInt},
+	}
+	// WorkspaceDatasetsTable holds the schema information for the "workspace_datasets" table.
+	WorkspaceDatasetsTable = &schema.Table{
+		Name:       "workspace_datasets",
+		Columns:    WorkspaceDatasetsColumns,
+		PrimaryKey: []*schema.Column{WorkspaceDatasetsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "workspace_datasets_agent_tokens_workspace_datasets",
+				Columns:    []*schema.Column{WorkspaceDatasetsColumns[8]},
+				RefColumns: []*schema.Column{AgentTokensColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+			{
+				Symbol:     "workspace_datasets_projects_workspace_datasets",
+				Columns:    []*schema.Column{WorkspaceDatasetsColumns[9]},
+				RefColumns: []*schema.Column{ProjectsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "workspace_datasets_self_hosted_nodes_workspace_datasets",
+				Columns:    []*schema.Column{WorkspaceDatasetsColumns[10]},
+				RefColumns: []*schema.Column{SelfHostedNodesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "workspace_datasets_tenants_workspace_datasets",
+				Columns:    []*schema.Column{WorkspaceDatasetsColumns[11]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "workspacedataset_project_id_node_id_name",
+				Unique:  true,
+				Columns: []*schema.Column{WorkspaceDatasetsColumns[9], WorkspaceDatasetsColumns[10], WorkspaceDatasetsColumns[4]},
+			},
+			{
+				Name:    "workspacedataset_project_id_node_id_relative_path",
+				Unique:  true,
+				Columns: []*schema.Column{WorkspaceDatasetsColumns[9], WorkspaceDatasetsColumns[10], WorkspaceDatasetsColumns[5]},
+			},
+			{
+				Name:    "workspacedataset_project_id_node_id_environment_variable",
+				Unique:  true,
+				Columns: []*schema.Column{WorkspaceDatasetsColumns[9], WorkspaceDatasetsColumns[10], WorkspaceDatasetsColumns[6]},
+			},
+			{
+				Name:    "workspacedataset_project_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{WorkspaceDatasetsColumns[9], WorkspaceDatasetsColumns[7]},
+			},
+		},
+	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		AgentEnrollmentsTable,
@@ -1486,6 +1555,7 @@ var (
 		SessionsTable,
 		TenantsTable,
 		UsersTable,
+		WorkspaceDatasetsTable,
 	}
 )
 
@@ -1549,4 +1619,8 @@ func init() {
 	SelfHostedNodesTable.ForeignKeys[0].RefTable = TenantsTable
 	SessionsTable.ForeignKeys[0].RefTable = UsersTable
 	UsersTable.ForeignKeys[0].RefTable = TenantsTable
+	WorkspaceDatasetsTable.ForeignKeys[0].RefTable = AgentTokensTable
+	WorkspaceDatasetsTable.ForeignKeys[1].RefTable = ProjectsTable
+	WorkspaceDatasetsTable.ForeignKeys[2].RefTable = SelfHostedNodesTable
+	WorkspaceDatasetsTable.ForeignKeys[3].RefTable = TenantsTable
 }

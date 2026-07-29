@@ -17,6 +17,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/nodeprojectaccess"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 	"github.com/XR-Lee/Gemcp/ent/selfhostednode"
+	"github.com/XR-Lee/Gemcp/ent/workspacedataset"
 )
 
 // SelfHostedNodeUpdate is the builder for updating SelfHostedNode entities.
@@ -328,6 +329,21 @@ func (_u *SelfHostedNodeUpdate) AddAssignments(v ...*NodeAssignment) *SelfHosted
 	return _u.AddAssignmentIDs(ids...)
 }
 
+// AddWorkspaceDatasetIDs adds the "workspace_datasets" edge to the WorkspaceDataset entity by IDs.
+func (_u *SelfHostedNodeUpdate) AddWorkspaceDatasetIDs(ids ...int) *SelfHostedNodeUpdate {
+	_u.mutation.AddWorkspaceDatasetIDs(ids...)
+	return _u
+}
+
+// AddWorkspaceDatasets adds the "workspace_datasets" edges to the WorkspaceDataset entity.
+func (_u *SelfHostedNodeUpdate) AddWorkspaceDatasets(v ...*WorkspaceDataset) *SelfHostedNodeUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddWorkspaceDatasetIDs(ids...)
+}
+
 // Mutation returns the SelfHostedNodeMutation object of the builder.
 func (_u *SelfHostedNodeUpdate) Mutation() *SelfHostedNodeMutation {
 	return _u.mutation
@@ -415,6 +431,27 @@ func (_u *SelfHostedNodeUpdate) RemoveAssignments(v ...*NodeAssignment) *SelfHos
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveAssignmentIDs(ids...)
+}
+
+// ClearWorkspaceDatasets clears all "workspace_datasets" edges to the WorkspaceDataset entity.
+func (_u *SelfHostedNodeUpdate) ClearWorkspaceDatasets() *SelfHostedNodeUpdate {
+	_u.mutation.ClearWorkspaceDatasets()
+	return _u
+}
+
+// RemoveWorkspaceDatasetIDs removes the "workspace_datasets" edge to WorkspaceDataset entities by IDs.
+func (_u *SelfHostedNodeUpdate) RemoveWorkspaceDatasetIDs(ids ...int) *SelfHostedNodeUpdate {
+	_u.mutation.RemoveWorkspaceDatasetIDs(ids...)
+	return _u
+}
+
+// RemoveWorkspaceDatasets removes "workspace_datasets" edges to WorkspaceDataset entities.
+func (_u *SelfHostedNodeUpdate) RemoveWorkspaceDatasets(v ...*WorkspaceDataset) *SelfHostedNodeUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveWorkspaceDatasetIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -769,6 +806,51 @@ func (_u *SelfHostedNodeUpdate) sqlSave(ctx context.Context) (_node int, err err
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.WorkspaceDatasetsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   selfhostednode.WorkspaceDatasetsTable,
+			Columns: []string{selfhostednode.WorkspaceDatasetsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(workspacedataset.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedWorkspaceDatasetsIDs(); len(nodes) > 0 && !_u.mutation.WorkspaceDatasetsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   selfhostednode.WorkspaceDatasetsTable,
+			Columns: []string{selfhostednode.WorkspaceDatasetsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(workspacedataset.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.WorkspaceDatasetsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   selfhostednode.WorkspaceDatasetsTable,
+			Columns: []string{selfhostednode.WorkspaceDatasetsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(workspacedataset.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{selfhostednode.Label}
@@ -1085,6 +1167,21 @@ func (_u *SelfHostedNodeUpdateOne) AddAssignments(v ...*NodeAssignment) *SelfHos
 	return _u.AddAssignmentIDs(ids...)
 }
 
+// AddWorkspaceDatasetIDs adds the "workspace_datasets" edge to the WorkspaceDataset entity by IDs.
+func (_u *SelfHostedNodeUpdateOne) AddWorkspaceDatasetIDs(ids ...int) *SelfHostedNodeUpdateOne {
+	_u.mutation.AddWorkspaceDatasetIDs(ids...)
+	return _u
+}
+
+// AddWorkspaceDatasets adds the "workspace_datasets" edges to the WorkspaceDataset entity.
+func (_u *SelfHostedNodeUpdateOne) AddWorkspaceDatasets(v ...*WorkspaceDataset) *SelfHostedNodeUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddWorkspaceDatasetIDs(ids...)
+}
+
 // Mutation returns the SelfHostedNodeMutation object of the builder.
 func (_u *SelfHostedNodeUpdateOne) Mutation() *SelfHostedNodeMutation {
 	return _u.mutation
@@ -1172,6 +1269,27 @@ func (_u *SelfHostedNodeUpdateOne) RemoveAssignments(v ...*NodeAssignment) *Self
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveAssignmentIDs(ids...)
+}
+
+// ClearWorkspaceDatasets clears all "workspace_datasets" edges to the WorkspaceDataset entity.
+func (_u *SelfHostedNodeUpdateOne) ClearWorkspaceDatasets() *SelfHostedNodeUpdateOne {
+	_u.mutation.ClearWorkspaceDatasets()
+	return _u
+}
+
+// RemoveWorkspaceDatasetIDs removes the "workspace_datasets" edge to WorkspaceDataset entities by IDs.
+func (_u *SelfHostedNodeUpdateOne) RemoveWorkspaceDatasetIDs(ids ...int) *SelfHostedNodeUpdateOne {
+	_u.mutation.RemoveWorkspaceDatasetIDs(ids...)
+	return _u
+}
+
+// RemoveWorkspaceDatasets removes "workspace_datasets" edges to WorkspaceDataset entities.
+func (_u *SelfHostedNodeUpdateOne) RemoveWorkspaceDatasets(v ...*WorkspaceDataset) *SelfHostedNodeUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveWorkspaceDatasetIDs(ids...)
 }
 
 // Where appends a list predicates to the SelfHostedNodeUpdate builder.
@@ -1549,6 +1667,51 @@ func (_u *SelfHostedNodeUpdateOne) sqlSave(ctx context.Context) (_node *SelfHost
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(nodeassignment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.WorkspaceDatasetsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   selfhostednode.WorkspaceDatasetsTable,
+			Columns: []string{selfhostednode.WorkspaceDatasetsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(workspacedataset.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedWorkspaceDatasetsIDs(); len(nodes) > 0 && !_u.mutation.WorkspaceDatasetsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   selfhostednode.WorkspaceDatasetsTable,
+			Columns: []string{selfhostednode.WorkspaceDatasetsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(workspacedataset.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.WorkspaceDatasetsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   selfhostednode.WorkspaceDatasetsTable,
+			Columns: []string{selfhostednode.WorkspaceDatasetsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(workspacedataset.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

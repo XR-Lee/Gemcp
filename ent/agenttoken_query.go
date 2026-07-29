@@ -18,6 +18,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 	"github.com/XR-Lee/Gemcp/ent/project"
+	"github.com/XR-Lee/Gemcp/ent/workspacedataset"
 )
 
 // AgentTokenQuery is the builder for querying AgentToken entities.
@@ -31,6 +32,7 @@ type AgentTokenQuery struct {
 	withExperiments         *ExperimentQuery
 	withIdempotencyRecords  *IdempotencyRecordQuery
 	withExperimentProposals *ExperimentProposalQuery
+	withWorkspaceDatasets   *WorkspaceDatasetQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -148,6 +150,28 @@ func (_q *AgentTokenQuery) QueryExperimentProposals() *ExperimentProposalQuery {
 			sqlgraph.From(agenttoken.Table, agenttoken.FieldID, selector),
 			sqlgraph.To(experimentproposal.Table, experimentproposal.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, agenttoken.ExperimentProposalsTable, agenttoken.ExperimentProposalsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryWorkspaceDatasets chains the current query on the "workspace_datasets" edge.
+func (_q *AgentTokenQuery) QueryWorkspaceDatasets() *WorkspaceDatasetQuery {
+	query := (&WorkspaceDatasetClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(agenttoken.Table, agenttoken.FieldID, selector),
+			sqlgraph.To(workspacedataset.Table, workspacedataset.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, agenttoken.WorkspaceDatasetsTable, agenttoken.WorkspaceDatasetsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -351,6 +375,7 @@ func (_q *AgentTokenQuery) Clone() *AgentTokenQuery {
 		withExperiments:         _q.withExperiments.Clone(),
 		withIdempotencyRecords:  _q.withIdempotencyRecords.Clone(),
 		withExperimentProposals: _q.withExperimentProposals.Clone(),
+		withWorkspaceDatasets:   _q.withWorkspaceDatasets.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -398,6 +423,17 @@ func (_q *AgentTokenQuery) WithExperimentProposals(opts ...func(*ExperimentPropo
 		opt(query)
 	}
 	_q.withExperimentProposals = query
+	return _q
+}
+
+// WithWorkspaceDatasets tells the query-builder to eager-load the nodes that are connected to
+// the "workspace_datasets" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *AgentTokenQuery) WithWorkspaceDatasets(opts ...func(*WorkspaceDatasetQuery)) *AgentTokenQuery {
+	query := (&WorkspaceDatasetClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withWorkspaceDatasets = query
 	return _q
 }
 
@@ -479,11 +515,12 @@ func (_q *AgentTokenQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*A
 	var (
 		nodes       = []*AgentToken{}
 		_spec       = _q.querySpec()
-		loadedTypes = [4]bool{
+		loadedTypes = [5]bool{
 			_q.withProject != nil,
 			_q.withExperiments != nil,
 			_q.withIdempotencyRecords != nil,
 			_q.withExperimentProposals != nil,
+			_q.withWorkspaceDatasets != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -531,6 +568,15 @@ func (_q *AgentTokenQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*A
 			func(n *AgentToken) { n.Edges.ExperimentProposals = []*ExperimentProposal{} },
 			func(n *AgentToken, e *ExperimentProposal) {
 				n.Edges.ExperimentProposals = append(n.Edges.ExperimentProposals, e)
+			}); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withWorkspaceDatasets; query != nil {
+		if err := _q.loadWorkspaceDatasets(ctx, query, nodes,
+			func(n *AgentToken) { n.Edges.WorkspaceDatasets = []*WorkspaceDataset{} },
+			func(n *AgentToken, e *WorkspaceDataset) {
+				n.Edges.WorkspaceDatasets = append(n.Edges.WorkspaceDatasets, e)
 			}); err != nil {
 			return nil, err
 		}
@@ -655,6 +701,39 @@ func (_q *AgentTokenQuery) loadExperimentProposals(ctx context.Context, query *E
 		node, ok := nodeids[fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "agent_token_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *AgentTokenQuery) loadWorkspaceDatasets(ctx context.Context, query *WorkspaceDatasetQuery, nodes []*AgentToken, init func(*AgentToken), assign func(*AgentToken, *WorkspaceDataset)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*AgentToken)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(workspacedataset.FieldAgentTokenID)
+	}
+	query.Where(predicate.WorkspaceDataset(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(agenttoken.WorkspaceDatasetsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.AgentTokenID
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "agent_token_id" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "agent_token_id" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
 	}

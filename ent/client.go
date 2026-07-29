@@ -43,6 +43,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/session"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
 	"github.com/XR-Lee/Gemcp/ent/user"
+	"github.com/XR-Lee/Gemcp/ent/workspacedataset"
 )
 
 // Client is the client that holds all ent builders.
@@ -106,6 +107,8 @@ type Client struct {
 	Tenant *TenantClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
+	// WorkspaceDataset is the client for interacting with the WorkspaceDataset builders.
+	WorkspaceDataset *WorkspaceDatasetClient
 }
 
 // NewClient creates a new client configured with the given options.
@@ -145,6 +148,7 @@ func (c *Client) init() {
 	c.Session = NewSessionClient(c.config)
 	c.Tenant = NewTenantClient(c.config)
 	c.User = NewUserClient(c.config)
+	c.WorkspaceDataset = NewWorkspaceDatasetClient(c.config)
 }
 
 type (
@@ -265,6 +269,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Session:             NewSessionClient(cfg),
 		Tenant:              NewTenantClient(cfg),
 		User:                NewUserClient(cfg),
+		WorkspaceDataset:    NewWorkspaceDatasetClient(cfg),
 	}, nil
 }
 
@@ -312,6 +317,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Session:             NewSessionClient(cfg),
 		Tenant:              NewTenantClient(cfg),
 		User:                NewUserClient(cfg),
+		WorkspaceDataset:    NewWorkspaceDatasetClient(cfg),
 	}, nil
 }
 
@@ -347,7 +353,7 @@ func (c *Client) Use(hooks ...Hook) {
 		c.NodeEvent, c.NodeProjectAccess, c.Notification, c.NotificationSetting,
 		c.Project, c.ProviderAccount, c.ProviderResource, c.RecordMixin, c.Repository,
 		c.ResourceProfile, c.SelfHostedNode, c.ServiceHeartbeat, c.Session, c.Tenant,
-		c.User,
+		c.User, c.WorkspaceDataset,
 	} {
 		n.Use(hooks...)
 	}
@@ -363,7 +369,7 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.NodeEvent, c.NodeProjectAccess, c.Notification, c.NotificationSetting,
 		c.Project, c.ProviderAccount, c.ProviderResource, c.RecordMixin, c.Repository,
 		c.ResourceProfile, c.SelfHostedNode, c.ServiceHeartbeat, c.Session, c.Tenant,
-		c.User,
+		c.User, c.WorkspaceDataset,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -428,6 +434,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Tenant.mutate(ctx, m)
 	case *UserMutation:
 		return c.User.mutate(ctx, m)
+	case *WorkspaceDatasetMutation:
+		return c.WorkspaceDataset.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
 	}
@@ -763,6 +771,22 @@ func (c *AgentTokenClient) QueryExperimentProposals(_m *AgentToken) *ExperimentP
 			sqlgraph.From(agenttoken.Table, agenttoken.FieldID, id),
 			sqlgraph.To(experimentproposal.Table, experimentproposal.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, agenttoken.ExperimentProposalsTable, agenttoken.ExperimentProposalsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryWorkspaceDatasets queries the workspace_datasets edge of a AgentToken.
+func (c *AgentTokenClient) QueryWorkspaceDatasets(_m *AgentToken) *WorkspaceDatasetQuery {
+	query := (&WorkspaceDatasetClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(agenttoken.Table, agenttoken.FieldID, id),
+			sqlgraph.To(workspacedataset.Table, workspacedataset.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, agenttoken.WorkspaceDatasetsTable, agenttoken.WorkspaceDatasetsColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -4018,6 +4042,22 @@ func (c *ProjectClient) QueryExperimentProposals(_m *Project) *ExperimentProposa
 	return query
 }
 
+// QueryWorkspaceDatasets queries the workspace_datasets edge of a Project.
+func (c *ProjectClient) QueryWorkspaceDatasets(_m *Project) *WorkspaceDatasetQuery {
+	query := (&WorkspaceDatasetClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, id),
+			sqlgraph.To(workspacedataset.Table, workspacedataset.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.WorkspaceDatasetsTable, project.WorkspaceDatasetsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *ProjectClient) Hooks() []Hook {
 	return c.hooks.Project
@@ -5104,6 +5144,22 @@ func (c *SelfHostedNodeClient) QueryAssignments(_m *SelfHostedNode) *NodeAssignm
 	return query
 }
 
+// QueryWorkspaceDatasets queries the workspace_datasets edge of a SelfHostedNode.
+func (c *SelfHostedNodeClient) QueryWorkspaceDatasets(_m *SelfHostedNode) *WorkspaceDatasetQuery {
+	query := (&WorkspaceDatasetClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(selfhostednode.Table, selfhostednode.FieldID, id),
+			sqlgraph.To(workspacedataset.Table, workspacedataset.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, selfhostednode.WorkspaceDatasetsTable, selfhostednode.WorkspaceDatasetsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *SelfHostedNodeClient) Hooks() []Hook {
 	return c.hooks.SelfHostedNode
@@ -5823,6 +5879,22 @@ func (c *TenantClient) QueryExperimentProposals(_m *Tenant) *ExperimentProposalQ
 	return query
 }
 
+// QueryWorkspaceDatasets queries the workspace_datasets edge of a Tenant.
+func (c *TenantClient) QueryWorkspaceDatasets(_m *Tenant) *WorkspaceDatasetQuery {
+	query := (&WorkspaceDatasetClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, id),
+			sqlgraph.To(workspacedataset.Table, workspacedataset.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.WorkspaceDatasetsTable, tenant.WorkspaceDatasetsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *TenantClient) Hooks() []Hook {
 	return c.hooks.Tenant
@@ -6013,6 +6085,203 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 	}
 }
 
+// WorkspaceDatasetClient is a client for the WorkspaceDataset schema.
+type WorkspaceDatasetClient struct {
+	config
+}
+
+// NewWorkspaceDatasetClient returns a client for the WorkspaceDataset from the given config.
+func NewWorkspaceDatasetClient(c config) *WorkspaceDatasetClient {
+	return &WorkspaceDatasetClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `workspacedataset.Hooks(f(g(h())))`.
+func (c *WorkspaceDatasetClient) Use(hooks ...Hook) {
+	c.hooks.WorkspaceDataset = append(c.hooks.WorkspaceDataset, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `workspacedataset.Intercept(f(g(h())))`.
+func (c *WorkspaceDatasetClient) Intercept(interceptors ...Interceptor) {
+	c.inters.WorkspaceDataset = append(c.inters.WorkspaceDataset, interceptors...)
+}
+
+// Create returns a builder for creating a WorkspaceDataset entity.
+func (c *WorkspaceDatasetClient) Create() *WorkspaceDatasetCreate {
+	mutation := newWorkspaceDatasetMutation(c.config, OpCreate)
+	return &WorkspaceDatasetCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of WorkspaceDataset entities.
+func (c *WorkspaceDatasetClient) CreateBulk(builders ...*WorkspaceDatasetCreate) *WorkspaceDatasetCreateBulk {
+	return &WorkspaceDatasetCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *WorkspaceDatasetClient) MapCreateBulk(slice any, setFunc func(*WorkspaceDatasetCreate, int)) *WorkspaceDatasetCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &WorkspaceDatasetCreateBulk{err: fmt.Errorf("calling to WorkspaceDatasetClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*WorkspaceDatasetCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &WorkspaceDatasetCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for WorkspaceDataset.
+func (c *WorkspaceDatasetClient) Update() *WorkspaceDatasetUpdate {
+	mutation := newWorkspaceDatasetMutation(c.config, OpUpdate)
+	return &WorkspaceDatasetUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *WorkspaceDatasetClient) UpdateOne(_m *WorkspaceDataset) *WorkspaceDatasetUpdateOne {
+	mutation := newWorkspaceDatasetMutation(c.config, OpUpdateOne, withWorkspaceDataset(_m))
+	return &WorkspaceDatasetUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *WorkspaceDatasetClient) UpdateOneID(id int) *WorkspaceDatasetUpdateOne {
+	mutation := newWorkspaceDatasetMutation(c.config, OpUpdateOne, withWorkspaceDatasetID(id))
+	return &WorkspaceDatasetUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for WorkspaceDataset.
+func (c *WorkspaceDatasetClient) Delete() *WorkspaceDatasetDelete {
+	mutation := newWorkspaceDatasetMutation(c.config, OpDelete)
+	return &WorkspaceDatasetDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *WorkspaceDatasetClient) DeleteOne(_m *WorkspaceDataset) *WorkspaceDatasetDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *WorkspaceDatasetClient) DeleteOneID(id int) *WorkspaceDatasetDeleteOne {
+	builder := c.Delete().Where(workspacedataset.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &WorkspaceDatasetDeleteOne{builder}
+}
+
+// Query returns a query builder for WorkspaceDataset.
+func (c *WorkspaceDatasetClient) Query() *WorkspaceDatasetQuery {
+	return &WorkspaceDatasetQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeWorkspaceDataset},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a WorkspaceDataset entity by its id.
+func (c *WorkspaceDatasetClient) Get(ctx context.Context, id int) (*WorkspaceDataset, error) {
+	return c.Query().Where(workspacedataset.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *WorkspaceDatasetClient) GetX(ctx context.Context, id int) *WorkspaceDataset {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTenant queries the tenant edge of a WorkspaceDataset.
+func (c *WorkspaceDatasetClient) QueryTenant(_m *WorkspaceDataset) *TenantQuery {
+	query := (&TenantClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(workspacedataset.Table, workspacedataset.FieldID, id),
+			sqlgraph.To(tenant.Table, tenant.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, workspacedataset.TenantTable, workspacedataset.TenantColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryProject queries the project edge of a WorkspaceDataset.
+func (c *WorkspaceDatasetClient) QueryProject(_m *WorkspaceDataset) *ProjectQuery {
+	query := (&ProjectClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(workspacedataset.Table, workspacedataset.FieldID, id),
+			sqlgraph.To(project.Table, project.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, workspacedataset.ProjectTable, workspacedataset.ProjectColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryNode queries the node edge of a WorkspaceDataset.
+func (c *WorkspaceDatasetClient) QueryNode(_m *WorkspaceDataset) *SelfHostedNodeQuery {
+	query := (&SelfHostedNodeClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(workspacedataset.Table, workspacedataset.FieldID, id),
+			sqlgraph.To(selfhostednode.Table, selfhostednode.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, workspacedataset.NodeTable, workspacedataset.NodeColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryAgentToken queries the agent_token edge of a WorkspaceDataset.
+func (c *WorkspaceDatasetClient) QueryAgentToken(_m *WorkspaceDataset) *AgentTokenQuery {
+	query := (&AgentTokenClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(workspacedataset.Table, workspacedataset.FieldID, id),
+			sqlgraph.To(agenttoken.Table, agenttoken.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, workspacedataset.AgentTokenTable, workspacedataset.AgentTokenColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *WorkspaceDatasetClient) Hooks() []Hook {
+	return c.hooks.WorkspaceDataset
+}
+
+// Interceptors returns the client interceptors.
+func (c *WorkspaceDatasetClient) Interceptors() []Interceptor {
+	return c.inters.WorkspaceDataset
+}
+
+func (c *WorkspaceDatasetClient) mutate(ctx context.Context, m *WorkspaceDatasetMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&WorkspaceDatasetCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&WorkspaceDatasetUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&WorkspaceDatasetUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&WorkspaceDatasetDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown WorkspaceDataset mutation op: %q", m.Op())
+	}
+}
+
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
@@ -6021,7 +6290,7 @@ type (
 		NodeCommand, NodeEnrollment, NodeEvent, NodeProjectAccess, Notification,
 		NotificationSetting, Project, ProviderAccount, ProviderResource, RecordMixin,
 		Repository, ResourceProfile, SelfHostedNode, ServiceHeartbeat, Session, Tenant,
-		User []ent.Hook
+		User, WorkspaceDataset []ent.Hook
 	}
 	inters struct {
 		AgentEnrollment, AgentToken, Attempt, AuditEvent, BudgetEntry, DiagnosticRun,
@@ -6029,6 +6298,6 @@ type (
 		NodeCommand, NodeEnrollment, NodeEvent, NodeProjectAccess, Notification,
 		NotificationSetting, Project, ProviderAccount, ProviderResource, RecordMixin,
 		Repository, ResourceProfile, SelfHostedNode, ServiceHeartbeat, Session, Tenant,
-		User []ent.Interceptor
+		User, WorkspaceDataset []ent.Interceptor
 	}
 )

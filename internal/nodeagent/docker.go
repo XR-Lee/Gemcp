@@ -15,23 +15,25 @@ import (
 	"time"
 
 	"github.com/XR-Lee/Gemcp/internal/executioncmd"
+	"github.com/XR-Lee/Gemcp/internal/nodeprotocol"
 )
 
 var ErrContainerNotFound = errors.New("managed workload container not found")
 
 type ContainerSpec struct {
-	AssignmentID     string
-	Image            string
-	ExecutionMode    string
-	Command          string
-	Argv             []string
-	GPUUUID          string
-	CPULimit         int
-	MemoryLimitBytes int64
-	SourcePath       string
-	OutputPath       string
-	WorkspaceMode    string
-	WorkspacePath    string
+	AssignmentID      string
+	Image             string
+	ExecutionMode     string
+	Command           string
+	Argv              []string
+	GPUUUID           string
+	CPULimit          int
+	MemoryLimitBytes  int64
+	SourcePath        string
+	OutputPath        string
+	WorkspaceMode     string
+	WorkspacePath     string
+	WorkspaceDatasets []nodeprotocol.WorkspaceDataset
 }
 
 type ContainerState struct {
@@ -103,6 +105,9 @@ func (d DockerRuntime) Start(ctx context.Context, spec ContainerSpec) (string, e
 	}
 	if spec.WorkspaceMode == "trusted_rw" {
 		args = append(args, "--mount", "type=bind,src="+spec.WorkspacePath+",dst=/gemcp/workspace", "--env", "GEMCP_TRUSTED_WORKSPACE=/gemcp/workspace")
+		for _, dataset := range spec.WorkspaceDatasets {
+			args = append(args, "--env", dataset.EnvironmentVariable+"=/gemcp/workspace/"+dataset.RelativePath)
+		}
 	}
 	if spec.ExecutionMode == executioncmd.ModeArgv {
 		args = append(args, "--entrypoint", spec.Argv[0], resolvedImage)
@@ -244,7 +249,7 @@ func validateContainerSpec(spec ContainerSpec) error {
 	}
 	if len(strings.ReplaceAll(spec.AssignmentID, "-", "")) < 16 || !nvidiaGPUUUID.MatchString(spec.GPUUUID) ||
 		spec.CPULimit <= 0 || spec.MemoryLimitBytes <= 0 || strings.ContainsAny(spec.SourcePath+spec.OutputPath, ",\x00") ||
-		!imageValid {
+		!imageValid || !validWorkspaceDatasets(spec.WorkspaceMode, spec.WorkspaceDatasets) {
 		return fmt.Errorf("workload container specification is invalid")
 	}
 	return nil

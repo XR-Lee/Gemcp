@@ -68,6 +68,8 @@ type Tx struct {
 	Tenant *TenantClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
+	// WorkspaceDataset is the client for interacting with the WorkspaceDataset builders.
+	WorkspaceDataset *WorkspaceDatasetClient
 
 	// lazily loaded.
 	client     *Client
@@ -227,6 +229,7 @@ func (tx *Tx) init() {
 	tx.Session = NewSessionClient(tx.config)
 	tx.Tenant = NewTenantClient(tx.config)
 	tx.User = NewUserClient(tx.config)
+	tx.WorkspaceDataset = NewWorkspaceDatasetClient(tx.config)
 }
 
 // txDriver wraps the given dialect.Tx with a nop dialect.Driver implementation.

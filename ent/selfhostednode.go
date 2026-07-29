@@ -80,9 +80,11 @@ type SelfHostedNodeEdges struct {
 	Events []*NodeEvent `json:"events,omitempty"`
 	// Assignments holds the value of the assignments edge.
 	Assignments []*NodeAssignment `json:"assignments,omitempty"`
+	// WorkspaceDatasets holds the value of the workspace_datasets edge.
+	WorkspaceDatasets []*WorkspaceDataset `json:"workspace_datasets,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [5]bool
+	loadedTypes [6]bool
 }
 
 // TenantOrErr returns the Tenant value or an error if the edge
@@ -130,6 +132,15 @@ func (e SelfHostedNodeEdges) AssignmentsOrErr() ([]*NodeAssignment, error) {
 		return e.Assignments, nil
 	}
 	return nil, &NotLoadedError{edge: "assignments"}
+}
+
+// WorkspaceDatasetsOrErr returns the WorkspaceDatasets value or an error if the edge
+// was not loaded in eager-loading.
+func (e SelfHostedNodeEdges) WorkspaceDatasetsOrErr() ([]*WorkspaceDataset, error) {
+	if e.loadedTypes[5] {
+		return e.WorkspaceDatasets, nil
+	}
+	return nil, &NotLoadedError{edge: "workspace_datasets"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -337,6 +348,11 @@ func (_m *SelfHostedNode) QueryEvents() *NodeEventQuery {
 // QueryAssignments queries the "assignments" edge of the SelfHostedNode entity.
 func (_m *SelfHostedNode) QueryAssignments() *NodeAssignmentQuery {
 	return NewSelfHostedNodeClient(_m.config).QueryAssignments(_m)
+}
+
+// QueryWorkspaceDatasets queries the "workspace_datasets" edge of the SelfHostedNode entity.
+func (_m *SelfHostedNode) QueryWorkspaceDatasets() *WorkspaceDatasetQuery {
+	return NewSelfHostedNodeClient(_m.config).QueryWorkspaceDatasets(_m)
 }
 
 // Update returns a builder for updating this SelfHostedNode.

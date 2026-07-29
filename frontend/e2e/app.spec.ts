@@ -459,6 +459,10 @@ async function mockConsole(page: Page, counters?: { providerQueries: number; sel
         mcp_config: mcpConfig, config_file_name: 'gemcp-point-models-mcp.json',
       }, 201)
     }
+    if (path === `/api/v1/projects/${project.id}/agent-tokens/${agentTokens[0].id}` && route.request().method() === 'PATCH') {
+      expect(route.request().postDataJSON()).toEqual({ scopes: ['read', 'submit', 'cancel', 'configure'] })
+      return fulfill(route, { ...agentTokens[0], scopes: ['read', 'submit', 'cancel', 'configure'], updated_at: '2026-07-17T02:00:30Z' })
+    }
     if (path === `/api/v1/projects/${project.id}/agent-tokens/${agentTokens[0].id}` && route.request().method() === 'DELETE') {
       return fulfill(route, { ...agentTokens[0], status: 'revoked', updated_at: '2026-07-17T02:01:00Z' })
     }
@@ -832,6 +836,13 @@ test('Pi setup links, MCP guidance and advanced token controls fit desktop and m
   await expect(page.getByText(issuedAgentToken, { exact: true })).toHaveCount(0)
 
   const defaultRow = page.getByRole('row').filter({ hasText: 'default-agent' })
+  await defaultRow.getByTitle('Edit Agent scopes').click()
+  const scopeDialog = page.getByRole('dialog', { name: 'Edit Agent scopes' })
+  await expect(scopeDialog).toBeVisible()
+  await expect(scopeDialog.getByLabel('Configure')).not.toBeChecked()
+  await scopeDialog.getByLabel('Configure').check()
+  await scopeDialog.getByRole('button', { name: 'Update scopes' }).click()
+  await expect(defaultRow.getByText('configure', { exact: true })).toBeVisible()
   await defaultRow.getByTitle('Revoke Agent token').click()
   const revokeDialog = page.getByRole('alertdialog', { name: 'Revoke Agent token' })
   await expect(revokeDialog).toBeVisible()

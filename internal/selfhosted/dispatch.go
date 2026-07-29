@@ -2,6 +2,7 @@ package selfhosted
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
 	"github.com/XR-Lee/Gemcp/ent/selfhostednode"
 	"github.com/XR-Lee/Gemcp/internal/executioncmd"
+	"github.com/XR-Lee/Gemcp/internal/nodeprotocol"
 	"github.com/google/uuid"
 )
 
@@ -41,6 +43,10 @@ func (s *Service) Dispatch(ctx context.Context, tx *ent.Tx, experiment *ent.Expe
 	workspaceMode := snapshotString(experiment.EnvironmentSnapshot, "execution_policy") == "trusted_workspace"
 	workspacePath := snapshotString(experiment.EnvironmentSnapshot, "workspace_path")
 	workspaceNodeID := snapshotString(experiment.EnvironmentSnapshot, "workspace_node_id")
+	workspaceDatasets, err := snapshotWorkspaceDatasets(experiment.EnvironmentSnapshot)
+	if err != nil {
+		return false, fmt.Errorf("Self-hosted workspace dataset snapshot is invalid")
+	}
 	if snapshotString(experiment.EnvironmentSnapshot, "backend") != Backend ||
 		(!workspaceMode && !pinnedImagePattern.MatchString(image)) ||
 		(workspaceMode && (!workspaceImagePattern.MatchString(image) || workspaceNodeID == "" || workspacePath == "")) {
@@ -118,6 +124,7 @@ func (s *Service) Dispatch(ctx context.Context, tx *ent.Tx, experiment *ent.Expe
 	if workspaceMode {
 		payload["workspace_mode"] = "trusted_rw"
 		payload["workspace_path"] = workspacePath
+		payload["workspace_datasets"] = workspaceDatasets
 	}
 	commandRecord, err := enqueueCommand(ctx, tx, experiment.TenantID, node.ID, assignment.ID, "start_workload", "start:"+assignmentID.String(), payload, now)
 	if err != nil {
@@ -146,6 +153,10 @@ func (s *Service) Dispatch(ctx context.Context, tx *ent.Tx, experiment *ent.Expe
 }
 
 func (s *Service) availableNode(ctx context.Context, tx *ent.Tx, experiment *ent.Experiment, profile *ent.ResourceProfile, now time.Time, excludeNodeID int) (*ent.SelfHostedNode, string, error) {
+	workspaceDatasets, err := snapshotWorkspaceDatasets(experiment.EnvironmentSnapshot)
+	if err != nil {
+		return nil, "", err
+	}
 	nodes, err := tx.SelfHostedNode.Query().Where(
 		selfhostednode.TenantIDEQ(experiment.TenantID),
 		selfhostednode.StatusEQ(selfhostednode.StatusActive),
@@ -176,7 +187,8 @@ func (s *Service) availableNode(ctx context.Context, tx *ent.Tx, experiment *ent
 			continue
 		}
 		if snapshotString(experiment.EnvironmentSnapshot, "execution_policy") == "trusted_workspace" {
-			if node.PublicID.String() != snapshotString(experiment.EnvironmentSnapshot, "workspace_node_id") || !supportsWorkspaceMode(node.Capabilities) {
+			if node.PublicID.String() != snapshotString(experiment.EnvironmentSnapshot, "workspace_node_id") || !supportsWorkspaceMode(node.Capabilities) ||
+				len(workspaceDatasets) > 0 && !supportsDatasetMode(node.Capabilities) {
 				continue
 			}
 			accessOK, err := tx.NodeProjectAccess.Query().Where(
@@ -220,6 +232,24 @@ func supportsExecutionMode(capabilities map[string]any, mode string) bool {
 	return false
 }
 
+func supportsDatasetMode(capabilities map[string]any) bool {
+	switch values := capabilities["dataset_modes"].(type) {
+	case []any:
+		for _, value := range values {
+			if value == "workspace_env_v1" {
+				return true
+			}
+		}
+	case []string:
+		for _, value := range values {
+			if value == "workspace_env_v1" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func matchingGPU(capabilities map[string]any, accepted []string) (string, bool) {
 	values, ok := capabilities["gpus"].([]any)
 	if !ok || len(values) != 1 {
@@ -245,4 +275,20 @@ func matchingGPU(capabilities map[string]any, accepted []string) (string, bool) 
 func snapshotString(snapshot map[string]any, key string) string {
 	value, _ := snapshot[key].(string)
 	return strings.TrimSpace(value)
+}
+
+func snapshotWorkspaceDatasets(snapshot map[string]any) ([]nodeprotocol.WorkspaceDataset, error) {
+	value, ok := snapshot["workspace_datasets"]
+	if !ok || value == nil {
+		return nil, nil
+	}
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		return nil, err
+	}
+	var datasets []nodeprotocol.WorkspaceDataset
+	if err := json.Unmarshal(encoded, &datasets); err != nil || len(datasets) > 32 {
+		return nil, fmt.Errorf("decode workspace datasets")
+	}
+	return datasets, nil
 }

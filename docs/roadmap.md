@@ -128,6 +128,10 @@ Project authorized Node hardware and readiness into `get_project_options` direct
 
 Allow an Owner to authorize one normalized host directory for one Project and Node with a single form field. Generate hardware bounds and runtime records from current inventory, accept public image tags only for that explicit policy, bind the path and image into prepared confirmation, mount only the approved directory, resolve the image to a digest before launch, and record successful digests for reuse. Keep strict digest-pinned execution as the default policy.
 
+### v0.15.1 - Agent-managed Project inputs
+
+Add an explicit `configure` scope for current-Project GitHub SSH repository registration and verification, plus bounded dataset declarations below an existing Owner-approved trusted workspace root. Expose stable container paths and controlled environment variables, bind active declarations into Proposal drift checks, require Node-side existence and symlink-containment validation, and keep host-root authorization Owner-only. Allow an Owner to update an existing active Token's scopes without exposing its secret.
+
 ## In progress
 
 ### Repository readiness and Owner prepared experiments

@@ -638,6 +638,29 @@ func HasExperimentProposalsWith(preds ...predicate.ExperimentProposal) predicate
 	})
 }
 
+// HasWorkspaceDatasets applies the HasEdge predicate on the "workspace_datasets" edge.
+func HasWorkspaceDatasets() predicate.AgentToken {
+	return predicate.AgentToken(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, WorkspaceDatasetsTable, WorkspaceDatasetsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasWorkspaceDatasetsWith applies the HasEdge predicate on the "workspace_datasets" edge with a given conditions (other predicates).
+func HasWorkspaceDatasetsWith(preds ...predicate.WorkspaceDataset) predicate.AgentToken {
+	return predicate.AgentToken(func(s *sql.Selector) {
+		step := newWorkspaceDatasetsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.AgentToken) predicate.AgentToken {
 	return predicate.AgentToken(sql.AndPredicates(predicates...))

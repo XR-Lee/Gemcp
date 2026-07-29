@@ -15,6 +15,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/repository"
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
 	"github.com/XR-Lee/Gemcp/ent/selfhostednode"
+	"github.com/XR-Lee/Gemcp/ent/workspacedataset"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
 	"github.com/XR-Lee/Gemcp/internal/executioncmd"
 	"github.com/google/uuid"
@@ -337,7 +338,16 @@ func proposalRuntimeInTransaction(ctx context.Context, tx *ent.Tx, projectRecord
 	if err != nil || node.Label != snapshotString(snapshot, "workspace_node_label") {
 		return "", nil, ErrProposalChanged
 	}
-	return image, &proposalWorkspace{nodeID: node.PublicID.String(), nodeLabel: node.Label, path: *access.WorkspacePath}, nil
+	datasetRecords, err := tx.WorkspaceDataset.Query().Where(
+		workspacedataset.ProjectIDEQ(projectRecord.ID), workspacedataset.NodeIDEQ(node.ID), workspacedataset.StatusEQ(workspacedataset.StatusActive),
+	).Order(ent.Asc(workspacedataset.FieldName)).All(ctx)
+	if err != nil {
+		return "", nil, err
+	}
+	return image, &proposalWorkspace{
+		nodeID: node.PublicID.String(), nodeLabel: node.Label, path: *access.WorkspacePath,
+		datasets: proposalWorkspaceDatasets(datasetRecords),
+	}, nil
 }
 
 func proposalReservation(projectRecord *ent.Project, profileRecord *ent.ResourceProfile, runtimeSeconds int) (int64, error) {

@@ -42,6 +42,7 @@ func (SelfHostedNode) Edges() []ent.Edge {
 		edge.To("commands", NodeCommand.Type),
 		edge.To("events", NodeEvent.Type),
 		edge.To("assignments", NodeAssignment.Type),
+		edge.To("workspace_datasets", WorkspaceDataset.Type),
 	}
 }
 

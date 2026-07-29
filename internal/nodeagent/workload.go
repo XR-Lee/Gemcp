@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -22,6 +23,7 @@ import (
 var pinnedOCIImage = regexp.MustCompile(`^[^[:space:]@]+@sha256:[0-9a-f]{64}$`)
 var workspaceOCIImage = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/-]*(?:@sha256:[0-9a-f]{64})?$`)
 var nvidiaGPUUUID = regexp.MustCompile(`^GPU-[A-Za-z0-9-]{1,116}$`)
+var datasetEnvironmentVariable = regexp.MustCompile(`^GEMCP_DATASET_[A-Z0-9_]{1,112}$`)
 
 const (
 	maxLogTailBytes = 64 << 10
@@ -73,6 +75,9 @@ func (m *WorkloadManager) Start(ctx context.Context, payload map[string]any) (ma
 		if pathContains(m.config.StorageRoot, spec.WorkspacePath) || pathContains(spec.WorkspacePath, m.config.StorageRoot) {
 			return nil, fmt.Errorf("trusted workspace must be separate from Gemcp managed storage")
 		}
+		if err := validateWorkspaceDatasetsOnHost(spec.WorkspacePath, spec.WorkspaceDatasets); err != nil {
+			return nil, err
+		}
 	}
 	records, err := m.store.Workloads()
 	if err != nil {
@@ -110,7 +115,7 @@ func (m *WorkloadManager) Start(ctx context.Context, payload map[string]any) (ma
 			AssignmentID: spec.AssignmentID, Image: spec.Image, ExecutionMode: spec.ExecutionMode,
 			Command: spec.Command, Argv: append([]string(nil), spec.Argv...), GPUUUID: spec.GPUUUID,
 			CPULimit: spec.CPULimit, MemoryLimitBytes: spec.MemoryLimitBytes, SourcePath: sourcePath, OutputPath: outputPath,
-			WorkspaceMode: spec.WorkspaceMode, WorkspacePath: spec.WorkspacePath,
+			WorkspaceMode: spec.WorkspaceMode, WorkspacePath: spec.WorkspacePath, WorkspaceDatasets: append([]nodeprotocol.WorkspaceDataset(nil), spec.WorkspaceDatasets...),
 		})
 		if err != nil {
 			return nil, err
@@ -353,7 +358,7 @@ func decodeStartWorkload(payload map[string]any) (nodeprotocol.StartWorkload, er
 	}
 	execution, executionErr := executioncmd.Validate(executioncmd.Spec{Mode: spec.ExecutionMode, Command: spec.Command, Argv: spec.Argv})
 	if executionErr != nil || uuid.Validate(spec.AssignmentID) != nil || uuid.Validate(spec.ExperimentID) != nil || uuid.Validate(spec.AttemptID) != nil ||
-		!validWorkloadImage(spec) ||
+		!validWorkloadImage(spec) || !validWorkspaceDatasets(spec.WorkspaceMode, spec.WorkspaceDatasets) ||
 		spec.SourcePath != "/api/v1/node-assignments/"+spec.AssignmentID+"/source" || spec.SourceMaxBytes <= 0 || spec.SourceMaxBytes > 1<<30 ||
 		!validOutputRef(spec.OutputRef) || spec.MaxRuntimeSeconds <= 0 || spec.MaxRuntimeSeconds > 30*24*3600 ||
 		spec.TimeoutExtensionSeconds < 0 || spec.TerminationGraceSeconds < 0 || spec.TerminationGraceSeconds > 3600 ||
@@ -366,10 +371,55 @@ func decodeStartWorkload(payload map[string]any) (nodeprotocol.StartWorkload, er
 }
 
 func validWorkloadImage(spec nodeprotocol.StartWorkload) bool {
-	if spec.WorkspaceMode == "" && spec.WorkspacePath == "" {
+	if spec.WorkspaceMode == "" && spec.WorkspacePath == "" && len(spec.WorkspaceDatasets) == 0 {
 		return pinnedOCIImage.MatchString(spec.Image)
 	}
 	return spec.WorkspaceMode == "trusted_rw" && validTrustedWorkspacePath(spec.WorkspacePath) && workspaceOCIImage.MatchString(spec.Image)
+}
+
+func validWorkspaceDatasets(workspaceMode string, datasets []nodeprotocol.WorkspaceDataset) bool {
+	if len(datasets) == 0 {
+		return true
+	}
+	if workspaceMode != "trusted_rw" || len(datasets) > 32 {
+		return false
+	}
+	names, paths, variables := map[string]bool{}, map[string]bool{}, map[string]bool{}
+	for _, dataset := range datasets {
+		if dataset.Name == "" || len(dataset.Name) > 100 || dataset.RelativePath == "" || len(dataset.RelativePath) > 1024 ||
+			path.IsAbs(dataset.RelativePath) || path.Clean(dataset.RelativePath) != dataset.RelativePath || dataset.RelativePath == "." ||
+			dataset.RelativePath == ".." || strings.HasPrefix(dataset.RelativePath, "../") ||
+			strings.Contains(dataset.RelativePath, "\\") || !datasetEnvironmentVariable.MatchString(dataset.EnvironmentVariable) ||
+			names[dataset.Name] || paths[dataset.RelativePath] || variables[dataset.EnvironmentVariable] {
+			return false
+		}
+		for _, value := range []string{dataset.Name, dataset.RelativePath} {
+			for _, character := range value {
+				if unicode.IsControl(character) {
+					return false
+				}
+			}
+		}
+		names[dataset.Name], paths[dataset.RelativePath], variables[dataset.EnvironmentVariable] = true, true, true
+	}
+	return true
+}
+
+func validateWorkspaceDatasetsOnHost(workspaceRoot string, datasets []nodeprotocol.WorkspaceDataset) error {
+	for _, dataset := range datasets {
+		candidate := filepath.Join(workspaceRoot, filepath.FromSlash(dataset.RelativePath))
+		resolved, err := filepath.EvalSymlinks(candidate)
+		if err != nil {
+			return fmt.Errorf("workspace dataset %s is unavailable", dataset.Name)
+		}
+		if !pathContains(workspaceRoot, resolved) {
+			return fmt.Errorf("workspace dataset %s escapes the approved root", dataset.Name)
+		}
+		if _, err := os.Stat(resolved); err != nil {
+			return fmt.Errorf("workspace dataset %s is unavailable", dataset.Name)
+		}
+	}
+	return nil
 }
 
 func validTrustedWorkspacePath(value string) bool {

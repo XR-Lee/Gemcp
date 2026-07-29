@@ -67,7 +67,7 @@ func TestIssueListAuthenticateAndRevoke(t *testing.T) {
 	ctx := context.Background()
 	days := 30
 	issued, err := f.service.Issue(ctx, f.tenant.ID, "owner-id", f.project.PublicID.String(), IssueInput{
-		Label: "training-agent", Scopes: []string{"cancel", "read", "submit"}, ExpiresInDays: &days,
+		Label: "training-agent", Scopes: []string{"configure", "cancel", "read", "submit"}, ExpiresInDays: &days,
 	})
 	if err != nil {
 		t.Fatalf("Issue() error = %v", err)
@@ -94,8 +94,16 @@ func TestIssueListAuthenticateAndRevoke(t *testing.T) {
 		t.Fatal("Agent token was not stored as a fixed-length digest")
 	}
 	principal, err := agentauth.NewService(f.client, f.box).Authenticate(ctx, issued.AgentToken)
-	if err != nil || principal.ProjectPublicID != f.project.PublicID.String() || !principal.HasScope("submit") {
+	if err != nil || principal.ProjectPublicID != f.project.PublicID.String() || !principal.HasScope("submit") || !principal.HasScope("configure") || strings.Join(principal.Scopes, ",") != "read,submit,cancel,configure" {
 		t.Fatalf("Authenticate() principal=%+v err=%v", principal, err)
+	}
+	updated, err := f.service.UpdateScopes(ctx, f.tenant.ID, "owner-id", f.project.PublicID.String(), issued.Token.ID, UpdateScopesInput{Scopes: []string{"configure", "read"}})
+	if err != nil || strings.Join(updated.Scopes, ",") != "read,configure" {
+		t.Fatalf("UpdateScopes() = %+v, %v", updated, err)
+	}
+	principal, err = agentauth.NewService(f.client, f.box).Authenticate(ctx, issued.AgentToken)
+	if err != nil || !principal.HasScope("configure") || principal.HasScope("submit") {
+		t.Fatalf("updated principal=%+v err=%v", principal, err)
 	}
 
 	listed, err := f.service.List(ctx, f.tenant.ID, f.project.PublicID.String())
@@ -122,7 +130,7 @@ func TestIssueListAuthenticateAndRevoke(t *testing.T) {
 		t.Fatalf("idempotent Revoke() error = %v", err)
 	}
 	audits, err := f.client.AuditEvent.Query().All(ctx)
-	if err != nil || len(audits) != 2 || audits[0].Action != "agent_token.issued" || audits[1].Action != "agent_token.revoked" {
+	if err != nil || len(audits) != 3 || audits[0].Action != "agent_token.issued" || audits[1].Action != "agent_token.scopes_updated" || audits[2].Action != "agent_token.revoked" {
 		t.Fatalf("audit events = %+v, err=%v", audits, err)
 	}
 	for _, audit := range audits {
@@ -284,7 +292,7 @@ func TestPiEnrollmentClaimCompleteAndSecretHygiene(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ClaimEnrollment() error = %v", err)
 	}
-	if claimed.ProjectID != f.project.PublicID.String() || claimed.ServerName != "gemcp-research" || strings.Join(claimed.Scopes, ",") != "read,submit,cancel" || claimed.PiConfig.Auth != "bearer" || len(claimed.PiConfig.DirectTools) != 11 {
+	if claimed.ProjectID != f.project.PublicID.String() || claimed.ServerName != "gemcp-research" || strings.Join(claimed.Scopes, ",") != "read,submit,cancel" || claimed.PiConfig.Auth != "bearer" || len(claimed.PiConfig.DirectTools) != 17 {
 		t.Fatalf("claim result = %+v", claimed)
 	}
 	if claimed.PiConfig.BearerToken != claimed.AgentToken || claimed.GuideURL != "https://gemcp.example.com/docs/agent-mcp.md" {
@@ -323,7 +331,7 @@ func TestPiEnrollmentClaimCompleteAndSecretHygiene(t *testing.T) {
 	}
 
 	completed, err := f.service.CompleteEnrollment(ctx, code, EnrollmentCompleteInput{
-		Client: "pi-mcp-adapter/2.10.0", ToolCount: 11, Checks: []string{"tools", "guide", "options", "cost"},
+		Client: "pi-mcp-adapter/2.10.0", ToolCount: 17, Checks: []string{"tools", "guide", "options", "cost"},
 	})
 	if err != nil {
 		t.Fatalf("CompleteEnrollment() error = %v", err)
@@ -332,7 +340,7 @@ func TestPiEnrollmentClaimCompleteAndSecretHygiene(t *testing.T) {
 		t.Fatalf("complete result = %+v", completed)
 	}
 	retriedCompletion, err := f.service.CompleteEnrollment(ctx, code, EnrollmentCompleteInput{
-		Client: "pi-mcp-adapter/2.10.0", ToolCount: 11, Checks: []string{"tools", "guide", "options", "cost"},
+		Client: "pi-mcp-adapter/2.10.0", ToolCount: 17, Checks: []string{"tools", "guide", "options", "cost"},
 	})
 	if err != nil || retriedCompletion.Enrollment.ID != completed.Enrollment.ID || retriedCompletion.Enrollment.AgentTokenPrefix != completed.Token.Prefix {
 		t.Fatalf("idempotent completion result=%+v err=%v", retriedCompletion, err)

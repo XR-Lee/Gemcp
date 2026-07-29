@@ -82,26 +82,33 @@ type Command struct {
 	Payload  map[string]any `json:"payload,omitempty"`
 }
 
+type WorkspaceDataset struct {
+	Name                string `json:"name"`
+	RelativePath        string `json:"relative_path"`
+	EnvironmentVariable string `json:"environment_variable"`
+}
+
 type StartWorkload struct {
-	AssignmentID            string   `json:"assignment_id"`
-	ExperimentID            string   `json:"experiment_id"`
-	AttemptID               string   `json:"attempt_id"`
-	Image                   string   `json:"image"`
-	ExecutionMode           string   `json:"execution_mode,omitempty"`
-	Command                 string   `json:"command,omitempty"`
-	Argv                    []string `json:"argv,omitempty"`
-	SourcePath              string   `json:"source_path"`
-	SourceMaxBytes          int64    `json:"source_max_bytes"`
-	OutputRef               string   `json:"output_ref"`
-	MaxRuntimeSeconds       int      `json:"max_runtime_seconds"`
-	TimeoutExtensionSeconds int      `json:"timeout_extension_seconds"`
-	TerminationGraceSeconds int      `json:"termination_grace_seconds"`
-	GPUUUID                 string   `json:"gpu_uuid"`
-	GPUName                 string   `json:"gpu_name"`
-	CPULimit                int      `json:"cpu_limit"`
-	MemoryLimitBytes        int64    `json:"memory_limit_bytes"`
-	WorkspaceMode           string   `json:"workspace_mode,omitempty"`
-	WorkspacePath           string   `json:"workspace_path,omitempty"`
+	AssignmentID            string             `json:"assignment_id"`
+	ExperimentID            string             `json:"experiment_id"`
+	AttemptID               string             `json:"attempt_id"`
+	Image                   string             `json:"image"`
+	ExecutionMode           string             `json:"execution_mode,omitempty"`
+	Command                 string             `json:"command,omitempty"`
+	Argv                    []string           `json:"argv,omitempty"`
+	SourcePath              string             `json:"source_path"`
+	SourceMaxBytes          int64              `json:"source_max_bytes"`
+	OutputRef               string             `json:"output_ref"`
+	MaxRuntimeSeconds       int                `json:"max_runtime_seconds"`
+	TimeoutExtensionSeconds int                `json:"timeout_extension_seconds"`
+	TerminationGraceSeconds int                `json:"termination_grace_seconds"`
+	GPUUUID                 string             `json:"gpu_uuid"`
+	GPUName                 string             `json:"gpu_name"`
+	CPULimit                int                `json:"cpu_limit"`
+	MemoryLimitBytes        int64              `json:"memory_limit_bytes"`
+	WorkspaceMode           string             `json:"workspace_mode,omitempty"`
+	WorkspacePath           string             `json:"workspace_path,omitempty"`
+	WorkspaceDatasets       []WorkspaceDataset `json:"workspace_datasets,omitempty"`
 }
 
 type StopWorkload struct {

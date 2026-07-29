@@ -40,6 +40,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/session"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
 	"github.com/XR-Lee/Gemcp/ent/user"
+	"github.com/XR-Lee/Gemcp/ent/workspacedataset"
 )
 
 // ent aliases to avoid import conflicts in user's code.
@@ -128,6 +129,7 @@ func checkColumn(t, c string) error {
 			session.Table:             session.ValidColumn,
 			tenant.Table:              tenant.ValidColumn,
 			user.Table:                user.ValidColumn,
+			workspacedataset.Table:    workspacedataset.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

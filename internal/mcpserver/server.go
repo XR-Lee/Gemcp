@@ -10,6 +10,8 @@ import (
 	"github.com/XR-Lee/Gemcp/guides"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
 	"github.com/XR-Lee/Gemcp/internal/experiment"
+	gitrepository "github.com/XR-Lee/Gemcp/internal/repository"
+	"github.com/XR-Lee/Gemcp/internal/workspacecatalog"
 	mcpauth "github.com/modelcontextprotocol/go-sdk/auth"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -20,10 +22,12 @@ const (
 )
 
 type Server struct {
-	agentAuth   *agentauth.Service
-	experiments *experiment.Service
-	logger      *slog.Logger
-	handler     http.Handler
+	agentAuth    *agentauth.Service
+	experiments  *experiment.Service
+	repositories *gitrepository.Service
+	datasets     *workspacecatalog.Service
+	logger       *slog.Logger
+	handler      http.Handler
 }
 
 type emptyInput struct{}
@@ -38,11 +42,23 @@ type UsageGuide struct {
 
 const serverInstructions = "Report only controlled Agent workflow phases with report_agent_activity so the Owner can observe repository inspection and run monitoring; never include prompts, private reasoning, source contents, environment values, or credentials. Use prepare_experiment as the normal zero-cost path: provide a reviewed argv and optional repository/ref selectors, let Gemcp resolve immutable source, defaults, checks, cost, and server-side idempotency, then show the returned proposal and wait for human approval before submit_prepared_experiment. Use submit_experiment only as the Advanced shell-command compatibility path. Record the Experiment ID and monitor it to a terminal state."
 
-func New(agentAuth *agentauth.Service, experiments *experiment.Service, version string, logger *slog.Logger) *Server {
+type Option func(*Server)
+
+func WithConfiguration(repositories *gitrepository.Service, datasets *workspacecatalog.Service) Option {
+	return func(server *Server) {
+		server.repositories = repositories
+		server.datasets = datasets
+	}
+}
+
+func New(agentAuth *agentauth.Service, experiments *experiment.Service, version string, logger *slog.Logger, options ...Option) *Server {
 	if logger == nil {
 		logger = slog.Default()
 	}
 	server := &Server{agentAuth: agentAuth, experiments: experiments, logger: logger}
+	for _, option := range options {
+		option(server)
+	}
 	mcpServer := mcp.NewServer(&mcp.Implementation{Name: "gemcp", Version: version}, &mcp.ServerOptions{
 		Instructions: serverInstructions,
 	})
@@ -52,6 +68,24 @@ func New(agentAuth *agentauth.Service, experiments *experiment.Service, version 
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "get_project_options", Description: "List project policy, approved execution options, and automatically discovered authorized Self-hosted Node readiness.",
 	}, server.getProjectOptions)
+	mcp.AddTool(mcpServer, &mcp.Tool{
+		Name: "list_repository_registrations", Description: "List active and pending Git repositories for the authenticated Project, including public deploy keys.",
+	}, server.listRepositoryRegistrations)
+	mcp.AddTool(mcpServer, &mcp.Tool{
+		Name: "register_repository", Description: "Create a pending GitHub SSH repository registration in the authenticated Project and return its read-only deploy public key. Requires configure scope.",
+	}, server.registerRepository)
+	mcp.AddTool(mcpServer, &mcp.Tool{
+		Name: "verify_repository", Description: "Verify one pending Project repository after its read-only deploy key is installed. Requires configure scope.",
+	}, server.verifyRepository)
+	mcp.AddTool(mcpServer, &mcp.Tool{
+		Name: "list_workspace_datasets", Description: "List dataset paths declared below this Project's Owner-approved trusted workspace roots.",
+	}, server.listWorkspaceDatasets)
+	mcp.AddTool(mcpServer, &mcp.Tool{
+		Name: "register_workspace_dataset", Description: "Declare a normalized dataset path below an existing Owner-approved trusted workspace root. This never authorizes a new host path. Requires configure scope.",
+	}, server.registerWorkspaceDataset)
+	mcp.AddTool(mcpServer, &mcp.Tool{
+		Name: "remove_workspace_dataset", Description: "Disable one Project workspace dataset declaration. Requires configure scope.",
+	}, server.removeWorkspaceDataset)
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "report_agent_activity", Description: "Report a controlled workflow phase so the Owner console can show what the Agent is doing without collecting prompts or reasoning.",
 	}, server.reportAgentActivity)
@@ -185,6 +219,89 @@ func (s *Server) getProjectOptions(ctx context.Context, request *mcp.CallToolReq
 	return nil, output, s.toolError("get_project_options", err)
 }
 
+func (s *Server) listRepositoryRegistrations(ctx context.Context, request *mcp.CallToolRequest, _ emptyInput) (*mcp.CallToolResult, gitrepository.ListResult, error) {
+	principal, err := principalFrom(request)
+	if err != nil {
+		return nil, gitrepository.ListResult{}, err
+	}
+	if !principal.HasScope("read") {
+		return nil, gitrepository.ListResult{}, experiment.ErrForbidden
+	}
+	if s.repositories == nil {
+		return nil, gitrepository.ListResult{}, errors.New("repository configuration service is unavailable")
+	}
+	views, err := s.repositories.List(ctx, principal.TenantID, principal.ProjectPublicID)
+	return nil, gitrepository.ListResult{Repositories: views}, s.configurationToolError("list_repository_registrations", err)
+}
+
+func (s *Server) registerRepository(ctx context.Context, request *mcp.CallToolRequest, input gitrepository.AgentInput) (*mcp.CallToolResult, gitrepository.View, error) {
+	principal, err := principalFrom(request)
+	if err != nil {
+		return nil, gitrepository.View{}, err
+	}
+	if !principal.HasScope("configure") {
+		return nil, gitrepository.View{}, experiment.ErrForbidden
+	}
+	if s.repositories == nil {
+		return nil, gitrepository.View{}, errors.New("repository configuration service is unavailable")
+	}
+	view, err := s.repositories.CreateForAgent(ctx, principal.TenantID, principal.TokenPublicID, principal.ProjectPublicID, input)
+	return nil, view, s.configurationToolError("register_repository", err)
+}
+
+func (s *Server) verifyRepository(ctx context.Context, request *mcp.CallToolRequest, input gitrepository.AgentVerifyInput) (*mcp.CallToolResult, gitrepository.View, error) {
+	principal, err := principalFrom(request)
+	if err != nil {
+		return nil, gitrepository.View{}, err
+	}
+	if !principal.HasScope("configure") {
+		return nil, gitrepository.View{}, experiment.ErrForbidden
+	}
+	if s.repositories == nil {
+		return nil, gitrepository.View{}, errors.New("repository configuration service is unavailable")
+	}
+	verifyContext, cancel := context.WithTimeout(ctx, 90*time.Second)
+	defer cancel()
+	view, err := s.repositories.VerifyForAgent(verifyContext, principal.TenantID, principal.TokenPublicID, principal.ProjectPublicID, input)
+	return nil, view, s.configurationToolError("verify_repository", err)
+}
+
+func (s *Server) listWorkspaceDatasets(ctx context.Context, request *mcp.CallToolRequest, _ emptyInput) (*mcp.CallToolResult, workspacecatalog.ListResult, error) {
+	principal, err := principalFrom(request)
+	if err != nil {
+		return nil, workspacecatalog.ListResult{}, err
+	}
+	if s.datasets == nil {
+		return nil, workspacecatalog.ListResult{}, errors.New("workspace dataset service is unavailable")
+	}
+	result, err := s.datasets.List(ctx, principal)
+	return nil, result, s.configurationToolError("list_workspace_datasets", err)
+}
+
+func (s *Server) registerWorkspaceDataset(ctx context.Context, request *mcp.CallToolRequest, input workspacecatalog.RegisterInput) (*mcp.CallToolResult, workspacecatalog.View, error) {
+	principal, err := principalFrom(request)
+	if err != nil {
+		return nil, workspacecatalog.View{}, err
+	}
+	if s.datasets == nil {
+		return nil, workspacecatalog.View{}, errors.New("workspace dataset service is unavailable")
+	}
+	view, err := s.datasets.Register(ctx, principal, input)
+	return nil, view, s.configurationToolError("register_workspace_dataset", err)
+}
+
+func (s *Server) removeWorkspaceDataset(ctx context.Context, request *mcp.CallToolRequest, input workspacecatalog.RemoveInput) (*mcp.CallToolResult, workspacecatalog.View, error) {
+	principal, err := principalFrom(request)
+	if err != nil {
+		return nil, workspacecatalog.View{}, err
+	}
+	if s.datasets == nil {
+		return nil, workspacecatalog.View{}, errors.New("workspace dataset service is unavailable")
+	}
+	view, err := s.datasets.Remove(ctx, principal, input)
+	return nil, view, s.configurationToolError("remove_workspace_dataset", err)
+}
+
 func (s *Server) reportAgentActivity(ctx context.Context, request *mcp.CallToolRequest, input experiment.ReportActivityInput) (*mcp.CallToolResult, experiment.ReportActivityResult, error) {
 	principal, err := principalFrom(request)
 	if err != nil {
@@ -296,5 +413,31 @@ func (s *Server) toolError(tool string, err error) error {
 		}
 	}
 	s.logger.Error("MCP tool failed", "tool", tool, "error", err)
+	return errors.New("internal control-plane error")
+}
+
+func (s *Server) configurationToolError(tool string, err error) error {
+	if err == nil {
+		return nil
+	}
+	var repositoryValidation *gitrepository.ValidationError
+	if errors.As(err, &repositoryValidation) {
+		return errors.New(repositoryValidation.Message)
+	}
+	var datasetValidation *workspacecatalog.ValidationError
+	if errors.As(err, &datasetValidation) {
+		return errors.New(datasetValidation.Message)
+	}
+	for _, public := range []error{
+		experiment.ErrForbidden,
+		gitrepository.ErrNotFound, gitrepository.ErrNotActive, gitrepository.ErrVerificationFailed, gitrepository.ErrConflict,
+		workspacecatalog.ErrForbidden, workspacecatalog.ErrNotFound, workspacecatalog.ErrTrustedWorkspace,
+		workspacecatalog.ErrWorkspaceChoice, workspacecatalog.ErrDatasetConflict, workspacecatalog.ErrDatasetLimit,
+	} {
+		if errors.Is(err, public) {
+			return public
+		}
+	}
+	s.logger.Error("MCP configuration tool failed", "tool", tool, "error", err)
 	return errors.New("internal control-plane error")
 }

@@ -23,6 +23,7 @@ var (
 	ErrNotFound           = errors.New("repository not found")
 	ErrNotActive          = errors.New("repository is not active")
 	ErrVerificationFailed = errors.New("repository verification failed")
+	ErrConflict           = errors.New("repository name is already registered with different settings")
 	githubSSHURL          = regexp.MustCompile(`^git@github\.com:([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+?)(?:\.git)?$`)
 	branchPattern         = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/-]{0,254}$`)
 )
@@ -40,6 +41,21 @@ type Input struct {
 	Name          string `json:"name"`
 	SSHURL        string `json:"ssh_url"`
 	DefaultBranch string `json:"default_branch"`
+}
+
+type AgentInput struct {
+	Name          string `json:"name" jsonschema:"repository display name within the current Project"`
+	SSHURL        string `json:"ssh_url" jsonschema:"GitHub SSH URL in git@github.com:owner/repository.git form"`
+	DefaultBranch string `json:"default_branch,omitempty" jsonschema:"default branch; defaults to main"`
+}
+
+type AgentVerifyInput struct {
+	RepositoryID    string `json:"repository_id" jsonschema:"pending repository ID returned by register_repository"`
+	HostFingerprint string `json:"host_key_fingerprint,omitempty" jsonschema:"approved SHA256 SSH host fingerprint; omit to reuse this Project's established GitHub pin"`
+}
+
+type ListResult struct {
+	Repositories []View `json:"repositories"`
 }
 
 type View struct {
@@ -82,27 +98,63 @@ func NewService(client *ent.Client, box *secrets.Box, verifier GitVerifier) *Ser
 }
 
 func (s *Service) Create(ctx context.Context, tenantID int, input Input) (View, error) {
-	var view View
-	projectID, err := uuid.Parse(strings.TrimSpace(input.ProjectID))
+	return s.create(ctx, s.client, tenantID, input)
+}
+
+func (s *Service) CreateForAgent(ctx context.Context, tenantID int, actorID, projectPublicID string, input AgentInput) (View, error) {
+	tx, err := s.client.Tx(ctx)
 	if err != nil {
-		return view, invalid("valid project_id is required")
+		return View{}, err
 	}
-	name := strings.TrimSpace(input.Name)
-	if name == "" || len(name) > 120 {
-		return view, invalid("repository name is required")
+	defer tx.Rollback()
+	projectID, name, sshURL, branch, err := normalizeInput(Input{
+		ProjectID: projectPublicID, Name: input.Name, SSHURL: input.SSHURL, DefaultBranch: input.DefaultBranch,
+	})
+	if err != nil {
+		return View{}, err
 	}
-	sshURL := strings.TrimSpace(input.SSHURL)
-	if !githubSSHURL.MatchString(sshURL) {
-		return view, invalid("ssh_url must match git@github.com:owner/repository.git")
+	existing, err := tx.Repository.Query().Where(
+		entrepository.NameEQ(name),
+		entrepository.HasProjectWith(entproject.PublicIDEQ(projectID), entproject.TenantIDEQ(tenantID), entproject.StatusEQ(entproject.StatusActive)),
+	).WithProject().Only(ctx)
+	if err == nil {
+		if existing.SSHURL != sshURL || existing.DefaultBranch != branch {
+			return View{}, ErrConflict
+		}
+		if err := tx.Commit(); err != nil {
+			return View{}, err
+		}
+		return makeView(existing, projectPublicID, true), nil
 	}
-	branch := strings.TrimSpace(input.DefaultBranch)
-	if branch == "" {
-		branch = "main"
+	if !ent.IsNotFound(err) {
+		return View{}, err
 	}
-	if !branchPattern.MatchString(branch) || strings.Contains(branch, "..") || strings.Contains(branch, "//") {
-		return view, invalid("default branch is invalid")
+	view, err := s.create(ctx, tx.Client(), tenantID, Input{
+		ProjectID: projectPublicID, Name: name, SSHURL: sshURL, DefaultBranch: branch,
+	})
+	if err != nil {
+		return View{}, err
 	}
-	project, err := s.client.Project.Query().
+	if _, err := tx.AuditEvent.Create().SetTenantID(tenantID).
+		SetActorType("agent_token").SetActorID(actorID).
+		SetAction("repository.registered").SetTargetType("repository").SetTargetID(view.ID).
+		SetMetadata(map[string]any{"project_id": projectPublicID, "name": view.Name, "ssh_url": view.SSHURL, "default_branch": view.DefaultBranch}).
+		Save(ctx); err != nil {
+		return View{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return View{}, err
+	}
+	return view, nil
+}
+
+func (s *Service) create(ctx context.Context, client *ent.Client, tenantID int, input Input) (View, error) {
+	var view View
+	projectID, name, sshURL, branch, err := normalizeInput(input)
+	if err != nil {
+		return view, err
+	}
+	project, err := client.Project.Query().
 		Where(entproject.PublicIDEQ(projectID), entproject.TenantIDEQ(tenantID), entproject.StatusEQ("active")).
 		Only(ctx)
 	if ent.IsNotFound(err) {
@@ -120,7 +172,7 @@ func (s *Service) Create(ctx context.Context, tenantID int, input Input) (View, 
 	if err != nil {
 		return view, err
 	}
-	record, err := s.client.Repository.Create().
+	record, err := client.Repository.Create().
 		SetPublicID(publicID).
 		SetProjectID(project.ID).
 		SetName(name).
@@ -134,6 +186,117 @@ func (s *Service) Create(ctx context.Context, tenantID int, input Input) (View, 
 		return view, err
 	}
 	return makeView(record, project.PublicID.String(), true), nil
+}
+
+func normalizeInput(input Input) (uuid.UUID, string, string, string, error) {
+	projectID, err := uuid.Parse(strings.TrimSpace(input.ProjectID))
+	if err != nil {
+		return uuid.Nil, "", "", "", invalid("valid project_id is required")
+	}
+	name := strings.TrimSpace(input.Name)
+	if name == "" || len(name) > 120 {
+		return uuid.Nil, "", "", "", invalid("repository name is required")
+	}
+	sshURL := strings.TrimSpace(input.SSHURL)
+	if !githubSSHURL.MatchString(sshURL) {
+		return uuid.Nil, "", "", "", invalid("ssh_url must match git@github.com:owner/repository.git")
+	}
+	branch := strings.TrimSpace(input.DefaultBranch)
+	if branch == "" {
+		branch = "main"
+	}
+	if !branchPattern.MatchString(branch) || strings.Contains(branch, "..") || strings.Contains(branch, "//") {
+		return uuid.Nil, "", "", "", invalid("default branch is invalid")
+	}
+	return projectID, name, sshURL, branch, nil
+}
+
+func (s *Service) VerifyForAgent(ctx context.Context, tenantID int, actorID, projectPublicID string, input AgentVerifyInput) (View, error) {
+	projectID, err := uuid.Parse(strings.TrimSpace(projectPublicID))
+	if err != nil {
+		return View{}, ErrNotFound
+	}
+	repositoryID, err := uuid.Parse(strings.TrimSpace(input.RepositoryID))
+	if err != nil {
+		return View{}, ErrNotFound
+	}
+	record, err := s.client.Repository.Query().Where(
+		entrepository.PublicIDEQ(repositoryID),
+		entrepository.HasProjectWith(entproject.PublicIDEQ(projectID), entproject.TenantIDEQ(tenantID), entproject.StatusEQ(entproject.StatusActive)),
+	).WithProject().Only(ctx)
+	if ent.IsNotFound(err) {
+		return View{}, ErrNotFound
+	}
+	if err != nil {
+		return View{}, err
+	}
+	fingerprint := strings.TrimSpace(input.HostFingerprint)
+	if fingerprint == "" {
+		fingerprint, err = s.establishedHostFingerprint(ctx, tenantID, projectID, record.SSHHost)
+		if err != nil {
+			return View{}, err
+		}
+	}
+	if !strings.HasPrefix(fingerprint, "SHA256:") || len(fingerprint) < 20 || len(fingerprint) > 100 {
+		return View{}, invalid("valid SHA256 host key fingerprint is required")
+	}
+	privateKey, err := s.decryptKey(record)
+	if err != nil {
+		return View{}, err
+	}
+	defer wipe(privateKey)
+	if err := s.verifier.VerifyAccess(ctx, record.SSHURL, record.SSHHost, privateKey, fingerprint); err != nil {
+		return View{}, fmt.Errorf("%w: %v", ErrVerificationFailed, err)
+	}
+	tx, err := s.client.Tx(ctx)
+	if err != nil {
+		return View{}, err
+	}
+	defer tx.Rollback()
+	current, err := tx.Repository.Query().Where(
+		entrepository.IDEQ(record.ID),
+		entrepository.HasProjectWith(entproject.PublicIDEQ(projectID), entproject.TenantIDEQ(tenantID), entproject.StatusEQ(entproject.StatusActive)),
+	).WithProject().Only(ctx)
+	if err != nil {
+		return View{}, ErrNotFound
+	}
+	now := s.now().UTC()
+	current, err = current.Update().SetHostKeyFingerprint(fingerprint).SetStatus("active").SetLastVerifiedAt(now).Save(ctx)
+	if err != nil {
+		return View{}, err
+	}
+	if _, err := tx.AuditEvent.Create().SetTenantID(tenantID).
+		SetActorType("agent_token").SetActorID(actorID).
+		SetAction("repository.verified").SetTargetType("repository").SetTargetID(current.PublicID.String()).
+		SetMetadata(map[string]any{"project_id": projectPublicID, "ssh_url": current.SSHURL, "host_key_fingerprint": fingerprint}).
+		Save(ctx); err != nil {
+		return View{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return View{}, err
+	}
+	return makeView(current, projectPublicID, true), nil
+}
+
+func (s *Service) establishedHostFingerprint(ctx context.Context, tenantID int, projectID uuid.UUID, host string) (string, error) {
+	records, err := s.client.Repository.Query().Where(
+		entrepository.SSHHostEQ(host), entrepository.StatusEQ(entrepository.StatusActive), entrepository.HostKeyFingerprintNEQ(""),
+		entrepository.HasProjectWith(entproject.PublicIDEQ(projectID), entproject.TenantIDEQ(tenantID)),
+	).All(ctx)
+	if err != nil {
+		return "", err
+	}
+	fingerprints := map[string]bool{}
+	for _, record := range records {
+		fingerprints[record.HostKeyFingerprint] = true
+	}
+	if len(fingerprints) != 1 {
+		return "", invalid("host_key_fingerprint is required because the Project has no single established SSH host pin")
+	}
+	for fingerprint := range fingerprints {
+		return fingerprint, nil
+	}
+	return "", invalid("host_key_fingerprint is required")
 }
 
 func (s *Service) Verify(ctx context.Context, tenantID int, publicID, fingerprint string) (View, error) {

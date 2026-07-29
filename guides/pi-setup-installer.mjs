@@ -10,6 +10,12 @@ const trustedOrigin = '{{GEMCP_PUBLIC_URL}}'
 const setupUserAgent = 'Gemcp-Pi-Setup/1'
 const expectedDirectTools = [
   'get_usage_guide',
+  'list_repository_registrations',
+  'register_repository',
+  'verify_repository',
+  'list_workspace_datasets',
+  'register_workspace_dataset',
+  'remove_workspace_dataset',
   'report_agent_activity',
   'prepare_experiment',
   'submit_prepared_experiment',
@@ -21,7 +27,7 @@ const expectedDirectTools = [
   'cancel_experiment',
   'list_artifacts',
 ]
-const allowedScopes = ['read', 'submit', 'cancel']
+const allowedScopes = ['read', 'submit', 'cancel', 'configure']
 
 function isExpectedScopes(scopes) {
   if (!Array.isArray(scopes) || scopes.length === 0 || scopes[0] !== 'read' || scopes.length !== new Set(scopes).size) return false

@@ -44,6 +44,7 @@ func TestOwnerAgentTokenHTTPContract(t *testing.T) {
 	})
 	router.GET("/projects/:id/agent-tokens", handlers.List)
 	router.POST("/projects/:id/agent-tokens", handlers.Issue)
+	router.PATCH("/projects/:id/agent-tokens/:tokenID", handlers.UpdateScopes)
 	router.DELETE("/projects/:id/agent-tokens/:tokenID", handlers.Revoke)
 	router.POST("/projects/:id/agent-enrollments", handlers.IssueEnrollment)
 	router.DELETE("/projects/:id/agent-enrollments/:enrollmentID", handlers.RevokeEnrollment)
@@ -82,6 +83,13 @@ func TestOwnerAgentTokenHTTPContract(t *testing.T) {
 	}
 	if len(listed.Data.Tokens) != 1 || listed.Data.ConfigTemplate == nil || listed.Data.MCPURL != "https://gemcp.example.com/mcp" {
 		t.Fatalf("list response = %+v", listed.Data)
+	}
+	updateRequest := httptest.NewRequest(http.MethodPatch, "/projects/"+project.PublicID.String()+"/agent-tokens/"+issued.Data.Token.ID, strings.NewReader(`{"scopes":["read","submit","configure"]}`))
+	updateRequest.Header.Set("Content-Type", "application/json")
+	updateResponse := httptest.NewRecorder()
+	router.ServeHTTP(updateResponse, updateRequest)
+	if updateResponse.Code != http.StatusOK || !strings.Contains(updateResponse.Body.String(), `"configure"`) || strings.Contains(updateResponse.Body.String(), issued.Data.AgentToken) {
+		t.Fatalf("scope update status=%d body=%s", updateResponse.Code, updateResponse.Body.String())
 	}
 
 	enrollmentRequest := httptest.NewRequest(http.MethodPost, "/projects/"+project.PublicID.String()+"/agent-enrollments", strings.NewReader(`{
@@ -122,12 +130,12 @@ func TestOwnerAgentTokenHTTPContract(t *testing.T) {
 	if err := json.Unmarshal(claimResponse.Body.Bytes(), &claim); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(claim.Data.AgentToken, "gmc_") || claim.Data.PiConfig.BearerToken != claim.Data.AgentToken || len(claim.Data.PiConfig.DirectTools) != 11 {
+	if !strings.HasPrefix(claim.Data.AgentToken, "gmc_") || claim.Data.PiConfig.BearerToken != claim.Data.AgentToken || len(claim.Data.PiConfig.DirectTools) != 17 {
 		t.Fatalf("claim response = %+v", claim.Data)
 	}
 
 	completeRequest := httptest.NewRequest(http.MethodPost, "/agent-enrollments/complete", strings.NewReader(`{
-		"code":"`+setupCode+`","client":"pi-mcp-adapter/2.10.0","tool_count":11,
+		"code":"`+setupCode+`","client":"pi-mcp-adapter/2.10.0","tool_count":17,
 		"checks":["tools","guide","options","cost"]
 	}`))
 	completeRequest.Header.Set("Content-Type", "application/json")

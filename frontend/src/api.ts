@@ -26,7 +26,7 @@ export type Project = {
   timezone: string
 }
 
-export type AgentScope = 'read' | 'submit' | 'cancel'
+export type AgentScope = 'read' | 'submit' | 'cancel' | 'configure'
 
 export type AgentToken = {
   id: string
@@ -826,6 +826,10 @@ export const api = {
   }) => request<AgentTokenIssue>(`/api/v1/projects/${encodeURIComponent(projectID)}/agent-tokens`, {
     method: 'POST', body: JSON.stringify(payload),
   }),
+  updateAgentTokenScopes: (projectID: string, tokenID: string, scopes: AgentScope[]) =>
+    request<AgentToken>(`/api/v1/projects/${encodeURIComponent(projectID)}/agent-tokens/${encodeURIComponent(tokenID)}`, {
+      method: 'PATCH', body: JSON.stringify({ scopes }),
+    }),
   issueAgentEnrollment: (projectID: string, payload: {
     label: string; scopes: AgentScope[]; expires_in_days?: number; never_expires: boolean;
     setup_expires_in_minutes: number;

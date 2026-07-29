@@ -23,7 +23,7 @@ curl --fail --silent --show-error --proto '=https' --tlsv1.2 \
 unset setup_link
 ```
 
-4. Require the final output to begin with `GEMCP_PI_SETUP_OK`, discover all eleven direct tools, and report all four checks: `tools,guide,options,cost`.
+4. Require the final output to begin with `GEMCP_PI_SETUP_OK`, discover all seventeen direct tools, and report all four checks: `tools,guide,options,cost`.
 5. The installer stores the bearer credential in the Pi agent directory's `mcp.json` with mode `0600`, stores a credential-free receipt, and installs a local Gemcp CLI for the current session.
 6. Run `/reload` once when convenient. After reload, use the native `gemcp_*` tools. Before reload, use the `current_session_cli` command printed by the installer through Bash.
 7. Never expose the stored credential. The setup link becomes unusable after successful verification.

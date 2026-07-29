@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/XR-Lee/Gemcp/internal/nodeprotocol"
 	"github.com/google/uuid"
 )
 
@@ -181,6 +182,39 @@ func TestTrustedWorkspaceContainerSpecAllowsTagOnlyWithApprovedPath(t *testing.T
 	resolved := "pytorch/pytorch@sha256:" + strings.Repeat("c", 64)
 	if value, err := resolvedImageReference("pytorch/pytorch:2.4.1", `["`+resolved+`"]`); err != nil || value != resolved {
 		t.Fatalf("resolved image=%q err=%v", value, err)
+	}
+}
+
+func TestWorkspaceDatasetPathsMustExistInsideApprovedRoot(t *testing.T) {
+	root := t.TempDir()
+	datasetPath := filepath.Join(root, "data", "ScanObjectNN", "main_split")
+	if err := os.MkdirAll(datasetPath, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	dataset := nodeprotocol.WorkspaceDataset{
+		Name: "scanobjectnn-objbg", RelativePath: "data/ScanObjectNN/main_split", EnvironmentVariable: "GEMCP_DATASET_SCANOBJECTNN_OBJBG",
+	}
+	if !validWorkspaceDatasets("trusted_rw", []nodeprotocol.WorkspaceDataset{dataset}) {
+		t.Fatal("validWorkspaceDatasets() rejected a bounded declaration")
+	}
+	if err := validateWorkspaceDatasetsOnHost(root, []nodeprotocol.WorkspaceDataset{dataset}); err != nil {
+		t.Fatal(err)
+	}
+	dataset.RelativePath = "data/missing"
+	if err := validateWorkspaceDatasetsOnHost(root, []nodeprotocol.WorkspaceDataset{dataset}); err == nil {
+		t.Fatal("missing workspace dataset was accepted")
+	}
+	outside := t.TempDir()
+	if err := os.Symlink(outside, filepath.Join(root, "outside-link")); err != nil {
+		t.Fatal(err)
+	}
+	dataset.RelativePath = "outside-link"
+	if err := validateWorkspaceDatasetsOnHost(root, []nodeprotocol.WorkspaceDataset{dataset}); err == nil {
+		t.Fatal("workspace dataset symlink escaping the approved root was accepted")
+	}
+	dataset.RelativePath = "../outside"
+	if validWorkspaceDatasets("trusted_rw", []nodeprotocol.WorkspaceDataset{dataset}) {
+		t.Fatal("workspace dataset traversal was accepted")
 	}
 }
 
