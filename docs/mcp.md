@@ -204,6 +204,7 @@ Then call `get_project_options`. It is read-only and confirms all of the followi
 - the Token maps to the intended project;
 - the Token has `read` scope;
 - approved repository, environment, and resource-profile IDs are visible.
+- authorized Self-hosted Nodes are discovered from current heartbeats even before a runtime is configured; fixed readiness codes explain missing runtime, upgrade, availability, or capacity requirements without exposing Node credentials.
 
 The installer also calls `get_project_cost` as a read-only setup check. Normal work then uses `prepare_experiment`, which resolves UUIDs, a moving ref, immutable commit, preflight, cost, and idempotency on the server. `get_project_options` and `get_project_cost` remain available for inspection and the Advanced direct path.
 
@@ -221,7 +222,7 @@ before calling submit_prepared_experiment.
 - `get_usage_guide`: current Agent operating guide, authenticated project ID, Token scopes, Resource URI, and Prompt name.
 - `prepare_experiment`: resolve a repository/ref, safe argv, compatible defaults, preflight checks, cost, and a short-lived immutable proposal without reserving budget.
 - `submit_prepared_experiment`: submit one confirmed proposal by ID and digest; identical retries return the same Experiment.
-- `get_project_options`: approved repositories, environments, resource profiles, and project limits.
+- `get_project_options`: approved repositories, environments, resource profiles, project limits, and dynamically discovered authorized Self-hosted Node readiness.
 - `submit_experiment`: Advanced compatibility path for a full commit SHA, arbitrary shell command, and caller-managed idempotency key.
 - `get_experiment`: current state and immutable experiment specification.
 - `list_experiments`: recent experiments with optional state filters.

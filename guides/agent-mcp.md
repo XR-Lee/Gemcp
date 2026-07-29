@@ -59,6 +59,8 @@ The tool call contains transport context that the user should not have to copy:
 
 Omit `repository` and `repository_remote` when the authenticated Project has exactly one active repository. Omit `ref` to use its default branch. Omit Environment and Resource Profile selectors to use an unambiguous compatible default.
 
+For Self-hosted inspection, `get_project_options.self_hosted_nodes` is generated from current Node heartbeats and Project authorization rather than runtime records. A discovered GPU can therefore appear before it is selectable. Treat `readiness=runtime_configuration_required` as an Owner configuration requirement: report the Node label and GPU model, ask the Owner to approve a digest-pinned image in the Nodes workspace, and do not invent an image or silently fall back to AutoDL. Other fixed blockers include `gpu_busy`, `node_incompatible`, `node_not_online`, `node_stale`, `argv_upgrade_required`, and `node_busy`. Physical Node selection remains server-owned.
+
 ### 2. Prepare at zero cost
 
 Call:
@@ -189,7 +191,7 @@ The optional context is limited to repository remote, ref, and Experiment ID. `m
 | `report_agent_activity` | Report a controlled workflow phase without prompts or reasoning | `submit` |
 | `prepare_experiment` | Resolve and persist a zero-cost immutable argv proposal | `submit` |
 | `submit_prepared_experiment` | Submit one confirmed proposal, idempotently | `submit` |
-| `get_project_options` | Inspect Project policy and approved IDs for Advanced use | `read` |
+| `get_project_options` | Inspect Project policy, approved IDs, and authorized Self-hosted Node readiness | `read` |
 | `get_project_cost` | Inspect budget and accounting details for Advanced use | `read` |
 | `submit_experiment` | Advanced direct shell-command submission | `submit` |
 | `get_experiment` | Read one Experiment | `read` |

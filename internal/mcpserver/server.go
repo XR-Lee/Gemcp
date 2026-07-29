@@ -50,7 +50,7 @@ func New(agentAuth *agentauth.Service, experiments *experiment.Service, version 
 		Name: "get_usage_guide", Description: "Return the mandatory Gemcp operating guide, approval boundary, and safe submission workflow.",
 	}, server.getUsageGuide)
 	mcp.AddTool(mcpServer, &mcp.Tool{
-		Name: "get_project_options", Description: "List the project policy and approved repositories, environments, and resource profiles.",
+		Name: "get_project_options", Description: "List project policy, approved execution options, and automatically discovered authorized Self-hosted Node readiness.",
 	}, server.getProjectOptions)
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "report_agent_activity", Description: "Report a controlled workflow phase so the Owner console can show what the Agent is doing without collecting prompts or reasoning.",

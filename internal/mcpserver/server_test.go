@@ -154,7 +154,7 @@ func TestStreamableHTTPToolsWithAgentToken(t *testing.T) {
 	}
 	var optionsOutput experiment.ProjectOptions
 	decodeStructured(t, options.StructuredContent, &optionsOutput)
-	if optionsOutput.Project.ID != project.PublicID.String() || len(optionsOutput.Repositories) != 1 {
+	if optionsOutput.Project.ID != project.PublicID.String() || len(optionsOutput.Repositories) != 1 || optionsOutput.SelfHostedNodes == nil {
 		t.Fatalf("unexpected project options: %+v", optionsOutput)
 	}
 

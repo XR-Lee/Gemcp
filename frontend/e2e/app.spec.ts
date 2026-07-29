@@ -1,7 +1,7 @@
 import { readFile, unlink } from 'node:fs/promises'
 import { expect, test, type Page, type Route } from '@playwright/test'
 
-const build = { name: 'Gemcp', version: '0.14.1', commit: 'b'.repeat(40), built_at: '2026-07-16T00:00:00Z' }
+const build = { name: 'Gemcp', version: '0.14.2', commit: 'b'.repeat(40), built_at: '2026-07-16T00:00:00Z' }
 const project = {
   id: 'b492cbe4-f198-4d87-bbf9-3f77d8a3ab0a', name: 'Point Models', slug: 'point-models', status: 'active',
   monthly_budget_milli: 100000, max_experiment_milli: 20000, max_concurrency: 2, max_runtime_seconds: 86400,
@@ -168,6 +168,15 @@ const selfHostedNode = {
   storage: { root: '/var/lib/gemcp-node/storage', total_bytes: 1099511627776, available_bytes: 824633720832, managed_bytes: 21474836480 },
   project_ids: [project.id], last_seen_at: '2026-07-17T02:00:00Z', approved_at: '2026-07-17T01:00:00Z',
   created_at: '2026-07-17T00:30:00Z', updated_at: '2026-07-17T02:00:00Z',
+}
+const discoveredA4000Node = {
+  ...selfHostedNode,
+  id: 'node-aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee', label: 'usb-pc', hostname: 'sage-303203', agent_version: '0.14.1',
+  capabilities: {
+    cpu_count: 24, memory_bytes: 33285996544, execution_modes: ['shell', 'argv'],
+    gpus: [{ uuid: 'GPU-a4000-test', name: 'NVIDIA RTX A4000', memory_bytes: 17179869184 }],
+  },
+  storage: { root: '/var/lib/gemcp-node/storage', total_bytes: 999355760640, available_bytes: 461440319488, managed_bytes: 0 },
 }
 const selfHostedAssignment = {
   id: 'assignment-id', node_id: selfHostedNode.id, node_label: selfHostedNode.label, project_id: project.id,
@@ -358,7 +367,7 @@ async function mockConsole(page: Page, counters?: { providerQueries: number; sel
       return fulfill(route, { entry: financeDashboard.ledger[0], idempotent: false }, 201)
     }
     if (path === '/api/v1/nodes' && counters?.selfHosted) return fulfill(route, {
-      nodes: [selfHostedNode], enrollments: [], assignments: [selfHostedAssignment],
+      nodes: [selfHostedNode, discoveredA4000Node], enrollments: [], assignments: [selfHostedAssignment],
     })
     if (path === '/api/v1/node-enrollments' && route.request().method() === 'POST' && counters?.selfHosted) {
       expect(route.request().postDataJSON()).toEqual({ label: 'second-gpu-node', setup_expires_in_minutes: 30 })
@@ -631,10 +640,11 @@ test('global language toggle switches immediately and persists', async ({ page }
 
   await page.getByRole('button', { name: '节点', exact: true }).click()
   await expect(page.locator('.node-heading h1')).toHaveText('自托管节点')
+  await expect(page.getByText('已授权 GPU 算力尚未向 Agent 暴露', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: '升级指引 lab-gpu-01' }).click()
   const chineseUpgradeDialog = page.getByRole('dialog', { name: '升级 lab-gpu-01' })
   await expect(chineseUpgradeDialog.getByText('复制 Agent 指令', { exact: true })).toBeVisible()
-  await expect(chineseUpgradeDialog.locator('.upgrade-instruction')).toContainText('目标版本：v0.14.1')
+  await expect(chineseUpgradeDialog.locator('.upgrade-instruction')).toContainText('目标版本：v0.14.2')
   await chineseUpgradeDialog.getByRole('button', { name: '关闭', exact: true }).first().click()
   await page.getByRole('button', { name: 'Agent', exact: true }).click()
   await expect(page.locator('.agent-heading h2')).toHaveText('Agent 访问')
@@ -670,12 +680,22 @@ test('Self-hosted nodes, Assignments and runtime configuration fit desktop and m
   await expect(page.getByText('local-3090', { exact: true })).toBeVisible()
   await expect(page.getByText('ec29dc68-967', { exact: true })).toBeVisible()
   await expect(page.getByText('gmn_test', { exact: true })).toHaveCount(0)
+  await expect(page.getByText('Authorized GPU capacity is not exposed to Agents yet', { exact: true })).toBeVisible()
+  await expect(page.getByText('usb-pc · NVIDIA RTX A4000 · 16.0 GB', { exact: true })).toBeVisible()
   await expectNoPageOverflow(page)
   await page.screenshot({ path: '/tmp/gemcp-nodes-desktop.png', fullPage: true })
 
+  await page.getByRole('button', { name: 'Configure', exact: true }).click()
+  const discoveredRuntimeDialog = page.locator('.runtime-dialog')
+  await expect(discoveredRuntimeDialog.getByLabel('Runtime name')).toHaveValue('local-a4000')
+  await expect(discoveredRuntimeDialog.getByLabel('Accepted GPU models')).toHaveValue('NVIDIA RTX A4000')
+  await expect(discoveredRuntimeDialog.getByLabel('CPU limit')).toHaveValue('8')
+  await expect(discoveredRuntimeDialog.getByLabel('Memory limit (GB)')).toHaveValue('24')
+  await discoveredRuntimeDialog.getByRole('button', { name: 'Close' }).click()
+
   await page.getByRole('button', { name: 'Upgrade instructions lab-gpu-01' }).click()
   const upgradeDialog = page.getByRole('dialog', { name: 'Upgrade lab-gpu-01' })
-  await expect(upgradeDialog.getByText('v0.14.1', { exact: true })).toBeVisible()
+  await expect(upgradeDialog.getByText('v0.14.2', { exact: true })).toBeVisible()
   await expect(upgradeDialog.getByText('An active Assignment is attached to this Node. Do not run the upgrade until it reaches a terminal state.', { exact: true })).toBeVisible()
   await expect(upgradeDialog.locator('.upgrade-instruction')).toContainText(`TARGET_COMMIT='${'b'.repeat(40)}'`)
   await expect(upgradeDialog.locator('.upgrade-instruction')).toContainText('deploy/upgrade-gemcp-node.sh')
@@ -707,7 +727,7 @@ test('Self-hosted nodes, Assignments and runtime configuration fit desktop and m
   await page.getByRole('button', { name: 'Add runtime', exact: true }).click()
   const runtimeDialog = page.locator('.runtime-dialog')
   await expect(runtimeDialog.getByRole('heading', { name: 'Add Self-hosted runtime' })).toBeVisible()
-  await expect(runtimeDialog.getByLabel('Accepted GPU models')).toHaveValue('NVIDIA GeForce RTX 3090')
+  await expect(runtimeDialog.getByLabel('Accepted GPU models')).toHaveValue('NVIDIA GeForce RTX 3090, NVIDIA RTX A4000')
   await runtimeDialog.getByLabel('Runtime name').fill('second-node-runtime')
   await runtimeDialog.getByLabel('OCI image pinned by digest').fill(`registry.example/second@sha256:${'c'.repeat(64)}`)
   await expectNoPageOverflow(page)

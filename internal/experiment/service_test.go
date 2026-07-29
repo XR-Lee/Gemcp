@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"entgo.io/ent/dialect"
 	"github.com/XR-Lee/Gemcp/ent"
@@ -463,5 +464,61 @@ func TestOptionsAndList(t *testing.T) {
 	listed, err := f.service.List(ctx, f.principal, ListInput{States: []string{"queued"}})
 	if err != nil || len(listed.Experiments) != 1 {
 		t.Fatalf("List() = %+v, %v", listed, err)
+	}
+}
+
+func TestOptionsDiscoversAuthorizedSelfHostedNodeBeforeRuntimeConfiguration(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	ctx := context.Background()
+	now := time.Date(2026, 7, 29, 18, 0, 0, 0, time.UTC)
+	f.service.now = func() time.Time { return now }
+	node, err := f.client.SelfHostedNode.Create().
+		SetTenantID(f.principal.TenantID).SetLabel("usb-pc").SetTokenPrefix("gmn_test").SetTokenHash([]byte("node-token-hash")).
+		SetStatus("active").SetObservedState("online").SetInstallationID("installation-id").SetMachineFingerprint(strings.Repeat("a", 64)).
+		SetHostname("sage-303203").SetOperatingSystem("linux").SetArchitecture("amd64").SetAgentVersion("0.14.1").SetProtocolVersion("1").
+		SetCapabilities(map[string]any{
+			"gpus":            []any{map[string]any{"name": "NVIDIA RTX A4000", "uuid": "GPU-test", "memory_bytes": float64(16 << 30)}},
+			"execution_modes": []any{"shell", "argv"},
+		}).SetStorage(map[string]any{"root": "/var/lib/gemcp-node/storage", "available_bytes": float64(400 << 30)}).
+		SetLastSeenAt(now).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.client.NodeProjectAccess.Create().SetTenantID(f.principal.TenantID).SetNodeID(node.ID).SetProjectID(f.project.ID).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	options, err := f.service.Options(ctx, f.principal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(options.SelfHostedNodes) != 1 {
+		t.Fatalf("SelfHostedNodes = %+v", options.SelfHostedNodes)
+	}
+	discovered := options.SelfHostedNodes[0]
+	if discovered.Label != "usb-pc" || len(discovered.GPUs) != 1 || discovered.GPUs[0].Name != "NVIDIA RTX A4000" ||
+		discovered.RuntimeConfigured || discovered.Ready || discovered.Readiness != "runtime_configuration_required" ||
+		len(discovered.Blockers) != 1 || discovered.Blockers[0] != "runtime_configuration_required" {
+		t.Fatalf("discovered Node = %+v", discovered)
+	}
+
+	if _, err := f.client.Environment.Create().SetProjectID(f.project.ID).SetBackend("self_hosted").SetName("local-a4000").
+		SetImageUUID("registry.example/train@sha256:" + strings.Repeat("b", 64)).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.client.ResourceProfile.Create().SetProjectID(f.project.ID).SetBackend("self_hosted").SetName("local-a4000").
+		SetRegion("self_hosted").SetGpuNames([]string{"NVIDIA RTX A4000"}).SetGpuNum(1).
+		SetCudaFrom(1).SetCudaTo(1).SetCPUFrom(1).SetCPUTo(16).SetMemoryFromGB(1).SetMemoryToGB(24).
+		SetPriceFromMilli(0).SetPriceToMilli(0).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	options, err = f.service.Options(ctx, f.principal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	discovered = options.SelfHostedNodes[0]
+	if !discovered.RuntimeConfigured || !discovered.Ready || discovered.Readiness != "ready" || len(discovered.Blockers) != 0 {
+		t.Fatalf("configured Node = %+v", discovered)
 	}
 }

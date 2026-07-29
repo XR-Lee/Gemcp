@@ -57,6 +57,8 @@ One Attempt occupies one node and one GPU. The daemon checks NVIDIA compute proc
 
 An Owner creates a Project-scoped Self-hosted runtime from the Nodes page. It pairs a digest-pinned public OCI image with a zero-cost Resource Profile and accepted GPU model names. A Self-hosted Environment and Resource Profile must use the same backend.
 
+Node registration, Project authorization, hardware inventory, version, execution modes, and heartbeat readiness are projected automatically into `get_project_options` as `self_hosted_nodes`. This discovery does not wait for a runtime configuration. A Node without a matching approved Environment/Profile remains visible with `runtime_configuration_required`; after the Owner supplies the digest-pinned image boundary, the next read automatically becomes `ready` when all other checks pass. The response omits Node credentials, machine fingerprints, GPU UUIDs, and storage paths, and Agents still cannot select a physical Node directly.
+
 `gemcp-node` downloads the verified commit archive with its Node Token, safely extracts it under the managed storage root, and supervises the Docker container directly. The workload container receives no Node Token, Runner Token, Docker socket, or arbitrary host path. Existing in-container Runner behavior remains specific to AutoDL.
 
 Containers may run as root, but never use privileged mode, host namespaces, Host Network, arbitrary devices, arbitrary bind mounts, or published ports. They use a read-only root filesystem, dropped Linux capabilities, `no-new-privileges`, bounded CPU, memory and PID settings, a private IPC namespace, controlled source/output mounts, and Docker bridge networking without egress filtering.

@@ -120,6 +120,10 @@ Add a bilingual Owner operations feed for controlled Agent phases and immutable 
 
 Generate a bilingual, Node-specific coding-Agent upgrade handoff from the Owner console, bound to the control plane's exact release and full commit. Preserve enrollment identity, credentials, bbolt state, and managed storage while atomically replacing the Node binary. Refuse upgrades while managed containers remain and automatically restore the previous binary when the new systemd service does not stay active.
 
+### v0.14.2 - automatic Self-hosted capacity discovery
+
+Project authorized Node hardware and readiness into `get_project_options` directly from current heartbeats, even before an approved runtime exists. Return fixed blockers such as `runtime_configuration_required` rather than hiding discovered GPUs. Highlight missing runtime boundaries in the Nodes workspace and pre-fill hardware-derived configuration while requiring explicit Owner selection of a digest-pinned image.
+
 ## In progress
 
 ### Repository readiness and Owner prepared experiments

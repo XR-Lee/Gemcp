@@ -142,6 +142,7 @@ type ProjectOptions struct {
 	Repositories     []RepositoryOption      `json:"repositories"`
 	Environments     []EnvironmentOption     `json:"environments"`
 	ResourceProfiles []ResourceProfileOption `json:"resource_profiles"`
+	SelfHostedNodes  []SelfHostedNodeOption  `json:"self_hosted_nodes"`
 }
 
 type ProjectPolicy struct {
@@ -182,6 +183,26 @@ type ResourceProfileOption struct {
 	PriceToMilli   int64    `json:"price_to_milli"`
 	ReuseContainer bool     `json:"reuse_container"`
 	IsDefault      bool     `json:"is_default"`
+}
+
+type SelfHostedNodeOption struct {
+	ID                string                `json:"id"`
+	Label             string                `json:"label"`
+	Status            string                `json:"status"`
+	ObservedState     string                `json:"observed_state"`
+	AgentVersion      string                `json:"agent_version"`
+	GPUs              []SelfHostedGPUOption `json:"gpus"`
+	ExecutionModes    []string              `json:"execution_modes"`
+	LastSeenAt        *time.Time            `json:"last_seen_at,omitempty"`
+	RuntimeConfigured bool                  `json:"runtime_configured"`
+	Ready             bool                  `json:"ready"`
+	Readiness         string                `json:"readiness"`
+	Blockers          []string              `json:"blockers"`
+}
+
+type SelfHostedGPUOption struct {
+	Name        string `json:"name"`
+	MemoryBytes int64  `json:"memory_bytes"`
 }
 
 type CostView struct {

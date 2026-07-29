@@ -6,7 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
+	"sort"
 	"strings"
+	"time"
 
 	"github.com/XR-Lee/Gemcp/ent"
 	entattempt "github.com/XR-Lee/Gemcp/ent/attempt"
@@ -14,9 +17,12 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	entexperiment "github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
+	"github.com/XR-Lee/Gemcp/ent/nodeprojectaccess"
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/repository"
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
+	"github.com/XR-Lee/Gemcp/ent/selfhostednode"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
 	"github.com/google/uuid"
 )
@@ -309,7 +315,156 @@ func (s *Service) Options(ctx context.Context, principal agentauth.Principal) (P
 			ReuseContainer: record.ReuseContainer, IsDefault: record.IsDefault,
 		})
 	}
+	nodes, err := s.client.SelfHostedNode.Query().Where(
+		selfhostednode.TenantIDEQ(principal.TenantID),
+		selfhostednode.HasProjectAccessWith(
+			nodeprojectaccess.ProjectIDEQ(principal.ProjectID),
+			nodeprojectaccess.StatusEQ(nodeprojectaccess.StatusActive),
+		),
+	).Order(ent.Asc(selfhostednode.FieldLabel), ent.Asc(selfhostednode.FieldID)).All(ctx)
+	if err != nil {
+		return result, err
+	}
+	busyNodes := map[int]bool{}
+	if len(nodes) > 0 {
+		nodeIDs := make([]int, 0, len(nodes))
+		for _, node := range nodes {
+			nodeIDs = append(nodeIDs, node.ID)
+		}
+		assignments, err := s.client.NodeAssignment.Query().Where(
+			nodeassignment.NodeIDIn(nodeIDs...),
+			nodeassignment.StateIn(nodeassignment.StateStarting, nodeassignment.StateRunning, nodeassignment.StateStopping, nodeassignment.StateCollecting),
+		).All(ctx)
+		if err != nil {
+			return result, err
+		}
+		for _, assignment := range assignments {
+			busyNodes[assignment.NodeID] = true
+		}
+	}
+	result.SelfHostedNodes = make([]SelfHostedNodeOption, 0, len(nodes))
+	staleBefore := s.now().UTC().Add(-s.proposalConfig.NodeStaleAfter)
+	for _, node := range nodes {
+		gpus := selfHostedOptionGPUs(node.Capabilities)
+		executionModes := selfHostedOptionExecutionModes(node.Capabilities)
+		runtimeConfigured := selfHostedOptionRuntimeConfigured(gpus, environments, profiles)
+		blockers := selfHostedOptionBlockers(node, executionModes, runtimeConfigured, busyNodes[node.ID], staleBefore)
+		readiness := "ready"
+		if len(blockers) > 0 {
+			readiness = blockers[0]
+		}
+		result.SelfHostedNodes = append(result.SelfHostedNodes, SelfHostedNodeOption{
+			ID: node.PublicID.String(), Label: node.Label, Status: string(node.Status), ObservedState: string(node.ObservedState),
+			AgentVersion: node.AgentVersion, GPUs: gpus, ExecutionModes: executionModes, LastSeenAt: node.LastSeenAt,
+			RuntimeConfigured: runtimeConfigured, Ready: len(blockers) == 0, Readiness: readiness, Blockers: blockers,
+		})
+	}
 	return result, nil
+}
+
+func selfHostedOptionGPUs(capabilities map[string]any) []SelfHostedGPUOption {
+	values := proposalGPUValues(capabilities)
+	result := make([]SelfHostedGPUOption, 0, len(values))
+	for _, value := range values {
+		gpu, ok := value.(map[string]any)
+		if !ok {
+			continue
+		}
+		name, _ := gpu["name"].(string)
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+		var memoryBytes int64
+		switch value := gpu["memory_bytes"].(type) {
+		case float64:
+			if value > 0 && value <= math.MaxInt64 {
+				memoryBytes = int64(value)
+			}
+		case int64:
+			memoryBytes = value
+		case int:
+			memoryBytes = int64(value)
+		}
+		result = append(result, SelfHostedGPUOption{Name: name, MemoryBytes: memoryBytes})
+	}
+	return result
+}
+
+func selfHostedOptionExecutionModes(capabilities map[string]any) []string {
+	seen := map[string]bool{}
+	var values []string
+	switch raw := capabilities["execution_modes"].(type) {
+	case []any:
+		for _, value := range raw {
+			if mode, ok := value.(string); ok {
+				values = append(values, mode)
+			}
+		}
+	case []string:
+		values = append(values, raw...)
+	}
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value != "" && !seen[value] {
+			seen[value] = true
+			result = append(result, value)
+		}
+	}
+	sort.Strings(result)
+	return result
+}
+
+func selfHostedOptionRuntimeConfigured(gpus []SelfHostedGPUOption, environments []*ent.Environment, profiles []*ent.ResourceProfile) bool {
+	approvedEnvironments := map[string]bool{}
+	for _, record := range environments {
+		if record.Backend == environment.BackendSelfHosted {
+			approvedEnvironments[record.Name] = true
+		}
+	}
+	for _, profile := range profiles {
+		if profile.Backend != resourceprofile.BackendSelfHosted || !approvedEnvironments[profile.Name] || profile.GpuNum != 1 {
+			continue
+		}
+		for _, gpu := range gpus {
+			for _, accepted := range profile.GpuNames {
+				if strings.EqualFold(strings.TrimSpace(accepted), gpu.Name) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func selfHostedOptionBlockers(node *ent.SelfHostedNode, executionModes []string, runtimeConfigured, busy bool, staleBefore time.Time) []string {
+	result := make([]string, 0, 5)
+	if node.Status != selfhostednode.StatusActive {
+		result = append(result, "node_not_active")
+	}
+	switch node.ObservedState {
+	case selfhostednode.ObservedStateOnline:
+	case selfhostednode.ObservedStateExternallyBusy:
+		result = append(result, "gpu_busy")
+	case selfhostednode.ObservedStateIncompatible:
+		result = append(result, "node_incompatible")
+	default:
+		result = append(result, "node_not_online")
+	}
+	if node.LastSeenAt == nil || node.LastSeenAt.Before(staleBefore) {
+		result = append(result, "node_stale")
+	}
+	if !slices.Contains(executionModes, "argv") {
+		result = append(result, "argv_upgrade_required")
+	}
+	if busy {
+		result = append(result, "node_busy")
+	}
+	if !runtimeConfigured {
+		result = append(result, "runtime_configuration_required")
+	}
+	return result
 }
 
 func (s *Service) Cost(ctx context.Context, principal agentauth.Principal) (CostView, error) {

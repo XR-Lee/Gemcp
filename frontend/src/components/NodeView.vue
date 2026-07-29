@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
-import { ArrowUpCircle, Check, Clipboard, Cpu, HardDrive, LoaderCircle, Plus, RefreshCw, Server, ShieldCheck, Trash2, X } from '@lucide/vue'
+import { ArrowUpCircle, Check, Clipboard, Cpu, HardDrive, LoaderCircle, Plus, RefreshCw, Server, ShieldCheck, TriangleAlert, Trash2, X } from '@lucide/vue'
 import {
   APIError, api, type BuildInfo, type NodeEnrollment, type NodeEnrollmentIssue, type NodeList, type Project,
   type SelfHostedNode, type SelfHostedRuntimeList,
@@ -45,7 +45,9 @@ const activeAssignments = computed(() => data.value.assignments.filter((item) =>
 const runtimeRows = computed(() => runtimes.value.resource_profiles.map((profile) => ({
   profile, environment: runtimes.value.environments.find((item) => item.name === profile.name),
 })))
-const reportedGPUNames = computed(() => [...new Set(data.value.nodes.flatMap((node) => node.capabilities.gpus?.map((gpu) => gpu.name) ?? []))].sort())
+const runtimeProjectNodes = computed(() => data.value.nodes.filter((node) => node.project_ids.includes(runtimeProjectID.value)))
+const reportedGPUNames = computed(() => [...new Set(runtimeProjectNodes.value.flatMap((node) => node.capabilities.gpus?.map((gpu) => gpu.name) ?? []))].sort())
+const nodesMissingRuntime = computed(() => runtimeProjectNodes.value.filter((node) => !nodeHasMatchingRuntime(node)))
 const localizedSetupURL = computed(() => {
   if (!reveal.value) return ''
   const setupURL = new URL(reveal.value.setup_url)
@@ -148,13 +150,23 @@ async function loadRuntimes() {
   }
 }
 
-function openRuntime() {
+function openRuntime(node?: SelfHostedNode) {
+  const gpuNames = node?.capabilities.gpus?.map((gpu) => gpu.name) ?? reportedGPUNames.value
+  const gpuSuffix = gpuNames[0]?.trim().split(/\s+/).at(-1)?.toLowerCase().replace(/[^a-z0-9.-]/g, '') ?? ''
+  const memoryGB = node?.capabilities.memory_bytes
+    ? Math.max(1, Math.min(24, Math.floor(node.capabilities.memory_bytes / 1024 ** 3) - 2))
+    : 24
   Object.assign(runtimeForm, {
-    projectID: runtimeProjectID.value || props.projects[0]?.id || '', name: '', image: '',
-    gpuNames: reportedGPUNames.value.join(', '), cpuLimit: 8, memoryGB: 32, makeDefault: false,
+    projectID: runtimeProjectID.value || props.projects[0]?.id || '', name: gpuSuffix ? `local-${gpuSuffix}` : '', image: '',
+    gpuNames: gpuNames.join(', '), cpuLimit: Math.max(1, Math.min(8, node?.capabilities.cpu_count ?? 8)), memoryGB, makeDefault: false,
   })
   runtimeError.value = ''
   runtimeDialog.value = true
+}
+
+function nodeHasMatchingRuntime(node: SelfHostedNode) {
+  const gpuNames = node.capabilities.gpus?.map((gpu) => gpu.name.trim().toLowerCase()) ?? []
+  return runtimeRows.value.some((row) => row.environment && row.profile.gpu_names.some((name) => gpuNames.includes(name.trim().toLowerCase())))
 }
 
 async function createRuntime() {
@@ -418,10 +430,15 @@ onUnmounted(() => timer !== undefined && window.clearTimeout(timer))
             <select v-model="runtimeProjectID" class="compact-select" :aria-label="t('Runtime Project', '运行时 Project')">
               <option v-for="project in projects" :key="project.id" :value="project.id">{{ project.name }}</option>
             </select>
-            <button class="primary-button small-button icon-command" type="button" :disabled="projects.length === 0" @click="openRuntime"><Plus :size="15" /> {{ t('Add runtime', '添加运行时') }}</button>
+            <button class="primary-button small-button icon-command" type="button" :disabled="projects.length === 0" @click="openRuntime()"><Plus :size="15" /> {{ t('Add runtime', '添加运行时') }}</button>
           </div>
         </div>
         <div v-if="runtimeError && !runtimeDialog" class="section-alert inline-alert danger" role="alert">{{ runtimeError }}</div>
+        <div v-if="!runtimeLoading && nodesMissingRuntime.length" class="runtime-discovery-alert" role="status">
+          <TriangleAlert :size="19" />
+          <div><strong>{{ t('Authorized GPU capacity is not exposed to Agents yet', '已授权 GPU 算力尚未向 Agent 暴露') }}</strong><span>{{ nodesMissingRuntime.map((node) => `${node.label} · ${gpuLabel(node)}`).join(', ') }}</span><small>{{ t('Hardware and heartbeat are synchronized automatically. Add only the approved digest-pinned image to complete the runtime boundary.', '硬件与心跳已自动同步。只需补充经过批准且按 digest 固定的镜像，即可完成 runtime 边界。') }}</small></div>
+          <button class="secondary-button small-button" type="button" @click="openRuntime(nodesMissingRuntime[0])">{{ t('Configure', '配置') }}</button>
+        </div>
         <div class="table-scroll">
           <table class="data-table runtime-table">
             <thead><tr><th>{{ t('Name', '名称') }}</th><th>{{ t('Image digest', '镜像摘要') }}</th><th>{{ t('GPU models', 'GPU 型号') }}</th><th>CPU</th><th>{{ t('Memory', '内存') }}</th><th>{{ t('Default', '默认') }}</th></tr></thead>
@@ -675,6 +692,12 @@ onUnmounted(() => timer !== undefined && window.clearTimeout(timer))
 .runtime-actions { display: flex; align-items: center; gap: 9px; }
 .compact-select { width: min(210px, 32vw); min-height: 34px; height: 34px; }
 .section-alert { margin: 0 15px 14px; }
+.runtime-discovery-alert { margin: 0 15px 14px; padding: 12px 13px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 11px; color: #624c1f; background: #fff8e8; border: 1px solid #ead59f; }
+.runtime-discovery-alert > svg { color: #9a7222; }
+.runtime-discovery-alert strong, .runtime-discovery-alert span, .runtime-discovery-alert small { display: block; }
+.runtime-discovery-alert strong { font-size: 12px; }
+.runtime-discovery-alert span { margin-top: 2px; color: #4f5c54; font-size: 11px; }
+.runtime-discovery-alert small { margin-top: 3px; color: #776b4d; font-size: 10px; line-height: 15px; }
 .image-reference { display: block; max-width: 310px; overflow: hidden; text-overflow: ellipsis; }
 .runtime-dialog { width: min(620px, 100%); }
 .runtime-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -705,6 +728,8 @@ onUnmounted(() => timer !== undefined && window.clearTimeout(timer))
   .node-metric strong { font-size: 17px; }
   .runtime-heading-row { align-items: stretch; flex-direction: column; }
   .runtime-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .runtime-discovery-alert { grid-template-columns: auto minmax(0, 1fr); }
+  .runtime-discovery-alert .secondary-button { grid-column: 1 / -1; width: 100%; }
   .compact-select { width: 100%; }
   .runtime-form-grid { grid-template-columns: 1fr; }
   .full-runtime-field { grid-column: auto; }
