@@ -27,11 +27,16 @@ function stateLabel(value: string) {
 <template>
   <div v-if="experiments.length" class="table-scroll">
     <table class="data-table experiment-table">
-      <thead><tr><th>{{ t('State', '状态') }}</th><th>Experiment</th><th>Commit</th><th>{{ t('Submitted', '提交时间') }}</th><th>{{ t('Reservation', '预留') }}</th><th v-if="!compact">{{ t('Runtime', '运行时长') }}</th><th :aria-label="t('Open', '打开')" /></tr></thead>
+      <thead><tr><th>{{ t('State', '状态') }}</th><th>Experiment</th><th>{{ t('Graph', 'Graph') }}</th><th>Commit</th><th>{{ t('Submitted', '提交时间') }}</th><th>{{ t('Reservation', '预留') }}</th><th v-if="!compact">{{ t('Runtime', '运行时长') }}</th><th :aria-label="t('Open', '打开')" /></tr></thead>
       <tbody>
         <tr v-for="experiment in experiments" :key="experiment.id" tabindex="0" @click="emit('select', experiment)" @keydown.enter="emit('select', experiment)">
           <td><span class="state-badge" :data-state="experiment.state"><span />{{ stateLabel(experiment.state) }}</span></td>
           <td><code>{{ shortID(experiment.id) }}</code></td>
+          <td>
+            <span class="graph-link-badge" :data-orphan="experiment.orphaned ? 'true' : 'false'">
+              {{ experiment.orphaned ? t('Off-graph', '未入图') : experiment.graph_linked ? t('On-graph', '已入图') : t('Lab only', '仅 Lab') }}
+            </span>
+          </td>
           <td><code>{{ experiment.commit_sha.slice(0, 9) }}</code></td>
           <td>{{ formatTime(experiment.created_at) }}</td>
           <td>{{ formatMoney(experiment.reserved_cost_milli) }}</td>

@@ -42,7 +42,7 @@ type UsageGuide struct {
 	Markdown    string   `json:"markdown"`
 }
 
-const serverInstructions = "Keep the Owner-facing research Graph current with get_research_workspace and update_research_workspace: a Study, iteration plan, and typed Graph are the human-visible work. Never include prompts, private reasoning, credentials, or environment dumps in research text. Report only controlled Agent workflow phases with report_agent_activity. Use prepare_experiment as the normal zero-cost execution path; wait for human approval before submit_prepared_experiment. Linking an Experiment to a Graph node never starts a workload. Use submit_experiment only as the Advanced shell-command compatibility path."
+const serverInstructions = "Treat the research Graph as the execution contract. Call get_next_actions before spending. Keep the Owner-facing Study current with get_research_workspace. Never include prompts, private reasoning, credentials, or environment dumps in research text. prepare_experiment requires from_node_id when a Study exists; that node is bound into the confirmation digest. submit_prepared_experiment writes the run node. close_run is the only way to record a result after a terminal Experiment. Linking a Graph node never starts a workload. Use submit_experiment only as the Advanced shell-command compatibility path."
 
 type Option func(*Server)
 
@@ -101,13 +101,19 @@ func New(agentAuth *agentauth.Service, experiments *experiment.Service, version 
 		Name: "update_research_workspace", Description: "Create or update a Study, replace the active iteration plan, or record a Graph node. This never starts a workload. Requires submit scope.",
 	}, server.updateResearchWorkspace)
 	mcp.AddTool(mcpServer, &mcp.Tool{
+		Name: "get_next_actions", Description: "Return the only Graph-legal next actions for the selected Study. Call this before prepare_experiment or close_run.",
+	}, server.getNextActions)
+	mcp.AddTool(mcpServer, &mcp.Tool{
+		Name: "close_run", Description: "Record a result node on a terminal Experiment that already has a Graph run. This is the only way to write a result for that run. Requires submit scope.",
+	}, server.closeRun)
+	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "report_agent_activity", Description: "Report a controlled workflow phase so the Owner console can show what the Agent is doing without collecting prompts or reasoning.",
 	}, server.reportAgentActivity)
 	mcp.AddTool(mcpServer, &mcp.Tool{
-		Name: "prepare_experiment", Description: "Prepare a zero-cost immutable argv proposal. Gemcp resolves repository, ref, compatible defaults, capacity, cost, and idempotency; an image tag or digest may be selected only for an Owner-approved trusted Self-hosted workspace.",
+		Name: "prepare_experiment", Description: "Prepare a zero-cost immutable argv proposal. When the Project has an active Study, from_node_id must be a hypothesis or plan node and is bound into the confirmation digest.",
 	}, server.prepareExperiment)
 	mcp.AddTool(mcpServer, &mcp.Tool{
-		Name: "submit_prepared_experiment", Description: "Submit one confirmed prepared proposal by ID and exact confirmation digest. Identical retries return the same Experiment.",
+		Name: "submit_prepared_experiment", Description: "Submit one confirmed prepared proposal by ID and exact confirmation digest. Identical retries return the same Experiment and bind its Graph run node.",
 	}, server.submitPreparedExperiment)
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "submit_experiment", Description: "Advanced compatibility path: verify a full commit and enqueue an arbitrary shell command using a caller-managed idempotency key.",
@@ -338,6 +344,30 @@ func (s *Server) updateResearchWorkspace(ctx context.Context, request *mcp.CallT
 	}
 	output, err := s.research.AgentUpdate(ctx, principal, input)
 	return nil, output, s.researchToolError("update_research_workspace", err)
+}
+
+func (s *Server) getNextActions(ctx context.Context, request *mcp.CallToolRequest, input research.WorkspaceInput) (*mcp.CallToolResult, research.NextActionsView, error) {
+	principal, err := principalFrom(request)
+	if err != nil {
+		return nil, research.NextActionsView{}, err
+	}
+	if s.research == nil {
+		return nil, research.NextActionsView{}, errors.New("research workspace service is unavailable")
+	}
+	output, err := s.research.AgentNextActions(ctx, principal, input)
+	return nil, output, s.researchToolError("get_next_actions", err)
+}
+
+func (s *Server) closeRun(ctx context.Context, request *mcp.CallToolRequest, input research.CloseRunInput) (*mcp.CallToolResult, research.Workspace, error) {
+	principal, err := principalFrom(request)
+	if err != nil {
+		return nil, research.Workspace{}, err
+	}
+	if s.research == nil {
+		return nil, research.Workspace{}, errors.New("research workspace service is unavailable")
+	}
+	output, err := s.research.AgentCloseRun(ctx, principal, input)
+	return nil, output, s.researchToolError("close_run", err)
 }
 
 func (s *Server) reportAgentActivity(ctx context.Context, request *mcp.CallToolRequest, input experiment.ReportActivityInput) (*mcp.CallToolResult, experiment.ReportActivityResult, error) {

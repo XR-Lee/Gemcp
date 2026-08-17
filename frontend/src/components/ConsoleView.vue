@@ -24,6 +24,7 @@ import {
 } from '@lucide/vue'
 import { APIError, api, type Attempt, type BuildInfo, type Experiment, type OperationsFeed, type Project, type Repository, type ResearchWorkspace, type RuntimeStatus, type User } from '../api'
 import { localizedState, useI18n } from '../i18n'
+import BrandMark from './BrandMark.vue'
 import ExperimentTable from './ExperimentTable.vue'
 import FinanceView from './FinanceView.vue'
 import LanguageToggle from './LanguageToggle.vue'
@@ -354,7 +355,7 @@ onMounted(async () => {
   <div class="app-shell console-shell">
     <aside class="sidebar">
       <div class="brand">
-        <span class="brand-mark"><FlaskConical :size="19" /></span>
+        <BrandMark :size="19" />
         <div><strong>Gemcp</strong><span>{{ t('Research workbench', '研究工作台') }}</span></div>
       </div>
       <nav :aria-label="t('Primary navigation', '主导航')">

@@ -5,7 +5,7 @@ This document is for an AI or automation Agent connected to a Gemcp MCP server. 
 ## Non-negotiable rules
 
 1. Treat the Agent Token as a secret. Never print it, commit it, place it in experiment arguments, or include it in chat or logs.
-2. Keep the Owner-facing Study, iteration plan, and research Graph current with `get_research_workspace` and `update_research_workspace`. Never place prompts, private reasoning, credentials, or environment dumps in research text. Recording a Graph node never starts a workload.
+2. Treat the research Graph as the execution contract. Call `get_next_actions` before spending. Keep the Owner-facing Study current with `get_research_workspace`. Never place prompts, private reasoning, credentials, or environment dumps in research text. Recording a Graph node never starts a workload.
 3. Report controlled workflow transitions with `report_agent_activity`. Never send prompts, private reasoning, arbitrary free text, environment variables, credentials, or source contents as activity.
 4. Use `prepare_experiment` as the normal execution path. Let Gemcp resolve the repository, moving ref, full commit SHA, compatible defaults, preflight checks, cost, and idempotency.
 5. Submit normal workloads as an ordered `argv`. Do not wrap it in a shell, add output-path wrappers, or interpolate typed values into shell text.
@@ -13,7 +13,7 @@ This document is for an AI or automation Agent connected to a Gemcp MCP server. 
 7. Wait for explicit human approval of the exact confirmation digest before calling `submit_prepared_experiment`.
 8. Submit a prepared proposal using only its proposal ID and exact digest. Never alter fields between preparation and submission.
 9. A proposal retry uses the same proposal ID and digest and returns the same Experiment. A failed paid Experiment is never automatically resubmitted.
-10. After submission, record the Experiment ID, attach it to a Graph `run` or `result` node, and monitor it to a terminal state. Do not infer success from Provider or Node startup alone.
+10. After submission, Gemcp writes the Graph `run` node. Monitor the Experiment to a terminal state, then call `close_run` with the approved metric. Do not invent a result while the Experiment is still running. Do not infer success from Provider or Node startup alone.
 11. Use `cancel_experiment` when the human cancels work or when the submitted Experiment should no longer run.
 12. Use `submit_experiment` only when the human explicitly requests the Advanced shell-command compatibility path.
 
@@ -66,7 +66,7 @@ Host Conda environments are not container environments and must not be registere
 
 ## Research workspace
 
-The Owner console now starts from a Study, an iteration plan, and a research Graph. Infrastructure remains in a separate Lab layer. Call `get_research_workspace` before preparing work and after a terminal Experiment.
+The Owner console starts from a Study, an iteration plan, and a research Graph. Infrastructure remains in a separate Lab layer. Call `get_next_actions` and `get_research_workspace` before preparing work. After a terminal Experiment, call `close_run` instead of free-form result nodes.
 
 A typical update is:
 
@@ -83,7 +83,7 @@ A typical update is:
 }
 ```
 
-After a confirmed Experiment finishes, attach it to a `run` or `result` node. The Graph is the human-visible lineage; argv, image, GPU, logs, and cleanup stay in Experiment detail. Multiple Studies require an explicit `study_id`.
+`prepare_experiment` requires `from_node_id` when the Project has an active Study. That ID must be a hypothesis or plan node and is bound into the confirmation digest the Owner approves. `submit_prepared_experiment` then writes the `run` node. `produced` edges are only legal from `run` to `result`, and only `close_run` may write that result. The Graph is the human-visible lineage; argv, image, GPU, logs, and cleanup stay in Experiment detail. Multiple Studies require an explicit `study_id`.
 
 ## Required workflow
 
@@ -106,7 +106,9 @@ The tool call contains transport context that the user should not have to copy:
   "repository_remote": "git@github.com:owner/repository.git",
   "ref": "main",
   "argv": ["python", "tools/smoke.py"],
-  "runtime_preset": "smoke"
+  "runtime_preset": "smoke",
+  "from_node_id": "hypothesis-or-plan-node-id",
+  "expected_metric": "overall_accuracy"
 }
 ```
 
@@ -250,11 +252,13 @@ The optional context is limited to repository remote, ref, and Experiment ID. `m
 | `list_workspace_datasets` | List declared dataset paths below approved workspace roots | `read` |
 | `register_workspace_dataset` | Declare a normalized relative dataset path | `configure` |
 | `remove_workspace_dataset` | Disable a dataset declaration without deleting data | `configure` |
-| `get_research_workspace` | Return Studies, the selected plan, and the research Graph | `read` |
+| `get_research_workspace` | Return Studies, the selected plan, Graph, and legal next actions | `read` |
 | `update_research_workspace` | Create or update a Study, plan, or Graph node without starting a workload | `submit` |
+| `get_next_actions` | Return the only Graph-legal next actions for the selected Study | `read` |
+| `close_run` | Write a result node on a terminal Experiment that already has a run | `submit` |
 | `report_agent_activity` | Report a controlled workflow phase without prompts or reasoning | `submit` |
-| `prepare_experiment` | Resolve and persist a zero-cost immutable argv proposal | `submit` |
-| `submit_prepared_experiment` | Submit one confirmed proposal, idempotently | `submit` |
+| `prepare_experiment` | Resolve a zero-cost argv proposal; bind `from_node_id` into the digest when a Study exists | `submit` |
+| `submit_prepared_experiment` | Submit one confirmed proposal and bind its Graph run node | `submit` |
 | `get_project_options` | Inspect Project policy, approved IDs, and authorized Self-hosted Node readiness | `read` |
 | `get_project_cost` | Inspect budget and accounting details for Advanced use | `read` |
 | `submit_experiment` | Advanced direct shell-command submission | `submit` |

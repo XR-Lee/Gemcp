@@ -4,6 +4,8 @@ Gemcp is a private research workbench. Sub-agents run inside Docker on Owner-app
 
 ## Current release
 
+`v0.16.2` (`alpha-0.16`) turns the research Graph into an MCP execution contract. Agents call `get_next_actions` before spending. `prepare_experiment` binds `from_node_id` into the confirmation digest when a Study exists. `submit_prepared_experiment` writes the run node. `close_run` is the only way to record a result. Experiments that never enter the Graph are marked orphaned on Evidence. The Owner console uses a lineage brand mark and an ink/paper/copper palette.
+
 `v0.16.1` replaces the hand-rolled research surface with Vue Flow, Reka UI, VueUse, and Motion. The Graph is now a connected lineage canvas; Study and Project selectors and the create-Study dialog use accessible primitives; live refresh uses VueUse. Recording a Graph node still never starts a workload.
 
 `v0.16.0` splits the Owner console into Research and Lab. Agents maintain Studies, superseded iteration plans, and a typed Graph through `get_research_workspace` and `update_research_workspace`. Recording a Graph node never starts a workload; execution still uses prepared Experiments and isolated Docker sub-agents. Infrastructure pages remain available but no longer occupy the home view.

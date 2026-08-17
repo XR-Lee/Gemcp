@@ -759,7 +759,7 @@ onUnmounted(() => timer !== undefined && window.clearTimeout(timer))
 .project-options { margin: 17px 0 0; padding: 13px; display: grid; gap: 9px; border: 1px solid #dce2dd; border-radius: 5px; }
 .project-options legend { padding: 0 4px; color: #505a54; font-size: 12px; font-weight: 650; }
 .project-options label { min-height: 26px; flex-direction: row; align-items: center; gap: 8px; font-size: 12px; }
-.project-options input { width: 16px; height: 16px; min-height: 0; margin: 0; accent-color: #216e55; }
+.project-options input { width: 16px; height: 16px; min-height: 0; margin: 0; accent-color: #c4621a; }
 .modal-actions { margin-top: 21px; justify-content: flex-end; }
 .setup-language-row { margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .setup-language-row > span { color: #59645d; font-size: 12px; font-weight: 650; }
@@ -799,7 +799,7 @@ onUnmounted(() => timer !== undefined && window.clearTimeout(timer))
 .full-runtime-field { grid-column: 1 / -1; }
 .code-input { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .runtime-checkbox { margin-top: 17px; min-height: 28px; flex-direction: row; align-items: center; gap: 8px; }
-.runtime-checkbox input { width: 16px; height: 16px; min-height: 0; margin: 0; accent-color: #216e55; }
+.runtime-checkbox input { width: 16px; height: 16px; min-height: 0; margin: 0; accent-color: #c4621a; }
 .upgrade-dialog { width: min(760px, 100%); }
 .upgrade-version-flow { margin-bottom: 14px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 14px; }
 .upgrade-version-flow > span { min-width: 0; padding: 12px; display: grid; gap: 4px; border: 1px solid #dce2dd; background: #f8faf8; }

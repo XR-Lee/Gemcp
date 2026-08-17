@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Eye, EyeOff, FlaskConical, LoaderCircle, LogIn } from '@lucide/vue'
+import { Eye, EyeOff, LoaderCircle, LogIn } from '@lucide/vue'
 import { APIError, api, type BuildInfo, type User } from '../api'
 import { useI18n } from '../i18n'
+import BrandMark from './BrandMark.vue'
 import LanguageToggle from './LanguageToggle.vue'
 
 const props = defineProps<{ build: BuildInfo | null }>()
@@ -35,7 +36,7 @@ async function login() {
     <LanguageToggle class="auth-language-toggle" />
     <section class="auth-panel">
       <div class="auth-brand">
-        <span class="brand-mark"><FlaskConical :size="21" /></span>
+        <BrandMark :size="21" />
         <div><strong>Gemcp</strong><span>{{ t('Research workbench', '研究工作台') }}</span></div>
       </div>
       <div class="auth-heading">

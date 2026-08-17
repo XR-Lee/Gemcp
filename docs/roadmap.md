@@ -140,6 +140,10 @@ Add Studies, superseded iteration plans, and a typed research Graph as the Owner
 
 Replace the card-grid Graph with Vue Flow, use Reka UI for Study and Project selectors and the create-Study dialog, drive visible-page polling with VueUse, and add Motion enter transitions on the research home. Execution, Proposal confirmation, and Lab pages remain unchanged.
 
+### v0.16.2 - Graph execution contract
+
+Keep LangGraph and other harnesses outside Gemcp. Enforce the research Graph through MCP: legal typed edges, `get_next_actions`, `from_node_id` in the Proposal digest, automatic run binding on `submit_prepared_experiment`, and `close_run` as the only result writer. Mark Experiments that never entered the Graph as orphaned on Evidence. Refresh the Owner brand mark and ink/paper/copper palette.
+
 ## In progress
 
 ### Repository readiness and Owner prepared experiments

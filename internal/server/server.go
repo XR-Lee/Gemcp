@@ -168,6 +168,7 @@ func New(deps Dependencies) *http.Server {
 	protected.GET("/projects/:id/cost", experimentHandlers.Cost)
 	protected.GET("/projects/:id/operations", experimentHandlers.Operations)
 	researchService := research.NewService(deps.Ent)
+	experimentService.SetGraphBinder(researchService)
 	researchHandlers := httpapi.NewResearchHandlers(researchService)
 	protected.GET("/projects/:id/research", researchHandlers.Get)
 	protected.PUT("/projects/:id/research", researchHandlers.Update)

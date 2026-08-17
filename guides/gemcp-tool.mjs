@@ -12,6 +12,8 @@ const requiredTools = [
   'get_usage_guide',
   'get_research_workspace',
   'update_research_workspace',
+  'get_next_actions',
+  'close_run',
   'report_agent_activity',
   'prepare_experiment',
   'submit_prepared_experiment',

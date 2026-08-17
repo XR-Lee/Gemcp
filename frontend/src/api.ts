@@ -140,6 +140,8 @@ export type Experiment = {
   deadline_at?: string
   finished_at?: string
   cancel_requested_at?: string
+  graph_linked?: boolean
+  orphaned?: boolean
 }
 
 export type Attempt = {
@@ -277,10 +279,20 @@ export type ResearchStudy = {
   edges: ResearchEdge[]
   updated_at: string
 }
+export type ResearchNextAction = {
+  kind: string
+  tool: string
+  study_id?: string
+  from_node_id?: string
+  experiment_id?: string
+  title: string
+  detail: string
+}
 export type ResearchWorkspace = {
   project_id: string
   studies: ResearchStudySummary[]
   study?: ResearchStudy
+  next_actions?: ResearchNextAction[]
   generated_at: string
 }
 

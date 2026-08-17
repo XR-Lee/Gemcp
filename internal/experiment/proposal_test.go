@@ -15,6 +15,7 @@ import (
 	"github.com/XR-Lee/Gemcp/internal/execution"
 	"github.com/XR-Lee/Gemcp/internal/provider"
 	gitrepository "github.com/XR-Lee/Gemcp/internal/repository"
+	"github.com/XR-Lee/Gemcp/internal/research"
 	"github.com/google/uuid"
 )
 
@@ -388,4 +389,65 @@ func TestPreparedTrustedWorkspaceAcceptsTagAndBindsOwnerPath(t *testing.T) {
 	if _, err := service.SubmitPrepared(ctx, f.principal, SubmitPreparedInput{ProposalID: third.Proposal.ID, ConfirmationDigest: third.Proposal.ConfirmationDigest}); !errors.Is(err, ErrProposalChanged) {
 		t.Fatalf("workspace dataset drift error=%v", err)
 	}
+}
+
+func TestPrepareRequiresFromNodeWhenStudyExistsAndSubmitBindsRun(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	ctx := context.Background()
+	researchService := mustResearchService(t, f)
+	created, err := researchService.AgentUpdate(ctx, f.principal, researchUpdate(f, "objbg-scan", "Can a cleaner OBJ-BG traversal raise ScanObjectNN accuracy without extra GPU hours?"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := preparedService(t, f, 2)
+	service.SetGraphBinder(researchService)
+	if _, err := service.Prepare(ctx, f.principal, validPrepare()); err == nil {
+		t.Fatal("Prepare() accepted a Study Project without from_node_id")
+	}
+	if _, err := service.Prepare(ctx, f.principal, prepareFrom(created.Study.Nodes[0].ID)); err == nil {
+		t.Fatal("Prepare() accepted a question node")
+	}
+	hypothesis, err := researchService.AgentUpdate(ctx, f.principal, research.UpdateInput{
+		Node: &research.NodeInput{Kind: "hypothesis", Title: "Background noise caps accuracy", FromNodeID: created.Study.Nodes[0].ID, Relation: "leads_to"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	input := prepareFrom(hypothesis.Study.Nodes[1].ID)
+	input.ExpectedMetric = "overall_accuracy"
+	prepared, err := service.Prepare(ctx, f.principal, input)
+	if err != nil || prepared.Proposal == nil || prepared.Proposal.FromNodeID != hypothesis.Study.Nodes[1].ID || prepared.Proposal.ExpectedMetric != "overall_accuracy" {
+		t.Fatalf("Prepare() = %+v, %v", prepared, err)
+	}
+	listed, err := service.List(ctx, f.principal, ListInput{Limit: 10})
+	if err != nil || len(listed.Experiments) != 0 {
+		t.Fatalf("List() before submit = %+v, %v", listed, err)
+	}
+	submitted, err := service.SubmitPrepared(ctx, f.principal, SubmitPreparedInput{ProposalID: prepared.Proposal.ID, ConfirmationDigest: prepared.Proposal.ConfirmationDigest})
+	if err != nil || submitted.RunNodeID == "" {
+		t.Fatalf("SubmitPrepared() = %+v, %v", submitted, err)
+	}
+	workspace, err := researchService.AgentWorkspace(ctx, f.principal, research.WorkspaceInput{})
+	if err != nil || workspace.Study == nil || len(workspace.Study.Nodes) != 3 || workspace.Study.Nodes[2].ExperimentID != submitted.Experiment.ID {
+		t.Fatalf("bound workspace = %+v, %v", workspace.Study, err)
+	}
+	views, err := service.List(ctx, f.principal, ListInput{Limit: 10})
+	if err != nil || len(views.Experiments) != 1 || !views.Experiments[0].GraphLinked || views.Experiments[0].Orphaned {
+		t.Fatalf("List() after bind = %+v, %v", views, err)
+	}
+}
+
+func prepareFrom(fromNodeID string) PrepareInput {
+	input := validPrepare()
+	input.FromNodeID = fromNodeID
+	return input
+}
+
+func researchUpdate(_ fixture, name, question string) research.UpdateInput {
+	return research.UpdateInput{Study: &research.StudyInput{Name: name, Question: question}}
+}
+
+func mustResearchService(t *testing.T, f fixture) *research.Service {
+	t.Helper()
+	return research.NewService(f.client)
 }

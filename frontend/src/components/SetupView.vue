@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
-import { ArrowLeft, ArrowRight, Check, Clipboard, Eye, EyeOff, FlaskConical, LoaderCircle } from '@lucide/vue'
+import { ArrowLeft, ArrowRight, Check, Clipboard, Eye, EyeOff, LoaderCircle } from '@lucide/vue'
 import { APIError, api, type SetupResult } from '../api'
 import { useI18n } from '../i18n'
+import BrandMark from './BrandMark.vue'
 import LanguageToggle from './LanguageToggle.vue'
 
 const emit = defineEmits<{ ready: [] }>()
@@ -178,7 +179,7 @@ async function copyToken() {
   <main class="setup-page">
     <header class="setup-header">
       <div class="setup-brand">
-        <span class="brand-mark"><FlaskConical :size="20" /></span>
+        <BrandMark :size="20" />
         <div><strong>Gemcp</strong><span>{{ t('Initial configuration', '初始配置') }}</span></div>
       </div>
       <div class="setup-header-actions"><span v-if="!result" class="setup-step-count">{{ t('Step', '步骤') }} {{ step }} / 3 · {{ stepLabel }}</span><LanguageToggle /></div>

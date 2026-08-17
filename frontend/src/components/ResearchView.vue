@@ -137,6 +137,12 @@ function dateTime(value?: string) {
           <span class="research-kicker"><Sparkles :size="15" />{{ t('Next action', '下一步') }}</span>
           <strong>{{ study.plan?.next_action ?? t('No active plan yet', '还没有活跃计划') }}</strong>
           <p>{{ study.plan?.goal ?? t('Ask the Agent to replace the iteration plan after it inspects the repository.', '让 Agent 检查仓库后更新迭代计划。') }}</p>
+          <ul v-if="workspace?.next_actions?.length" class="contract-actions">
+            <li v-for="action in workspace.next_actions" :key="`${action.kind}-${action.from_node_id || action.tool}`">
+              <strong>{{ action.title }}</strong>
+              <span>{{ action.detail }}</span>
+            </li>
+          </ul>
         </motion.article>
         <motion.article class="research-card" :initial="{ y: 8 }" :animate="{ y: 0 }" :transition="{ duration: 0.22 }">
           <span class="research-kicker">{{ t('Current goal', '当前目标') }}</span>
@@ -183,7 +189,7 @@ function dateTime(value?: string) {
             :elements-selectable="false"
             :pan-on-scroll="true"
           >
-            <Background pattern-color="#d7ded8" :gap="18" />
+            <Background pattern-color="#d8d0c4" :gap="18" />
             <MiniMap pannable zoomable />
             <Controls />
           </VueFlow>

@@ -51,7 +51,7 @@ func (s *Service) SubmitPrepared(ctx context.Context, principal agentauth.Princi
 		if err != nil {
 			return SubmitPreparedResult{}, err
 		}
-		return SubmitPreparedResult{Experiment: makeView(experimentRecord), Idempotent: true}, nil
+		return s.bindPreparedGraph(ctx, principal, record.ProjectSnapshot, SubmitPreparedResult{Experiment: makeView(experimentRecord), Idempotent: true})
 	}
 	if !s.now().UTC().Before(record.ExpiresAt) {
 		return SubmitPreparedResult{}, ErrProposalExpired
@@ -73,7 +73,7 @@ func (s *Service) SubmitPrepared(ctx context.Context, principal agentauth.Princi
 	for attempt := 0; attempt < 3; attempt++ {
 		result, err := s.createPreparedExperiment(ctx, principal, record.ID, digest)
 		if err == nil {
-			return result, nil
+			return s.bindPreparedGraph(ctx, principal, record.ProjectSnapshot, result)
 		}
 		if !isRetryableTransaction(err) && !ent.IsConstraintError(err) {
 			return SubmitPreparedResult{}, err
@@ -87,7 +87,7 @@ func (s *Service) SubmitPrepared(ctx context.Context, principal agentauth.Princi
 			if edgeErr != nil {
 				return SubmitPreparedResult{}, edgeErr
 			}
-			return SubmitPreparedResult{Experiment: makeView(experimentRecord), Idempotent: true}, nil
+			return s.bindPreparedGraph(ctx, principal, existing.ProjectSnapshot, SubmitPreparedResult{Experiment: makeView(experimentRecord), Idempotent: true})
 		}
 		if lookupErr != nil && !ent.IsNotFound(lookupErr) {
 			return SubmitPreparedResult{}, lookupErr
@@ -139,6 +139,7 @@ func (s *Service) currentProposal(ctx context.Context, principal agentauth.Princ
 		image: image, workspace: workspace,
 		ref: record.RequestedRef, commitSHA: record.CommitSha, execution: executionSpec, preset: record.RuntimePreset,
 		runtime: record.MaxRuntimeSeconds, reservation: reservation, expiresAt: record.ExpiresAt,
+		fromNodeID: snapshotString(record.ProjectSnapshot, "from_node_id"), expectedMetric: snapshotString(record.ProjectSnapshot, "expected_metric"),
 	}, nil
 }
 
@@ -216,6 +217,7 @@ func (s *Service) createPreparedExperiment(ctx context.Context, principal agenta
 		image: image, workspace: workspace,
 		ref: proposalRecord.RequestedRef, commitSHA: proposalRecord.CommitSha, execution: executionSpec, preset: proposalRecord.RuntimePreset,
 		runtime: proposalRecord.MaxRuntimeSeconds, reservation: reservation, expiresAt: proposalRecord.ExpiresAt,
+		fromNodeID: snapshotString(proposalRecord.ProjectSnapshot, "from_node_id"), expectedMetric: snapshotString(proposalRecord.ProjectSnapshot, "expected_metric"),
 	}
 	if !hmac.Equal([]byte(proposalDigest(current)), []byte(proposalRecord.ConfirmationDigest)) {
 		return result, ErrProposalChanged

@@ -154,6 +154,7 @@ type Workspace struct {
 	ProjectID   string         `json:"project_id"`
 	Studies     []StudySummary `json:"studies"`
 	Study       *StudyView     `json:"study,omitempty"`
+	NextActions []NextAction   `json:"next_actions"`
 	GeneratedAt time.Time      `json:"generated_at"`
 }
 
@@ -224,6 +225,9 @@ func (s *Service) workspace(ctx context.Context, current actor, studyID string) 
 		return Workspace{}, err
 	}
 	if selected == nil {
+		if len(studies) == 0 {
+			result.NextActions = deriveNextActions(nil)
+		}
 		return result, nil
 	}
 	view, err := s.studyView(ctx, selected)
@@ -231,6 +235,7 @@ func (s *Service) workspace(ctx context.Context, current actor, studyID string) 
 		return Workspace{}, err
 	}
 	result.Study = &view
+	result.NextActions = deriveNextActions(&view)
 	return result, nil
 }
 
@@ -466,6 +471,9 @@ func recordNode(ctx context.Context, tx *ent.Tx, current actor, selected *ent.St
 	if experimentRecord != nil {
 		for _, node := range nodes {
 			if node.ExperimentID != nil && *node.ExperimentID == experimentRecord.ID {
+				if node.Kind != kind {
+					return nil, invalid("this Experiment is already bound to a different Graph node")
+				}
 				record = node
 				break
 			}
@@ -538,6 +546,9 @@ func recordEdge(ctx context.Context, tx *ent.Tx, current actor, selected *ent.St
 	}
 	if from.ID == to.ID {
 		return invalid("a Graph edge cannot connect a node to itself")
+	}
+	if !legalEdge(from.Kind, to.Kind, relation) {
+		return invalid("relation " + string(relation) + " is not allowed from a " + string(from.Kind) + " node to a " + string(to.Kind) + " node")
 	}
 	existing, err := tx.ResearchEdge.Query().Where(
 		researchedge.StudyIDEQ(selected.ID), researchedge.FromNodeIDEQ(from.ID), researchedge.ToNodeIDEQ(to.ID), researchedge.RelationEQ(relation),

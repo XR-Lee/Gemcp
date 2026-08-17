@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { FlaskConical, RefreshCw } from '@lucide/vue'
+import { RefreshCw } from '@lucide/vue'
 import { APIError, api, type BuildInfo, type User } from './api'
+import BrandMark from './components/BrandMark.vue'
 import ConsoleView from './components/ConsoleView.vue'
 import LanguageToggle from './components/LanguageToggle.vue'
 import LoginView from './components/LoginView.vue'
@@ -59,13 +60,13 @@ onMounted(initialize)
 <template>
   <div v-if="phase === 'loading'" class="startup-state" aria-live="polite">
     <LanguageToggle class="startup-language-toggle" />
-    <span class="brand-mark"><FlaskConical :size="21" /></span>
+    <BrandMark :size="21" />
     <strong>Gemcp</strong>
     <span>{{ t('Connecting to the control plane...', '正在连接控制平面...') }}</span>
   </div>
   <div v-else-if="phase === 'unavailable'" class="startup-state unavailable-state">
     <LanguageToggle class="startup-language-toggle" />
-    <span class="brand-mark error-mark"><FlaskConical :size="21" /></span>
+    <BrandMark class="error-mark" :size="21" />
     <strong>{{ t('Control plane unavailable', '控制平面不可用') }}</strong>
     <span>{{ startupError }}</span>
     <button class="secondary-button" type="button" @click="initialize"><RefreshCw :size="16" />{{ t('Retry', '重试') }}</button>

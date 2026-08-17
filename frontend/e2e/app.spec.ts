@@ -44,6 +44,7 @@ const experiments = [
       { at: '2026-07-16T09:31:15Z', code: 'runner_started', detail: 'Runtime paths and GPU observed' },
     ],
     created_at: '2026-07-16T09:30:00Z', updated_at: '2026-07-17T02:00:00Z',
+    graph_linked: true, orphaned: false,
   },
   {
     id: '11276758-f089-49e8-b706-0aa1cd0f9ac0', project_id: project.id, repository_id: repositories[0].id,
@@ -53,6 +54,7 @@ const experiments = [
     output_path: '/root/autodl-fs/projects/b492cbe4/experiments/11276758/', failure_code: 'PROCESS_EXIT',
     failure_reason: 'Process exited with status 1', created_at: '2026-07-15T05:20:00Z', updated_at: '2026-07-15T06:02:00Z',
     finished_at: '2026-07-15T06:02:00Z', exit_code: 1, metrics: { accuracy: 0.82 },
+    graph_linked: false, orphaned: true,
   },
 ]
 const agentTokens = [
@@ -134,6 +136,11 @@ const researchWorkspace = {
     ],
     edges: [{ id: 'edge-1', from_id: 'node-question-1', to_id: 'node-result-1', relation: 'produced' }],
   },
+  next_actions: [{
+    kind: 'record_hypothesis', tool: 'update_research_workspace', study_id: 'study-objbg-1',
+    from_node_id: 'node-question-1', title: 'Record a hypothesis',
+    detail: 'A paid run must start from a hypothesis or plan node, not from the question alone.',
+  }],
   generated_at: '2026-07-28T18:05:00Z',
 }
 const operationsFeed = {
@@ -565,6 +572,7 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Research', exact: true }).first()).toBeVisible()
   await expect(page.getByRole('heading', { name: 'objbg-scan' })).toBeVisible()
   await expect(page.getByText('Record the current smoke-run accuracy as the first Graph result.')).toBeVisible()
+  await expect(page.getByText('Record a hypothesis')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Research Graph' })).toBeVisible()
   await expect(page.locator('.vue-flow')).toBeVisible()
   await expect(page.getByRole('article').filter({ hasText: 'Latest result' }).getByText('OBJ-BG smoke accuracy')).toBeVisible()
@@ -579,6 +587,7 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await page.getByTitle('Close').click()
 
   await page.getByRole('button', { name: 'Evidence', exact: true }).click()
+  await expect(page.getByText('Off-graph')).toBeVisible()
   await page.getByText('ec29dc68').click()
   await expect(page.getByRole('dialog', { name: 'Experiment details' })).toBeVisible()
   await expect(page.getByText('source_extracted', { exact: true })).toBeVisible()

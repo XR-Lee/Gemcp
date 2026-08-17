@@ -1,10 +1,12 @@
 # Research workbench
 
-Status: implementation in progress on `review/research-workbench-v0.16.0`
+Status: released as `v0.16.2` / `alpha-0.16`
 
 UI kits in `v0.16.1`: Vue Flow for the Graph, Reka UI for selectors and dialogs, VueUse for live refresh, Motion for enter transitions.
 
-Scope: Owner-facing research Graph and iteration plans, Agent-reported scientific progress, and a separate Lab layer for infrastructure. Execution, Docker isolation, Proposal confirmation, and Node protocol are unchanged.
+`v0.16.2` turns that Graph into an MCP execution contract: legal edges, `get_next_actions`, `from_node_id` in the Proposal digest, automatic run binding on submit, and `close_run` as the only result writer.
+
+Scope: Owner-facing research Graph and iteration plans, Agent-reported scientific progress, and a separate Lab layer for infrastructure. Execution, Docker isolation, Proposal confirmation, and Node protocol stay in place; the Graph now gates what an external harness may do next.
 
 ## Product correction
 
@@ -81,12 +83,16 @@ Constraints:
 
 ## Agent contract
 
-Two MCP tools sit above the existing execution tools:
+The Graph is the execution contract. External harnesses stay outside Gemcp; MCP tools constrain what they may record and spend.
 
-- `get_research_workspace` (`read`): return Studies plus the selected Study's plan and Graph.
-- `update_research_workspace` (`submit`): create or update a Study, replace the active plan, or record a Graph node and optional edge.
+- `get_research_workspace` (`read`): return Studies, the selected plan, Graph, and legal next actions.
+- `get_next_actions` (`read`): return only Graph-legal next steps.
+- `update_research_workspace` (`submit`): create or update a Study, replace the active plan, or record a Graph node and optional legal edge.
+- `prepare_experiment` (`submit`): when a Study exists, `from_node_id` must be a hypothesis or plan node and is bound into the confirmation digest.
+- `submit_prepared_experiment` (`submit`): creates the Experiment and writes the `run` node.
+- `close_run` (`submit`): the only way to write a `result` on that run after the Experiment is terminal.
 
-The Agent still uses `prepare_experiment` for execution. After a terminal Experiment, it should attach that Experiment to a `run` or `result` node so the Owner sees evidence instead of a disconnected UUID.
+`produced` is legal only from `run` to `result`. Experiments that are not bound to a Graph node are marked orphaned on the Evidence page.
 
 ## Owner review
 

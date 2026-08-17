@@ -502,11 +502,11 @@ onUnmounted(() => {
 .diagnostic-action { justify-self: start; }
 .preflight-results { display: grid; gap: 16px; }
 .preflight-summary { display: flex; align-items: center; gap: 11px; color: #b42318; }
-.preflight-summary[data-eligible="true"] { color: #16745b; }
+.preflight-summary[data-eligible="true"] { color: #2d7a58; }
 .preflight-summary > div { display: grid; gap: 2px; color: #202421; }
 .preflight-summary small { color: #68716b; }
 .diagnostic-checks { border-block: 1px solid #dbe1dc; }
-.diagnostic-check { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 9px; padding: 11px 0; border-bottom: 1px solid #dbe1dc; color: #16745b; }
+.diagnostic-check { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 9px; padding: 11px 0; border-bottom: 1px solid #dbe1dc; color: #2d7a58; }
 .diagnostic-check:last-child { border-bottom: 0; }
 .diagnostic-check[data-status="warn"] { color: #946200; }
 .diagnostic-check[data-status="fail"] { color: #b42318; }
@@ -520,11 +520,11 @@ onUnmounted(() => {
 .diagnostic-command summary { cursor: pointer; color: #68716b; font-weight: 700; }
 .diagnostic-command pre { max-width: 100%; max-height: 220px; overflow: auto; }
 .confirmation-row { display: flex; flex-direction: row; align-items: flex-start; gap: 9px; font-size: 0.84rem; line-height: 1.45; }
-.confirmation-row input { width: 17px; height: 17px; min-height: 17px; flex: 0 0 17px; margin-top: 3px; padding: 0; accent-color: #16745b; }
+.confirmation-row input { width: 17px; height: 17px; min-height: 17px; flex: 0 0 17px; margin-top: 3px; padding: 0; accent-color: #c4621a; }
 .diagnostic-result { display: inline-flex; align-items: center; min-height: 24px; padding: 0 8px; border-radius: 4px; background: #fff4cc; color: #7a5100; font-size: 0.72rem; font-weight: 800; }
 .diagnostic-result[data-result="passed"] { background: #e4f5ed; color: #11624c; }
 .diagnostic-result[data-result="failed"] { background: #feeceb; color: #a51d14; }
-.assessment-band { display: grid; gap: 5px; border-left: 3px solid #16745b; padding: 3px 0 3px 13px; }
+.assessment-band { display: grid; gap: 5px; border-left: 3px solid #2d7a58; padding: 3px 0 3px 13px; }
 .assessment-band small { color: #68716b; }
 .recommendation-list { margin: 0; padding-left: 20px; color: #68716b; line-height: 1.55; }
 .detail-observation { margin-top: 16px; }

@@ -24,6 +24,11 @@ const workspace = {
     ],
     edges: [{ id: 'edge-1', from_id: 'node-question-1', to_id: 'node-result-1', relation: 'produced' }],
   },
+  next_actions: [{
+    kind: 'record_hypothesis', tool: 'update_research_workspace', study_id: 'study-1',
+    from_node_id: 'node-question-1', title: 'Record a hypothesis',
+    detail: 'A paid run must start from a hypothesis or plan node, not from the question alone.',
+  }],
   generated_at: '2026-07-28T18:05:00Z',
 }
 
@@ -47,5 +52,6 @@ describe('ResearchView', () => {
     expect(wrapper.find('.graph-canvas').exists()).toBe(true)
     expect(wrapper.find('.vue-flow').exists()).toBe(true)
     expect(wrapper.text()).toContain('OBJ-BG smoke accuracy')
+    expect(wrapper.text()).toContain('Record a hypothesis')
   })
 })
