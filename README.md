@@ -64,7 +64,7 @@ The Vue frontend is embedded in the Go release binary. Redis, Kubernetes, and a 
 
 ## Local checks
 
-Prerequisites: Go 1.26.5 and Node.js 22+.
+Prerequisites: Go 1.26.6 and Node.js 22+.
 
 ```bash
 npm --prefix frontend install
