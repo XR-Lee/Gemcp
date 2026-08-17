@@ -442,16 +442,85 @@ label small { color: #858e88; font-size: 10px; font-weight: 500; }
 .research-steps strong { font-size: 13px; }
 .research-steps span { color: #717b74; font-size: 12px; }
 .research-graph { margin-top: 16px; background: #fff; border: 1px solid #dfe4df; border-radius: 10px; overflow: hidden; }
-.graph-board { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; padding: 16px; }
-.graph-column h3 { margin: 0 0 10px; color: #6d776f; font-size: 11px; text-transform: uppercase; }
-.graph-node { min-height: 116px; padding: 12px; display: grid; gap: 6px; background: #fbfcfb; border: 1px solid #e4e9e4; border-radius: 8px; }
-.graph-node small { color: #7a847d; font-size: 10px; text-transform: uppercase; }
-.graph-node strong { font-size: 13px; line-height: 18px; }
-.graph-node p { margin: 0; color: #667069; font-size: 12px; line-height: 17px; }
-.graph-node code { color: #2f5d46; font-size: 11px; }
-.graph-links { display: grid; gap: 3px; color: #7b847e; font-size: 10px; }
-.graph-node[data-kind="result"] { background: #f4faf6; border-color: #d4e6d8; }
-.graph-node[data-kind="run"] { background: #f4f8fb; border-color: #d5e1ea; }
+.graph-canvas { height: 430px; background: #f7f9f6; }
+.vue-flow { width: 100%; height: 100%; }
+.vue-flow__minimap { overflow: hidden; background: #fff; border: 1px solid #dfe4df; border-radius: 8px; }
+.vue-flow__controls { overflow: hidden; background: #fff; border: 1px solid #dfe4df; border-radius: 8px; box-shadow: none; }
+.vue-flow__edge-text { fill: #5d675f; font-size: 10px; }
+.vue-flow__edge-path { stroke: #8aa08b; }
+.flow-node {
+  width: 236px;
+  min-height: 126px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 6px;
+  background: #fff;
+  border: 1px solid #dce4dc;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px #1b24180f;
+}
+.flow-node small { color: #7a847d; font-size: 10px; text-transform: uppercase; }
+.flow-node strong { font-size: 13px; line-height: 18px; }
+.flow-node p { margin: 0; color: #667069; font-size: 12px; line-height: 17px; }
+.flow-node code { color: #2f5d46; font-size: 11px; }
+.flow-node[data-kind="result"] { background: #f4faf6; border-color: #cfe3d3; }
+.flow-node[data-kind="run"] { background: #f4f8fb; border-color: #d5e1ea; }
+.flow-node[data-kind="question"] { background: #fcfdf8; }
+.vue-flow__handle { width: 8px; height: 8px; background: #3f7a58; border: 2px solid #fff; }
+.workbench-select-trigger {
+  min-width: 178px;
+  height: 34px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #202421;
+  background: #fff;
+  border: 1px solid #c8d0ca;
+  border-radius: 5px;
+  font-size: 13px;
+}
+.workbench-select-content {
+  z-index: 60;
+  min-width: var(--reka-select-trigger-width);
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #d5ddd7;
+  border-radius: 8px;
+  box-shadow: 0 12px 32px #1a21180f;
+}
+.workbench-select-item {
+  min-height: 34px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #2b342e;
+  font-size: 13px;
+  outline: none;
+}
+.workbench-select-item[data-highlighted] { background: #eef4ef; }
+.workbench-dialog-overlay { position: fixed; inset: 0; z-index: 40; background: #171b1970; }
+.workbench-dialog {
+  position: fixed;
+  z-index: 50;
+  top: 50%;
+  left: 50%;
+  width: min(520px, calc(100vw - 28px));
+  max-height: calc(100vh - 36px);
+  overflow: auto;
+  padding: 0;
+  background: #fff;
+  border: 1px solid #dce2dd;
+  border-radius: 10px;
+  transform: translate(-50%, -50%);
+}
+.workbench-dialog header { min-height: 68px; padding: 16px 16px 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.workbench-dialog h2 { margin: 0; font-size: 18px; }
+.workbench-dialog p { margin: 4px 0 0; color: #6d776f; font-size: 12px; }
+.workbench-dialog .dialog-form { padding: 16px; }
 .research-empty { min-height: 360px; margin-top: 16px; background: #fff; border: 1px solid #dfe4df; border-radius: 10px; }
 .research-empty .primary-button { margin-top: 16px; }
 
@@ -721,7 +790,7 @@ label small { color: #858e88; font-size: 10px; font-weight: 500; }
 }
 
 @media (max-width: 580px) {
-  .app-shell { display: block; padding-bottom: 58px; }
+  .app-shell { display: block; padding-bottom: 72px; }
   .sidebar { position: fixed; z-index: 20; top: auto; bottom: 0; width: 100%; height: 58px; padding: 7px 8px; border-top: 1px solid #303734; border-right: 0; }
   .brand { display: none; }
   .sidebar nav { flex-direction: row; justify-content: flex-start; gap: 4px; overflow-x: auto; overflow-y: hidden; }
@@ -744,7 +813,10 @@ label small { color: #858e88; font-size: 10px; font-weight: 500; }
   .research-heading { padding: 14px; }
   .research-heading-actions { width: 100%; flex-wrap: wrap; }
   .research-summary { grid-template-columns: 1fr; }
-  .graph-board { grid-template-columns: 1fr; }
+  .graph-canvas { height: 360px; }
+  .vue-flow__minimap { display: none; }
+  .research-page { padding-bottom: 24px; }
+  .workbench-select-trigger { width: 100%; min-width: 0; }
   .status-band { margin: 0 14px 14px; }
   .section-heading, .subsection-heading { align-items: flex-start; flex-direction: column; }
   .segmented-control { width: 100%; overflow-x: auto; }

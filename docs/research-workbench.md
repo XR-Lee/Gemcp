@@ -2,6 +2,8 @@
 
 Status: implementation in progress on `review/research-workbench-v0.16.0`
 
+UI kits in `v0.16.1`: Vue Flow for the Graph, Reka UI for selectors and dialogs, VueUse for live refresh, Motion for enter transitions.
+
 Scope: Owner-facing research Graph and iteration plans, Agent-reported scientific progress, and a separate Lab layer for infrastructure. Execution, Docker isolation, Proposal confirmation, and Node protocol are unchanged.
 
 ## Product correction

@@ -4,6 +4,8 @@ Gemcp is a private research workbench. Sub-agents run inside Docker on Owner-app
 
 ## Current release
 
+`v0.16.1` replaces the hand-rolled research surface with Vue Flow, Reka UI, VueUse, and Motion. The Graph is now a connected lineage canvas; Study and Project selectors and the create-Study dialog use accessible primitives; live refresh uses VueUse. Recording a Graph node still never starts a workload.
+
 `v0.16.0` splits the Owner console into Research and Lab. Agents maintain Studies, superseded iteration plans, and a typed Graph through `get_research_workspace` and `update_research_workspace`. Recording a Graph node never starts a workload; execution still uses prepared Experiments and isolated Docker sub-agents. Infrastructure pages remain available but no longer occupy the home view.
 
 `v0.15.1` adds an explicit Agent `configure` scope for registering and verifying GitHub SSH repositories in the authenticated Project and declaring dataset paths below an existing Owner-approved trusted workspace root. Dataset declarations cannot authorize a new host root or additional mount. They produce controlled `GEMCP_DATASET_*` variables, enter the immutable Proposal digest, and are checked by `gemcp-node` for existence and symlink containment before launch. Owners can update an existing active Token's scopes without exposing its secret.

@@ -566,6 +566,7 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'objbg-scan' })).toBeVisible()
   await expect(page.getByText('Record the current smoke-run accuracy as the first Graph result.')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Research Graph' })).toBeVisible()
+  await expect(page.locator('.vue-flow')).toBeVisible()
   await expect(page.getByRole('article').filter({ hasText: 'Latest result' }).getByText('OBJ-BG smoke accuracy')).toBeVisible()
   await expectNoPageOverflow(page)
   await page.screenshot({ path: '/tmp/gemcp-console-desktop.png', fullPage: true })

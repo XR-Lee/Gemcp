@@ -136,6 +136,10 @@ Add an explicit `configure` scope for current-Project GitHub SSH repository regi
 
 Add Studies, superseded iteration plans, and a typed research Graph as the Owner home surface. Agents read and update that workspace through two MCP tools without starting workloads. Keep Diagnostics, Finance, Nodes, Provider, and Alerts in a separate Lab layer so Docker execution and control-plane detail stay one click away from the scientific question.
 
+### v0.16.1 - modern research UI kits
+
+Replace the card-grid Graph with Vue Flow, use Reka UI for Study and Project selectors and the create-Study dialog, drive visible-page polling with VueUse, and add Motion enter transitions on the research home. Execution, Proposal confirmation, and Lab pages remain unchanged.
+
 ## In progress
 
 ### Repository readiness and Owner prepared experiments

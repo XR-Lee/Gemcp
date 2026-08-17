@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { useIntervalFn } from '@vueuse/core'
 import {
   Bell,
   Bot,
@@ -34,6 +35,8 @@ import DiagnosticsView from './DiagnosticsView.vue'
 import ExperimentDetail from './ExperimentDetail.vue'
 import ResearchView from './ResearchView.vue'
 import RunActivityPanel from './RunActivityPanel.vue'
+import WorkbenchDialog from './WorkbenchDialog.vue'
+import WorkbenchSelect from './WorkbenchSelect.vue'
 
 const props = defineProps<{ build: BuildInfo | null; user: User }>()
 const emit = defineEmits<{ signedOut: [] }>()
@@ -67,9 +70,9 @@ const dialogError = ref('')
 const copied = ref('')
 const repositoryForm = reactive({ name: '', sshURL: '', defaultBranch: 'main', fingerprint: '' })
 const { languageTag, t } = useI18n()
-let liveTimer = 0
 let liveRefreshInFlight = false
 let projectRefreshGeneration = 0
+const projectOptions = computed(() => projects.value.map((project) => ({ value: project.id, label: project.name })))
 
 const selectedProject = computed(() => projects.value.find((project) => project.id === selectedProjectID.value) ?? null)
 const filteredExperiments = computed(() => stateFilter.value === 'all' ? experiments.value : experiments.value.filter((item) => item.state === stateFilter.value))
@@ -339,11 +342,12 @@ function stateLabel(value: string) {
   return localizedState(value)
 }
 
+const { resume: resumeLive } = useIntervalFn(() => { void refreshLive() }, 5_000, { immediate: false })
+
 onMounted(async () => {
   await refreshAll()
-  liveTimer = window.setInterval(refreshLive, 5_000)
+  resumeLive()
 })
-onBeforeUnmount(() => window.clearInterval(liveTimer))
 </script>
 
 <template>
@@ -377,7 +381,7 @@ onBeforeUnmount(() => window.clearInterval(liveTimer))
           <h1>{{ viewTitle }}</h1>
         </div>
         <div class="topbar-actions">
-          <label v-if="!['finance', 'nodes', 'provider', 'notifications'].includes(activeView)" class="project-select"><span>Project</span><select v-model="selectedProjectID" @change="refreshProject()"><option v-for="project in projects" :key="project.id" :value="project.id">{{ project.name }}</option></select></label>
+          <label v-if="!['finance', 'nodes', 'provider', 'notifications'].includes(activeView)" class="project-select"><span>Project</span><WorkbenchSelect v-model="selectedProjectID" :aria-label="t('Project', 'Project')" :options="projectOptions" @update:model-value="() => { void refreshProject() }" /></label>
           <span class="status online"><span class="status-dot" />{{ t('Online', '在线') }}</span>
           <LanguageToggle />
           <button v-if="!['finance', 'nodes', 'provider', 'notifications'].includes(activeView)" class="icon-button" type="button" :title="t('Refresh project', '刷新 Project')" :disabled="loading" @click="refreshAll"><RefreshCw :size="17" :class="{ spinning: loading }" /></button>
@@ -426,18 +430,15 @@ onBeforeUnmount(() => window.clearInterval(liveTimer))
 
   <ExperimentDetail v-if="selectedExperiment" :experiment="selectedExperiment" :attempts="attempts" :loading="attemptsLoading" :error="attemptsError" @close="closeExperiment" />
 
-  <div v-if="studyDialog" class="modal-backdrop" @click.self="studyDialog = false">
-    <section class="modal" role="dialog" aria-modal="true" :aria-label="t('Create study', '创建 Study')">
-      <header><div><p class="eyebrow">{{ t('Research', '研究') }}</p><h2>{{ t('Create study', '创建 Study') }}</h2></div><button class="icon-button" type="button" :title="t('Close', '关闭')" @click="studyDialog = false"><X :size="17" /></button></header>
-      <form class="dialog-form" @submit.prevent="createStudy">
-        <label>{{ t('Name', '名称') }}<input v-model="studyForm.name" required maxlength="80" placeholder="objbg-scan" spellcheck="false" /></label>
-        <label>{{ t('Research question', '研究问题') }}<textarea v-model="studyForm.question" required rows="4" maxlength="400" :placeholder="t('What should this Study answer?', '这个 Study 要回答什么问题？')"></textarea></label>
-        <label>{{ t('Summary', '摘要') }}<textarea v-model="studyForm.summary" rows="3" maxlength="800" :placeholder="t('Optional scientific context. No prompts or credentials.', '可选科学背景。不要写 prompt 或凭据。')"></textarea></label>
-        <div v-if="dialogError" class="form-error">{{ dialogError }}</div>
-        <button class="primary-button" type="submit" :disabled="studyBusy"><LoaderCircle v-if="studyBusy" :size="16" class="spinning" /><Plus v-else :size="16" />{{ t('Create study', '创建 Study') }}</button>
-      </form>
-    </section>
-  </div>
+  <WorkbenchDialog v-model:open="studyDialog" :title="t('Create study', '创建 Study')" :label="t('Create study', '创建 Study')" :description="t('Name the scientific question. This does not start a workload.', '先写下科学问题。这不会启动任何 workload。')">
+    <form class="dialog-form" @submit.prevent="createStudy">
+      <label>{{ t('Name', '名称') }}<input v-model="studyForm.name" required maxlength="80" placeholder="objbg-scan" spellcheck="false" /></label>
+      <label>{{ t('Research question', '研究问题') }}<textarea v-model="studyForm.question" required rows="4" maxlength="400" :placeholder="t('What should this Study answer?', '这个 Study 要回答什么问题？')"></textarea></label>
+      <label>{{ t('Summary', '摘要') }}<textarea v-model="studyForm.summary" rows="3" maxlength="800" :placeholder="t('Optional scientific context. No prompts or credentials.', '可选科学背景。不要写 prompt 或凭据。')"></textarea></label>
+      <div v-if="dialogError" class="form-error">{{ dialogError }}</div>
+      <button class="primary-button" type="submit" :disabled="studyBusy"><LoaderCircle v-if="studyBusy" :size="16" class="spinning" /><Plus v-else :size="16" />{{ t('Create study', '创建 Study') }}</button>
+    </form>
+  </WorkbenchDialog>
 
   <div v-if="repositoryDialog" class="modal-backdrop" @click.self="repositoryDialog = null">
     <section class="modal" role="dialog" aria-modal="true" :aria-label="repositoryDialog === 'create' ? t('Register repository', '注册仓库') : repositoryDialog === 'verify' ? t('Verify repository', '验证仓库') : t('Deploy public key', 'Deploy 公钥')">
