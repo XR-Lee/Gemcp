@@ -20,6 +20,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
+	"github.com/XR-Lee/Gemcp/ent/researchnode"
 )
 
 // ExperimentUpdate is the builder for updating Experiment entities.
@@ -510,6 +511,21 @@ func (_u *ExperimentUpdate) SetProposal(v *ExperimentProposal) *ExperimentUpdate
 	return _u.SetProposalID(v.ID)
 }
 
+// AddResearchNodeIDs adds the "research_nodes" edge to the ResearchNode entity by IDs.
+func (_u *ExperimentUpdate) AddResearchNodeIDs(ids ...int) *ExperimentUpdate {
+	_u.mutation.AddResearchNodeIDs(ids...)
+	return _u
+}
+
+// AddResearchNodes adds the "research_nodes" edges to the ResearchNode entity.
+func (_u *ExperimentUpdate) AddResearchNodes(v ...*ResearchNode) *ExperimentUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddResearchNodeIDs(ids...)
+}
+
 // Mutation returns the ExperimentMutation object of the builder.
 func (_u *ExperimentUpdate) Mutation() *ExperimentMutation {
 	return _u.mutation
@@ -630,6 +646,27 @@ func (_u *ExperimentUpdate) ClearDiagnosticRun() *ExperimentUpdate {
 func (_u *ExperimentUpdate) ClearProposal() *ExperimentUpdate {
 	_u.mutation.ClearProposal()
 	return _u
+}
+
+// ClearResearchNodes clears all "research_nodes" edges to the ResearchNode entity.
+func (_u *ExperimentUpdate) ClearResearchNodes() *ExperimentUpdate {
+	_u.mutation.ClearResearchNodes()
+	return _u
+}
+
+// RemoveResearchNodeIDs removes the "research_nodes" edge to ResearchNode entities by IDs.
+func (_u *ExperimentUpdate) RemoveResearchNodeIDs(ids ...int) *ExperimentUpdate {
+	_u.mutation.RemoveResearchNodeIDs(ids...)
+	return _u
+}
+
+// RemoveResearchNodes removes "research_nodes" edges to ResearchNode entities.
+func (_u *ExperimentUpdate) RemoveResearchNodes(v ...*ResearchNode) *ExperimentUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveResearchNodeIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -1122,6 +1159,51 @@ func (_u *ExperimentUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(experimentproposal.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ResearchNodesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   experiment.ResearchNodesTable,
+			Columns: []string{experiment.ResearchNodesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(researchnode.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedResearchNodesIDs(); len(nodes) > 0 && !_u.mutation.ResearchNodesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   experiment.ResearchNodesTable,
+			Columns: []string{experiment.ResearchNodesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(researchnode.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ResearchNodesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   experiment.ResearchNodesTable,
+			Columns: []string{experiment.ResearchNodesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(researchnode.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -1624,6 +1706,21 @@ func (_u *ExperimentUpdateOne) SetProposal(v *ExperimentProposal) *ExperimentUpd
 	return _u.SetProposalID(v.ID)
 }
 
+// AddResearchNodeIDs adds the "research_nodes" edge to the ResearchNode entity by IDs.
+func (_u *ExperimentUpdateOne) AddResearchNodeIDs(ids ...int) *ExperimentUpdateOne {
+	_u.mutation.AddResearchNodeIDs(ids...)
+	return _u
+}
+
+// AddResearchNodes adds the "research_nodes" edges to the ResearchNode entity.
+func (_u *ExperimentUpdateOne) AddResearchNodes(v ...*ResearchNode) *ExperimentUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddResearchNodeIDs(ids...)
+}
+
 // Mutation returns the ExperimentMutation object of the builder.
 func (_u *ExperimentUpdateOne) Mutation() *ExperimentMutation {
 	return _u.mutation
@@ -1744,6 +1841,27 @@ func (_u *ExperimentUpdateOne) ClearDiagnosticRun() *ExperimentUpdateOne {
 func (_u *ExperimentUpdateOne) ClearProposal() *ExperimentUpdateOne {
 	_u.mutation.ClearProposal()
 	return _u
+}
+
+// ClearResearchNodes clears all "research_nodes" edges to the ResearchNode entity.
+func (_u *ExperimentUpdateOne) ClearResearchNodes() *ExperimentUpdateOne {
+	_u.mutation.ClearResearchNodes()
+	return _u
+}
+
+// RemoveResearchNodeIDs removes the "research_nodes" edge to ResearchNode entities by IDs.
+func (_u *ExperimentUpdateOne) RemoveResearchNodeIDs(ids ...int) *ExperimentUpdateOne {
+	_u.mutation.RemoveResearchNodeIDs(ids...)
+	return _u
+}
+
+// RemoveResearchNodes removes "research_nodes" edges to ResearchNode entities.
+func (_u *ExperimentUpdateOne) RemoveResearchNodes(v ...*ResearchNode) *ExperimentUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveResearchNodeIDs(ids...)
 }
 
 // Where appends a list predicates to the ExperimentUpdate builder.
@@ -2266,6 +2384,51 @@ func (_u *ExperimentUpdateOne) sqlSave(ctx context.Context) (_node *Experiment, 
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(experimentproposal.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ResearchNodesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   experiment.ResearchNodesTable,
+			Columns: []string{experiment.ResearchNodesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(researchnode.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedResearchNodesIDs(); len(nodes) > 0 && !_u.mutation.ResearchNodesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   experiment.ResearchNodesTable,
+			Columns: []string{experiment.ResearchNodesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(researchnode.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ResearchNodesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   experiment.ResearchNodesTable,
+			Columns: []string{experiment.ResearchNodesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(researchnode.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

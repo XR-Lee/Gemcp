@@ -210,6 +210,26 @@ describe('API security headers', () => {
     expect(JSON.parse(String(options.body))).toEqual(payload)
   })
 
+  it('updates the research workspace only through a CSRF-protected project endpoint', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true, status: 200, json: async () => ({ data: { project_id: 'project/id', studies: [], generated_at: '2026-07-17T00:00:00Z' } }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    setCSRFToken('csrf-research')
+
+    await api.updateResearch('project/id', {
+      study: { name: 'objbg-scan', question: 'Can a cleaner OBJ-BG traversal raise ScanObjectNN accuracy without extra GPU hours?' },
+    })
+
+    const [path, options] = fetchMock.mock.calls[0]
+    expect(path).toBe('/api/v1/projects/project%2Fid/research')
+    expect(options.method).toBe('PUT')
+    expect((options.headers as Headers).get('X-CSRF-Token')).toBe('csrf-research')
+    expect(JSON.parse(String(options.body))).toEqual({
+      study: { name: 'objbg-scan', question: 'Can a cleaner OBJ-BG traversal raise ScanObjectNN accuracy without extra GPU hours?' },
+    })
+  })
+
   it('adds the current CSRF token to state-changing Owner requests', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

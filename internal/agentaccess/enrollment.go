@@ -41,6 +41,8 @@ var piDirectTools = []string{
 	"list_workspace_datasets",
 	"register_workspace_dataset",
 	"remove_workspace_dataset",
+	"get_research_workspace",
+	"update_research_workspace",
 	"report_agent_activity",
 	"prepare_experiment",
 	"submit_prepared_experiment",

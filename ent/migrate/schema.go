@@ -616,6 +616,66 @@ var (
 			},
 		},
 	}
+	// IterationPlansColumns holds the columns for the "iteration_plans" table.
+	IterationPlansColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "public_id", Type: field.TypeUUID, Unique: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "completed", "superseded"}, Default: "active"},
+		{Name: "goal", Type: field.TypeString, Size: 2147483647},
+		{Name: "next_action", Type: field.TypeString, Size: 2147483647},
+		{Name: "rationale", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "steps", Type: field.TypeJSON},
+		{Name: "agent_token_id", Type: field.TypeInt, Nullable: true},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "study_id", Type: field.TypeInt},
+		{Name: "tenant_id", Type: field.TypeInt},
+	}
+	// IterationPlansTable holds the schema information for the "iteration_plans" table.
+	IterationPlansTable = &schema.Table{
+		Name:       "iteration_plans",
+		Columns:    IterationPlansColumns,
+		PrimaryKey: []*schema.Column{IterationPlansColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "iteration_plans_agent_tokens_iteration_plans",
+				Columns:    []*schema.Column{IterationPlansColumns[9]},
+				RefColumns: []*schema.Column{AgentTokensColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+			{
+				Symbol:     "iteration_plans_projects_iteration_plans",
+				Columns:    []*schema.Column{IterationPlansColumns[10]},
+				RefColumns: []*schema.Column{ProjectsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "iteration_plans_studies_iteration_plans",
+				Columns:    []*schema.Column{IterationPlansColumns[11]},
+				RefColumns: []*schema.Column{StudiesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "iteration_plans_tenants_iteration_plans",
+				Columns:    []*schema.Column{IterationPlansColumns[12]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "iterationplan_study_id_status_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{IterationPlansColumns[11], IterationPlansColumns[4], IterationPlansColumns[2]},
+			},
+			{
+				Name:    "iterationplan_project_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{IterationPlansColumns[10], IterationPlansColumns[2]},
+			},
+		},
+	}
 	// NodeAssignmentsColumns holds the columns for the "node_assignments" table.
 	NodeAssignmentsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -1233,6 +1293,147 @@ var (
 			},
 		},
 	}
+	// ResearchEdgesColumns holds the columns for the "research_edges" table.
+	ResearchEdgesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "public_id", Type: field.TypeUUID, Unique: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "relation", Type: field.TypeEnum, Enums: []string{"leads_to", "compares", "supersedes", "supports", "contradicts", "produced"}},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "from_node_id", Type: field.TypeInt},
+		{Name: "to_node_id", Type: field.TypeInt},
+		{Name: "study_id", Type: field.TypeInt},
+		{Name: "tenant_id", Type: field.TypeInt},
+	}
+	// ResearchEdgesTable holds the schema information for the "research_edges" table.
+	ResearchEdgesTable = &schema.Table{
+		Name:       "research_edges",
+		Columns:    ResearchEdgesColumns,
+		PrimaryKey: []*schema.Column{ResearchEdgesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "research_edges_projects_research_edges",
+				Columns:    []*schema.Column{ResearchEdgesColumns[5]},
+				RefColumns: []*schema.Column{ProjectsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "research_edges_research_nodes_outgoing_edges",
+				Columns:    []*schema.Column{ResearchEdgesColumns[6]},
+				RefColumns: []*schema.Column{ResearchNodesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "research_edges_research_nodes_incoming_edges",
+				Columns:    []*schema.Column{ResearchEdgesColumns[7]},
+				RefColumns: []*schema.Column{ResearchNodesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "research_edges_studies_research_edges",
+				Columns:    []*schema.Column{ResearchEdgesColumns[8]},
+				RefColumns: []*schema.Column{StudiesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "research_edges_tenants_research_edges",
+				Columns:    []*schema.Column{ResearchEdgesColumns[9]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "researchedge_study_id_from_node_id_to_node_id_relation",
+				Unique:  true,
+				Columns: []*schema.Column{ResearchEdgesColumns[8], ResearchEdgesColumns[6], ResearchEdgesColumns[7], ResearchEdgesColumns[4]},
+			},
+			{
+				Name:    "researchedge_study_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{ResearchEdgesColumns[8], ResearchEdgesColumns[2]},
+			},
+		},
+	}
+	// ResearchNodesColumns holds the columns for the "research_nodes" table.
+	ResearchNodesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "public_id", Type: field.TypeUUID, Unique: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"question", "hypothesis", "plan", "run", "result", "observation", "decision"}},
+		{Name: "title", Type: field.TypeString, Size: 160},
+		{Name: "summary", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"open", "running", "succeeded", "failed", "superseded"}, Default: "open"},
+		{Name: "metric_name", Type: field.TypeString, Nullable: true, Size: 80},
+		{Name: "metric_value", Type: field.TypeFloat64, Nullable: true},
+		{Name: "agent_token_id", Type: field.TypeInt, Nullable: true},
+		{Name: "experiment_id", Type: field.TypeInt, Nullable: true},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "study_id", Type: field.TypeInt},
+		{Name: "tenant_id", Type: field.TypeInt},
+	}
+	// ResearchNodesTable holds the schema information for the "research_nodes" table.
+	ResearchNodesTable = &schema.Table{
+		Name:       "research_nodes",
+		Columns:    ResearchNodesColumns,
+		PrimaryKey: []*schema.Column{ResearchNodesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "research_nodes_agent_tokens_research_nodes",
+				Columns:    []*schema.Column{ResearchNodesColumns[10]},
+				RefColumns: []*schema.Column{AgentTokensColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+			{
+				Symbol:     "research_nodes_experiments_research_nodes",
+				Columns:    []*schema.Column{ResearchNodesColumns[11]},
+				RefColumns: []*schema.Column{ExperimentsColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+			{
+				Symbol:     "research_nodes_projects_research_nodes",
+				Columns:    []*schema.Column{ResearchNodesColumns[12]},
+				RefColumns: []*schema.Column{ProjectsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "research_nodes_studies_research_nodes",
+				Columns:    []*schema.Column{ResearchNodesColumns[13]},
+				RefColumns: []*schema.Column{StudiesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "research_nodes_tenants_research_nodes",
+				Columns:    []*schema.Column{ResearchNodesColumns[14]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "researchnode_study_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{ResearchNodesColumns[13], ResearchNodesColumns[2]},
+			},
+			{
+				Name:    "researchnode_study_id_kind_status",
+				Unique:  false,
+				Columns: []*schema.Column{ResearchNodesColumns[13], ResearchNodesColumns[4], ResearchNodesColumns[7]},
+			},
+			{
+				Name:    "researchnode_experiment_id",
+				Unique:  true,
+				Columns: []*schema.Column{ResearchNodesColumns[11]},
+			},
+			{
+				Name:    "researchnode_project_id_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{ResearchNodesColumns[12], ResearchNodesColumns[3]},
+			},
+		},
+	}
 	// ResourceProfilesColumns holds the columns for the "resource_profiles" table.
 	ResourceProfilesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -1408,6 +1609,58 @@ var (
 			},
 		},
 	}
+	// StudiesColumns holds the columns for the "studies" table.
+	StudiesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "public_id", Type: field.TypeUUID, Unique: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "name", Type: field.TypeString, Size: 120},
+		{Name: "question", Type: field.TypeString, Size: 2147483647},
+		{Name: "summary", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "paused", "archived"}, Default: "active"},
+		{Name: "agent_token_id", Type: field.TypeInt, Nullable: true},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "tenant_id", Type: field.TypeInt},
+	}
+	// StudiesTable holds the schema information for the "studies" table.
+	StudiesTable = &schema.Table{
+		Name:       "studies",
+		Columns:    StudiesColumns,
+		PrimaryKey: []*schema.Column{StudiesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "studies_agent_tokens_studies",
+				Columns:    []*schema.Column{StudiesColumns[8]},
+				RefColumns: []*schema.Column{AgentTokensColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+			{
+				Symbol:     "studies_projects_studies",
+				Columns:    []*schema.Column{StudiesColumns[9]},
+				RefColumns: []*schema.Column{ProjectsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "studies_tenants_studies",
+				Columns:    []*schema.Column{StudiesColumns[10]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "study_project_id_name",
+				Unique:  true,
+				Columns: []*schema.Column{StudiesColumns[9], StudiesColumns[4]},
+			},
+			{
+				Name:    "study_project_id_status_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{StudiesColumns[9], StudiesColumns[7], StudiesColumns[3]},
+			},
+		},
+	}
 	// TenantsColumns holds the columns for the "tenants" table.
 	TenantsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -1537,6 +1790,7 @@ var (
 		ExperimentsTable,
 		ExperimentProposalsTable,
 		IdempotencyRecordsTable,
+		IterationPlansTable,
 		NodeAssignmentsTable,
 		NodeCommandsTable,
 		NodeEnrollmentsTable,
@@ -1549,10 +1803,13 @@ var (
 		ProviderResourcesTable,
 		RecordMixinsTable,
 		RepositoriesTable,
+		ResearchEdgesTable,
+		ResearchNodesTable,
 		ResourceProfilesTable,
 		SelfHostedNodesTable,
 		ServiceHeartbeatsTable,
 		SessionsTable,
+		StudiesTable,
 		TenantsTable,
 		UsersTable,
 		WorkspaceDatasetsTable,
@@ -1590,6 +1847,10 @@ func init() {
 	IdempotencyRecordsTable.ForeignKeys[0].RefTable = AgentTokensTable
 	IdempotencyRecordsTable.ForeignKeys[1].RefTable = ExperimentsTable
 	IdempotencyRecordsTable.ForeignKeys[2].RefTable = TenantsTable
+	IterationPlansTable.ForeignKeys[0].RefTable = AgentTokensTable
+	IterationPlansTable.ForeignKeys[1].RefTable = ProjectsTable
+	IterationPlansTable.ForeignKeys[2].RefTable = StudiesTable
+	IterationPlansTable.ForeignKeys[3].RefTable = TenantsTable
 	NodeAssignmentsTable.ForeignKeys[0].RefTable = AttemptsTable
 	NodeAssignmentsTable.ForeignKeys[1].RefTable = ExperimentsTable
 	NodeAssignmentsTable.ForeignKeys[2].RefTable = ProjectsTable
@@ -1615,9 +1876,22 @@ func init() {
 	ProviderResourcesTable.ForeignKeys[3].RefTable = ProviderAccountsTable
 	ProviderResourcesTable.ForeignKeys[4].RefTable = TenantsTable
 	RepositoriesTable.ForeignKeys[0].RefTable = ProjectsTable
+	ResearchEdgesTable.ForeignKeys[0].RefTable = ProjectsTable
+	ResearchEdgesTable.ForeignKeys[1].RefTable = ResearchNodesTable
+	ResearchEdgesTable.ForeignKeys[2].RefTable = ResearchNodesTable
+	ResearchEdgesTable.ForeignKeys[3].RefTable = StudiesTable
+	ResearchEdgesTable.ForeignKeys[4].RefTable = TenantsTable
+	ResearchNodesTable.ForeignKeys[0].RefTable = AgentTokensTable
+	ResearchNodesTable.ForeignKeys[1].RefTable = ExperimentsTable
+	ResearchNodesTable.ForeignKeys[2].RefTable = ProjectsTable
+	ResearchNodesTable.ForeignKeys[3].RefTable = StudiesTable
+	ResearchNodesTable.ForeignKeys[4].RefTable = TenantsTable
 	ResourceProfilesTable.ForeignKeys[0].RefTable = ProjectsTable
 	SelfHostedNodesTable.ForeignKeys[0].RefTable = TenantsTable
 	SessionsTable.ForeignKeys[0].RefTable = UsersTable
+	StudiesTable.ForeignKeys[0].RefTable = AgentTokensTable
+	StudiesTable.ForeignKeys[1].RefTable = ProjectsTable
+	StudiesTable.ForeignKeys[2].RefTable = TenantsTable
 	UsersTable.ForeignKeys[0].RefTable = TenantsTable
 	WorkspaceDatasetsTable.ForeignKeys[0].RefTable = AgentTokensTable
 	WorkspaceDatasetsTable.ForeignKeys[1].RefTable = ProjectsTable

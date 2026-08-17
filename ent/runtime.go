@@ -15,6 +15,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
+	"github.com/XR-Lee/Gemcp/ent/iterationplan"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/nodecommand"
 	"github.com/XR-Lee/Gemcp/ent/nodeenrollment"
@@ -27,11 +28,14 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/recordmixin"
 	"github.com/XR-Lee/Gemcp/ent/repository"
+	"github.com/XR-Lee/Gemcp/ent/researchedge"
+	"github.com/XR-Lee/Gemcp/ent/researchnode"
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
 	"github.com/XR-Lee/Gemcp/ent/schema"
 	"github.com/XR-Lee/Gemcp/ent/selfhostednode"
 	"github.com/XR-Lee/Gemcp/ent/serviceheartbeat"
 	"github.com/XR-Lee/Gemcp/ent/session"
+	"github.com/XR-Lee/Gemcp/ent/study"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
 	"github.com/XR-Lee/Gemcp/ent/user"
 	"github.com/XR-Lee/Gemcp/ent/workspacedataset"
@@ -640,6 +644,37 @@ func init() {
 	idempotencyrecord.DefaultUpdatedAt = idempotencyrecordDescUpdatedAt.Default.(func() time.Time)
 	// idempotencyrecord.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	idempotencyrecord.UpdateDefaultUpdatedAt = idempotencyrecordDescUpdatedAt.UpdateDefault.(func() time.Time)
+	iterationplanMixin := schema.IterationPlan{}.Mixin()
+	iterationplanMixinFields0 := iterationplanMixin[0].Fields()
+	_ = iterationplanMixinFields0
+	iterationplanFields := schema.IterationPlan{}.Fields()
+	_ = iterationplanFields
+	// iterationplanDescPublicID is the schema descriptor for public_id field.
+	iterationplanDescPublicID := iterationplanMixinFields0[0].Descriptor()
+	// iterationplan.DefaultPublicID holds the default value on creation for the public_id field.
+	iterationplan.DefaultPublicID = iterationplanDescPublicID.Default.(func() uuid.UUID)
+	// iterationplanDescCreatedAt is the schema descriptor for created_at field.
+	iterationplanDescCreatedAt := iterationplanMixinFields0[1].Descriptor()
+	// iterationplan.DefaultCreatedAt holds the default value on creation for the created_at field.
+	iterationplan.DefaultCreatedAt = iterationplanDescCreatedAt.Default.(func() time.Time)
+	// iterationplanDescUpdatedAt is the schema descriptor for updated_at field.
+	iterationplanDescUpdatedAt := iterationplanMixinFields0[2].Descriptor()
+	// iterationplan.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	iterationplan.DefaultUpdatedAt = iterationplanDescUpdatedAt.Default.(func() time.Time)
+	// iterationplan.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	iterationplan.UpdateDefaultUpdatedAt = iterationplanDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// iterationplanDescGoal is the schema descriptor for goal field.
+	iterationplanDescGoal := iterationplanFields[5].Descriptor()
+	// iterationplan.GoalValidator is a validator for the "goal" field. It is called by the builders before save.
+	iterationplan.GoalValidator = iterationplanDescGoal.Validators[0].(func(string) error)
+	// iterationplanDescNextAction is the schema descriptor for next_action field.
+	iterationplanDescNextAction := iterationplanFields[6].Descriptor()
+	// iterationplan.NextActionValidator is a validator for the "next_action" field. It is called by the builders before save.
+	iterationplan.NextActionValidator = iterationplanDescNextAction.Validators[0].(func(string) error)
+	// iterationplanDescSteps is the schema descriptor for steps field.
+	iterationplanDescSteps := iterationplanFields[8].Descriptor()
+	// iterationplan.DefaultSteps holds the default value on creation for the steps field.
+	iterationplan.DefaultSteps = iterationplanDescSteps.Default.([]map[string]interface{})
 	nodeassignmentMixin := schema.NodeAssignment{}.Mixin()
 	nodeassignmentMixinFields0 := nodeassignmentMixin[0].Fields()
 	_ = nodeassignmentMixinFields0
@@ -1379,6 +1414,66 @@ func init() {
 	repositoryDescHostKeyFingerprint := repositoryFields[5].Descriptor()
 	// repository.HostKeyFingerprintValidator is a validator for the "host_key_fingerprint" field. It is called by the builders before save.
 	repository.HostKeyFingerprintValidator = repositoryDescHostKeyFingerprint.Validators[0].(func(string) error)
+	researchedgeMixin := schema.ResearchEdge{}.Mixin()
+	researchedgeMixinFields0 := researchedgeMixin[0].Fields()
+	_ = researchedgeMixinFields0
+	researchedgeFields := schema.ResearchEdge{}.Fields()
+	_ = researchedgeFields
+	// researchedgeDescPublicID is the schema descriptor for public_id field.
+	researchedgeDescPublicID := researchedgeMixinFields0[0].Descriptor()
+	// researchedge.DefaultPublicID holds the default value on creation for the public_id field.
+	researchedge.DefaultPublicID = researchedgeDescPublicID.Default.(func() uuid.UUID)
+	// researchedgeDescCreatedAt is the schema descriptor for created_at field.
+	researchedgeDescCreatedAt := researchedgeMixinFields0[1].Descriptor()
+	// researchedge.DefaultCreatedAt holds the default value on creation for the created_at field.
+	researchedge.DefaultCreatedAt = researchedgeDescCreatedAt.Default.(func() time.Time)
+	// researchedgeDescUpdatedAt is the schema descriptor for updated_at field.
+	researchedgeDescUpdatedAt := researchedgeMixinFields0[2].Descriptor()
+	// researchedge.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	researchedge.DefaultUpdatedAt = researchedgeDescUpdatedAt.Default.(func() time.Time)
+	// researchedge.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	researchedge.UpdateDefaultUpdatedAt = researchedgeDescUpdatedAt.UpdateDefault.(func() time.Time)
+	researchnodeMixin := schema.ResearchNode{}.Mixin()
+	researchnodeMixinFields0 := researchnodeMixin[0].Fields()
+	_ = researchnodeMixinFields0
+	researchnodeFields := schema.ResearchNode{}.Fields()
+	_ = researchnodeFields
+	// researchnodeDescPublicID is the schema descriptor for public_id field.
+	researchnodeDescPublicID := researchnodeMixinFields0[0].Descriptor()
+	// researchnode.DefaultPublicID holds the default value on creation for the public_id field.
+	researchnode.DefaultPublicID = researchnodeDescPublicID.Default.(func() uuid.UUID)
+	// researchnodeDescCreatedAt is the schema descriptor for created_at field.
+	researchnodeDescCreatedAt := researchnodeMixinFields0[1].Descriptor()
+	// researchnode.DefaultCreatedAt holds the default value on creation for the created_at field.
+	researchnode.DefaultCreatedAt = researchnodeDescCreatedAt.Default.(func() time.Time)
+	// researchnodeDescUpdatedAt is the schema descriptor for updated_at field.
+	researchnodeDescUpdatedAt := researchnodeMixinFields0[2].Descriptor()
+	// researchnode.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	researchnode.DefaultUpdatedAt = researchnodeDescUpdatedAt.Default.(func() time.Time)
+	// researchnode.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	researchnode.UpdateDefaultUpdatedAt = researchnodeDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// researchnodeDescTitle is the schema descriptor for title field.
+	researchnodeDescTitle := researchnodeFields[6].Descriptor()
+	// researchnode.TitleValidator is a validator for the "title" field. It is called by the builders before save.
+	researchnode.TitleValidator = func() func(string) error {
+		validators := researchnodeDescTitle.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(title string) error {
+			for _, fn := range fns {
+				if err := fn(title); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// researchnodeDescMetricName is the schema descriptor for metric_name field.
+	researchnodeDescMetricName := researchnodeFields[9].Descriptor()
+	// researchnode.MetricNameValidator is a validator for the "metric_name" field. It is called by the builders before save.
+	researchnode.MetricNameValidator = researchnodeDescMetricName.Validators[0].(func(string) error)
 	resourceprofileMixin := schema.ResourceProfile{}.Mixin()
 	resourceprofileMixinFields0 := resourceprofileMixin[0].Fields()
 	_ = resourceprofileMixinFields0
@@ -1725,6 +1820,47 @@ func init() {
 	session.DefaultUpdatedAt = sessionDescUpdatedAt.Default.(func() time.Time)
 	// session.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	session.UpdateDefaultUpdatedAt = sessionDescUpdatedAt.UpdateDefault.(func() time.Time)
+	studyMixin := schema.Study{}.Mixin()
+	studyMixinFields0 := studyMixin[0].Fields()
+	_ = studyMixinFields0
+	studyFields := schema.Study{}.Fields()
+	_ = studyFields
+	// studyDescPublicID is the schema descriptor for public_id field.
+	studyDescPublicID := studyMixinFields0[0].Descriptor()
+	// study.DefaultPublicID holds the default value on creation for the public_id field.
+	study.DefaultPublicID = studyDescPublicID.Default.(func() uuid.UUID)
+	// studyDescCreatedAt is the schema descriptor for created_at field.
+	studyDescCreatedAt := studyMixinFields0[1].Descriptor()
+	// study.DefaultCreatedAt holds the default value on creation for the created_at field.
+	study.DefaultCreatedAt = studyDescCreatedAt.Default.(func() time.Time)
+	// studyDescUpdatedAt is the schema descriptor for updated_at field.
+	studyDescUpdatedAt := studyMixinFields0[2].Descriptor()
+	// study.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	study.DefaultUpdatedAt = studyDescUpdatedAt.Default.(func() time.Time)
+	// study.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	study.UpdateDefaultUpdatedAt = studyDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// studyDescName is the schema descriptor for name field.
+	studyDescName := studyFields[3].Descriptor()
+	// study.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	study.NameValidator = func() func(string) error {
+		validators := studyDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// studyDescQuestion is the schema descriptor for question field.
+	studyDescQuestion := studyFields[4].Descriptor()
+	// study.QuestionValidator is a validator for the "question" field. It is called by the builders before save.
+	study.QuestionValidator = studyDescQuestion.Validators[0].(func(string) error)
 	tenantMixin := schema.Tenant{}.Mixin()
 	tenantMixinFields0 := tenantMixin[0].Fields()
 	_ = tenantMixinFields0

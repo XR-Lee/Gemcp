@@ -10,6 +10,8 @@ const protocolVersion = '2025-11-25'
 const setupUserAgent = 'Gemcp-Pi-Setup/1'
 const requiredTools = [
   'get_usage_guide',
+  'get_research_workspace',
+  'update_research_workspace',
   'report_agent_activity',
   'prepare_experiment',
   'submit_prepared_experiment',

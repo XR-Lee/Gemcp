@@ -1,8 +1,10 @@
 # Gemcp
 
-Gemcp is a private, single-organization control plane for running bounded AutoDL and trusted Self-hosted GPU experiments through MCP while keeping provider credentials, node authorization, budgets, lifecycle enforcement, and audit data under human control.
+Gemcp is a private research workbench. Sub-agents run inside Docker on Owner-approved machines; the main surface shows a Study, iteration plan, and research Graph. Provider credentials, node authorization, budgets, lifecycle enforcement, and audit data stay in a separate Lab layer.
 
 ## Current release
+
+`v0.16.0` splits the Owner console into Research and Lab. Agents maintain Studies, superseded iteration plans, and a typed Graph through `get_research_workspace` and `update_research_workspace`. Recording a Graph node never starts a workload; execution still uses prepared Experiments and isolated Docker sub-agents. Infrastructure pages remain available but no longer occupy the home view.
 
 `v0.15.1` adds an explicit Agent `configure` scope for registering and verifying GitHub SSH repositories in the authenticated Project and declaring dataset paths below an existing Owner-approved trusted workspace root. Dataset declarations cannot authorize a new host root or additional mount. They produce controlled `GEMCP_DATASET_*` variables, enter the immutable Proposal digest, and are checked by `gemcp-node` for existence and symlink containment before launch. Owners can update an existing active Token's scopes without exposing its secret.
 
@@ -111,6 +113,7 @@ GET /api/v1/experiments
 GET /api/v1/experiments/:id/attempts
 GET /api/v1/projects/:id/cost
 GET /api/v1/projects/:id/operations
+GET|PUT /api/v1/projects/:id/research
 GET /api/v1/projects/:id/diagnostics/options
 POST /api/v1/projects/:id/diagnostics/preflight
 GET|POST /api/v1/projects/:id/diagnostics
@@ -171,4 +174,4 @@ Bind the origin to localhost and publish it through the configured Cloudflare Tu
 
 No real AutoDL, SMTP, Git, Runner, Agent setup, Node setup, or experiment secret belongs in this repository. Provider, SMTP, and Git private credentials are encrypted at rest. Agent and Node setup codes and their long-lived Tokens are stored only as HMAC digests; setup retry credentials are deterministically derived and never stored recoverably. AutoDL Runner Tokens are Attempt-scoped, stored as HMAC digests plus recoverable ciphertext only until execution finalizes, and never passed to the user command environment. Self-hosted workload containers receive no Gemcp credential. Local phase-zero Token files and reports are Git-ignored and must be mode `0600` inside a mode `0700` directory.
 
-See [Architecture](docs/architecture.md), the [Experiment interface simplification proposal](docs/experiment-interface-simplification.md), and [Roadmap](docs/roadmap.md).
+See [Architecture](docs/architecture.md), the [Research workbench](docs/research-workbench.md), the [Experiment interface simplification proposal](docs/experiment-interface-simplification.md), and [Roadmap](docs/roadmap.md).

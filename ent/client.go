@@ -25,6 +25,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
+	"github.com/XR-Lee/Gemcp/ent/iterationplan"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/nodecommand"
 	"github.com/XR-Lee/Gemcp/ent/nodeenrollment"
@@ -37,10 +38,13 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/recordmixin"
 	"github.com/XR-Lee/Gemcp/ent/repository"
+	"github.com/XR-Lee/Gemcp/ent/researchedge"
+	"github.com/XR-Lee/Gemcp/ent/researchnode"
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
 	"github.com/XR-Lee/Gemcp/ent/selfhostednode"
 	"github.com/XR-Lee/Gemcp/ent/serviceheartbeat"
 	"github.com/XR-Lee/Gemcp/ent/session"
+	"github.com/XR-Lee/Gemcp/ent/study"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
 	"github.com/XR-Lee/Gemcp/ent/user"
 	"github.com/XR-Lee/Gemcp/ent/workspacedataset"
@@ -71,6 +75,8 @@ type Client struct {
 	ExperimentProposal *ExperimentProposalClient
 	// IdempotencyRecord is the client for interacting with the IdempotencyRecord builders.
 	IdempotencyRecord *IdempotencyRecordClient
+	// IterationPlan is the client for interacting with the IterationPlan builders.
+	IterationPlan *IterationPlanClient
 	// NodeAssignment is the client for interacting with the NodeAssignment builders.
 	NodeAssignment *NodeAssignmentClient
 	// NodeCommand is the client for interacting with the NodeCommand builders.
@@ -95,6 +101,10 @@ type Client struct {
 	RecordMixin *RecordMixinClient
 	// Repository is the client for interacting with the Repository builders.
 	Repository *RepositoryClient
+	// ResearchEdge is the client for interacting with the ResearchEdge builders.
+	ResearchEdge *ResearchEdgeClient
+	// ResearchNode is the client for interacting with the ResearchNode builders.
+	ResearchNode *ResearchNodeClient
 	// ResourceProfile is the client for interacting with the ResourceProfile builders.
 	ResourceProfile *ResourceProfileClient
 	// SelfHostedNode is the client for interacting with the SelfHostedNode builders.
@@ -103,6 +113,8 @@ type Client struct {
 	ServiceHeartbeat *ServiceHeartbeatClient
 	// Session is the client for interacting with the Session builders.
 	Session *SessionClient
+	// Study is the client for interacting with the Study builders.
+	Study *StudyClient
 	// Tenant is the client for interacting with the Tenant builders.
 	Tenant *TenantClient
 	// User is the client for interacting with the User builders.
@@ -130,6 +142,7 @@ func (c *Client) init() {
 	c.Experiment = NewExperimentClient(c.config)
 	c.ExperimentProposal = NewExperimentProposalClient(c.config)
 	c.IdempotencyRecord = NewIdempotencyRecordClient(c.config)
+	c.IterationPlan = NewIterationPlanClient(c.config)
 	c.NodeAssignment = NewNodeAssignmentClient(c.config)
 	c.NodeCommand = NewNodeCommandClient(c.config)
 	c.NodeEnrollment = NewNodeEnrollmentClient(c.config)
@@ -142,10 +155,13 @@ func (c *Client) init() {
 	c.ProviderResource = NewProviderResourceClient(c.config)
 	c.RecordMixin = NewRecordMixinClient(c.config)
 	c.Repository = NewRepositoryClient(c.config)
+	c.ResearchEdge = NewResearchEdgeClient(c.config)
+	c.ResearchNode = NewResearchNodeClient(c.config)
 	c.ResourceProfile = NewResourceProfileClient(c.config)
 	c.SelfHostedNode = NewSelfHostedNodeClient(c.config)
 	c.ServiceHeartbeat = NewServiceHeartbeatClient(c.config)
 	c.Session = NewSessionClient(c.config)
+	c.Study = NewStudyClient(c.config)
 	c.Tenant = NewTenantClient(c.config)
 	c.User = NewUserClient(c.config)
 	c.WorkspaceDataset = NewWorkspaceDatasetClient(c.config)
@@ -251,6 +267,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Experiment:          NewExperimentClient(cfg),
 		ExperimentProposal:  NewExperimentProposalClient(cfg),
 		IdempotencyRecord:   NewIdempotencyRecordClient(cfg),
+		IterationPlan:       NewIterationPlanClient(cfg),
 		NodeAssignment:      NewNodeAssignmentClient(cfg),
 		NodeCommand:         NewNodeCommandClient(cfg),
 		NodeEnrollment:      NewNodeEnrollmentClient(cfg),
@@ -263,10 +280,13 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ProviderResource:    NewProviderResourceClient(cfg),
 		RecordMixin:         NewRecordMixinClient(cfg),
 		Repository:          NewRepositoryClient(cfg),
+		ResearchEdge:        NewResearchEdgeClient(cfg),
+		ResearchNode:        NewResearchNodeClient(cfg),
 		ResourceProfile:     NewResourceProfileClient(cfg),
 		SelfHostedNode:      NewSelfHostedNodeClient(cfg),
 		ServiceHeartbeat:    NewServiceHeartbeatClient(cfg),
 		Session:             NewSessionClient(cfg),
+		Study:               NewStudyClient(cfg),
 		Tenant:              NewTenantClient(cfg),
 		User:                NewUserClient(cfg),
 		WorkspaceDataset:    NewWorkspaceDatasetClient(cfg),
@@ -299,6 +319,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Experiment:          NewExperimentClient(cfg),
 		ExperimentProposal:  NewExperimentProposalClient(cfg),
 		IdempotencyRecord:   NewIdempotencyRecordClient(cfg),
+		IterationPlan:       NewIterationPlanClient(cfg),
 		NodeAssignment:      NewNodeAssignmentClient(cfg),
 		NodeCommand:         NewNodeCommandClient(cfg),
 		NodeEnrollment:      NewNodeEnrollmentClient(cfg),
@@ -311,10 +332,13 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ProviderResource:    NewProviderResourceClient(cfg),
 		RecordMixin:         NewRecordMixinClient(cfg),
 		Repository:          NewRepositoryClient(cfg),
+		ResearchEdge:        NewResearchEdgeClient(cfg),
+		ResearchNode:        NewResearchNodeClient(cfg),
 		ResourceProfile:     NewResourceProfileClient(cfg),
 		SelfHostedNode:      NewSelfHostedNodeClient(cfg),
 		ServiceHeartbeat:    NewServiceHeartbeatClient(cfg),
 		Session:             NewSessionClient(cfg),
+		Study:               NewStudyClient(cfg),
 		Tenant:              NewTenantClient(cfg),
 		User:                NewUserClient(cfg),
 		WorkspaceDataset:    NewWorkspaceDatasetClient(cfg),
@@ -349,11 +373,12 @@ func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.AgentEnrollment, c.AgentToken, c.Attempt, c.AuditEvent, c.BudgetEntry,
 		c.DiagnosticRun, c.Environment, c.Experiment, c.ExperimentProposal,
-		c.IdempotencyRecord, c.NodeAssignment, c.NodeCommand, c.NodeEnrollment,
-		c.NodeEvent, c.NodeProjectAccess, c.Notification, c.NotificationSetting,
-		c.Project, c.ProviderAccount, c.ProviderResource, c.RecordMixin, c.Repository,
-		c.ResourceProfile, c.SelfHostedNode, c.ServiceHeartbeat, c.Session, c.Tenant,
-		c.User, c.WorkspaceDataset,
+		c.IdempotencyRecord, c.IterationPlan, c.NodeAssignment, c.NodeCommand,
+		c.NodeEnrollment, c.NodeEvent, c.NodeProjectAccess, c.Notification,
+		c.NotificationSetting, c.Project, c.ProviderAccount, c.ProviderResource,
+		c.RecordMixin, c.Repository, c.ResearchEdge, c.ResearchNode, c.ResourceProfile,
+		c.SelfHostedNode, c.ServiceHeartbeat, c.Session, c.Study, c.Tenant, c.User,
+		c.WorkspaceDataset,
 	} {
 		n.Use(hooks...)
 	}
@@ -365,11 +390,12 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.AgentEnrollment, c.AgentToken, c.Attempt, c.AuditEvent, c.BudgetEntry,
 		c.DiagnosticRun, c.Environment, c.Experiment, c.ExperimentProposal,
-		c.IdempotencyRecord, c.NodeAssignment, c.NodeCommand, c.NodeEnrollment,
-		c.NodeEvent, c.NodeProjectAccess, c.Notification, c.NotificationSetting,
-		c.Project, c.ProviderAccount, c.ProviderResource, c.RecordMixin, c.Repository,
-		c.ResourceProfile, c.SelfHostedNode, c.ServiceHeartbeat, c.Session, c.Tenant,
-		c.User, c.WorkspaceDataset,
+		c.IdempotencyRecord, c.IterationPlan, c.NodeAssignment, c.NodeCommand,
+		c.NodeEnrollment, c.NodeEvent, c.NodeProjectAccess, c.Notification,
+		c.NotificationSetting, c.Project, c.ProviderAccount, c.ProviderResource,
+		c.RecordMixin, c.Repository, c.ResearchEdge, c.ResearchNode, c.ResourceProfile,
+		c.SelfHostedNode, c.ServiceHeartbeat, c.Session, c.Study, c.Tenant, c.User,
+		c.WorkspaceDataset,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -398,6 +424,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.ExperimentProposal.mutate(ctx, m)
 	case *IdempotencyRecordMutation:
 		return c.IdempotencyRecord.mutate(ctx, m)
+	case *IterationPlanMutation:
+		return c.IterationPlan.mutate(ctx, m)
 	case *NodeAssignmentMutation:
 		return c.NodeAssignment.mutate(ctx, m)
 	case *NodeCommandMutation:
@@ -422,6 +450,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.RecordMixin.mutate(ctx, m)
 	case *RepositoryMutation:
 		return c.Repository.mutate(ctx, m)
+	case *ResearchEdgeMutation:
+		return c.ResearchEdge.mutate(ctx, m)
+	case *ResearchNodeMutation:
+		return c.ResearchNode.mutate(ctx, m)
 	case *ResourceProfileMutation:
 		return c.ResourceProfile.mutate(ctx, m)
 	case *SelfHostedNodeMutation:
@@ -430,6 +462,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.ServiceHeartbeat.mutate(ctx, m)
 	case *SessionMutation:
 		return c.Session.mutate(ctx, m)
+	case *StudyMutation:
+		return c.Study.mutate(ctx, m)
 	case *TenantMutation:
 		return c.Tenant.mutate(ctx, m)
 	case *UserMutation:
@@ -787,6 +821,54 @@ func (c *AgentTokenClient) QueryWorkspaceDatasets(_m *AgentToken) *WorkspaceData
 			sqlgraph.From(agenttoken.Table, agenttoken.FieldID, id),
 			sqlgraph.To(workspacedataset.Table, workspacedataset.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, agenttoken.WorkspaceDatasetsTable, agenttoken.WorkspaceDatasetsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryStudies queries the studies edge of a AgentToken.
+func (c *AgentTokenClient) QueryStudies(_m *AgentToken) *StudyQuery {
+	query := (&StudyClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(agenttoken.Table, agenttoken.FieldID, id),
+			sqlgraph.To(study.Table, study.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, agenttoken.StudiesTable, agenttoken.StudiesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryIterationPlans queries the iteration_plans edge of a AgentToken.
+func (c *AgentTokenClient) QueryIterationPlans(_m *AgentToken) *IterationPlanQuery {
+	query := (&IterationPlanClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(agenttoken.Table, agenttoken.FieldID, id),
+			sqlgraph.To(iterationplan.Table, iterationplan.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, agenttoken.IterationPlansTable, agenttoken.IterationPlansColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryResearchNodes queries the research_nodes edge of a AgentToken.
+func (c *AgentTokenClient) QueryResearchNodes(_m *AgentToken) *ResearchNodeQuery {
+	query := (&ResearchNodeClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(agenttoken.Table, agenttoken.FieldID, id),
+			sqlgraph.To(researchnode.Table, researchnode.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, agenttoken.ResearchNodesTable, agenttoken.ResearchNodesColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -2040,6 +2122,22 @@ func (c *ExperimentClient) QueryProposal(_m *Experiment) *ExperimentProposalQuer
 	return query
 }
 
+// QueryResearchNodes queries the research_nodes edge of a Experiment.
+func (c *ExperimentClient) QueryResearchNodes(_m *Experiment) *ResearchNodeQuery {
+	query := (&ResearchNodeClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(experiment.Table, experiment.FieldID, id),
+			sqlgraph.To(researchnode.Table, researchnode.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, experiment.ResearchNodesTable, experiment.ResearchNodesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *ExperimentClient) Hooks() []Hook {
 	return c.hooks.Experiment
@@ -2488,6 +2586,203 @@ func (c *IdempotencyRecordClient) mutate(ctx context.Context, m *IdempotencyReco
 		return (&IdempotencyRecordDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown IdempotencyRecord mutation op: %q", m.Op())
+	}
+}
+
+// IterationPlanClient is a client for the IterationPlan schema.
+type IterationPlanClient struct {
+	config
+}
+
+// NewIterationPlanClient returns a client for the IterationPlan from the given config.
+func NewIterationPlanClient(c config) *IterationPlanClient {
+	return &IterationPlanClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `iterationplan.Hooks(f(g(h())))`.
+func (c *IterationPlanClient) Use(hooks ...Hook) {
+	c.hooks.IterationPlan = append(c.hooks.IterationPlan, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `iterationplan.Intercept(f(g(h())))`.
+func (c *IterationPlanClient) Intercept(interceptors ...Interceptor) {
+	c.inters.IterationPlan = append(c.inters.IterationPlan, interceptors...)
+}
+
+// Create returns a builder for creating a IterationPlan entity.
+func (c *IterationPlanClient) Create() *IterationPlanCreate {
+	mutation := newIterationPlanMutation(c.config, OpCreate)
+	return &IterationPlanCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of IterationPlan entities.
+func (c *IterationPlanClient) CreateBulk(builders ...*IterationPlanCreate) *IterationPlanCreateBulk {
+	return &IterationPlanCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *IterationPlanClient) MapCreateBulk(slice any, setFunc func(*IterationPlanCreate, int)) *IterationPlanCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &IterationPlanCreateBulk{err: fmt.Errorf("calling to IterationPlanClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*IterationPlanCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &IterationPlanCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for IterationPlan.
+func (c *IterationPlanClient) Update() *IterationPlanUpdate {
+	mutation := newIterationPlanMutation(c.config, OpUpdate)
+	return &IterationPlanUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *IterationPlanClient) UpdateOne(_m *IterationPlan) *IterationPlanUpdateOne {
+	mutation := newIterationPlanMutation(c.config, OpUpdateOne, withIterationPlan(_m))
+	return &IterationPlanUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *IterationPlanClient) UpdateOneID(id int) *IterationPlanUpdateOne {
+	mutation := newIterationPlanMutation(c.config, OpUpdateOne, withIterationPlanID(id))
+	return &IterationPlanUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for IterationPlan.
+func (c *IterationPlanClient) Delete() *IterationPlanDelete {
+	mutation := newIterationPlanMutation(c.config, OpDelete)
+	return &IterationPlanDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *IterationPlanClient) DeleteOne(_m *IterationPlan) *IterationPlanDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *IterationPlanClient) DeleteOneID(id int) *IterationPlanDeleteOne {
+	builder := c.Delete().Where(iterationplan.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &IterationPlanDeleteOne{builder}
+}
+
+// Query returns a query builder for IterationPlan.
+func (c *IterationPlanClient) Query() *IterationPlanQuery {
+	return &IterationPlanQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeIterationPlan},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a IterationPlan entity by its id.
+func (c *IterationPlanClient) Get(ctx context.Context, id int) (*IterationPlan, error) {
+	return c.Query().Where(iterationplan.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *IterationPlanClient) GetX(ctx context.Context, id int) *IterationPlan {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTenant queries the tenant edge of a IterationPlan.
+func (c *IterationPlanClient) QueryTenant(_m *IterationPlan) *TenantQuery {
+	query := (&TenantClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(iterationplan.Table, iterationplan.FieldID, id),
+			sqlgraph.To(tenant.Table, tenant.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, iterationplan.TenantTable, iterationplan.TenantColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryProject queries the project edge of a IterationPlan.
+func (c *IterationPlanClient) QueryProject(_m *IterationPlan) *ProjectQuery {
+	query := (&ProjectClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(iterationplan.Table, iterationplan.FieldID, id),
+			sqlgraph.To(project.Table, project.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, iterationplan.ProjectTable, iterationplan.ProjectColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryStudy queries the study edge of a IterationPlan.
+func (c *IterationPlanClient) QueryStudy(_m *IterationPlan) *StudyQuery {
+	query := (&StudyClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(iterationplan.Table, iterationplan.FieldID, id),
+			sqlgraph.To(study.Table, study.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, iterationplan.StudyTable, iterationplan.StudyColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryAgentToken queries the agent_token edge of a IterationPlan.
+func (c *IterationPlanClient) QueryAgentToken(_m *IterationPlan) *AgentTokenQuery {
+	query := (&AgentTokenClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(iterationplan.Table, iterationplan.FieldID, id),
+			sqlgraph.To(agenttoken.Table, agenttoken.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, iterationplan.AgentTokenTable, iterationplan.AgentTokenColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *IterationPlanClient) Hooks() []Hook {
+	return c.hooks.IterationPlan
+}
+
+// Interceptors returns the client interceptors.
+func (c *IterationPlanClient) Interceptors() []Interceptor {
+	return c.inters.IterationPlan
+}
+
+func (c *IterationPlanClient) mutate(ctx context.Context, m *IterationPlanMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&IterationPlanCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&IterationPlanUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&IterationPlanUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&IterationPlanDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown IterationPlan mutation op: %q", m.Op())
 	}
 }
 
@@ -4058,6 +4353,70 @@ func (c *ProjectClient) QueryWorkspaceDatasets(_m *Project) *WorkspaceDatasetQue
 	return query
 }
 
+// QueryStudies queries the studies edge of a Project.
+func (c *ProjectClient) QueryStudies(_m *Project) *StudyQuery {
+	query := (&StudyClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, id),
+			sqlgraph.To(study.Table, study.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.StudiesTable, project.StudiesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryIterationPlans queries the iteration_plans edge of a Project.
+func (c *ProjectClient) QueryIterationPlans(_m *Project) *IterationPlanQuery {
+	query := (&IterationPlanClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, id),
+			sqlgraph.To(iterationplan.Table, iterationplan.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.IterationPlansTable, project.IterationPlansColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryResearchNodes queries the research_nodes edge of a Project.
+func (c *ProjectClient) QueryResearchNodes(_m *Project) *ResearchNodeQuery {
+	query := (&ResearchNodeClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, id),
+			sqlgraph.To(researchnode.Table, researchnode.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.ResearchNodesTable, project.ResearchNodesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryResearchEdges queries the research_edges edge of a Project.
+func (c *ProjectClient) QueryResearchEdges(_m *Project) *ResearchEdgeQuery {
+	query := (&ResearchEdgeClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, id),
+			sqlgraph.To(researchedge.Table, researchedge.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.ResearchEdgesTable, project.ResearchEdgesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *ProjectClient) Hooks() []Hook {
 	return c.hooks.Project
@@ -4775,6 +5134,464 @@ func (c *RepositoryClient) mutate(ctx context.Context, m *RepositoryMutation) (V
 	}
 }
 
+// ResearchEdgeClient is a client for the ResearchEdge schema.
+type ResearchEdgeClient struct {
+	config
+}
+
+// NewResearchEdgeClient returns a client for the ResearchEdge from the given config.
+func NewResearchEdgeClient(c config) *ResearchEdgeClient {
+	return &ResearchEdgeClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `researchedge.Hooks(f(g(h())))`.
+func (c *ResearchEdgeClient) Use(hooks ...Hook) {
+	c.hooks.ResearchEdge = append(c.hooks.ResearchEdge, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `researchedge.Intercept(f(g(h())))`.
+func (c *ResearchEdgeClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ResearchEdge = append(c.inters.ResearchEdge, interceptors...)
+}
+
+// Create returns a builder for creating a ResearchEdge entity.
+func (c *ResearchEdgeClient) Create() *ResearchEdgeCreate {
+	mutation := newResearchEdgeMutation(c.config, OpCreate)
+	return &ResearchEdgeCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ResearchEdge entities.
+func (c *ResearchEdgeClient) CreateBulk(builders ...*ResearchEdgeCreate) *ResearchEdgeCreateBulk {
+	return &ResearchEdgeCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ResearchEdgeClient) MapCreateBulk(slice any, setFunc func(*ResearchEdgeCreate, int)) *ResearchEdgeCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ResearchEdgeCreateBulk{err: fmt.Errorf("calling to ResearchEdgeClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ResearchEdgeCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ResearchEdgeCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ResearchEdge.
+func (c *ResearchEdgeClient) Update() *ResearchEdgeUpdate {
+	mutation := newResearchEdgeMutation(c.config, OpUpdate)
+	return &ResearchEdgeUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ResearchEdgeClient) UpdateOne(_m *ResearchEdge) *ResearchEdgeUpdateOne {
+	mutation := newResearchEdgeMutation(c.config, OpUpdateOne, withResearchEdge(_m))
+	return &ResearchEdgeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ResearchEdgeClient) UpdateOneID(id int) *ResearchEdgeUpdateOne {
+	mutation := newResearchEdgeMutation(c.config, OpUpdateOne, withResearchEdgeID(id))
+	return &ResearchEdgeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ResearchEdge.
+func (c *ResearchEdgeClient) Delete() *ResearchEdgeDelete {
+	mutation := newResearchEdgeMutation(c.config, OpDelete)
+	return &ResearchEdgeDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ResearchEdgeClient) DeleteOne(_m *ResearchEdge) *ResearchEdgeDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ResearchEdgeClient) DeleteOneID(id int) *ResearchEdgeDeleteOne {
+	builder := c.Delete().Where(researchedge.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ResearchEdgeDeleteOne{builder}
+}
+
+// Query returns a query builder for ResearchEdge.
+func (c *ResearchEdgeClient) Query() *ResearchEdgeQuery {
+	return &ResearchEdgeQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeResearchEdge},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ResearchEdge entity by its id.
+func (c *ResearchEdgeClient) Get(ctx context.Context, id int) (*ResearchEdge, error) {
+	return c.Query().Where(researchedge.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ResearchEdgeClient) GetX(ctx context.Context, id int) *ResearchEdge {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTenant queries the tenant edge of a ResearchEdge.
+func (c *ResearchEdgeClient) QueryTenant(_m *ResearchEdge) *TenantQuery {
+	query := (&TenantClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(researchedge.Table, researchedge.FieldID, id),
+			sqlgraph.To(tenant.Table, tenant.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, researchedge.TenantTable, researchedge.TenantColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryProject queries the project edge of a ResearchEdge.
+func (c *ResearchEdgeClient) QueryProject(_m *ResearchEdge) *ProjectQuery {
+	query := (&ProjectClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(researchedge.Table, researchedge.FieldID, id),
+			sqlgraph.To(project.Table, project.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, researchedge.ProjectTable, researchedge.ProjectColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryStudy queries the study edge of a ResearchEdge.
+func (c *ResearchEdgeClient) QueryStudy(_m *ResearchEdge) *StudyQuery {
+	query := (&StudyClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(researchedge.Table, researchedge.FieldID, id),
+			sqlgraph.To(study.Table, study.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, researchedge.StudyTable, researchedge.StudyColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryFromNode queries the from_node edge of a ResearchEdge.
+func (c *ResearchEdgeClient) QueryFromNode(_m *ResearchEdge) *ResearchNodeQuery {
+	query := (&ResearchNodeClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(researchedge.Table, researchedge.FieldID, id),
+			sqlgraph.To(researchnode.Table, researchnode.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, researchedge.FromNodeTable, researchedge.FromNodeColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryToNode queries the to_node edge of a ResearchEdge.
+func (c *ResearchEdgeClient) QueryToNode(_m *ResearchEdge) *ResearchNodeQuery {
+	query := (&ResearchNodeClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(researchedge.Table, researchedge.FieldID, id),
+			sqlgraph.To(researchnode.Table, researchnode.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, researchedge.ToNodeTable, researchedge.ToNodeColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *ResearchEdgeClient) Hooks() []Hook {
+	return c.hooks.ResearchEdge
+}
+
+// Interceptors returns the client interceptors.
+func (c *ResearchEdgeClient) Interceptors() []Interceptor {
+	return c.inters.ResearchEdge
+}
+
+func (c *ResearchEdgeClient) mutate(ctx context.Context, m *ResearchEdgeMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ResearchEdgeCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ResearchEdgeUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ResearchEdgeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ResearchEdgeDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ResearchEdge mutation op: %q", m.Op())
+	}
+}
+
+// ResearchNodeClient is a client for the ResearchNode schema.
+type ResearchNodeClient struct {
+	config
+}
+
+// NewResearchNodeClient returns a client for the ResearchNode from the given config.
+func NewResearchNodeClient(c config) *ResearchNodeClient {
+	return &ResearchNodeClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `researchnode.Hooks(f(g(h())))`.
+func (c *ResearchNodeClient) Use(hooks ...Hook) {
+	c.hooks.ResearchNode = append(c.hooks.ResearchNode, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `researchnode.Intercept(f(g(h())))`.
+func (c *ResearchNodeClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ResearchNode = append(c.inters.ResearchNode, interceptors...)
+}
+
+// Create returns a builder for creating a ResearchNode entity.
+func (c *ResearchNodeClient) Create() *ResearchNodeCreate {
+	mutation := newResearchNodeMutation(c.config, OpCreate)
+	return &ResearchNodeCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ResearchNode entities.
+func (c *ResearchNodeClient) CreateBulk(builders ...*ResearchNodeCreate) *ResearchNodeCreateBulk {
+	return &ResearchNodeCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ResearchNodeClient) MapCreateBulk(slice any, setFunc func(*ResearchNodeCreate, int)) *ResearchNodeCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ResearchNodeCreateBulk{err: fmt.Errorf("calling to ResearchNodeClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ResearchNodeCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ResearchNodeCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ResearchNode.
+func (c *ResearchNodeClient) Update() *ResearchNodeUpdate {
+	mutation := newResearchNodeMutation(c.config, OpUpdate)
+	return &ResearchNodeUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ResearchNodeClient) UpdateOne(_m *ResearchNode) *ResearchNodeUpdateOne {
+	mutation := newResearchNodeMutation(c.config, OpUpdateOne, withResearchNode(_m))
+	return &ResearchNodeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ResearchNodeClient) UpdateOneID(id int) *ResearchNodeUpdateOne {
+	mutation := newResearchNodeMutation(c.config, OpUpdateOne, withResearchNodeID(id))
+	return &ResearchNodeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ResearchNode.
+func (c *ResearchNodeClient) Delete() *ResearchNodeDelete {
+	mutation := newResearchNodeMutation(c.config, OpDelete)
+	return &ResearchNodeDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ResearchNodeClient) DeleteOne(_m *ResearchNode) *ResearchNodeDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ResearchNodeClient) DeleteOneID(id int) *ResearchNodeDeleteOne {
+	builder := c.Delete().Where(researchnode.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ResearchNodeDeleteOne{builder}
+}
+
+// Query returns a query builder for ResearchNode.
+func (c *ResearchNodeClient) Query() *ResearchNodeQuery {
+	return &ResearchNodeQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeResearchNode},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ResearchNode entity by its id.
+func (c *ResearchNodeClient) Get(ctx context.Context, id int) (*ResearchNode, error) {
+	return c.Query().Where(researchnode.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ResearchNodeClient) GetX(ctx context.Context, id int) *ResearchNode {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTenant queries the tenant edge of a ResearchNode.
+func (c *ResearchNodeClient) QueryTenant(_m *ResearchNode) *TenantQuery {
+	query := (&TenantClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(researchnode.Table, researchnode.FieldID, id),
+			sqlgraph.To(tenant.Table, tenant.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, researchnode.TenantTable, researchnode.TenantColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryProject queries the project edge of a ResearchNode.
+func (c *ResearchNodeClient) QueryProject(_m *ResearchNode) *ProjectQuery {
+	query := (&ProjectClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(researchnode.Table, researchnode.FieldID, id),
+			sqlgraph.To(project.Table, project.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, researchnode.ProjectTable, researchnode.ProjectColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryStudy queries the study edge of a ResearchNode.
+func (c *ResearchNodeClient) QueryStudy(_m *ResearchNode) *StudyQuery {
+	query := (&StudyClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(researchnode.Table, researchnode.FieldID, id),
+			sqlgraph.To(study.Table, study.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, researchnode.StudyTable, researchnode.StudyColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryExperiment queries the experiment edge of a ResearchNode.
+func (c *ResearchNodeClient) QueryExperiment(_m *ResearchNode) *ExperimentQuery {
+	query := (&ExperimentClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(researchnode.Table, researchnode.FieldID, id),
+			sqlgraph.To(experiment.Table, experiment.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, researchnode.ExperimentTable, researchnode.ExperimentColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryAgentToken queries the agent_token edge of a ResearchNode.
+func (c *ResearchNodeClient) QueryAgentToken(_m *ResearchNode) *AgentTokenQuery {
+	query := (&AgentTokenClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(researchnode.Table, researchnode.FieldID, id),
+			sqlgraph.To(agenttoken.Table, agenttoken.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, researchnode.AgentTokenTable, researchnode.AgentTokenColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryOutgoingEdges queries the outgoing_edges edge of a ResearchNode.
+func (c *ResearchNodeClient) QueryOutgoingEdges(_m *ResearchNode) *ResearchEdgeQuery {
+	query := (&ResearchEdgeClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(researchnode.Table, researchnode.FieldID, id),
+			sqlgraph.To(researchedge.Table, researchedge.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, researchnode.OutgoingEdgesTable, researchnode.OutgoingEdgesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryIncomingEdges queries the incoming_edges edge of a ResearchNode.
+func (c *ResearchNodeClient) QueryIncomingEdges(_m *ResearchNode) *ResearchEdgeQuery {
+	query := (&ResearchEdgeClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(researchnode.Table, researchnode.FieldID, id),
+			sqlgraph.To(researchedge.Table, researchedge.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, researchnode.IncomingEdgesTable, researchnode.IncomingEdgesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *ResearchNodeClient) Hooks() []Hook {
+	return c.hooks.ResearchNode
+}
+
+// Interceptors returns the client interceptors.
+func (c *ResearchNodeClient) Interceptors() []Interceptor {
+	return c.inters.ResearchNode
+}
+
+func (c *ResearchNodeClient) mutate(ctx context.Context, m *ResearchNodeMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ResearchNodeCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ResearchNodeUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ResearchNodeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ResearchNodeDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ResearchNode mutation op: %q", m.Op())
+	}
+}
+
 // ResourceProfileClient is a client for the ResourceProfile schema.
 type ResourceProfileClient struct {
 	config
@@ -5467,6 +6284,235 @@ func (c *SessionClient) mutate(ctx context.Context, m *SessionMutation) (Value, 
 	}
 }
 
+// StudyClient is a client for the Study schema.
+type StudyClient struct {
+	config
+}
+
+// NewStudyClient returns a client for the Study from the given config.
+func NewStudyClient(c config) *StudyClient {
+	return &StudyClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `study.Hooks(f(g(h())))`.
+func (c *StudyClient) Use(hooks ...Hook) {
+	c.hooks.Study = append(c.hooks.Study, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `study.Intercept(f(g(h())))`.
+func (c *StudyClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Study = append(c.inters.Study, interceptors...)
+}
+
+// Create returns a builder for creating a Study entity.
+func (c *StudyClient) Create() *StudyCreate {
+	mutation := newStudyMutation(c.config, OpCreate)
+	return &StudyCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Study entities.
+func (c *StudyClient) CreateBulk(builders ...*StudyCreate) *StudyCreateBulk {
+	return &StudyCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *StudyClient) MapCreateBulk(slice any, setFunc func(*StudyCreate, int)) *StudyCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &StudyCreateBulk{err: fmt.Errorf("calling to StudyClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*StudyCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &StudyCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Study.
+func (c *StudyClient) Update() *StudyUpdate {
+	mutation := newStudyMutation(c.config, OpUpdate)
+	return &StudyUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *StudyClient) UpdateOne(_m *Study) *StudyUpdateOne {
+	mutation := newStudyMutation(c.config, OpUpdateOne, withStudy(_m))
+	return &StudyUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *StudyClient) UpdateOneID(id int) *StudyUpdateOne {
+	mutation := newStudyMutation(c.config, OpUpdateOne, withStudyID(id))
+	return &StudyUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Study.
+func (c *StudyClient) Delete() *StudyDelete {
+	mutation := newStudyMutation(c.config, OpDelete)
+	return &StudyDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *StudyClient) DeleteOne(_m *Study) *StudyDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *StudyClient) DeleteOneID(id int) *StudyDeleteOne {
+	builder := c.Delete().Where(study.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &StudyDeleteOne{builder}
+}
+
+// Query returns a query builder for Study.
+func (c *StudyClient) Query() *StudyQuery {
+	return &StudyQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeStudy},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Study entity by its id.
+func (c *StudyClient) Get(ctx context.Context, id int) (*Study, error) {
+	return c.Query().Where(study.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *StudyClient) GetX(ctx context.Context, id int) *Study {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTenant queries the tenant edge of a Study.
+func (c *StudyClient) QueryTenant(_m *Study) *TenantQuery {
+	query := (&TenantClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(study.Table, study.FieldID, id),
+			sqlgraph.To(tenant.Table, tenant.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, study.TenantTable, study.TenantColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryProject queries the project edge of a Study.
+func (c *StudyClient) QueryProject(_m *Study) *ProjectQuery {
+	query := (&ProjectClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(study.Table, study.FieldID, id),
+			sqlgraph.To(project.Table, project.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, study.ProjectTable, study.ProjectColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryAgentToken queries the agent_token edge of a Study.
+func (c *StudyClient) QueryAgentToken(_m *Study) *AgentTokenQuery {
+	query := (&AgentTokenClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(study.Table, study.FieldID, id),
+			sqlgraph.To(agenttoken.Table, agenttoken.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, study.AgentTokenTable, study.AgentTokenColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryIterationPlans queries the iteration_plans edge of a Study.
+func (c *StudyClient) QueryIterationPlans(_m *Study) *IterationPlanQuery {
+	query := (&IterationPlanClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(study.Table, study.FieldID, id),
+			sqlgraph.To(iterationplan.Table, iterationplan.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, study.IterationPlansTable, study.IterationPlansColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryResearchNodes queries the research_nodes edge of a Study.
+func (c *StudyClient) QueryResearchNodes(_m *Study) *ResearchNodeQuery {
+	query := (&ResearchNodeClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(study.Table, study.FieldID, id),
+			sqlgraph.To(researchnode.Table, researchnode.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, study.ResearchNodesTable, study.ResearchNodesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryResearchEdges queries the research_edges edge of a Study.
+func (c *StudyClient) QueryResearchEdges(_m *Study) *ResearchEdgeQuery {
+	query := (&ResearchEdgeClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(study.Table, study.FieldID, id),
+			sqlgraph.To(researchedge.Table, researchedge.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, study.ResearchEdgesTable, study.ResearchEdgesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *StudyClient) Hooks() []Hook {
+	return c.hooks.Study
+}
+
+// Interceptors returns the client interceptors.
+func (c *StudyClient) Interceptors() []Interceptor {
+	return c.inters.Study
+}
+
+func (c *StudyClient) mutate(ctx context.Context, m *StudyMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&StudyCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&StudyUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&StudyUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&StudyDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Study mutation op: %q", m.Op())
+	}
+}
+
 // TenantClient is a client for the Tenant schema.
 type TenantClient struct {
 	config
@@ -5895,6 +6941,70 @@ func (c *TenantClient) QueryWorkspaceDatasets(_m *Tenant) *WorkspaceDatasetQuery
 	return query
 }
 
+// QueryStudies queries the studies edge of a Tenant.
+func (c *TenantClient) QueryStudies(_m *Tenant) *StudyQuery {
+	query := (&StudyClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, id),
+			sqlgraph.To(study.Table, study.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.StudiesTable, tenant.StudiesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryIterationPlans queries the iteration_plans edge of a Tenant.
+func (c *TenantClient) QueryIterationPlans(_m *Tenant) *IterationPlanQuery {
+	query := (&IterationPlanClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, id),
+			sqlgraph.To(iterationplan.Table, iterationplan.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.IterationPlansTable, tenant.IterationPlansColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryResearchNodes queries the research_nodes edge of a Tenant.
+func (c *TenantClient) QueryResearchNodes(_m *Tenant) *ResearchNodeQuery {
+	query := (&ResearchNodeClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, id),
+			sqlgraph.To(researchnode.Table, researchnode.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.ResearchNodesTable, tenant.ResearchNodesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryResearchEdges queries the research_edges edge of a Tenant.
+func (c *TenantClient) QueryResearchEdges(_m *Tenant) *ResearchEdgeQuery {
+	query := (&ResearchEdgeClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, id),
+			sqlgraph.To(researchedge.Table, researchedge.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.ResearchEdgesTable, tenant.ResearchEdgesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *TenantClient) Hooks() []Hook {
 	return c.hooks.Tenant
@@ -6286,18 +7396,20 @@ func (c *WorkspaceDatasetClient) mutate(ctx context.Context, m *WorkspaceDataset
 type (
 	hooks struct {
 		AgentEnrollment, AgentToken, Attempt, AuditEvent, BudgetEntry, DiagnosticRun,
-		Environment, Experiment, ExperimentProposal, IdempotencyRecord, NodeAssignment,
-		NodeCommand, NodeEnrollment, NodeEvent, NodeProjectAccess, Notification,
-		NotificationSetting, Project, ProviderAccount, ProviderResource, RecordMixin,
-		Repository, ResourceProfile, SelfHostedNode, ServiceHeartbeat, Session, Tenant,
-		User, WorkspaceDataset []ent.Hook
+		Environment, Experiment, ExperimentProposal, IdempotencyRecord, IterationPlan,
+		NodeAssignment, NodeCommand, NodeEnrollment, NodeEvent, NodeProjectAccess,
+		Notification, NotificationSetting, Project, ProviderAccount, ProviderResource,
+		RecordMixin, Repository, ResearchEdge, ResearchNode, ResourceProfile,
+		SelfHostedNode, ServiceHeartbeat, Session, Study, Tenant, User,
+		WorkspaceDataset []ent.Hook
 	}
 	inters struct {
 		AgentEnrollment, AgentToken, Attempt, AuditEvent, BudgetEntry, DiagnosticRun,
-		Environment, Experiment, ExperimentProposal, IdempotencyRecord, NodeAssignment,
-		NodeCommand, NodeEnrollment, NodeEvent, NodeProjectAccess, Notification,
-		NotificationSetting, Project, ProviderAccount, ProviderResource, RecordMixin,
-		Repository, ResourceProfile, SelfHostedNode, ServiceHeartbeat, Session, Tenant,
-		User, WorkspaceDataset []ent.Interceptor
+		Environment, Experiment, ExperimentProposal, IdempotencyRecord, IterationPlan,
+		NodeAssignment, NodeCommand, NodeEnrollment, NodeEvent, NodeProjectAccess,
+		Notification, NotificationSetting, Project, ProviderAccount, ProviderResource,
+		RecordMixin, Repository, ResearchEdge, ResearchNode, ResourceProfile,
+		SelfHostedNode, ServiceHeartbeat, Session, Study, Tenant, User,
+		WorkspaceDataset []ent.Interceptor
 	}
 )

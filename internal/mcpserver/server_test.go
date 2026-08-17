@@ -14,6 +14,7 @@ import (
 	"github.com/XR-Lee/Gemcp/guides"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
 	"github.com/XR-Lee/Gemcp/internal/experiment"
+	"github.com/XR-Lee/Gemcp/internal/research"
 	repositoryservice "github.com/XR-Lee/Gemcp/internal/repository"
 	"github.com/XR-Lee/Gemcp/internal/secrets"
 	"github.com/XR-Lee/Gemcp/internal/workspacecatalog"
@@ -88,6 +89,7 @@ func TestStreamableHTTPToolsWithAgentToken(t *testing.T) {
 		agentauth.NewService(client, box),
 		experiment.NewService(client, box, allowCommitVerifier{}),
 		"test", nil, WithConfiguration(repositoryservice.NewService(client, box, nil), workspacecatalog.NewService(client)),
+		WithResearch(research.NewService(client)),
 	).Handler()
 	httpServer := httptest.NewServer(handler)
 	defer httpServer.Close()
@@ -116,15 +118,16 @@ func TestStreamableHTTPToolsWithAgentToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListTools() error = %v", err)
 	}
-	if len(tools.Tools) != 17 {
-		t.Fatalf("tool count = %d, want 17", len(tools.Tools))
+	if len(tools.Tools) != 19 {
+		t.Fatalf("tool count = %d, want 19", len(tools.Tools))
 	}
 	toolNames := map[string]bool{}
 	for _, tool := range tools.Tools {
 		toolNames[tool.Name] = true
 	}
-	if !toolNames["report_agent_activity"] || !toolNames["prepare_experiment"] || !toolNames["submit_prepared_experiment"] || !toolNames["submit_experiment"] ||
-		!toolNames["register_repository"] || !toolNames["verify_repository"] || !toolNames["register_workspace_dataset"] {
+	if !toolNames["get_research_workspace"] || !toolNames["update_research_workspace"] || !toolNames["report_agent_activity"] || !toolNames["prepare_experiment"] ||
+		!toolNames["submit_prepared_experiment"] || !toolNames["submit_experiment"] || !toolNames["register_repository"] || !toolNames["verify_repository"] ||
+		!toolNames["register_workspace_dataset"] {
 		t.Fatalf("prepared and Advanced tools are not all registered: %+v", toolNames)
 	}
 	usage, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "get_usage_guide", Arguments: map[string]any{}})

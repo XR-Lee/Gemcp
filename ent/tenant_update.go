@@ -18,6 +18,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
+	"github.com/XR-Lee/Gemcp/ent/iterationplan"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/nodecommand"
 	"github.com/XR-Lee/Gemcp/ent/nodeenrollment"
@@ -29,7 +30,10 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/provideraccount"
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
+	"github.com/XR-Lee/Gemcp/ent/researchedge"
+	"github.com/XR-Lee/Gemcp/ent/researchnode"
 	"github.com/XR-Lee/Gemcp/ent/selfhostednode"
+	"github.com/XR-Lee/Gemcp/ent/study"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
 	"github.com/XR-Lee/Gemcp/ent/user"
 	"github.com/XR-Lee/Gemcp/ent/workspacedataset"
@@ -380,6 +384,66 @@ func (_u *TenantUpdate) AddWorkspaceDatasets(v ...*WorkspaceDataset) *TenantUpda
 		ids[i] = v[i].ID
 	}
 	return _u.AddWorkspaceDatasetIDs(ids...)
+}
+
+// AddStudyIDs adds the "studies" edge to the Study entity by IDs.
+func (_u *TenantUpdate) AddStudyIDs(ids ...int) *TenantUpdate {
+	_u.mutation.AddStudyIDs(ids...)
+	return _u
+}
+
+// AddStudies adds the "studies" edges to the Study entity.
+func (_u *TenantUpdate) AddStudies(v ...*Study) *TenantUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddStudyIDs(ids...)
+}
+
+// AddIterationPlanIDs adds the "iteration_plans" edge to the IterationPlan entity by IDs.
+func (_u *TenantUpdate) AddIterationPlanIDs(ids ...int) *TenantUpdate {
+	_u.mutation.AddIterationPlanIDs(ids...)
+	return _u
+}
+
+// AddIterationPlans adds the "iteration_plans" edges to the IterationPlan entity.
+func (_u *TenantUpdate) AddIterationPlans(v ...*IterationPlan) *TenantUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddIterationPlanIDs(ids...)
+}
+
+// AddResearchNodeIDs adds the "research_nodes" edge to the ResearchNode entity by IDs.
+func (_u *TenantUpdate) AddResearchNodeIDs(ids ...int) *TenantUpdate {
+	_u.mutation.AddResearchNodeIDs(ids...)
+	return _u
+}
+
+// AddResearchNodes adds the "research_nodes" edges to the ResearchNode entity.
+func (_u *TenantUpdate) AddResearchNodes(v ...*ResearchNode) *TenantUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddResearchNodeIDs(ids...)
+}
+
+// AddResearchEdgeIDs adds the "research_edges" edge to the ResearchEdge entity by IDs.
+func (_u *TenantUpdate) AddResearchEdgeIDs(ids ...int) *TenantUpdate {
+	_u.mutation.AddResearchEdgeIDs(ids...)
+	return _u
+}
+
+// AddResearchEdges adds the "research_edges" edges to the ResearchEdge entity.
+func (_u *TenantUpdate) AddResearchEdges(v ...*ResearchEdge) *TenantUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddResearchEdgeIDs(ids...)
 }
 
 // Mutation returns the TenantMutation object of the builder.
@@ -805,6 +869,90 @@ func (_u *TenantUpdate) RemoveWorkspaceDatasets(v ...*WorkspaceDataset) *TenantU
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveWorkspaceDatasetIDs(ids...)
+}
+
+// ClearStudies clears all "studies" edges to the Study entity.
+func (_u *TenantUpdate) ClearStudies() *TenantUpdate {
+	_u.mutation.ClearStudies()
+	return _u
+}
+
+// RemoveStudyIDs removes the "studies" edge to Study entities by IDs.
+func (_u *TenantUpdate) RemoveStudyIDs(ids ...int) *TenantUpdate {
+	_u.mutation.RemoveStudyIDs(ids...)
+	return _u
+}
+
+// RemoveStudies removes "studies" edges to Study entities.
+func (_u *TenantUpdate) RemoveStudies(v ...*Study) *TenantUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveStudyIDs(ids...)
+}
+
+// ClearIterationPlans clears all "iteration_plans" edges to the IterationPlan entity.
+func (_u *TenantUpdate) ClearIterationPlans() *TenantUpdate {
+	_u.mutation.ClearIterationPlans()
+	return _u
+}
+
+// RemoveIterationPlanIDs removes the "iteration_plans" edge to IterationPlan entities by IDs.
+func (_u *TenantUpdate) RemoveIterationPlanIDs(ids ...int) *TenantUpdate {
+	_u.mutation.RemoveIterationPlanIDs(ids...)
+	return _u
+}
+
+// RemoveIterationPlans removes "iteration_plans" edges to IterationPlan entities.
+func (_u *TenantUpdate) RemoveIterationPlans(v ...*IterationPlan) *TenantUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveIterationPlanIDs(ids...)
+}
+
+// ClearResearchNodes clears all "research_nodes" edges to the ResearchNode entity.
+func (_u *TenantUpdate) ClearResearchNodes() *TenantUpdate {
+	_u.mutation.ClearResearchNodes()
+	return _u
+}
+
+// RemoveResearchNodeIDs removes the "research_nodes" edge to ResearchNode entities by IDs.
+func (_u *TenantUpdate) RemoveResearchNodeIDs(ids ...int) *TenantUpdate {
+	_u.mutation.RemoveResearchNodeIDs(ids...)
+	return _u
+}
+
+// RemoveResearchNodes removes "research_nodes" edges to ResearchNode entities.
+func (_u *TenantUpdate) RemoveResearchNodes(v ...*ResearchNode) *TenantUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveResearchNodeIDs(ids...)
+}
+
+// ClearResearchEdges clears all "research_edges" edges to the ResearchEdge entity.
+func (_u *TenantUpdate) ClearResearchEdges() *TenantUpdate {
+	_u.mutation.ClearResearchEdges()
+	return _u
+}
+
+// RemoveResearchEdgeIDs removes the "research_edges" edge to ResearchEdge entities by IDs.
+func (_u *TenantUpdate) RemoveResearchEdgeIDs(ids ...int) *TenantUpdate {
+	_u.mutation.RemoveResearchEdgeIDs(ids...)
+	return _u
+}
+
+// RemoveResearchEdges removes "research_edges" edges to ResearchEdge entities.
+func (_u *TenantUpdate) RemoveResearchEdges(v ...*ResearchEdge) *TenantUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveResearchEdgeIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -1779,6 +1927,186 @@ func (_u *TenantUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.StudiesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.StudiesTable,
+			Columns: []string{tenant.StudiesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(study.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedStudiesIDs(); len(nodes) > 0 && !_u.mutation.StudiesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.StudiesTable,
+			Columns: []string{tenant.StudiesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(study.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.StudiesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.StudiesTable,
+			Columns: []string{tenant.StudiesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(study.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.IterationPlansCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.IterationPlansTable,
+			Columns: []string{tenant.IterationPlansColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(iterationplan.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedIterationPlansIDs(); len(nodes) > 0 && !_u.mutation.IterationPlansCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.IterationPlansTable,
+			Columns: []string{tenant.IterationPlansColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(iterationplan.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.IterationPlansIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.IterationPlansTable,
+			Columns: []string{tenant.IterationPlansColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(iterationplan.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ResearchNodesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ResearchNodesTable,
+			Columns: []string{tenant.ResearchNodesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(researchnode.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedResearchNodesIDs(); len(nodes) > 0 && !_u.mutation.ResearchNodesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ResearchNodesTable,
+			Columns: []string{tenant.ResearchNodesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(researchnode.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ResearchNodesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ResearchNodesTable,
+			Columns: []string{tenant.ResearchNodesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(researchnode.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ResearchEdgesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ResearchEdgesTable,
+			Columns: []string{tenant.ResearchEdgesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(researchedge.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedResearchEdgesIDs(); len(nodes) > 0 && !_u.mutation.ResearchEdgesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ResearchEdgesTable,
+			Columns: []string{tenant.ResearchEdgesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(researchedge.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ResearchEdgesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ResearchEdgesTable,
+			Columns: []string{tenant.ResearchEdgesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(researchedge.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{tenant.Label}
@@ -2131,6 +2459,66 @@ func (_u *TenantUpdateOne) AddWorkspaceDatasets(v ...*WorkspaceDataset) *TenantU
 		ids[i] = v[i].ID
 	}
 	return _u.AddWorkspaceDatasetIDs(ids...)
+}
+
+// AddStudyIDs adds the "studies" edge to the Study entity by IDs.
+func (_u *TenantUpdateOne) AddStudyIDs(ids ...int) *TenantUpdateOne {
+	_u.mutation.AddStudyIDs(ids...)
+	return _u
+}
+
+// AddStudies adds the "studies" edges to the Study entity.
+func (_u *TenantUpdateOne) AddStudies(v ...*Study) *TenantUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddStudyIDs(ids...)
+}
+
+// AddIterationPlanIDs adds the "iteration_plans" edge to the IterationPlan entity by IDs.
+func (_u *TenantUpdateOne) AddIterationPlanIDs(ids ...int) *TenantUpdateOne {
+	_u.mutation.AddIterationPlanIDs(ids...)
+	return _u
+}
+
+// AddIterationPlans adds the "iteration_plans" edges to the IterationPlan entity.
+func (_u *TenantUpdateOne) AddIterationPlans(v ...*IterationPlan) *TenantUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddIterationPlanIDs(ids...)
+}
+
+// AddResearchNodeIDs adds the "research_nodes" edge to the ResearchNode entity by IDs.
+func (_u *TenantUpdateOne) AddResearchNodeIDs(ids ...int) *TenantUpdateOne {
+	_u.mutation.AddResearchNodeIDs(ids...)
+	return _u
+}
+
+// AddResearchNodes adds the "research_nodes" edges to the ResearchNode entity.
+func (_u *TenantUpdateOne) AddResearchNodes(v ...*ResearchNode) *TenantUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddResearchNodeIDs(ids...)
+}
+
+// AddResearchEdgeIDs adds the "research_edges" edge to the ResearchEdge entity by IDs.
+func (_u *TenantUpdateOne) AddResearchEdgeIDs(ids ...int) *TenantUpdateOne {
+	_u.mutation.AddResearchEdgeIDs(ids...)
+	return _u
+}
+
+// AddResearchEdges adds the "research_edges" edges to the ResearchEdge entity.
+func (_u *TenantUpdateOne) AddResearchEdges(v ...*ResearchEdge) *TenantUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddResearchEdgeIDs(ids...)
 }
 
 // Mutation returns the TenantMutation object of the builder.
@@ -2556,6 +2944,90 @@ func (_u *TenantUpdateOne) RemoveWorkspaceDatasets(v ...*WorkspaceDataset) *Tena
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveWorkspaceDatasetIDs(ids...)
+}
+
+// ClearStudies clears all "studies" edges to the Study entity.
+func (_u *TenantUpdateOne) ClearStudies() *TenantUpdateOne {
+	_u.mutation.ClearStudies()
+	return _u
+}
+
+// RemoveStudyIDs removes the "studies" edge to Study entities by IDs.
+func (_u *TenantUpdateOne) RemoveStudyIDs(ids ...int) *TenantUpdateOne {
+	_u.mutation.RemoveStudyIDs(ids...)
+	return _u
+}
+
+// RemoveStudies removes "studies" edges to Study entities.
+func (_u *TenantUpdateOne) RemoveStudies(v ...*Study) *TenantUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveStudyIDs(ids...)
+}
+
+// ClearIterationPlans clears all "iteration_plans" edges to the IterationPlan entity.
+func (_u *TenantUpdateOne) ClearIterationPlans() *TenantUpdateOne {
+	_u.mutation.ClearIterationPlans()
+	return _u
+}
+
+// RemoveIterationPlanIDs removes the "iteration_plans" edge to IterationPlan entities by IDs.
+func (_u *TenantUpdateOne) RemoveIterationPlanIDs(ids ...int) *TenantUpdateOne {
+	_u.mutation.RemoveIterationPlanIDs(ids...)
+	return _u
+}
+
+// RemoveIterationPlans removes "iteration_plans" edges to IterationPlan entities.
+func (_u *TenantUpdateOne) RemoveIterationPlans(v ...*IterationPlan) *TenantUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveIterationPlanIDs(ids...)
+}
+
+// ClearResearchNodes clears all "research_nodes" edges to the ResearchNode entity.
+func (_u *TenantUpdateOne) ClearResearchNodes() *TenantUpdateOne {
+	_u.mutation.ClearResearchNodes()
+	return _u
+}
+
+// RemoveResearchNodeIDs removes the "research_nodes" edge to ResearchNode entities by IDs.
+func (_u *TenantUpdateOne) RemoveResearchNodeIDs(ids ...int) *TenantUpdateOne {
+	_u.mutation.RemoveResearchNodeIDs(ids...)
+	return _u
+}
+
+// RemoveResearchNodes removes "research_nodes" edges to ResearchNode entities.
+func (_u *TenantUpdateOne) RemoveResearchNodes(v ...*ResearchNode) *TenantUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveResearchNodeIDs(ids...)
+}
+
+// ClearResearchEdges clears all "research_edges" edges to the ResearchEdge entity.
+func (_u *TenantUpdateOne) ClearResearchEdges() *TenantUpdateOne {
+	_u.mutation.ClearResearchEdges()
+	return _u
+}
+
+// RemoveResearchEdgeIDs removes the "research_edges" edge to ResearchEdge entities by IDs.
+func (_u *TenantUpdateOne) RemoveResearchEdgeIDs(ids ...int) *TenantUpdateOne {
+	_u.mutation.RemoveResearchEdgeIDs(ids...)
+	return _u
+}
+
+// RemoveResearchEdges removes "research_edges" edges to ResearchEdge entities.
+func (_u *TenantUpdateOne) RemoveResearchEdges(v ...*ResearchEdge) *TenantUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveResearchEdgeIDs(ids...)
 }
 
 // Where appends a list predicates to the TenantUpdate builder.
@@ -3553,6 +4025,186 @@ func (_u *TenantUpdateOne) sqlSave(ctx context.Context) (_node *Tenant, err erro
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(workspacedataset.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.StudiesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.StudiesTable,
+			Columns: []string{tenant.StudiesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(study.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedStudiesIDs(); len(nodes) > 0 && !_u.mutation.StudiesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.StudiesTable,
+			Columns: []string{tenant.StudiesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(study.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.StudiesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.StudiesTable,
+			Columns: []string{tenant.StudiesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(study.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.IterationPlansCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.IterationPlansTable,
+			Columns: []string{tenant.IterationPlansColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(iterationplan.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedIterationPlansIDs(); len(nodes) > 0 && !_u.mutation.IterationPlansCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.IterationPlansTable,
+			Columns: []string{tenant.IterationPlansColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(iterationplan.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.IterationPlansIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.IterationPlansTable,
+			Columns: []string{tenant.IterationPlansColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(iterationplan.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ResearchNodesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ResearchNodesTable,
+			Columns: []string{tenant.ResearchNodesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(researchnode.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedResearchNodesIDs(); len(nodes) > 0 && !_u.mutation.ResearchNodesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ResearchNodesTable,
+			Columns: []string{tenant.ResearchNodesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(researchnode.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ResearchNodesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ResearchNodesTable,
+			Columns: []string{tenant.ResearchNodesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(researchnode.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ResearchEdgesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ResearchEdgesTable,
+			Columns: []string{tenant.ResearchEdgesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(researchedge.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedResearchEdgesIDs(); len(nodes) > 0 && !_u.mutation.ResearchEdgesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ResearchEdgesTable,
+			Columns: []string{tenant.ResearchEdgesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(researchedge.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ResearchEdgesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ResearchEdgesTable,
+			Columns: []string{tenant.ResearchEdgesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(researchedge.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

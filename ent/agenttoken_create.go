@@ -14,7 +14,10 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
+	"github.com/XR-Lee/Gemcp/ent/iterationplan"
 	"github.com/XR-Lee/Gemcp/ent/project"
+	"github.com/XR-Lee/Gemcp/ent/researchnode"
+	"github.com/XR-Lee/Gemcp/ent/study"
 	"github.com/XR-Lee/Gemcp/ent/workspacedataset"
 	"github.com/google/uuid"
 )
@@ -217,6 +220,51 @@ func (_c *AgentTokenCreate) AddWorkspaceDatasets(v ...*WorkspaceDataset) *AgentT
 		ids[i] = v[i].ID
 	}
 	return _c.AddWorkspaceDatasetIDs(ids...)
+}
+
+// AddStudyIDs adds the "studies" edge to the Study entity by IDs.
+func (_c *AgentTokenCreate) AddStudyIDs(ids ...int) *AgentTokenCreate {
+	_c.mutation.AddStudyIDs(ids...)
+	return _c
+}
+
+// AddStudies adds the "studies" edges to the Study entity.
+func (_c *AgentTokenCreate) AddStudies(v ...*Study) *AgentTokenCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddStudyIDs(ids...)
+}
+
+// AddIterationPlanIDs adds the "iteration_plans" edge to the IterationPlan entity by IDs.
+func (_c *AgentTokenCreate) AddIterationPlanIDs(ids ...int) *AgentTokenCreate {
+	_c.mutation.AddIterationPlanIDs(ids...)
+	return _c
+}
+
+// AddIterationPlans adds the "iteration_plans" edges to the IterationPlan entity.
+func (_c *AgentTokenCreate) AddIterationPlans(v ...*IterationPlan) *AgentTokenCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddIterationPlanIDs(ids...)
+}
+
+// AddResearchNodeIDs adds the "research_nodes" edge to the ResearchNode entity by IDs.
+func (_c *AgentTokenCreate) AddResearchNodeIDs(ids ...int) *AgentTokenCreate {
+	_c.mutation.AddResearchNodeIDs(ids...)
+	return _c
+}
+
+// AddResearchNodes adds the "research_nodes" edges to the ResearchNode entity.
+func (_c *AgentTokenCreate) AddResearchNodes(v ...*ResearchNode) *AgentTokenCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddResearchNodeIDs(ids...)
 }
 
 // Mutation returns the AgentTokenMutation object of the builder.
@@ -479,6 +527,54 @@ func (_c *AgentTokenCreate) createSpec() (*AgentToken, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(workspacedataset.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.StudiesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.StudiesTable,
+			Columns: []string{agenttoken.StudiesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(study.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.IterationPlansIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.IterationPlansTable,
+			Columns: []string{agenttoken.IterationPlansColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(iterationplan.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ResearchNodesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.ResearchNodesTable,
+			Columns: []string{agenttoken.ResearchNodesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(researchnode.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

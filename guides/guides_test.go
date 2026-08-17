@@ -135,7 +135,7 @@ export async function verifyConfiguredServer(configPath, serverName) {
   const config = JSON.parse(await fs.readFile(configPath, 'utf8'))
   const server = config.mcpServers?.[serverName]
   if (!server?.bearerToken?.startsWith('gmc_')) throw new Error('missing test credential')
-  return { toolCount: 17, checks: ['tools', 'guide', 'options', 'cost'] }
+  return { toolCount: 19, checks: ['tools', 'guide', 'options', 'cost'] }
 }
 `))
 		case "/api/v1/agent-enrollments/claim":
@@ -146,7 +146,7 @@ export async function verifyConfiguredServer(configPath, serverName) {
 				"pi_config": map[string]any{
 					"type": "http", "url": serverURL + "/mcp", "auth": "bearer",
 					"bearerToken": "gmc_test_install_secret", "lifecycle": "lazy", "exposeResources": true,
-					"directTools": []string{"get_usage_guide", "list_repository_registrations", "register_repository", "verify_repository", "list_workspace_datasets", "register_workspace_dataset", "remove_workspace_dataset", "report_agent_activity", "prepare_experiment", "submit_prepared_experiment", "get_project_options", "get_project_cost", "submit_experiment", "get_experiment", "list_experiments", "cancel_experiment", "list_artifacts"},
+					"directTools": []string{"get_usage_guide", "list_repository_registrations", "register_repository", "verify_repository", "list_workspace_datasets", "register_workspace_dataset", "remove_workspace_dataset", "get_research_workspace", "update_research_workspace", "report_agent_activity", "prepare_experiment", "submit_prepared_experiment", "get_project_options", "get_project_cost", "submit_experiment", "get_experiment", "list_experiments", "cancel_experiment", "list_artifacts"},
 				},
 			}})
 		case "/api/v1/agent-enrollments/complete":

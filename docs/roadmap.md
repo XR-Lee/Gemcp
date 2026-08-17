@@ -132,6 +132,10 @@ Allow an Owner to authorize one normalized host directory for one Project and No
 
 Add an explicit `configure` scope for current-Project GitHub SSH repository registration and verification, plus bounded dataset declarations below an existing Owner-approved trusted workspace root. Expose stable container paths and controlled environment variables, bind active declarations into Proposal drift checks, require Node-side existence and symlink-containment validation, and keep host-root authorization Owner-only. Allow an Owner to update an existing active Token's scopes without exposing its secret.
 
+### v0.16.0 - research workbench
+
+Add Studies, superseded iteration plans, and a typed research Graph as the Owner home surface. Agents read and update that workspace through two MCP tools without starting workloads. Keep Diagnostics, Finance, Nodes, Provider, and Alerts in a separate Lab layer so Docker execution and control-plane detail stay one click away from the scientific question.
+
 ## In progress
 
 ### Repository readiness and Owner prepared experiments

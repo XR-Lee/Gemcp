@@ -74,6 +74,14 @@ const (
 	EdgeExperimentProposals = "experiment_proposals"
 	// EdgeWorkspaceDatasets holds the string denoting the workspace_datasets edge name in mutations.
 	EdgeWorkspaceDatasets = "workspace_datasets"
+	// EdgeStudies holds the string denoting the studies edge name in mutations.
+	EdgeStudies = "studies"
+	// EdgeIterationPlans holds the string denoting the iteration_plans edge name in mutations.
+	EdgeIterationPlans = "iteration_plans"
+	// EdgeResearchNodes holds the string denoting the research_nodes edge name in mutations.
+	EdgeResearchNodes = "research_nodes"
+	// EdgeResearchEdges holds the string denoting the research_edges edge name in mutations.
+	EdgeResearchEdges = "research_edges"
 	// Table holds the table name of the project in the database.
 	Table = "projects"
 	// TenantTable is the table that holds the tenant relation/edge.
@@ -181,6 +189,34 @@ const (
 	WorkspaceDatasetsInverseTable = "workspace_datasets"
 	// WorkspaceDatasetsColumn is the table column denoting the workspace_datasets relation/edge.
 	WorkspaceDatasetsColumn = "project_id"
+	// StudiesTable is the table that holds the studies relation/edge.
+	StudiesTable = "studies"
+	// StudiesInverseTable is the table name for the Study entity.
+	// It exists in this package in order to avoid circular dependency with the "study" package.
+	StudiesInverseTable = "studies"
+	// StudiesColumn is the table column denoting the studies relation/edge.
+	StudiesColumn = "project_id"
+	// IterationPlansTable is the table that holds the iteration_plans relation/edge.
+	IterationPlansTable = "iteration_plans"
+	// IterationPlansInverseTable is the table name for the IterationPlan entity.
+	// It exists in this package in order to avoid circular dependency with the "iterationplan" package.
+	IterationPlansInverseTable = "iteration_plans"
+	// IterationPlansColumn is the table column denoting the iteration_plans relation/edge.
+	IterationPlansColumn = "project_id"
+	// ResearchNodesTable is the table that holds the research_nodes relation/edge.
+	ResearchNodesTable = "research_nodes"
+	// ResearchNodesInverseTable is the table name for the ResearchNode entity.
+	// It exists in this package in order to avoid circular dependency with the "researchnode" package.
+	ResearchNodesInverseTable = "research_nodes"
+	// ResearchNodesColumn is the table column denoting the research_nodes relation/edge.
+	ResearchNodesColumn = "project_id"
+	// ResearchEdgesTable is the table that holds the research_edges relation/edge.
+	ResearchEdgesTable = "research_edges"
+	// ResearchEdgesInverseTable is the table name for the ResearchEdge entity.
+	// It exists in this package in order to avoid circular dependency with the "researchedge" package.
+	ResearchEdgesInverseTable = "research_edges"
+	// ResearchEdgesColumn is the table column denoting the research_edges relation/edge.
+	ResearchEdgesColumn = "project_id"
 )
 
 // Columns holds all SQL columns for project fields.
@@ -558,6 +594,62 @@ func ByWorkspaceDatasets(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption
 		sqlgraph.OrderByNeighborTerms(s, newWorkspaceDatasetsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByStudiesCount orders the results by studies count.
+func ByStudiesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newStudiesStep(), opts...)
+	}
+}
+
+// ByStudies orders the results by studies terms.
+func ByStudies(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newStudiesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByIterationPlansCount orders the results by iteration_plans count.
+func ByIterationPlansCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newIterationPlansStep(), opts...)
+	}
+}
+
+// ByIterationPlans orders the results by iteration_plans terms.
+func ByIterationPlans(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newIterationPlansStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByResearchNodesCount orders the results by research_nodes count.
+func ByResearchNodesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newResearchNodesStep(), opts...)
+	}
+}
+
+// ByResearchNodes orders the results by research_nodes terms.
+func ByResearchNodes(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newResearchNodesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByResearchEdgesCount orders the results by research_edges count.
+func ByResearchEdgesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newResearchEdgesStep(), opts...)
+	}
+}
+
+// ByResearchEdges orders the results by research_edges terms.
+func ByResearchEdges(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newResearchEdgesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newTenantStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -661,5 +753,33 @@ func newWorkspaceDatasetsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(WorkspaceDatasetsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, WorkspaceDatasetsTable, WorkspaceDatasetsColumn),
+	)
+}
+func newStudiesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(StudiesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, StudiesTable, StudiesColumn),
+	)
+}
+func newIterationPlansStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(IterationPlansInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, IterationPlansTable, IterationPlansColumn),
+	)
+}
+func newResearchNodesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ResearchNodesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ResearchNodesTable, ResearchNodesColumn),
+	)
+}
+func newResearchEdgesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ResearchEdgesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ResearchEdgesTable, ResearchEdgesColumn),
 	)
 }

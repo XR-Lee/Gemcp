@@ -32,6 +32,8 @@ type Tx struct {
 	ExperimentProposal *ExperimentProposalClient
 	// IdempotencyRecord is the client for interacting with the IdempotencyRecord builders.
 	IdempotencyRecord *IdempotencyRecordClient
+	// IterationPlan is the client for interacting with the IterationPlan builders.
+	IterationPlan *IterationPlanClient
 	// NodeAssignment is the client for interacting with the NodeAssignment builders.
 	NodeAssignment *NodeAssignmentClient
 	// NodeCommand is the client for interacting with the NodeCommand builders.
@@ -56,6 +58,10 @@ type Tx struct {
 	RecordMixin *RecordMixinClient
 	// Repository is the client for interacting with the Repository builders.
 	Repository *RepositoryClient
+	// ResearchEdge is the client for interacting with the ResearchEdge builders.
+	ResearchEdge *ResearchEdgeClient
+	// ResearchNode is the client for interacting with the ResearchNode builders.
+	ResearchNode *ResearchNodeClient
 	// ResourceProfile is the client for interacting with the ResourceProfile builders.
 	ResourceProfile *ResourceProfileClient
 	// SelfHostedNode is the client for interacting with the SelfHostedNode builders.
@@ -64,6 +70,8 @@ type Tx struct {
 	ServiceHeartbeat *ServiceHeartbeatClient
 	// Session is the client for interacting with the Session builders.
 	Session *SessionClient
+	// Study is the client for interacting with the Study builders.
+	Study *StudyClient
 	// Tenant is the client for interacting with the Tenant builders.
 	Tenant *TenantClient
 	// User is the client for interacting with the User builders.
@@ -211,6 +219,7 @@ func (tx *Tx) init() {
 	tx.Experiment = NewExperimentClient(tx.config)
 	tx.ExperimentProposal = NewExperimentProposalClient(tx.config)
 	tx.IdempotencyRecord = NewIdempotencyRecordClient(tx.config)
+	tx.IterationPlan = NewIterationPlanClient(tx.config)
 	tx.NodeAssignment = NewNodeAssignmentClient(tx.config)
 	tx.NodeCommand = NewNodeCommandClient(tx.config)
 	tx.NodeEnrollment = NewNodeEnrollmentClient(tx.config)
@@ -223,10 +232,13 @@ func (tx *Tx) init() {
 	tx.ProviderResource = NewProviderResourceClient(tx.config)
 	tx.RecordMixin = NewRecordMixinClient(tx.config)
 	tx.Repository = NewRepositoryClient(tx.config)
+	tx.ResearchEdge = NewResearchEdgeClient(tx.config)
+	tx.ResearchNode = NewResearchNodeClient(tx.config)
 	tx.ResourceProfile = NewResourceProfileClient(tx.config)
 	tx.SelfHostedNode = NewSelfHostedNodeClient(tx.config)
 	tx.ServiceHeartbeat = NewServiceHeartbeatClient(tx.config)
 	tx.Session = NewSessionClient(tx.config)
+	tx.Study = NewStudyClient(tx.config)
 	tx.Tenant = NewTenantClient(tx.config)
 	tx.User = NewUserClient(tx.config)
 	tx.WorkspaceDataset = NewWorkspaceDatasetClient(tx.config)

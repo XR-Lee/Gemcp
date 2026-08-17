@@ -2220,6 +2220,29 @@ func HasProposalWith(preds ...predicate.ExperimentProposal) predicate.Experiment
 	})
 }
 
+// HasResearchNodes applies the HasEdge predicate on the "research_nodes" edge.
+func HasResearchNodes() predicate.Experiment {
+	return predicate.Experiment(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ResearchNodesTable, ResearchNodesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasResearchNodesWith applies the HasEdge predicate on the "research_nodes" edge with a given conditions (other predicates).
+func HasResearchNodesWith(preds ...predicate.ResearchNode) predicate.Experiment {
+	return predicate.Experiment(func(s *sql.Selector) {
+		step := newResearchNodesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.Experiment) predicate.Experiment {
 	return predicate.Experiment(sql.AndPredicates(predicates...))

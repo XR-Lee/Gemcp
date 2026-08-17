@@ -22,6 +22,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
+	"github.com/XR-Lee/Gemcp/ent/iterationplan"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/nodecommand"
 	"github.com/XR-Lee/Gemcp/ent/nodeenrollment"
@@ -34,10 +35,13 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/recordmixin"
 	"github.com/XR-Lee/Gemcp/ent/repository"
+	"github.com/XR-Lee/Gemcp/ent/researchedge"
+	"github.com/XR-Lee/Gemcp/ent/researchnode"
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
 	"github.com/XR-Lee/Gemcp/ent/selfhostednode"
 	"github.com/XR-Lee/Gemcp/ent/serviceheartbeat"
 	"github.com/XR-Lee/Gemcp/ent/session"
+	"github.com/XR-Lee/Gemcp/ent/study"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
 	"github.com/XR-Lee/Gemcp/ent/user"
 	"github.com/XR-Lee/Gemcp/ent/workspacedataset"
@@ -111,6 +115,7 @@ func checkColumn(t, c string) error {
 			experiment.Table:          experiment.ValidColumn,
 			experimentproposal.Table:  experimentproposal.ValidColumn,
 			idempotencyrecord.Table:   idempotencyrecord.ValidColumn,
+			iterationplan.Table:       iterationplan.ValidColumn,
 			nodeassignment.Table:      nodeassignment.ValidColumn,
 			nodecommand.Table:         nodecommand.ValidColumn,
 			nodeenrollment.Table:      nodeenrollment.ValidColumn,
@@ -123,10 +128,13 @@ func checkColumn(t, c string) error {
 			providerresource.Table:    providerresource.ValidColumn,
 			recordmixin.Table:         recordmixin.ValidColumn,
 			repository.Table:          repository.ValidColumn,
+			researchedge.Table:        researchedge.ValidColumn,
+			researchnode.Table:        researchnode.ValidColumn,
 			resourceprofile.Table:     resourceprofile.ValidColumn,
 			selfhostednode.Table:      selfhostednode.ValidColumn,
 			serviceheartbeat.Table:    serviceheartbeat.ValidColumn,
 			session.Table:             session.ValidColumn,
+			study.Table:               study.ValidColumn,
 			tenant.Table:              tenant.ValidColumn,
 			user.Table:                user.ValidColumn,
 			workspacedataset.Table:    workspacedataset.ValidColumn,

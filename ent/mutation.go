@@ -21,6 +21,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
+	"github.com/XR-Lee/Gemcp/ent/iterationplan"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/nodecommand"
 	"github.com/XR-Lee/Gemcp/ent/nodeenrollment"
@@ -34,10 +35,13 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/recordmixin"
 	"github.com/XR-Lee/Gemcp/ent/repository"
+	"github.com/XR-Lee/Gemcp/ent/researchedge"
+	"github.com/XR-Lee/Gemcp/ent/researchnode"
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
 	"github.com/XR-Lee/Gemcp/ent/selfhostednode"
 	"github.com/XR-Lee/Gemcp/ent/serviceheartbeat"
 	"github.com/XR-Lee/Gemcp/ent/session"
+	"github.com/XR-Lee/Gemcp/ent/study"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
 	"github.com/XR-Lee/Gemcp/ent/user"
 	"github.com/XR-Lee/Gemcp/ent/workspacedataset"
@@ -63,6 +67,7 @@ const (
 	TypeExperiment          = "Experiment"
 	TypeExperimentProposal  = "ExperimentProposal"
 	TypeIdempotencyRecord   = "IdempotencyRecord"
+	TypeIterationPlan       = "IterationPlan"
 	TypeNodeAssignment      = "NodeAssignment"
 	TypeNodeCommand         = "NodeCommand"
 	TypeNodeEnrollment      = "NodeEnrollment"
@@ -75,10 +80,13 @@ const (
 	TypeProviderResource    = "ProviderResource"
 	TypeRecordMixin         = "RecordMixin"
 	TypeRepository          = "Repository"
+	TypeResearchEdge        = "ResearchEdge"
+	TypeResearchNode        = "ResearchNode"
 	TypeResourceProfile     = "ResourceProfile"
 	TypeSelfHostedNode      = "SelfHostedNode"
 	TypeServiceHeartbeat    = "ServiceHeartbeat"
 	TypeSession             = "Session"
+	TypeStudy               = "Study"
 	TypeTenant              = "Tenant"
 	TypeUser                = "User"
 	TypeWorkspaceDataset    = "WorkspaceDataset"
@@ -1396,6 +1404,15 @@ type AgentTokenMutation struct {
 	workspace_datasets          map[int]struct{}
 	removedworkspace_datasets   map[int]struct{}
 	clearedworkspace_datasets   bool
+	studies                     map[int]struct{}
+	removedstudies              map[int]struct{}
+	clearedstudies              bool
+	iteration_plans             map[int]struct{}
+	removediteration_plans      map[int]struct{}
+	clearediteration_plans      bool
+	research_nodes              map[int]struct{}
+	removedresearch_nodes       map[int]struct{}
+	clearedresearch_nodes       bool
 	done                        bool
 	oldValue                    func(context.Context) (*AgentToken, error)
 	predicates                  []predicate.AgentToken
@@ -2215,6 +2232,168 @@ func (m *AgentTokenMutation) ResetWorkspaceDatasets() {
 	m.removedworkspace_datasets = nil
 }
 
+// AddStudyIDs adds the "studies" edge to the Study entity by ids.
+func (m *AgentTokenMutation) AddStudyIDs(ids ...int) {
+	if m.studies == nil {
+		m.studies = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.studies[ids[i]] = struct{}{}
+	}
+}
+
+// ClearStudies clears the "studies" edge to the Study entity.
+func (m *AgentTokenMutation) ClearStudies() {
+	m.clearedstudies = true
+}
+
+// StudiesCleared reports if the "studies" edge to the Study entity was cleared.
+func (m *AgentTokenMutation) StudiesCleared() bool {
+	return m.clearedstudies
+}
+
+// RemoveStudyIDs removes the "studies" edge to the Study entity by IDs.
+func (m *AgentTokenMutation) RemoveStudyIDs(ids ...int) {
+	if m.removedstudies == nil {
+		m.removedstudies = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.studies, ids[i])
+		m.removedstudies[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedStudies returns the removed IDs of the "studies" edge to the Study entity.
+func (m *AgentTokenMutation) RemovedStudiesIDs() (ids []int) {
+	for id := range m.removedstudies {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// StudiesIDs returns the "studies" edge IDs in the mutation.
+func (m *AgentTokenMutation) StudiesIDs() (ids []int) {
+	for id := range m.studies {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetStudies resets all changes to the "studies" edge.
+func (m *AgentTokenMutation) ResetStudies() {
+	m.studies = nil
+	m.clearedstudies = false
+	m.removedstudies = nil
+}
+
+// AddIterationPlanIDs adds the "iteration_plans" edge to the IterationPlan entity by ids.
+func (m *AgentTokenMutation) AddIterationPlanIDs(ids ...int) {
+	if m.iteration_plans == nil {
+		m.iteration_plans = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.iteration_plans[ids[i]] = struct{}{}
+	}
+}
+
+// ClearIterationPlans clears the "iteration_plans" edge to the IterationPlan entity.
+func (m *AgentTokenMutation) ClearIterationPlans() {
+	m.clearediteration_plans = true
+}
+
+// IterationPlansCleared reports if the "iteration_plans" edge to the IterationPlan entity was cleared.
+func (m *AgentTokenMutation) IterationPlansCleared() bool {
+	return m.clearediteration_plans
+}
+
+// RemoveIterationPlanIDs removes the "iteration_plans" edge to the IterationPlan entity by IDs.
+func (m *AgentTokenMutation) RemoveIterationPlanIDs(ids ...int) {
+	if m.removediteration_plans == nil {
+		m.removediteration_plans = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.iteration_plans, ids[i])
+		m.removediteration_plans[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedIterationPlans returns the removed IDs of the "iteration_plans" edge to the IterationPlan entity.
+func (m *AgentTokenMutation) RemovedIterationPlansIDs() (ids []int) {
+	for id := range m.removediteration_plans {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// IterationPlansIDs returns the "iteration_plans" edge IDs in the mutation.
+func (m *AgentTokenMutation) IterationPlansIDs() (ids []int) {
+	for id := range m.iteration_plans {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetIterationPlans resets all changes to the "iteration_plans" edge.
+func (m *AgentTokenMutation) ResetIterationPlans() {
+	m.iteration_plans = nil
+	m.clearediteration_plans = false
+	m.removediteration_plans = nil
+}
+
+// AddResearchNodeIDs adds the "research_nodes" edge to the ResearchNode entity by ids.
+func (m *AgentTokenMutation) AddResearchNodeIDs(ids ...int) {
+	if m.research_nodes == nil {
+		m.research_nodes = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.research_nodes[ids[i]] = struct{}{}
+	}
+}
+
+// ClearResearchNodes clears the "research_nodes" edge to the ResearchNode entity.
+func (m *AgentTokenMutation) ClearResearchNodes() {
+	m.clearedresearch_nodes = true
+}
+
+// ResearchNodesCleared reports if the "research_nodes" edge to the ResearchNode entity was cleared.
+func (m *AgentTokenMutation) ResearchNodesCleared() bool {
+	return m.clearedresearch_nodes
+}
+
+// RemoveResearchNodeIDs removes the "research_nodes" edge to the ResearchNode entity by IDs.
+func (m *AgentTokenMutation) RemoveResearchNodeIDs(ids ...int) {
+	if m.removedresearch_nodes == nil {
+		m.removedresearch_nodes = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.research_nodes, ids[i])
+		m.removedresearch_nodes[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedResearchNodes returns the removed IDs of the "research_nodes" edge to the ResearchNode entity.
+func (m *AgentTokenMutation) RemovedResearchNodesIDs() (ids []int) {
+	for id := range m.removedresearch_nodes {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResearchNodesIDs returns the "research_nodes" edge IDs in the mutation.
+func (m *AgentTokenMutation) ResearchNodesIDs() (ids []int) {
+	for id := range m.research_nodes {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetResearchNodes resets all changes to the "research_nodes" edge.
+func (m *AgentTokenMutation) ResetResearchNodes() {
+	m.research_nodes = nil
+	m.clearedresearch_nodes = false
+	m.removedresearch_nodes = nil
+}
+
 // Where appends a list predicates to the AgentTokenMutation builder.
 func (m *AgentTokenMutation) Where(ps ...predicate.AgentToken) {
 	m.predicates = append(m.predicates, ps...)
@@ -2553,7 +2732,7 @@ func (m *AgentTokenMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *AgentTokenMutation) AddedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 8)
 	if m.project != nil {
 		edges = append(edges, agenttoken.EdgeProject)
 	}
@@ -2568,6 +2747,15 @@ func (m *AgentTokenMutation) AddedEdges() []string {
 	}
 	if m.workspace_datasets != nil {
 		edges = append(edges, agenttoken.EdgeWorkspaceDatasets)
+	}
+	if m.studies != nil {
+		edges = append(edges, agenttoken.EdgeStudies)
+	}
+	if m.iteration_plans != nil {
+		edges = append(edges, agenttoken.EdgeIterationPlans)
+	}
+	if m.research_nodes != nil {
+		edges = append(edges, agenttoken.EdgeResearchNodes)
 	}
 	return edges
 }
@@ -2604,13 +2792,31 @@ func (m *AgentTokenMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case agenttoken.EdgeStudies:
+		ids := make([]ent.Value, 0, len(m.studies))
+		for id := range m.studies {
+			ids = append(ids, id)
+		}
+		return ids
+	case agenttoken.EdgeIterationPlans:
+		ids := make([]ent.Value, 0, len(m.iteration_plans))
+		for id := range m.iteration_plans {
+			ids = append(ids, id)
+		}
+		return ids
+	case agenttoken.EdgeResearchNodes:
+		ids := make([]ent.Value, 0, len(m.research_nodes))
+		for id := range m.research_nodes {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *AgentTokenMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 8)
 	if m.removedexperiments != nil {
 		edges = append(edges, agenttoken.EdgeExperiments)
 	}
@@ -2622,6 +2828,15 @@ func (m *AgentTokenMutation) RemovedEdges() []string {
 	}
 	if m.removedworkspace_datasets != nil {
 		edges = append(edges, agenttoken.EdgeWorkspaceDatasets)
+	}
+	if m.removedstudies != nil {
+		edges = append(edges, agenttoken.EdgeStudies)
+	}
+	if m.removediteration_plans != nil {
+		edges = append(edges, agenttoken.EdgeIterationPlans)
+	}
+	if m.removedresearch_nodes != nil {
+		edges = append(edges, agenttoken.EdgeResearchNodes)
 	}
 	return edges
 }
@@ -2654,13 +2869,31 @@ func (m *AgentTokenMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case agenttoken.EdgeStudies:
+		ids := make([]ent.Value, 0, len(m.removedstudies))
+		for id := range m.removedstudies {
+			ids = append(ids, id)
+		}
+		return ids
+	case agenttoken.EdgeIterationPlans:
+		ids := make([]ent.Value, 0, len(m.removediteration_plans))
+		for id := range m.removediteration_plans {
+			ids = append(ids, id)
+		}
+		return ids
+	case agenttoken.EdgeResearchNodes:
+		ids := make([]ent.Value, 0, len(m.removedresearch_nodes))
+		for id := range m.removedresearch_nodes {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *AgentTokenMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 8)
 	if m.clearedproject {
 		edges = append(edges, agenttoken.EdgeProject)
 	}
@@ -2675,6 +2908,15 @@ func (m *AgentTokenMutation) ClearedEdges() []string {
 	}
 	if m.clearedworkspace_datasets {
 		edges = append(edges, agenttoken.EdgeWorkspaceDatasets)
+	}
+	if m.clearedstudies {
+		edges = append(edges, agenttoken.EdgeStudies)
+	}
+	if m.clearediteration_plans {
+		edges = append(edges, agenttoken.EdgeIterationPlans)
+	}
+	if m.clearedresearch_nodes {
+		edges = append(edges, agenttoken.EdgeResearchNodes)
 	}
 	return edges
 }
@@ -2693,6 +2935,12 @@ func (m *AgentTokenMutation) EdgeCleared(name string) bool {
 		return m.clearedexperiment_proposals
 	case agenttoken.EdgeWorkspaceDatasets:
 		return m.clearedworkspace_datasets
+	case agenttoken.EdgeStudies:
+		return m.clearedstudies
+	case agenttoken.EdgeIterationPlans:
+		return m.clearediteration_plans
+	case agenttoken.EdgeResearchNodes:
+		return m.clearedresearch_nodes
 	}
 	return false
 }
@@ -2726,6 +2974,15 @@ func (m *AgentTokenMutation) ResetEdge(name string) error {
 		return nil
 	case agenttoken.EdgeWorkspaceDatasets:
 		m.ResetWorkspaceDatasets()
+		return nil
+	case agenttoken.EdgeStudies:
+		m.ResetStudies()
+		return nil
+	case agenttoken.EdgeIterationPlans:
+		m.ResetIterationPlans()
+		return nil
+	case agenttoken.EdgeResearchNodes:
+		m.ResetResearchNodes()
 		return nil
 	}
 	return fmt.Errorf("unknown AgentToken edge %s", name)
@@ -9268,6 +9525,9 @@ type ExperimentMutation struct {
 	cleareddiagnostic_run        bool
 	proposal                     *int
 	clearedproposal              bool
+	research_nodes               map[int]struct{}
+	removedresearch_nodes        map[int]struct{}
+	clearedresearch_nodes        bool
 	done                         bool
 	oldValue                     func(context.Context) (*Experiment, error)
 	predicates                   []predicate.Experiment
@@ -11717,6 +11977,60 @@ func (m *ExperimentMutation) ResetProposal() {
 	m.clearedproposal = false
 }
 
+// AddResearchNodeIDs adds the "research_nodes" edge to the ResearchNode entity by ids.
+func (m *ExperimentMutation) AddResearchNodeIDs(ids ...int) {
+	if m.research_nodes == nil {
+		m.research_nodes = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.research_nodes[ids[i]] = struct{}{}
+	}
+}
+
+// ClearResearchNodes clears the "research_nodes" edge to the ResearchNode entity.
+func (m *ExperimentMutation) ClearResearchNodes() {
+	m.clearedresearch_nodes = true
+}
+
+// ResearchNodesCleared reports if the "research_nodes" edge to the ResearchNode entity was cleared.
+func (m *ExperimentMutation) ResearchNodesCleared() bool {
+	return m.clearedresearch_nodes
+}
+
+// RemoveResearchNodeIDs removes the "research_nodes" edge to the ResearchNode entity by IDs.
+func (m *ExperimentMutation) RemoveResearchNodeIDs(ids ...int) {
+	if m.removedresearch_nodes == nil {
+		m.removedresearch_nodes = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.research_nodes, ids[i])
+		m.removedresearch_nodes[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedResearchNodes returns the removed IDs of the "research_nodes" edge to the ResearchNode entity.
+func (m *ExperimentMutation) RemovedResearchNodesIDs() (ids []int) {
+	for id := range m.removedresearch_nodes {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResearchNodesIDs returns the "research_nodes" edge IDs in the mutation.
+func (m *ExperimentMutation) ResearchNodesIDs() (ids []int) {
+	for id := range m.research_nodes {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetResearchNodes resets all changes to the "research_nodes" edge.
+func (m *ExperimentMutation) ResetResearchNodes() {
+	m.research_nodes = nil
+	m.clearedresearch_nodes = false
+	m.removedresearch_nodes = nil
+}
+
 // Where appends a list predicates to the ExperimentMutation builder.
 func (m *ExperimentMutation) Where(ps ...predicate.Experiment) {
 	m.predicates = append(m.predicates, ps...)
@@ -12704,7 +13018,7 @@ func (m *ExperimentMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *ExperimentMutation) AddedEdges() []string {
-	edges := make([]string, 0, 13)
+	edges := make([]string, 0, 14)
 	if m.tenant != nil {
 		edges = append(edges, experiment.EdgeTenant)
 	}
@@ -12743,6 +13057,9 @@ func (m *ExperimentMutation) AddedEdges() []string {
 	}
 	if m.proposal != nil {
 		edges = append(edges, experiment.EdgeProposal)
+	}
+	if m.research_nodes != nil {
+		edges = append(edges, experiment.EdgeResearchNodes)
 	}
 	return edges
 }
@@ -12813,13 +13130,19 @@ func (m *ExperimentMutation) AddedIDs(name string) []ent.Value {
 		if id := m.proposal; id != nil {
 			return []ent.Value{*id}
 		}
+	case experiment.EdgeResearchNodes:
+		ids := make([]ent.Value, 0, len(m.research_nodes))
+		for id := range m.research_nodes {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *ExperimentMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 13)
+	edges := make([]string, 0, 14)
 	if m.removedattempts != nil {
 		edges = append(edges, experiment.EdgeAttempts)
 	}
@@ -12834,6 +13157,9 @@ func (m *ExperimentMutation) RemovedEdges() []string {
 	}
 	if m.removedidempotency_records != nil {
 		edges = append(edges, experiment.EdgeIdempotencyRecords)
+	}
+	if m.removedresearch_nodes != nil {
+		edges = append(edges, experiment.EdgeResearchNodes)
 	}
 	return edges
 }
@@ -12872,13 +13198,19 @@ func (m *ExperimentMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case experiment.EdgeResearchNodes:
+		ids := make([]ent.Value, 0, len(m.removedresearch_nodes))
+		for id := range m.removedresearch_nodes {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *ExperimentMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 13)
+	edges := make([]string, 0, 14)
 	if m.clearedtenant {
 		edges = append(edges, experiment.EdgeTenant)
 	}
@@ -12918,6 +13250,9 @@ func (m *ExperimentMutation) ClearedEdges() []string {
 	if m.clearedproposal {
 		edges = append(edges, experiment.EdgeProposal)
 	}
+	if m.clearedresearch_nodes {
+		edges = append(edges, experiment.EdgeResearchNodes)
+	}
 	return edges
 }
 
@@ -12951,6 +13286,8 @@ func (m *ExperimentMutation) EdgeCleared(name string) bool {
 		return m.cleareddiagnostic_run
 	case experiment.EdgeProposal:
 		return m.clearedproposal
+	case experiment.EdgeResearchNodes:
+		return m.clearedresearch_nodes
 	}
 	return false
 }
@@ -13029,6 +13366,9 @@ func (m *ExperimentMutation) ResetEdge(name string) error {
 		return nil
 	case experiment.EdgeProposal:
 		m.ResetProposal()
+		return nil
+	case experiment.EdgeResearchNodes:
+		m.ResetResearchNodes()
 		return nil
 	}
 	return fmt.Errorf("unknown Experiment edge %s", name)
@@ -16315,6 +16655,1178 @@ func (m *IdempotencyRecordMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown IdempotencyRecord edge %s", name)
+}
+
+// IterationPlanMutation represents an operation that mutates the IterationPlan nodes in the graph.
+type IterationPlanMutation struct {
+	config
+	op                 Op
+	typ                string
+	id                 *int
+	public_id          *uuid.UUID
+	created_at         *time.Time
+	updated_at         *time.Time
+	status             *iterationplan.Status
+	goal               *string
+	next_action        *string
+	rationale          *string
+	steps              *[]map[string]interface{}
+	appendsteps        []map[string]interface{}
+	clearedFields      map[string]struct{}
+	tenant             *int
+	clearedtenant      bool
+	project            *int
+	clearedproject     bool
+	study              *int
+	clearedstudy       bool
+	agent_token        *int
+	clearedagent_token bool
+	done               bool
+	oldValue           func(context.Context) (*IterationPlan, error)
+	predicates         []predicate.IterationPlan
+}
+
+var _ ent.Mutation = (*IterationPlanMutation)(nil)
+
+// iterationplanOption allows management of the mutation configuration using functional options.
+type iterationplanOption func(*IterationPlanMutation)
+
+// newIterationPlanMutation creates new mutation for the IterationPlan entity.
+func newIterationPlanMutation(c config, op Op, opts ...iterationplanOption) *IterationPlanMutation {
+	m := &IterationPlanMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeIterationPlan,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withIterationPlanID sets the ID field of the mutation.
+func withIterationPlanID(id int) iterationplanOption {
+	return func(m *IterationPlanMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *IterationPlan
+		)
+		m.oldValue = func(ctx context.Context) (*IterationPlan, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().IterationPlan.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withIterationPlan sets the old IterationPlan of the mutation.
+func withIterationPlan(node *IterationPlan) iterationplanOption {
+	return func(m *IterationPlanMutation) {
+		m.oldValue = func(context.Context) (*IterationPlan, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m IterationPlanMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m IterationPlanMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *IterationPlanMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *IterationPlanMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().IterationPlan.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetPublicID sets the "public_id" field.
+func (m *IterationPlanMutation) SetPublicID(u uuid.UUID) {
+	m.public_id = &u
+}
+
+// PublicID returns the value of the "public_id" field in the mutation.
+func (m *IterationPlanMutation) PublicID() (r uuid.UUID, exists bool) {
+	v := m.public_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPublicID returns the old "public_id" field's value of the IterationPlan entity.
+// If the IterationPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IterationPlanMutation) OldPublicID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPublicID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPublicID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPublicID: %w", err)
+	}
+	return oldValue.PublicID, nil
+}
+
+// ResetPublicID resets all changes to the "public_id" field.
+func (m *IterationPlanMutation) ResetPublicID() {
+	m.public_id = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *IterationPlanMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *IterationPlanMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the IterationPlan entity.
+// If the IterationPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IterationPlanMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *IterationPlanMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *IterationPlanMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *IterationPlanMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the IterationPlan entity.
+// If the IterationPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IterationPlanMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *IterationPlanMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *IterationPlanMutation) SetTenantID(i int) {
+	m.tenant = &i
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *IterationPlanMutation) TenantID() (r int, exists bool) {
+	v := m.tenant
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the IterationPlan entity.
+// If the IterationPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IterationPlanMutation) OldTenantID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *IterationPlanMutation) ResetTenantID() {
+	m.tenant = nil
+}
+
+// SetProjectID sets the "project_id" field.
+func (m *IterationPlanMutation) SetProjectID(i int) {
+	m.project = &i
+}
+
+// ProjectID returns the value of the "project_id" field in the mutation.
+func (m *IterationPlanMutation) ProjectID() (r int, exists bool) {
+	v := m.project
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProjectID returns the old "project_id" field's value of the IterationPlan entity.
+// If the IterationPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IterationPlanMutation) OldProjectID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProjectID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProjectID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProjectID: %w", err)
+	}
+	return oldValue.ProjectID, nil
+}
+
+// ResetProjectID resets all changes to the "project_id" field.
+func (m *IterationPlanMutation) ResetProjectID() {
+	m.project = nil
+}
+
+// SetStudyID sets the "study_id" field.
+func (m *IterationPlanMutation) SetStudyID(i int) {
+	m.study = &i
+}
+
+// StudyID returns the value of the "study_id" field in the mutation.
+func (m *IterationPlanMutation) StudyID() (r int, exists bool) {
+	v := m.study
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStudyID returns the old "study_id" field's value of the IterationPlan entity.
+// If the IterationPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IterationPlanMutation) OldStudyID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStudyID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStudyID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStudyID: %w", err)
+	}
+	return oldValue.StudyID, nil
+}
+
+// ResetStudyID resets all changes to the "study_id" field.
+func (m *IterationPlanMutation) ResetStudyID() {
+	m.study = nil
+}
+
+// SetAgentTokenID sets the "agent_token_id" field.
+func (m *IterationPlanMutation) SetAgentTokenID(i int) {
+	m.agent_token = &i
+}
+
+// AgentTokenID returns the value of the "agent_token_id" field in the mutation.
+func (m *IterationPlanMutation) AgentTokenID() (r int, exists bool) {
+	v := m.agent_token
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAgentTokenID returns the old "agent_token_id" field's value of the IterationPlan entity.
+// If the IterationPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IterationPlanMutation) OldAgentTokenID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAgentTokenID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAgentTokenID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAgentTokenID: %w", err)
+	}
+	return oldValue.AgentTokenID, nil
+}
+
+// ClearAgentTokenID clears the value of the "agent_token_id" field.
+func (m *IterationPlanMutation) ClearAgentTokenID() {
+	m.agent_token = nil
+	m.clearedFields[iterationplan.FieldAgentTokenID] = struct{}{}
+}
+
+// AgentTokenIDCleared returns if the "agent_token_id" field was cleared in this mutation.
+func (m *IterationPlanMutation) AgentTokenIDCleared() bool {
+	_, ok := m.clearedFields[iterationplan.FieldAgentTokenID]
+	return ok
+}
+
+// ResetAgentTokenID resets all changes to the "agent_token_id" field.
+func (m *IterationPlanMutation) ResetAgentTokenID() {
+	m.agent_token = nil
+	delete(m.clearedFields, iterationplan.FieldAgentTokenID)
+}
+
+// SetStatus sets the "status" field.
+func (m *IterationPlanMutation) SetStatus(i iterationplan.Status) {
+	m.status = &i
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *IterationPlanMutation) Status() (r iterationplan.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the IterationPlan entity.
+// If the IterationPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IterationPlanMutation) OldStatus(ctx context.Context) (v iterationplan.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *IterationPlanMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetGoal sets the "goal" field.
+func (m *IterationPlanMutation) SetGoal(s string) {
+	m.goal = &s
+}
+
+// Goal returns the value of the "goal" field in the mutation.
+func (m *IterationPlanMutation) Goal() (r string, exists bool) {
+	v := m.goal
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGoal returns the old "goal" field's value of the IterationPlan entity.
+// If the IterationPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IterationPlanMutation) OldGoal(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGoal is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGoal requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGoal: %w", err)
+	}
+	return oldValue.Goal, nil
+}
+
+// ResetGoal resets all changes to the "goal" field.
+func (m *IterationPlanMutation) ResetGoal() {
+	m.goal = nil
+}
+
+// SetNextAction sets the "next_action" field.
+func (m *IterationPlanMutation) SetNextAction(s string) {
+	m.next_action = &s
+}
+
+// NextAction returns the value of the "next_action" field in the mutation.
+func (m *IterationPlanMutation) NextAction() (r string, exists bool) {
+	v := m.next_action
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNextAction returns the old "next_action" field's value of the IterationPlan entity.
+// If the IterationPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IterationPlanMutation) OldNextAction(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNextAction is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNextAction requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNextAction: %w", err)
+	}
+	return oldValue.NextAction, nil
+}
+
+// ResetNextAction resets all changes to the "next_action" field.
+func (m *IterationPlanMutation) ResetNextAction() {
+	m.next_action = nil
+}
+
+// SetRationale sets the "rationale" field.
+func (m *IterationPlanMutation) SetRationale(s string) {
+	m.rationale = &s
+}
+
+// Rationale returns the value of the "rationale" field in the mutation.
+func (m *IterationPlanMutation) Rationale() (r string, exists bool) {
+	v := m.rationale
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRationale returns the old "rationale" field's value of the IterationPlan entity.
+// If the IterationPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IterationPlanMutation) OldRationale(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRationale is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRationale requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRationale: %w", err)
+	}
+	return oldValue.Rationale, nil
+}
+
+// ClearRationale clears the value of the "rationale" field.
+func (m *IterationPlanMutation) ClearRationale() {
+	m.rationale = nil
+	m.clearedFields[iterationplan.FieldRationale] = struct{}{}
+}
+
+// RationaleCleared returns if the "rationale" field was cleared in this mutation.
+func (m *IterationPlanMutation) RationaleCleared() bool {
+	_, ok := m.clearedFields[iterationplan.FieldRationale]
+	return ok
+}
+
+// ResetRationale resets all changes to the "rationale" field.
+func (m *IterationPlanMutation) ResetRationale() {
+	m.rationale = nil
+	delete(m.clearedFields, iterationplan.FieldRationale)
+}
+
+// SetSteps sets the "steps" field.
+func (m *IterationPlanMutation) SetSteps(value []map[string]interface{}) {
+	m.steps = &value
+	m.appendsteps = nil
+}
+
+// Steps returns the value of the "steps" field in the mutation.
+func (m *IterationPlanMutation) Steps() (r []map[string]interface{}, exists bool) {
+	v := m.steps
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSteps returns the old "steps" field's value of the IterationPlan entity.
+// If the IterationPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IterationPlanMutation) OldSteps(ctx context.Context) (v []map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSteps is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSteps requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSteps: %w", err)
+	}
+	return oldValue.Steps, nil
+}
+
+// AppendSteps adds value to the "steps" field.
+func (m *IterationPlanMutation) AppendSteps(value []map[string]interface{}) {
+	m.appendsteps = append(m.appendsteps, value...)
+}
+
+// AppendedSteps returns the list of values that were appended to the "steps" field in this mutation.
+func (m *IterationPlanMutation) AppendedSteps() ([]map[string]interface{}, bool) {
+	if len(m.appendsteps) == 0 {
+		return nil, false
+	}
+	return m.appendsteps, true
+}
+
+// ResetSteps resets all changes to the "steps" field.
+func (m *IterationPlanMutation) ResetSteps() {
+	m.steps = nil
+	m.appendsteps = nil
+}
+
+// ClearTenant clears the "tenant" edge to the Tenant entity.
+func (m *IterationPlanMutation) ClearTenant() {
+	m.clearedtenant = true
+	m.clearedFields[iterationplan.FieldTenantID] = struct{}{}
+}
+
+// TenantCleared reports if the "tenant" edge to the Tenant entity was cleared.
+func (m *IterationPlanMutation) TenantCleared() bool {
+	return m.clearedtenant
+}
+
+// TenantIDs returns the "tenant" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// TenantID instead. It exists only for internal usage by the builders.
+func (m *IterationPlanMutation) TenantIDs() (ids []int) {
+	if id := m.tenant; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetTenant resets all changes to the "tenant" edge.
+func (m *IterationPlanMutation) ResetTenant() {
+	m.tenant = nil
+	m.clearedtenant = false
+}
+
+// ClearProject clears the "project" edge to the Project entity.
+func (m *IterationPlanMutation) ClearProject() {
+	m.clearedproject = true
+	m.clearedFields[iterationplan.FieldProjectID] = struct{}{}
+}
+
+// ProjectCleared reports if the "project" edge to the Project entity was cleared.
+func (m *IterationPlanMutation) ProjectCleared() bool {
+	return m.clearedproject
+}
+
+// ProjectIDs returns the "project" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ProjectID instead. It exists only for internal usage by the builders.
+func (m *IterationPlanMutation) ProjectIDs() (ids []int) {
+	if id := m.project; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetProject resets all changes to the "project" edge.
+func (m *IterationPlanMutation) ResetProject() {
+	m.project = nil
+	m.clearedproject = false
+}
+
+// ClearStudy clears the "study" edge to the Study entity.
+func (m *IterationPlanMutation) ClearStudy() {
+	m.clearedstudy = true
+	m.clearedFields[iterationplan.FieldStudyID] = struct{}{}
+}
+
+// StudyCleared reports if the "study" edge to the Study entity was cleared.
+func (m *IterationPlanMutation) StudyCleared() bool {
+	return m.clearedstudy
+}
+
+// StudyIDs returns the "study" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// StudyID instead. It exists only for internal usage by the builders.
+func (m *IterationPlanMutation) StudyIDs() (ids []int) {
+	if id := m.study; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetStudy resets all changes to the "study" edge.
+func (m *IterationPlanMutation) ResetStudy() {
+	m.study = nil
+	m.clearedstudy = false
+}
+
+// ClearAgentToken clears the "agent_token" edge to the AgentToken entity.
+func (m *IterationPlanMutation) ClearAgentToken() {
+	m.clearedagent_token = true
+	m.clearedFields[iterationplan.FieldAgentTokenID] = struct{}{}
+}
+
+// AgentTokenCleared reports if the "agent_token" edge to the AgentToken entity was cleared.
+func (m *IterationPlanMutation) AgentTokenCleared() bool {
+	return m.AgentTokenIDCleared() || m.clearedagent_token
+}
+
+// AgentTokenIDs returns the "agent_token" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// AgentTokenID instead. It exists only for internal usage by the builders.
+func (m *IterationPlanMutation) AgentTokenIDs() (ids []int) {
+	if id := m.agent_token; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetAgentToken resets all changes to the "agent_token" edge.
+func (m *IterationPlanMutation) ResetAgentToken() {
+	m.agent_token = nil
+	m.clearedagent_token = false
+}
+
+// Where appends a list predicates to the IterationPlanMutation builder.
+func (m *IterationPlanMutation) Where(ps ...predicate.IterationPlan) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the IterationPlanMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *IterationPlanMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.IterationPlan, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *IterationPlanMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *IterationPlanMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (IterationPlan).
+func (m *IterationPlanMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *IterationPlanMutation) Fields() []string {
+	fields := make([]string, 0, 12)
+	if m.public_id != nil {
+		fields = append(fields, iterationplan.FieldPublicID)
+	}
+	if m.created_at != nil {
+		fields = append(fields, iterationplan.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, iterationplan.FieldUpdatedAt)
+	}
+	if m.tenant != nil {
+		fields = append(fields, iterationplan.FieldTenantID)
+	}
+	if m.project != nil {
+		fields = append(fields, iterationplan.FieldProjectID)
+	}
+	if m.study != nil {
+		fields = append(fields, iterationplan.FieldStudyID)
+	}
+	if m.agent_token != nil {
+		fields = append(fields, iterationplan.FieldAgentTokenID)
+	}
+	if m.status != nil {
+		fields = append(fields, iterationplan.FieldStatus)
+	}
+	if m.goal != nil {
+		fields = append(fields, iterationplan.FieldGoal)
+	}
+	if m.next_action != nil {
+		fields = append(fields, iterationplan.FieldNextAction)
+	}
+	if m.rationale != nil {
+		fields = append(fields, iterationplan.FieldRationale)
+	}
+	if m.steps != nil {
+		fields = append(fields, iterationplan.FieldSteps)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *IterationPlanMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case iterationplan.FieldPublicID:
+		return m.PublicID()
+	case iterationplan.FieldCreatedAt:
+		return m.CreatedAt()
+	case iterationplan.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case iterationplan.FieldTenantID:
+		return m.TenantID()
+	case iterationplan.FieldProjectID:
+		return m.ProjectID()
+	case iterationplan.FieldStudyID:
+		return m.StudyID()
+	case iterationplan.FieldAgentTokenID:
+		return m.AgentTokenID()
+	case iterationplan.FieldStatus:
+		return m.Status()
+	case iterationplan.FieldGoal:
+		return m.Goal()
+	case iterationplan.FieldNextAction:
+		return m.NextAction()
+	case iterationplan.FieldRationale:
+		return m.Rationale()
+	case iterationplan.FieldSteps:
+		return m.Steps()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *IterationPlanMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case iterationplan.FieldPublicID:
+		return m.OldPublicID(ctx)
+	case iterationplan.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case iterationplan.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case iterationplan.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case iterationplan.FieldProjectID:
+		return m.OldProjectID(ctx)
+	case iterationplan.FieldStudyID:
+		return m.OldStudyID(ctx)
+	case iterationplan.FieldAgentTokenID:
+		return m.OldAgentTokenID(ctx)
+	case iterationplan.FieldStatus:
+		return m.OldStatus(ctx)
+	case iterationplan.FieldGoal:
+		return m.OldGoal(ctx)
+	case iterationplan.FieldNextAction:
+		return m.OldNextAction(ctx)
+	case iterationplan.FieldRationale:
+		return m.OldRationale(ctx)
+	case iterationplan.FieldSteps:
+		return m.OldSteps(ctx)
+	}
+	return nil, fmt.Errorf("unknown IterationPlan field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *IterationPlanMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case iterationplan.FieldPublicID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPublicID(v)
+		return nil
+	case iterationplan.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case iterationplan.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case iterationplan.FieldTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case iterationplan.FieldProjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProjectID(v)
+		return nil
+	case iterationplan.FieldStudyID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStudyID(v)
+		return nil
+	case iterationplan.FieldAgentTokenID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAgentTokenID(v)
+		return nil
+	case iterationplan.FieldStatus:
+		v, ok := value.(iterationplan.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case iterationplan.FieldGoal:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGoal(v)
+		return nil
+	case iterationplan.FieldNextAction:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNextAction(v)
+		return nil
+	case iterationplan.FieldRationale:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRationale(v)
+		return nil
+	case iterationplan.FieldSteps:
+		v, ok := value.([]map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSteps(v)
+		return nil
+	}
+	return fmt.Errorf("unknown IterationPlan field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *IterationPlanMutation) AddedFields() []string {
+	var fields []string
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *IterationPlanMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *IterationPlanMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown IterationPlan numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *IterationPlanMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(iterationplan.FieldAgentTokenID) {
+		fields = append(fields, iterationplan.FieldAgentTokenID)
+	}
+	if m.FieldCleared(iterationplan.FieldRationale) {
+		fields = append(fields, iterationplan.FieldRationale)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *IterationPlanMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *IterationPlanMutation) ClearField(name string) error {
+	switch name {
+	case iterationplan.FieldAgentTokenID:
+		m.ClearAgentTokenID()
+		return nil
+	case iterationplan.FieldRationale:
+		m.ClearRationale()
+		return nil
+	}
+	return fmt.Errorf("unknown IterationPlan nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *IterationPlanMutation) ResetField(name string) error {
+	switch name {
+	case iterationplan.FieldPublicID:
+		m.ResetPublicID()
+		return nil
+	case iterationplan.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case iterationplan.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case iterationplan.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case iterationplan.FieldProjectID:
+		m.ResetProjectID()
+		return nil
+	case iterationplan.FieldStudyID:
+		m.ResetStudyID()
+		return nil
+	case iterationplan.FieldAgentTokenID:
+		m.ResetAgentTokenID()
+		return nil
+	case iterationplan.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case iterationplan.FieldGoal:
+		m.ResetGoal()
+		return nil
+	case iterationplan.FieldNextAction:
+		m.ResetNextAction()
+		return nil
+	case iterationplan.FieldRationale:
+		m.ResetRationale()
+		return nil
+	case iterationplan.FieldSteps:
+		m.ResetSteps()
+		return nil
+	}
+	return fmt.Errorf("unknown IterationPlan field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *IterationPlanMutation) AddedEdges() []string {
+	edges := make([]string, 0, 4)
+	if m.tenant != nil {
+		edges = append(edges, iterationplan.EdgeTenant)
+	}
+	if m.project != nil {
+		edges = append(edges, iterationplan.EdgeProject)
+	}
+	if m.study != nil {
+		edges = append(edges, iterationplan.EdgeStudy)
+	}
+	if m.agent_token != nil {
+		edges = append(edges, iterationplan.EdgeAgentToken)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *IterationPlanMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case iterationplan.EdgeTenant:
+		if id := m.tenant; id != nil {
+			return []ent.Value{*id}
+		}
+	case iterationplan.EdgeProject:
+		if id := m.project; id != nil {
+			return []ent.Value{*id}
+		}
+	case iterationplan.EdgeStudy:
+		if id := m.study; id != nil {
+			return []ent.Value{*id}
+		}
+	case iterationplan.EdgeAgentToken:
+		if id := m.agent_token; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *IterationPlanMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 4)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *IterationPlanMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *IterationPlanMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 4)
+	if m.clearedtenant {
+		edges = append(edges, iterationplan.EdgeTenant)
+	}
+	if m.clearedproject {
+		edges = append(edges, iterationplan.EdgeProject)
+	}
+	if m.clearedstudy {
+		edges = append(edges, iterationplan.EdgeStudy)
+	}
+	if m.clearedagent_token {
+		edges = append(edges, iterationplan.EdgeAgentToken)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *IterationPlanMutation) EdgeCleared(name string) bool {
+	switch name {
+	case iterationplan.EdgeTenant:
+		return m.clearedtenant
+	case iterationplan.EdgeProject:
+		return m.clearedproject
+	case iterationplan.EdgeStudy:
+		return m.clearedstudy
+	case iterationplan.EdgeAgentToken:
+		return m.clearedagent_token
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *IterationPlanMutation) ClearEdge(name string) error {
+	switch name {
+	case iterationplan.EdgeTenant:
+		m.ClearTenant()
+		return nil
+	case iterationplan.EdgeProject:
+		m.ClearProject()
+		return nil
+	case iterationplan.EdgeStudy:
+		m.ClearStudy()
+		return nil
+	case iterationplan.EdgeAgentToken:
+		m.ClearAgentToken()
+		return nil
+	}
+	return fmt.Errorf("unknown IterationPlan unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *IterationPlanMutation) ResetEdge(name string) error {
+	switch name {
+	case iterationplan.EdgeTenant:
+		m.ResetTenant()
+		return nil
+	case iterationplan.EdgeProject:
+		m.ResetProject()
+		return nil
+	case iterationplan.EdgeStudy:
+		m.ResetStudy()
+		return nil
+	case iterationplan.EdgeAgentToken:
+		m.ResetAgentToken()
+		return nil
+	}
+	return fmt.Errorf("unknown IterationPlan edge %s", name)
 }
 
 // NodeAssignmentMutation represents an operation that mutates the NodeAssignment nodes in the graph.
@@ -26028,6 +27540,18 @@ type ProjectMutation struct {
 	workspace_datasets           map[int]struct{}
 	removedworkspace_datasets    map[int]struct{}
 	clearedworkspace_datasets    bool
+	studies                      map[int]struct{}
+	removedstudies               map[int]struct{}
+	clearedstudies               bool
+	iteration_plans              map[int]struct{}
+	removediteration_plans       map[int]struct{}
+	clearediteration_plans       bool
+	research_nodes               map[int]struct{}
+	removedresearch_nodes        map[int]struct{}
+	clearedresearch_nodes        bool
+	research_edges               map[int]struct{}
+	removedresearch_edges        map[int]struct{}
+	clearedresearch_edges        bool
 	done                         bool
 	oldValue                     func(context.Context) (*Project, error)
 	predicates                   []predicate.Project
@@ -27538,6 +29062,222 @@ func (m *ProjectMutation) ResetWorkspaceDatasets() {
 	m.removedworkspace_datasets = nil
 }
 
+// AddStudyIDs adds the "studies" edge to the Study entity by ids.
+func (m *ProjectMutation) AddStudyIDs(ids ...int) {
+	if m.studies == nil {
+		m.studies = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.studies[ids[i]] = struct{}{}
+	}
+}
+
+// ClearStudies clears the "studies" edge to the Study entity.
+func (m *ProjectMutation) ClearStudies() {
+	m.clearedstudies = true
+}
+
+// StudiesCleared reports if the "studies" edge to the Study entity was cleared.
+func (m *ProjectMutation) StudiesCleared() bool {
+	return m.clearedstudies
+}
+
+// RemoveStudyIDs removes the "studies" edge to the Study entity by IDs.
+func (m *ProjectMutation) RemoveStudyIDs(ids ...int) {
+	if m.removedstudies == nil {
+		m.removedstudies = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.studies, ids[i])
+		m.removedstudies[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedStudies returns the removed IDs of the "studies" edge to the Study entity.
+func (m *ProjectMutation) RemovedStudiesIDs() (ids []int) {
+	for id := range m.removedstudies {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// StudiesIDs returns the "studies" edge IDs in the mutation.
+func (m *ProjectMutation) StudiesIDs() (ids []int) {
+	for id := range m.studies {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetStudies resets all changes to the "studies" edge.
+func (m *ProjectMutation) ResetStudies() {
+	m.studies = nil
+	m.clearedstudies = false
+	m.removedstudies = nil
+}
+
+// AddIterationPlanIDs adds the "iteration_plans" edge to the IterationPlan entity by ids.
+func (m *ProjectMutation) AddIterationPlanIDs(ids ...int) {
+	if m.iteration_plans == nil {
+		m.iteration_plans = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.iteration_plans[ids[i]] = struct{}{}
+	}
+}
+
+// ClearIterationPlans clears the "iteration_plans" edge to the IterationPlan entity.
+func (m *ProjectMutation) ClearIterationPlans() {
+	m.clearediteration_plans = true
+}
+
+// IterationPlansCleared reports if the "iteration_plans" edge to the IterationPlan entity was cleared.
+func (m *ProjectMutation) IterationPlansCleared() bool {
+	return m.clearediteration_plans
+}
+
+// RemoveIterationPlanIDs removes the "iteration_plans" edge to the IterationPlan entity by IDs.
+func (m *ProjectMutation) RemoveIterationPlanIDs(ids ...int) {
+	if m.removediteration_plans == nil {
+		m.removediteration_plans = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.iteration_plans, ids[i])
+		m.removediteration_plans[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedIterationPlans returns the removed IDs of the "iteration_plans" edge to the IterationPlan entity.
+func (m *ProjectMutation) RemovedIterationPlansIDs() (ids []int) {
+	for id := range m.removediteration_plans {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// IterationPlansIDs returns the "iteration_plans" edge IDs in the mutation.
+func (m *ProjectMutation) IterationPlansIDs() (ids []int) {
+	for id := range m.iteration_plans {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetIterationPlans resets all changes to the "iteration_plans" edge.
+func (m *ProjectMutation) ResetIterationPlans() {
+	m.iteration_plans = nil
+	m.clearediteration_plans = false
+	m.removediteration_plans = nil
+}
+
+// AddResearchNodeIDs adds the "research_nodes" edge to the ResearchNode entity by ids.
+func (m *ProjectMutation) AddResearchNodeIDs(ids ...int) {
+	if m.research_nodes == nil {
+		m.research_nodes = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.research_nodes[ids[i]] = struct{}{}
+	}
+}
+
+// ClearResearchNodes clears the "research_nodes" edge to the ResearchNode entity.
+func (m *ProjectMutation) ClearResearchNodes() {
+	m.clearedresearch_nodes = true
+}
+
+// ResearchNodesCleared reports if the "research_nodes" edge to the ResearchNode entity was cleared.
+func (m *ProjectMutation) ResearchNodesCleared() bool {
+	return m.clearedresearch_nodes
+}
+
+// RemoveResearchNodeIDs removes the "research_nodes" edge to the ResearchNode entity by IDs.
+func (m *ProjectMutation) RemoveResearchNodeIDs(ids ...int) {
+	if m.removedresearch_nodes == nil {
+		m.removedresearch_nodes = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.research_nodes, ids[i])
+		m.removedresearch_nodes[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedResearchNodes returns the removed IDs of the "research_nodes" edge to the ResearchNode entity.
+func (m *ProjectMutation) RemovedResearchNodesIDs() (ids []int) {
+	for id := range m.removedresearch_nodes {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResearchNodesIDs returns the "research_nodes" edge IDs in the mutation.
+func (m *ProjectMutation) ResearchNodesIDs() (ids []int) {
+	for id := range m.research_nodes {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetResearchNodes resets all changes to the "research_nodes" edge.
+func (m *ProjectMutation) ResetResearchNodes() {
+	m.research_nodes = nil
+	m.clearedresearch_nodes = false
+	m.removedresearch_nodes = nil
+}
+
+// AddResearchEdgeIDs adds the "research_edges" edge to the ResearchEdge entity by ids.
+func (m *ProjectMutation) AddResearchEdgeIDs(ids ...int) {
+	if m.research_edges == nil {
+		m.research_edges = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.research_edges[ids[i]] = struct{}{}
+	}
+}
+
+// ClearResearchEdges clears the "research_edges" edge to the ResearchEdge entity.
+func (m *ProjectMutation) ClearResearchEdges() {
+	m.clearedresearch_edges = true
+}
+
+// ResearchEdgesCleared reports if the "research_edges" edge to the ResearchEdge entity was cleared.
+func (m *ProjectMutation) ResearchEdgesCleared() bool {
+	return m.clearedresearch_edges
+}
+
+// RemoveResearchEdgeIDs removes the "research_edges" edge to the ResearchEdge entity by IDs.
+func (m *ProjectMutation) RemoveResearchEdgeIDs(ids ...int) {
+	if m.removedresearch_edges == nil {
+		m.removedresearch_edges = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.research_edges, ids[i])
+		m.removedresearch_edges[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedResearchEdges returns the removed IDs of the "research_edges" edge to the ResearchEdge entity.
+func (m *ProjectMutation) RemovedResearchEdgesIDs() (ids []int) {
+	for id := range m.removedresearch_edges {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResearchEdgesIDs returns the "research_edges" edge IDs in the mutation.
+func (m *ProjectMutation) ResearchEdgesIDs() (ids []int) {
+	for id := range m.research_edges {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetResearchEdges resets all changes to the "research_edges" edge.
+func (m *ProjectMutation) ResetResearchEdges() {
+	m.research_edges = nil
+	m.clearedresearch_edges = false
+	m.removedresearch_edges = nil
+}
+
 // Where appends a list predicates to the ProjectMutation builder.
 func (m *ProjectMutation) Where(ps ...predicate.Project) {
 	m.predicates = append(m.predicates, ps...)
@@ -27967,7 +29707,7 @@ func (m *ProjectMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *ProjectMutation) AddedEdges() []string {
-	edges := make([]string, 0, 15)
+	edges := make([]string, 0, 19)
 	if m.tenant != nil {
 		edges = append(edges, project.EdgeTenant)
 	}
@@ -28012,6 +29752,18 @@ func (m *ProjectMutation) AddedEdges() []string {
 	}
 	if m.workspace_datasets != nil {
 		edges = append(edges, project.EdgeWorkspaceDatasets)
+	}
+	if m.studies != nil {
+		edges = append(edges, project.EdgeStudies)
+	}
+	if m.iteration_plans != nil {
+		edges = append(edges, project.EdgeIterationPlans)
+	}
+	if m.research_nodes != nil {
+		edges = append(edges, project.EdgeResearchNodes)
+	}
+	if m.research_edges != nil {
+		edges = append(edges, project.EdgeResearchEdges)
 	}
 	return edges
 }
@@ -28108,13 +29860,37 @@ func (m *ProjectMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case project.EdgeStudies:
+		ids := make([]ent.Value, 0, len(m.studies))
+		for id := range m.studies {
+			ids = append(ids, id)
+		}
+		return ids
+	case project.EdgeIterationPlans:
+		ids := make([]ent.Value, 0, len(m.iteration_plans))
+		for id := range m.iteration_plans {
+			ids = append(ids, id)
+		}
+		return ids
+	case project.EdgeResearchNodes:
+		ids := make([]ent.Value, 0, len(m.research_nodes))
+		for id := range m.research_nodes {
+			ids = append(ids, id)
+		}
+		return ids
+	case project.EdgeResearchEdges:
+		ids := make([]ent.Value, 0, len(m.research_edges))
+		for id := range m.research_edges {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *ProjectMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 15)
+	edges := make([]string, 0, 19)
 	if m.removedenvironments != nil {
 		edges = append(edges, project.EdgeEnvironments)
 	}
@@ -28156,6 +29932,18 @@ func (m *ProjectMutation) RemovedEdges() []string {
 	}
 	if m.removedworkspace_datasets != nil {
 		edges = append(edges, project.EdgeWorkspaceDatasets)
+	}
+	if m.removedstudies != nil {
+		edges = append(edges, project.EdgeStudies)
+	}
+	if m.removediteration_plans != nil {
+		edges = append(edges, project.EdgeIterationPlans)
+	}
+	if m.removedresearch_nodes != nil {
+		edges = append(edges, project.EdgeResearchNodes)
+	}
+	if m.removedresearch_edges != nil {
+		edges = append(edges, project.EdgeResearchEdges)
 	}
 	return edges
 }
@@ -28248,13 +30036,37 @@ func (m *ProjectMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case project.EdgeStudies:
+		ids := make([]ent.Value, 0, len(m.removedstudies))
+		for id := range m.removedstudies {
+			ids = append(ids, id)
+		}
+		return ids
+	case project.EdgeIterationPlans:
+		ids := make([]ent.Value, 0, len(m.removediteration_plans))
+		for id := range m.removediteration_plans {
+			ids = append(ids, id)
+		}
+		return ids
+	case project.EdgeResearchNodes:
+		ids := make([]ent.Value, 0, len(m.removedresearch_nodes))
+		for id := range m.removedresearch_nodes {
+			ids = append(ids, id)
+		}
+		return ids
+	case project.EdgeResearchEdges:
+		ids := make([]ent.Value, 0, len(m.removedresearch_edges))
+		for id := range m.removedresearch_edges {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *ProjectMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 15)
+	edges := make([]string, 0, 19)
 	if m.clearedtenant {
 		edges = append(edges, project.EdgeTenant)
 	}
@@ -28300,6 +30112,18 @@ func (m *ProjectMutation) ClearedEdges() []string {
 	if m.clearedworkspace_datasets {
 		edges = append(edges, project.EdgeWorkspaceDatasets)
 	}
+	if m.clearedstudies {
+		edges = append(edges, project.EdgeStudies)
+	}
+	if m.clearediteration_plans {
+		edges = append(edges, project.EdgeIterationPlans)
+	}
+	if m.clearedresearch_nodes {
+		edges = append(edges, project.EdgeResearchNodes)
+	}
+	if m.clearedresearch_edges {
+		edges = append(edges, project.EdgeResearchEdges)
+	}
 	return edges
 }
 
@@ -28337,6 +30161,14 @@ func (m *ProjectMutation) EdgeCleared(name string) bool {
 		return m.clearedexperiment_proposals
 	case project.EdgeWorkspaceDatasets:
 		return m.clearedworkspace_datasets
+	case project.EdgeStudies:
+		return m.clearedstudies
+	case project.EdgeIterationPlans:
+		return m.clearediteration_plans
+	case project.EdgeResearchNodes:
+		return m.clearedresearch_nodes
+	case project.EdgeResearchEdges:
+		return m.clearedresearch_edges
 	}
 	return false
 }
@@ -28400,6 +30232,18 @@ func (m *ProjectMutation) ResetEdge(name string) error {
 		return nil
 	case project.EdgeWorkspaceDatasets:
 		m.ResetWorkspaceDatasets()
+		return nil
+	case project.EdgeStudies:
+		m.ResetStudies()
+		return nil
+	case project.EdgeIterationPlans:
+		m.ResetIterationPlans()
+		return nil
+	case project.EdgeResearchNodes:
+		m.ResetResearchNodes()
+		return nil
+	case project.EdgeResearchEdges:
+		m.ResetResearchEdges()
 		return nil
 	}
 	return fmt.Errorf("unknown Project edge %s", name)
@@ -33578,6 +35422,2574 @@ func (m *RepositoryMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown Repository edge %s", name)
+}
+
+// ResearchEdgeMutation represents an operation that mutates the ResearchEdge nodes in the graph.
+type ResearchEdgeMutation struct {
+	config
+	op               Op
+	typ              string
+	id               *int
+	public_id        *uuid.UUID
+	created_at       *time.Time
+	updated_at       *time.Time
+	relation         *researchedge.Relation
+	clearedFields    map[string]struct{}
+	tenant           *int
+	clearedtenant    bool
+	project          *int
+	clearedproject   bool
+	study            *int
+	clearedstudy     bool
+	from_node        *int
+	clearedfrom_node bool
+	to_node          *int
+	clearedto_node   bool
+	done             bool
+	oldValue         func(context.Context) (*ResearchEdge, error)
+	predicates       []predicate.ResearchEdge
+}
+
+var _ ent.Mutation = (*ResearchEdgeMutation)(nil)
+
+// researchedgeOption allows management of the mutation configuration using functional options.
+type researchedgeOption func(*ResearchEdgeMutation)
+
+// newResearchEdgeMutation creates new mutation for the ResearchEdge entity.
+func newResearchEdgeMutation(c config, op Op, opts ...researchedgeOption) *ResearchEdgeMutation {
+	m := &ResearchEdgeMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeResearchEdge,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withResearchEdgeID sets the ID field of the mutation.
+func withResearchEdgeID(id int) researchedgeOption {
+	return func(m *ResearchEdgeMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *ResearchEdge
+		)
+		m.oldValue = func(ctx context.Context) (*ResearchEdge, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().ResearchEdge.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withResearchEdge sets the old ResearchEdge of the mutation.
+func withResearchEdge(node *ResearchEdge) researchedgeOption {
+	return func(m *ResearchEdgeMutation) {
+		m.oldValue = func(context.Context) (*ResearchEdge, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m ResearchEdgeMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m ResearchEdgeMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *ResearchEdgeMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *ResearchEdgeMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().ResearchEdge.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetPublicID sets the "public_id" field.
+func (m *ResearchEdgeMutation) SetPublicID(u uuid.UUID) {
+	m.public_id = &u
+}
+
+// PublicID returns the value of the "public_id" field in the mutation.
+func (m *ResearchEdgeMutation) PublicID() (r uuid.UUID, exists bool) {
+	v := m.public_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPublicID returns the old "public_id" field's value of the ResearchEdge entity.
+// If the ResearchEdge object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchEdgeMutation) OldPublicID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPublicID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPublicID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPublicID: %w", err)
+	}
+	return oldValue.PublicID, nil
+}
+
+// ResetPublicID resets all changes to the "public_id" field.
+func (m *ResearchEdgeMutation) ResetPublicID() {
+	m.public_id = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *ResearchEdgeMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *ResearchEdgeMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the ResearchEdge entity.
+// If the ResearchEdge object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchEdgeMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *ResearchEdgeMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *ResearchEdgeMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *ResearchEdgeMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the ResearchEdge entity.
+// If the ResearchEdge object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchEdgeMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *ResearchEdgeMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *ResearchEdgeMutation) SetTenantID(i int) {
+	m.tenant = &i
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *ResearchEdgeMutation) TenantID() (r int, exists bool) {
+	v := m.tenant
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the ResearchEdge entity.
+// If the ResearchEdge object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchEdgeMutation) OldTenantID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *ResearchEdgeMutation) ResetTenantID() {
+	m.tenant = nil
+}
+
+// SetProjectID sets the "project_id" field.
+func (m *ResearchEdgeMutation) SetProjectID(i int) {
+	m.project = &i
+}
+
+// ProjectID returns the value of the "project_id" field in the mutation.
+func (m *ResearchEdgeMutation) ProjectID() (r int, exists bool) {
+	v := m.project
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProjectID returns the old "project_id" field's value of the ResearchEdge entity.
+// If the ResearchEdge object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchEdgeMutation) OldProjectID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProjectID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProjectID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProjectID: %w", err)
+	}
+	return oldValue.ProjectID, nil
+}
+
+// ResetProjectID resets all changes to the "project_id" field.
+func (m *ResearchEdgeMutation) ResetProjectID() {
+	m.project = nil
+}
+
+// SetStudyID sets the "study_id" field.
+func (m *ResearchEdgeMutation) SetStudyID(i int) {
+	m.study = &i
+}
+
+// StudyID returns the value of the "study_id" field in the mutation.
+func (m *ResearchEdgeMutation) StudyID() (r int, exists bool) {
+	v := m.study
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStudyID returns the old "study_id" field's value of the ResearchEdge entity.
+// If the ResearchEdge object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchEdgeMutation) OldStudyID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStudyID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStudyID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStudyID: %w", err)
+	}
+	return oldValue.StudyID, nil
+}
+
+// ResetStudyID resets all changes to the "study_id" field.
+func (m *ResearchEdgeMutation) ResetStudyID() {
+	m.study = nil
+}
+
+// SetFromNodeID sets the "from_node_id" field.
+func (m *ResearchEdgeMutation) SetFromNodeID(i int) {
+	m.from_node = &i
+}
+
+// FromNodeID returns the value of the "from_node_id" field in the mutation.
+func (m *ResearchEdgeMutation) FromNodeID() (r int, exists bool) {
+	v := m.from_node
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFromNodeID returns the old "from_node_id" field's value of the ResearchEdge entity.
+// If the ResearchEdge object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchEdgeMutation) OldFromNodeID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFromNodeID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFromNodeID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFromNodeID: %w", err)
+	}
+	return oldValue.FromNodeID, nil
+}
+
+// ResetFromNodeID resets all changes to the "from_node_id" field.
+func (m *ResearchEdgeMutation) ResetFromNodeID() {
+	m.from_node = nil
+}
+
+// SetToNodeID sets the "to_node_id" field.
+func (m *ResearchEdgeMutation) SetToNodeID(i int) {
+	m.to_node = &i
+}
+
+// ToNodeID returns the value of the "to_node_id" field in the mutation.
+func (m *ResearchEdgeMutation) ToNodeID() (r int, exists bool) {
+	v := m.to_node
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldToNodeID returns the old "to_node_id" field's value of the ResearchEdge entity.
+// If the ResearchEdge object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchEdgeMutation) OldToNodeID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldToNodeID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldToNodeID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldToNodeID: %w", err)
+	}
+	return oldValue.ToNodeID, nil
+}
+
+// ResetToNodeID resets all changes to the "to_node_id" field.
+func (m *ResearchEdgeMutation) ResetToNodeID() {
+	m.to_node = nil
+}
+
+// SetRelation sets the "relation" field.
+func (m *ResearchEdgeMutation) SetRelation(r researchedge.Relation) {
+	m.relation = &r
+}
+
+// Relation returns the value of the "relation" field in the mutation.
+func (m *ResearchEdgeMutation) Relation() (r researchedge.Relation, exists bool) {
+	v := m.relation
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRelation returns the old "relation" field's value of the ResearchEdge entity.
+// If the ResearchEdge object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchEdgeMutation) OldRelation(ctx context.Context) (v researchedge.Relation, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRelation is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRelation requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRelation: %w", err)
+	}
+	return oldValue.Relation, nil
+}
+
+// ResetRelation resets all changes to the "relation" field.
+func (m *ResearchEdgeMutation) ResetRelation() {
+	m.relation = nil
+}
+
+// ClearTenant clears the "tenant" edge to the Tenant entity.
+func (m *ResearchEdgeMutation) ClearTenant() {
+	m.clearedtenant = true
+	m.clearedFields[researchedge.FieldTenantID] = struct{}{}
+}
+
+// TenantCleared reports if the "tenant" edge to the Tenant entity was cleared.
+func (m *ResearchEdgeMutation) TenantCleared() bool {
+	return m.clearedtenant
+}
+
+// TenantIDs returns the "tenant" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// TenantID instead. It exists only for internal usage by the builders.
+func (m *ResearchEdgeMutation) TenantIDs() (ids []int) {
+	if id := m.tenant; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetTenant resets all changes to the "tenant" edge.
+func (m *ResearchEdgeMutation) ResetTenant() {
+	m.tenant = nil
+	m.clearedtenant = false
+}
+
+// ClearProject clears the "project" edge to the Project entity.
+func (m *ResearchEdgeMutation) ClearProject() {
+	m.clearedproject = true
+	m.clearedFields[researchedge.FieldProjectID] = struct{}{}
+}
+
+// ProjectCleared reports if the "project" edge to the Project entity was cleared.
+func (m *ResearchEdgeMutation) ProjectCleared() bool {
+	return m.clearedproject
+}
+
+// ProjectIDs returns the "project" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ProjectID instead. It exists only for internal usage by the builders.
+func (m *ResearchEdgeMutation) ProjectIDs() (ids []int) {
+	if id := m.project; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetProject resets all changes to the "project" edge.
+func (m *ResearchEdgeMutation) ResetProject() {
+	m.project = nil
+	m.clearedproject = false
+}
+
+// ClearStudy clears the "study" edge to the Study entity.
+func (m *ResearchEdgeMutation) ClearStudy() {
+	m.clearedstudy = true
+	m.clearedFields[researchedge.FieldStudyID] = struct{}{}
+}
+
+// StudyCleared reports if the "study" edge to the Study entity was cleared.
+func (m *ResearchEdgeMutation) StudyCleared() bool {
+	return m.clearedstudy
+}
+
+// StudyIDs returns the "study" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// StudyID instead. It exists only for internal usage by the builders.
+func (m *ResearchEdgeMutation) StudyIDs() (ids []int) {
+	if id := m.study; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetStudy resets all changes to the "study" edge.
+func (m *ResearchEdgeMutation) ResetStudy() {
+	m.study = nil
+	m.clearedstudy = false
+}
+
+// ClearFromNode clears the "from_node" edge to the ResearchNode entity.
+func (m *ResearchEdgeMutation) ClearFromNode() {
+	m.clearedfrom_node = true
+	m.clearedFields[researchedge.FieldFromNodeID] = struct{}{}
+}
+
+// FromNodeCleared reports if the "from_node" edge to the ResearchNode entity was cleared.
+func (m *ResearchEdgeMutation) FromNodeCleared() bool {
+	return m.clearedfrom_node
+}
+
+// FromNodeIDs returns the "from_node" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// FromNodeID instead. It exists only for internal usage by the builders.
+func (m *ResearchEdgeMutation) FromNodeIDs() (ids []int) {
+	if id := m.from_node; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetFromNode resets all changes to the "from_node" edge.
+func (m *ResearchEdgeMutation) ResetFromNode() {
+	m.from_node = nil
+	m.clearedfrom_node = false
+}
+
+// ClearToNode clears the "to_node" edge to the ResearchNode entity.
+func (m *ResearchEdgeMutation) ClearToNode() {
+	m.clearedto_node = true
+	m.clearedFields[researchedge.FieldToNodeID] = struct{}{}
+}
+
+// ToNodeCleared reports if the "to_node" edge to the ResearchNode entity was cleared.
+func (m *ResearchEdgeMutation) ToNodeCleared() bool {
+	return m.clearedto_node
+}
+
+// ToNodeIDs returns the "to_node" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ToNodeID instead. It exists only for internal usage by the builders.
+func (m *ResearchEdgeMutation) ToNodeIDs() (ids []int) {
+	if id := m.to_node; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetToNode resets all changes to the "to_node" edge.
+func (m *ResearchEdgeMutation) ResetToNode() {
+	m.to_node = nil
+	m.clearedto_node = false
+}
+
+// Where appends a list predicates to the ResearchEdgeMutation builder.
+func (m *ResearchEdgeMutation) Where(ps ...predicate.ResearchEdge) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the ResearchEdgeMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *ResearchEdgeMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.ResearchEdge, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *ResearchEdgeMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *ResearchEdgeMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (ResearchEdge).
+func (m *ResearchEdgeMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *ResearchEdgeMutation) Fields() []string {
+	fields := make([]string, 0, 9)
+	if m.public_id != nil {
+		fields = append(fields, researchedge.FieldPublicID)
+	}
+	if m.created_at != nil {
+		fields = append(fields, researchedge.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, researchedge.FieldUpdatedAt)
+	}
+	if m.tenant != nil {
+		fields = append(fields, researchedge.FieldTenantID)
+	}
+	if m.project != nil {
+		fields = append(fields, researchedge.FieldProjectID)
+	}
+	if m.study != nil {
+		fields = append(fields, researchedge.FieldStudyID)
+	}
+	if m.from_node != nil {
+		fields = append(fields, researchedge.FieldFromNodeID)
+	}
+	if m.to_node != nil {
+		fields = append(fields, researchedge.FieldToNodeID)
+	}
+	if m.relation != nil {
+		fields = append(fields, researchedge.FieldRelation)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *ResearchEdgeMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case researchedge.FieldPublicID:
+		return m.PublicID()
+	case researchedge.FieldCreatedAt:
+		return m.CreatedAt()
+	case researchedge.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case researchedge.FieldTenantID:
+		return m.TenantID()
+	case researchedge.FieldProjectID:
+		return m.ProjectID()
+	case researchedge.FieldStudyID:
+		return m.StudyID()
+	case researchedge.FieldFromNodeID:
+		return m.FromNodeID()
+	case researchedge.FieldToNodeID:
+		return m.ToNodeID()
+	case researchedge.FieldRelation:
+		return m.Relation()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *ResearchEdgeMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case researchedge.FieldPublicID:
+		return m.OldPublicID(ctx)
+	case researchedge.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case researchedge.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case researchedge.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case researchedge.FieldProjectID:
+		return m.OldProjectID(ctx)
+	case researchedge.FieldStudyID:
+		return m.OldStudyID(ctx)
+	case researchedge.FieldFromNodeID:
+		return m.OldFromNodeID(ctx)
+	case researchedge.FieldToNodeID:
+		return m.OldToNodeID(ctx)
+	case researchedge.FieldRelation:
+		return m.OldRelation(ctx)
+	}
+	return nil, fmt.Errorf("unknown ResearchEdge field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ResearchEdgeMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case researchedge.FieldPublicID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPublicID(v)
+		return nil
+	case researchedge.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case researchedge.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case researchedge.FieldTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case researchedge.FieldProjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProjectID(v)
+		return nil
+	case researchedge.FieldStudyID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStudyID(v)
+		return nil
+	case researchedge.FieldFromNodeID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFromNodeID(v)
+		return nil
+	case researchedge.FieldToNodeID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetToNodeID(v)
+		return nil
+	case researchedge.FieldRelation:
+		v, ok := value.(researchedge.Relation)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRelation(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ResearchEdge field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *ResearchEdgeMutation) AddedFields() []string {
+	var fields []string
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *ResearchEdgeMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ResearchEdgeMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown ResearchEdge numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *ResearchEdgeMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *ResearchEdgeMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *ResearchEdgeMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown ResearchEdge nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *ResearchEdgeMutation) ResetField(name string) error {
+	switch name {
+	case researchedge.FieldPublicID:
+		m.ResetPublicID()
+		return nil
+	case researchedge.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case researchedge.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case researchedge.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case researchedge.FieldProjectID:
+		m.ResetProjectID()
+		return nil
+	case researchedge.FieldStudyID:
+		m.ResetStudyID()
+		return nil
+	case researchedge.FieldFromNodeID:
+		m.ResetFromNodeID()
+		return nil
+	case researchedge.FieldToNodeID:
+		m.ResetToNodeID()
+		return nil
+	case researchedge.FieldRelation:
+		m.ResetRelation()
+		return nil
+	}
+	return fmt.Errorf("unknown ResearchEdge field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *ResearchEdgeMutation) AddedEdges() []string {
+	edges := make([]string, 0, 5)
+	if m.tenant != nil {
+		edges = append(edges, researchedge.EdgeTenant)
+	}
+	if m.project != nil {
+		edges = append(edges, researchedge.EdgeProject)
+	}
+	if m.study != nil {
+		edges = append(edges, researchedge.EdgeStudy)
+	}
+	if m.from_node != nil {
+		edges = append(edges, researchedge.EdgeFromNode)
+	}
+	if m.to_node != nil {
+		edges = append(edges, researchedge.EdgeToNode)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *ResearchEdgeMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case researchedge.EdgeTenant:
+		if id := m.tenant; id != nil {
+			return []ent.Value{*id}
+		}
+	case researchedge.EdgeProject:
+		if id := m.project; id != nil {
+			return []ent.Value{*id}
+		}
+	case researchedge.EdgeStudy:
+		if id := m.study; id != nil {
+			return []ent.Value{*id}
+		}
+	case researchedge.EdgeFromNode:
+		if id := m.from_node; id != nil {
+			return []ent.Value{*id}
+		}
+	case researchedge.EdgeToNode:
+		if id := m.to_node; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *ResearchEdgeMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 5)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *ResearchEdgeMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *ResearchEdgeMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 5)
+	if m.clearedtenant {
+		edges = append(edges, researchedge.EdgeTenant)
+	}
+	if m.clearedproject {
+		edges = append(edges, researchedge.EdgeProject)
+	}
+	if m.clearedstudy {
+		edges = append(edges, researchedge.EdgeStudy)
+	}
+	if m.clearedfrom_node {
+		edges = append(edges, researchedge.EdgeFromNode)
+	}
+	if m.clearedto_node {
+		edges = append(edges, researchedge.EdgeToNode)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *ResearchEdgeMutation) EdgeCleared(name string) bool {
+	switch name {
+	case researchedge.EdgeTenant:
+		return m.clearedtenant
+	case researchedge.EdgeProject:
+		return m.clearedproject
+	case researchedge.EdgeStudy:
+		return m.clearedstudy
+	case researchedge.EdgeFromNode:
+		return m.clearedfrom_node
+	case researchedge.EdgeToNode:
+		return m.clearedto_node
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *ResearchEdgeMutation) ClearEdge(name string) error {
+	switch name {
+	case researchedge.EdgeTenant:
+		m.ClearTenant()
+		return nil
+	case researchedge.EdgeProject:
+		m.ClearProject()
+		return nil
+	case researchedge.EdgeStudy:
+		m.ClearStudy()
+		return nil
+	case researchedge.EdgeFromNode:
+		m.ClearFromNode()
+		return nil
+	case researchedge.EdgeToNode:
+		m.ClearToNode()
+		return nil
+	}
+	return fmt.Errorf("unknown ResearchEdge unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *ResearchEdgeMutation) ResetEdge(name string) error {
+	switch name {
+	case researchedge.EdgeTenant:
+		m.ResetTenant()
+		return nil
+	case researchedge.EdgeProject:
+		m.ResetProject()
+		return nil
+	case researchedge.EdgeStudy:
+		m.ResetStudy()
+		return nil
+	case researchedge.EdgeFromNode:
+		m.ResetFromNode()
+		return nil
+	case researchedge.EdgeToNode:
+		m.ResetToNode()
+		return nil
+	}
+	return fmt.Errorf("unknown ResearchEdge edge %s", name)
+}
+
+// ResearchNodeMutation represents an operation that mutates the ResearchNode nodes in the graph.
+type ResearchNodeMutation struct {
+	config
+	op                    Op
+	typ                   string
+	id                    *int
+	public_id             *uuid.UUID
+	created_at            *time.Time
+	updated_at            *time.Time
+	kind                  *researchnode.Kind
+	title                 *string
+	summary               *string
+	status                *researchnode.Status
+	metric_name           *string
+	metric_value          *float64
+	addmetric_value       *float64
+	clearedFields         map[string]struct{}
+	tenant                *int
+	clearedtenant         bool
+	project               *int
+	clearedproject        bool
+	study                 *int
+	clearedstudy          bool
+	experiment            *int
+	clearedexperiment     bool
+	agent_token           *int
+	clearedagent_token    bool
+	outgoing_edges        map[int]struct{}
+	removedoutgoing_edges map[int]struct{}
+	clearedoutgoing_edges bool
+	incoming_edges        map[int]struct{}
+	removedincoming_edges map[int]struct{}
+	clearedincoming_edges bool
+	done                  bool
+	oldValue              func(context.Context) (*ResearchNode, error)
+	predicates            []predicate.ResearchNode
+}
+
+var _ ent.Mutation = (*ResearchNodeMutation)(nil)
+
+// researchnodeOption allows management of the mutation configuration using functional options.
+type researchnodeOption func(*ResearchNodeMutation)
+
+// newResearchNodeMutation creates new mutation for the ResearchNode entity.
+func newResearchNodeMutation(c config, op Op, opts ...researchnodeOption) *ResearchNodeMutation {
+	m := &ResearchNodeMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeResearchNode,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withResearchNodeID sets the ID field of the mutation.
+func withResearchNodeID(id int) researchnodeOption {
+	return func(m *ResearchNodeMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *ResearchNode
+		)
+		m.oldValue = func(ctx context.Context) (*ResearchNode, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().ResearchNode.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withResearchNode sets the old ResearchNode of the mutation.
+func withResearchNode(node *ResearchNode) researchnodeOption {
+	return func(m *ResearchNodeMutation) {
+		m.oldValue = func(context.Context) (*ResearchNode, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m ResearchNodeMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m ResearchNodeMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *ResearchNodeMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *ResearchNodeMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().ResearchNode.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetPublicID sets the "public_id" field.
+func (m *ResearchNodeMutation) SetPublicID(u uuid.UUID) {
+	m.public_id = &u
+}
+
+// PublicID returns the value of the "public_id" field in the mutation.
+func (m *ResearchNodeMutation) PublicID() (r uuid.UUID, exists bool) {
+	v := m.public_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPublicID returns the old "public_id" field's value of the ResearchNode entity.
+// If the ResearchNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchNodeMutation) OldPublicID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPublicID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPublicID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPublicID: %w", err)
+	}
+	return oldValue.PublicID, nil
+}
+
+// ResetPublicID resets all changes to the "public_id" field.
+func (m *ResearchNodeMutation) ResetPublicID() {
+	m.public_id = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *ResearchNodeMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *ResearchNodeMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the ResearchNode entity.
+// If the ResearchNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchNodeMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *ResearchNodeMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *ResearchNodeMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *ResearchNodeMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the ResearchNode entity.
+// If the ResearchNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchNodeMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *ResearchNodeMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *ResearchNodeMutation) SetTenantID(i int) {
+	m.tenant = &i
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *ResearchNodeMutation) TenantID() (r int, exists bool) {
+	v := m.tenant
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the ResearchNode entity.
+// If the ResearchNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchNodeMutation) OldTenantID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *ResearchNodeMutation) ResetTenantID() {
+	m.tenant = nil
+}
+
+// SetProjectID sets the "project_id" field.
+func (m *ResearchNodeMutation) SetProjectID(i int) {
+	m.project = &i
+}
+
+// ProjectID returns the value of the "project_id" field in the mutation.
+func (m *ResearchNodeMutation) ProjectID() (r int, exists bool) {
+	v := m.project
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProjectID returns the old "project_id" field's value of the ResearchNode entity.
+// If the ResearchNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchNodeMutation) OldProjectID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProjectID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProjectID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProjectID: %w", err)
+	}
+	return oldValue.ProjectID, nil
+}
+
+// ResetProjectID resets all changes to the "project_id" field.
+func (m *ResearchNodeMutation) ResetProjectID() {
+	m.project = nil
+}
+
+// SetStudyID sets the "study_id" field.
+func (m *ResearchNodeMutation) SetStudyID(i int) {
+	m.study = &i
+}
+
+// StudyID returns the value of the "study_id" field in the mutation.
+func (m *ResearchNodeMutation) StudyID() (r int, exists bool) {
+	v := m.study
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStudyID returns the old "study_id" field's value of the ResearchNode entity.
+// If the ResearchNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchNodeMutation) OldStudyID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStudyID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStudyID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStudyID: %w", err)
+	}
+	return oldValue.StudyID, nil
+}
+
+// ResetStudyID resets all changes to the "study_id" field.
+func (m *ResearchNodeMutation) ResetStudyID() {
+	m.study = nil
+}
+
+// SetExperimentID sets the "experiment_id" field.
+func (m *ResearchNodeMutation) SetExperimentID(i int) {
+	m.experiment = &i
+}
+
+// ExperimentID returns the value of the "experiment_id" field in the mutation.
+func (m *ResearchNodeMutation) ExperimentID() (r int, exists bool) {
+	v := m.experiment
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExperimentID returns the old "experiment_id" field's value of the ResearchNode entity.
+// If the ResearchNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchNodeMutation) OldExperimentID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExperimentID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExperimentID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExperimentID: %w", err)
+	}
+	return oldValue.ExperimentID, nil
+}
+
+// ClearExperimentID clears the value of the "experiment_id" field.
+func (m *ResearchNodeMutation) ClearExperimentID() {
+	m.experiment = nil
+	m.clearedFields[researchnode.FieldExperimentID] = struct{}{}
+}
+
+// ExperimentIDCleared returns if the "experiment_id" field was cleared in this mutation.
+func (m *ResearchNodeMutation) ExperimentIDCleared() bool {
+	_, ok := m.clearedFields[researchnode.FieldExperimentID]
+	return ok
+}
+
+// ResetExperimentID resets all changes to the "experiment_id" field.
+func (m *ResearchNodeMutation) ResetExperimentID() {
+	m.experiment = nil
+	delete(m.clearedFields, researchnode.FieldExperimentID)
+}
+
+// SetAgentTokenID sets the "agent_token_id" field.
+func (m *ResearchNodeMutation) SetAgentTokenID(i int) {
+	m.agent_token = &i
+}
+
+// AgentTokenID returns the value of the "agent_token_id" field in the mutation.
+func (m *ResearchNodeMutation) AgentTokenID() (r int, exists bool) {
+	v := m.agent_token
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAgentTokenID returns the old "agent_token_id" field's value of the ResearchNode entity.
+// If the ResearchNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchNodeMutation) OldAgentTokenID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAgentTokenID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAgentTokenID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAgentTokenID: %w", err)
+	}
+	return oldValue.AgentTokenID, nil
+}
+
+// ClearAgentTokenID clears the value of the "agent_token_id" field.
+func (m *ResearchNodeMutation) ClearAgentTokenID() {
+	m.agent_token = nil
+	m.clearedFields[researchnode.FieldAgentTokenID] = struct{}{}
+}
+
+// AgentTokenIDCleared returns if the "agent_token_id" field was cleared in this mutation.
+func (m *ResearchNodeMutation) AgentTokenIDCleared() bool {
+	_, ok := m.clearedFields[researchnode.FieldAgentTokenID]
+	return ok
+}
+
+// ResetAgentTokenID resets all changes to the "agent_token_id" field.
+func (m *ResearchNodeMutation) ResetAgentTokenID() {
+	m.agent_token = nil
+	delete(m.clearedFields, researchnode.FieldAgentTokenID)
+}
+
+// SetKind sets the "kind" field.
+func (m *ResearchNodeMutation) SetKind(r researchnode.Kind) {
+	m.kind = &r
+}
+
+// Kind returns the value of the "kind" field in the mutation.
+func (m *ResearchNodeMutation) Kind() (r researchnode.Kind, exists bool) {
+	v := m.kind
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKind returns the old "kind" field's value of the ResearchNode entity.
+// If the ResearchNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchNodeMutation) OldKind(ctx context.Context) (v researchnode.Kind, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKind is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKind requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKind: %w", err)
+	}
+	return oldValue.Kind, nil
+}
+
+// ResetKind resets all changes to the "kind" field.
+func (m *ResearchNodeMutation) ResetKind() {
+	m.kind = nil
+}
+
+// SetTitle sets the "title" field.
+func (m *ResearchNodeMutation) SetTitle(s string) {
+	m.title = &s
+}
+
+// Title returns the value of the "title" field in the mutation.
+func (m *ResearchNodeMutation) Title() (r string, exists bool) {
+	v := m.title
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTitle returns the old "title" field's value of the ResearchNode entity.
+// If the ResearchNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchNodeMutation) OldTitle(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTitle is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTitle requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTitle: %w", err)
+	}
+	return oldValue.Title, nil
+}
+
+// ResetTitle resets all changes to the "title" field.
+func (m *ResearchNodeMutation) ResetTitle() {
+	m.title = nil
+}
+
+// SetSummary sets the "summary" field.
+func (m *ResearchNodeMutation) SetSummary(s string) {
+	m.summary = &s
+}
+
+// Summary returns the value of the "summary" field in the mutation.
+func (m *ResearchNodeMutation) Summary() (r string, exists bool) {
+	v := m.summary
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSummary returns the old "summary" field's value of the ResearchNode entity.
+// If the ResearchNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchNodeMutation) OldSummary(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSummary is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSummary requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSummary: %w", err)
+	}
+	return oldValue.Summary, nil
+}
+
+// ClearSummary clears the value of the "summary" field.
+func (m *ResearchNodeMutation) ClearSummary() {
+	m.summary = nil
+	m.clearedFields[researchnode.FieldSummary] = struct{}{}
+}
+
+// SummaryCleared returns if the "summary" field was cleared in this mutation.
+func (m *ResearchNodeMutation) SummaryCleared() bool {
+	_, ok := m.clearedFields[researchnode.FieldSummary]
+	return ok
+}
+
+// ResetSummary resets all changes to the "summary" field.
+func (m *ResearchNodeMutation) ResetSummary() {
+	m.summary = nil
+	delete(m.clearedFields, researchnode.FieldSummary)
+}
+
+// SetStatus sets the "status" field.
+func (m *ResearchNodeMutation) SetStatus(r researchnode.Status) {
+	m.status = &r
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *ResearchNodeMutation) Status() (r researchnode.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the ResearchNode entity.
+// If the ResearchNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchNodeMutation) OldStatus(ctx context.Context) (v researchnode.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *ResearchNodeMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetMetricName sets the "metric_name" field.
+func (m *ResearchNodeMutation) SetMetricName(s string) {
+	m.metric_name = &s
+}
+
+// MetricName returns the value of the "metric_name" field in the mutation.
+func (m *ResearchNodeMutation) MetricName() (r string, exists bool) {
+	v := m.metric_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetricName returns the old "metric_name" field's value of the ResearchNode entity.
+// If the ResearchNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchNodeMutation) OldMetricName(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetricName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetricName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetricName: %w", err)
+	}
+	return oldValue.MetricName, nil
+}
+
+// ClearMetricName clears the value of the "metric_name" field.
+func (m *ResearchNodeMutation) ClearMetricName() {
+	m.metric_name = nil
+	m.clearedFields[researchnode.FieldMetricName] = struct{}{}
+}
+
+// MetricNameCleared returns if the "metric_name" field was cleared in this mutation.
+func (m *ResearchNodeMutation) MetricNameCleared() bool {
+	_, ok := m.clearedFields[researchnode.FieldMetricName]
+	return ok
+}
+
+// ResetMetricName resets all changes to the "metric_name" field.
+func (m *ResearchNodeMutation) ResetMetricName() {
+	m.metric_name = nil
+	delete(m.clearedFields, researchnode.FieldMetricName)
+}
+
+// SetMetricValue sets the "metric_value" field.
+func (m *ResearchNodeMutation) SetMetricValue(f float64) {
+	m.metric_value = &f
+	m.addmetric_value = nil
+}
+
+// MetricValue returns the value of the "metric_value" field in the mutation.
+func (m *ResearchNodeMutation) MetricValue() (r float64, exists bool) {
+	v := m.metric_value
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetricValue returns the old "metric_value" field's value of the ResearchNode entity.
+// If the ResearchNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchNodeMutation) OldMetricValue(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetricValue is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetricValue requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetricValue: %w", err)
+	}
+	return oldValue.MetricValue, nil
+}
+
+// AddMetricValue adds f to the "metric_value" field.
+func (m *ResearchNodeMutation) AddMetricValue(f float64) {
+	if m.addmetric_value != nil {
+		*m.addmetric_value += f
+	} else {
+		m.addmetric_value = &f
+	}
+}
+
+// AddedMetricValue returns the value that was added to the "metric_value" field in this mutation.
+func (m *ResearchNodeMutation) AddedMetricValue() (r float64, exists bool) {
+	v := m.addmetric_value
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearMetricValue clears the value of the "metric_value" field.
+func (m *ResearchNodeMutation) ClearMetricValue() {
+	m.metric_value = nil
+	m.addmetric_value = nil
+	m.clearedFields[researchnode.FieldMetricValue] = struct{}{}
+}
+
+// MetricValueCleared returns if the "metric_value" field was cleared in this mutation.
+func (m *ResearchNodeMutation) MetricValueCleared() bool {
+	_, ok := m.clearedFields[researchnode.FieldMetricValue]
+	return ok
+}
+
+// ResetMetricValue resets all changes to the "metric_value" field.
+func (m *ResearchNodeMutation) ResetMetricValue() {
+	m.metric_value = nil
+	m.addmetric_value = nil
+	delete(m.clearedFields, researchnode.FieldMetricValue)
+}
+
+// ClearTenant clears the "tenant" edge to the Tenant entity.
+func (m *ResearchNodeMutation) ClearTenant() {
+	m.clearedtenant = true
+	m.clearedFields[researchnode.FieldTenantID] = struct{}{}
+}
+
+// TenantCleared reports if the "tenant" edge to the Tenant entity was cleared.
+func (m *ResearchNodeMutation) TenantCleared() bool {
+	return m.clearedtenant
+}
+
+// TenantIDs returns the "tenant" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// TenantID instead. It exists only for internal usage by the builders.
+func (m *ResearchNodeMutation) TenantIDs() (ids []int) {
+	if id := m.tenant; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetTenant resets all changes to the "tenant" edge.
+func (m *ResearchNodeMutation) ResetTenant() {
+	m.tenant = nil
+	m.clearedtenant = false
+}
+
+// ClearProject clears the "project" edge to the Project entity.
+func (m *ResearchNodeMutation) ClearProject() {
+	m.clearedproject = true
+	m.clearedFields[researchnode.FieldProjectID] = struct{}{}
+}
+
+// ProjectCleared reports if the "project" edge to the Project entity was cleared.
+func (m *ResearchNodeMutation) ProjectCleared() bool {
+	return m.clearedproject
+}
+
+// ProjectIDs returns the "project" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ProjectID instead. It exists only for internal usage by the builders.
+func (m *ResearchNodeMutation) ProjectIDs() (ids []int) {
+	if id := m.project; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetProject resets all changes to the "project" edge.
+func (m *ResearchNodeMutation) ResetProject() {
+	m.project = nil
+	m.clearedproject = false
+}
+
+// ClearStudy clears the "study" edge to the Study entity.
+func (m *ResearchNodeMutation) ClearStudy() {
+	m.clearedstudy = true
+	m.clearedFields[researchnode.FieldStudyID] = struct{}{}
+}
+
+// StudyCleared reports if the "study" edge to the Study entity was cleared.
+func (m *ResearchNodeMutation) StudyCleared() bool {
+	return m.clearedstudy
+}
+
+// StudyIDs returns the "study" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// StudyID instead. It exists only for internal usage by the builders.
+func (m *ResearchNodeMutation) StudyIDs() (ids []int) {
+	if id := m.study; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetStudy resets all changes to the "study" edge.
+func (m *ResearchNodeMutation) ResetStudy() {
+	m.study = nil
+	m.clearedstudy = false
+}
+
+// ClearExperiment clears the "experiment" edge to the Experiment entity.
+func (m *ResearchNodeMutation) ClearExperiment() {
+	m.clearedexperiment = true
+	m.clearedFields[researchnode.FieldExperimentID] = struct{}{}
+}
+
+// ExperimentCleared reports if the "experiment" edge to the Experiment entity was cleared.
+func (m *ResearchNodeMutation) ExperimentCleared() bool {
+	return m.ExperimentIDCleared() || m.clearedexperiment
+}
+
+// ExperimentIDs returns the "experiment" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ExperimentID instead. It exists only for internal usage by the builders.
+func (m *ResearchNodeMutation) ExperimentIDs() (ids []int) {
+	if id := m.experiment; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetExperiment resets all changes to the "experiment" edge.
+func (m *ResearchNodeMutation) ResetExperiment() {
+	m.experiment = nil
+	m.clearedexperiment = false
+}
+
+// ClearAgentToken clears the "agent_token" edge to the AgentToken entity.
+func (m *ResearchNodeMutation) ClearAgentToken() {
+	m.clearedagent_token = true
+	m.clearedFields[researchnode.FieldAgentTokenID] = struct{}{}
+}
+
+// AgentTokenCleared reports if the "agent_token" edge to the AgentToken entity was cleared.
+func (m *ResearchNodeMutation) AgentTokenCleared() bool {
+	return m.AgentTokenIDCleared() || m.clearedagent_token
+}
+
+// AgentTokenIDs returns the "agent_token" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// AgentTokenID instead. It exists only for internal usage by the builders.
+func (m *ResearchNodeMutation) AgentTokenIDs() (ids []int) {
+	if id := m.agent_token; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetAgentToken resets all changes to the "agent_token" edge.
+func (m *ResearchNodeMutation) ResetAgentToken() {
+	m.agent_token = nil
+	m.clearedagent_token = false
+}
+
+// AddOutgoingEdgeIDs adds the "outgoing_edges" edge to the ResearchEdge entity by ids.
+func (m *ResearchNodeMutation) AddOutgoingEdgeIDs(ids ...int) {
+	if m.outgoing_edges == nil {
+		m.outgoing_edges = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.outgoing_edges[ids[i]] = struct{}{}
+	}
+}
+
+// ClearOutgoingEdges clears the "outgoing_edges" edge to the ResearchEdge entity.
+func (m *ResearchNodeMutation) ClearOutgoingEdges() {
+	m.clearedoutgoing_edges = true
+}
+
+// OutgoingEdgesCleared reports if the "outgoing_edges" edge to the ResearchEdge entity was cleared.
+func (m *ResearchNodeMutation) OutgoingEdgesCleared() bool {
+	return m.clearedoutgoing_edges
+}
+
+// RemoveOutgoingEdgeIDs removes the "outgoing_edges" edge to the ResearchEdge entity by IDs.
+func (m *ResearchNodeMutation) RemoveOutgoingEdgeIDs(ids ...int) {
+	if m.removedoutgoing_edges == nil {
+		m.removedoutgoing_edges = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.outgoing_edges, ids[i])
+		m.removedoutgoing_edges[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedOutgoingEdges returns the removed IDs of the "outgoing_edges" edge to the ResearchEdge entity.
+func (m *ResearchNodeMutation) RemovedOutgoingEdgesIDs() (ids []int) {
+	for id := range m.removedoutgoing_edges {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// OutgoingEdgesIDs returns the "outgoing_edges" edge IDs in the mutation.
+func (m *ResearchNodeMutation) OutgoingEdgesIDs() (ids []int) {
+	for id := range m.outgoing_edges {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetOutgoingEdges resets all changes to the "outgoing_edges" edge.
+func (m *ResearchNodeMutation) ResetOutgoingEdges() {
+	m.outgoing_edges = nil
+	m.clearedoutgoing_edges = false
+	m.removedoutgoing_edges = nil
+}
+
+// AddIncomingEdgeIDs adds the "incoming_edges" edge to the ResearchEdge entity by ids.
+func (m *ResearchNodeMutation) AddIncomingEdgeIDs(ids ...int) {
+	if m.incoming_edges == nil {
+		m.incoming_edges = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.incoming_edges[ids[i]] = struct{}{}
+	}
+}
+
+// ClearIncomingEdges clears the "incoming_edges" edge to the ResearchEdge entity.
+func (m *ResearchNodeMutation) ClearIncomingEdges() {
+	m.clearedincoming_edges = true
+}
+
+// IncomingEdgesCleared reports if the "incoming_edges" edge to the ResearchEdge entity was cleared.
+func (m *ResearchNodeMutation) IncomingEdgesCleared() bool {
+	return m.clearedincoming_edges
+}
+
+// RemoveIncomingEdgeIDs removes the "incoming_edges" edge to the ResearchEdge entity by IDs.
+func (m *ResearchNodeMutation) RemoveIncomingEdgeIDs(ids ...int) {
+	if m.removedincoming_edges == nil {
+		m.removedincoming_edges = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.incoming_edges, ids[i])
+		m.removedincoming_edges[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedIncomingEdges returns the removed IDs of the "incoming_edges" edge to the ResearchEdge entity.
+func (m *ResearchNodeMutation) RemovedIncomingEdgesIDs() (ids []int) {
+	for id := range m.removedincoming_edges {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// IncomingEdgesIDs returns the "incoming_edges" edge IDs in the mutation.
+func (m *ResearchNodeMutation) IncomingEdgesIDs() (ids []int) {
+	for id := range m.incoming_edges {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetIncomingEdges resets all changes to the "incoming_edges" edge.
+func (m *ResearchNodeMutation) ResetIncomingEdges() {
+	m.incoming_edges = nil
+	m.clearedincoming_edges = false
+	m.removedincoming_edges = nil
+}
+
+// Where appends a list predicates to the ResearchNodeMutation builder.
+func (m *ResearchNodeMutation) Where(ps ...predicate.ResearchNode) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the ResearchNodeMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *ResearchNodeMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.ResearchNode, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *ResearchNodeMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *ResearchNodeMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (ResearchNode).
+func (m *ResearchNodeMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *ResearchNodeMutation) Fields() []string {
+	fields := make([]string, 0, 14)
+	if m.public_id != nil {
+		fields = append(fields, researchnode.FieldPublicID)
+	}
+	if m.created_at != nil {
+		fields = append(fields, researchnode.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, researchnode.FieldUpdatedAt)
+	}
+	if m.tenant != nil {
+		fields = append(fields, researchnode.FieldTenantID)
+	}
+	if m.project != nil {
+		fields = append(fields, researchnode.FieldProjectID)
+	}
+	if m.study != nil {
+		fields = append(fields, researchnode.FieldStudyID)
+	}
+	if m.experiment != nil {
+		fields = append(fields, researchnode.FieldExperimentID)
+	}
+	if m.agent_token != nil {
+		fields = append(fields, researchnode.FieldAgentTokenID)
+	}
+	if m.kind != nil {
+		fields = append(fields, researchnode.FieldKind)
+	}
+	if m.title != nil {
+		fields = append(fields, researchnode.FieldTitle)
+	}
+	if m.summary != nil {
+		fields = append(fields, researchnode.FieldSummary)
+	}
+	if m.status != nil {
+		fields = append(fields, researchnode.FieldStatus)
+	}
+	if m.metric_name != nil {
+		fields = append(fields, researchnode.FieldMetricName)
+	}
+	if m.metric_value != nil {
+		fields = append(fields, researchnode.FieldMetricValue)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *ResearchNodeMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case researchnode.FieldPublicID:
+		return m.PublicID()
+	case researchnode.FieldCreatedAt:
+		return m.CreatedAt()
+	case researchnode.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case researchnode.FieldTenantID:
+		return m.TenantID()
+	case researchnode.FieldProjectID:
+		return m.ProjectID()
+	case researchnode.FieldStudyID:
+		return m.StudyID()
+	case researchnode.FieldExperimentID:
+		return m.ExperimentID()
+	case researchnode.FieldAgentTokenID:
+		return m.AgentTokenID()
+	case researchnode.FieldKind:
+		return m.Kind()
+	case researchnode.FieldTitle:
+		return m.Title()
+	case researchnode.FieldSummary:
+		return m.Summary()
+	case researchnode.FieldStatus:
+		return m.Status()
+	case researchnode.FieldMetricName:
+		return m.MetricName()
+	case researchnode.FieldMetricValue:
+		return m.MetricValue()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *ResearchNodeMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case researchnode.FieldPublicID:
+		return m.OldPublicID(ctx)
+	case researchnode.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case researchnode.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case researchnode.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case researchnode.FieldProjectID:
+		return m.OldProjectID(ctx)
+	case researchnode.FieldStudyID:
+		return m.OldStudyID(ctx)
+	case researchnode.FieldExperimentID:
+		return m.OldExperimentID(ctx)
+	case researchnode.FieldAgentTokenID:
+		return m.OldAgentTokenID(ctx)
+	case researchnode.FieldKind:
+		return m.OldKind(ctx)
+	case researchnode.FieldTitle:
+		return m.OldTitle(ctx)
+	case researchnode.FieldSummary:
+		return m.OldSummary(ctx)
+	case researchnode.FieldStatus:
+		return m.OldStatus(ctx)
+	case researchnode.FieldMetricName:
+		return m.OldMetricName(ctx)
+	case researchnode.FieldMetricValue:
+		return m.OldMetricValue(ctx)
+	}
+	return nil, fmt.Errorf("unknown ResearchNode field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ResearchNodeMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case researchnode.FieldPublicID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPublicID(v)
+		return nil
+	case researchnode.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case researchnode.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case researchnode.FieldTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case researchnode.FieldProjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProjectID(v)
+		return nil
+	case researchnode.FieldStudyID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStudyID(v)
+		return nil
+	case researchnode.FieldExperimentID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExperimentID(v)
+		return nil
+	case researchnode.FieldAgentTokenID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAgentTokenID(v)
+		return nil
+	case researchnode.FieldKind:
+		v, ok := value.(researchnode.Kind)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKind(v)
+		return nil
+	case researchnode.FieldTitle:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTitle(v)
+		return nil
+	case researchnode.FieldSummary:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSummary(v)
+		return nil
+	case researchnode.FieldStatus:
+		v, ok := value.(researchnode.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case researchnode.FieldMetricName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetricName(v)
+		return nil
+	case researchnode.FieldMetricValue:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetricValue(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ResearchNode field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *ResearchNodeMutation) AddedFields() []string {
+	var fields []string
+	if m.addmetric_value != nil {
+		fields = append(fields, researchnode.FieldMetricValue)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *ResearchNodeMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case researchnode.FieldMetricValue:
+		return m.AddedMetricValue()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ResearchNodeMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case researchnode.FieldMetricValue:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMetricValue(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ResearchNode numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *ResearchNodeMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(researchnode.FieldExperimentID) {
+		fields = append(fields, researchnode.FieldExperimentID)
+	}
+	if m.FieldCleared(researchnode.FieldAgentTokenID) {
+		fields = append(fields, researchnode.FieldAgentTokenID)
+	}
+	if m.FieldCleared(researchnode.FieldSummary) {
+		fields = append(fields, researchnode.FieldSummary)
+	}
+	if m.FieldCleared(researchnode.FieldMetricName) {
+		fields = append(fields, researchnode.FieldMetricName)
+	}
+	if m.FieldCleared(researchnode.FieldMetricValue) {
+		fields = append(fields, researchnode.FieldMetricValue)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *ResearchNodeMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *ResearchNodeMutation) ClearField(name string) error {
+	switch name {
+	case researchnode.FieldExperimentID:
+		m.ClearExperimentID()
+		return nil
+	case researchnode.FieldAgentTokenID:
+		m.ClearAgentTokenID()
+		return nil
+	case researchnode.FieldSummary:
+		m.ClearSummary()
+		return nil
+	case researchnode.FieldMetricName:
+		m.ClearMetricName()
+		return nil
+	case researchnode.FieldMetricValue:
+		m.ClearMetricValue()
+		return nil
+	}
+	return fmt.Errorf("unknown ResearchNode nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *ResearchNodeMutation) ResetField(name string) error {
+	switch name {
+	case researchnode.FieldPublicID:
+		m.ResetPublicID()
+		return nil
+	case researchnode.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case researchnode.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case researchnode.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case researchnode.FieldProjectID:
+		m.ResetProjectID()
+		return nil
+	case researchnode.FieldStudyID:
+		m.ResetStudyID()
+		return nil
+	case researchnode.FieldExperimentID:
+		m.ResetExperimentID()
+		return nil
+	case researchnode.FieldAgentTokenID:
+		m.ResetAgentTokenID()
+		return nil
+	case researchnode.FieldKind:
+		m.ResetKind()
+		return nil
+	case researchnode.FieldTitle:
+		m.ResetTitle()
+		return nil
+	case researchnode.FieldSummary:
+		m.ResetSummary()
+		return nil
+	case researchnode.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case researchnode.FieldMetricName:
+		m.ResetMetricName()
+		return nil
+	case researchnode.FieldMetricValue:
+		m.ResetMetricValue()
+		return nil
+	}
+	return fmt.Errorf("unknown ResearchNode field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *ResearchNodeMutation) AddedEdges() []string {
+	edges := make([]string, 0, 7)
+	if m.tenant != nil {
+		edges = append(edges, researchnode.EdgeTenant)
+	}
+	if m.project != nil {
+		edges = append(edges, researchnode.EdgeProject)
+	}
+	if m.study != nil {
+		edges = append(edges, researchnode.EdgeStudy)
+	}
+	if m.experiment != nil {
+		edges = append(edges, researchnode.EdgeExperiment)
+	}
+	if m.agent_token != nil {
+		edges = append(edges, researchnode.EdgeAgentToken)
+	}
+	if m.outgoing_edges != nil {
+		edges = append(edges, researchnode.EdgeOutgoingEdges)
+	}
+	if m.incoming_edges != nil {
+		edges = append(edges, researchnode.EdgeIncomingEdges)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *ResearchNodeMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case researchnode.EdgeTenant:
+		if id := m.tenant; id != nil {
+			return []ent.Value{*id}
+		}
+	case researchnode.EdgeProject:
+		if id := m.project; id != nil {
+			return []ent.Value{*id}
+		}
+	case researchnode.EdgeStudy:
+		if id := m.study; id != nil {
+			return []ent.Value{*id}
+		}
+	case researchnode.EdgeExperiment:
+		if id := m.experiment; id != nil {
+			return []ent.Value{*id}
+		}
+	case researchnode.EdgeAgentToken:
+		if id := m.agent_token; id != nil {
+			return []ent.Value{*id}
+		}
+	case researchnode.EdgeOutgoingEdges:
+		ids := make([]ent.Value, 0, len(m.outgoing_edges))
+		for id := range m.outgoing_edges {
+			ids = append(ids, id)
+		}
+		return ids
+	case researchnode.EdgeIncomingEdges:
+		ids := make([]ent.Value, 0, len(m.incoming_edges))
+		for id := range m.incoming_edges {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *ResearchNodeMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 7)
+	if m.removedoutgoing_edges != nil {
+		edges = append(edges, researchnode.EdgeOutgoingEdges)
+	}
+	if m.removedincoming_edges != nil {
+		edges = append(edges, researchnode.EdgeIncomingEdges)
+	}
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *ResearchNodeMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case researchnode.EdgeOutgoingEdges:
+		ids := make([]ent.Value, 0, len(m.removedoutgoing_edges))
+		for id := range m.removedoutgoing_edges {
+			ids = append(ids, id)
+		}
+		return ids
+	case researchnode.EdgeIncomingEdges:
+		ids := make([]ent.Value, 0, len(m.removedincoming_edges))
+		for id := range m.removedincoming_edges {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *ResearchNodeMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 7)
+	if m.clearedtenant {
+		edges = append(edges, researchnode.EdgeTenant)
+	}
+	if m.clearedproject {
+		edges = append(edges, researchnode.EdgeProject)
+	}
+	if m.clearedstudy {
+		edges = append(edges, researchnode.EdgeStudy)
+	}
+	if m.clearedexperiment {
+		edges = append(edges, researchnode.EdgeExperiment)
+	}
+	if m.clearedagent_token {
+		edges = append(edges, researchnode.EdgeAgentToken)
+	}
+	if m.clearedoutgoing_edges {
+		edges = append(edges, researchnode.EdgeOutgoingEdges)
+	}
+	if m.clearedincoming_edges {
+		edges = append(edges, researchnode.EdgeIncomingEdges)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *ResearchNodeMutation) EdgeCleared(name string) bool {
+	switch name {
+	case researchnode.EdgeTenant:
+		return m.clearedtenant
+	case researchnode.EdgeProject:
+		return m.clearedproject
+	case researchnode.EdgeStudy:
+		return m.clearedstudy
+	case researchnode.EdgeExperiment:
+		return m.clearedexperiment
+	case researchnode.EdgeAgentToken:
+		return m.clearedagent_token
+	case researchnode.EdgeOutgoingEdges:
+		return m.clearedoutgoing_edges
+	case researchnode.EdgeIncomingEdges:
+		return m.clearedincoming_edges
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *ResearchNodeMutation) ClearEdge(name string) error {
+	switch name {
+	case researchnode.EdgeTenant:
+		m.ClearTenant()
+		return nil
+	case researchnode.EdgeProject:
+		m.ClearProject()
+		return nil
+	case researchnode.EdgeStudy:
+		m.ClearStudy()
+		return nil
+	case researchnode.EdgeExperiment:
+		m.ClearExperiment()
+		return nil
+	case researchnode.EdgeAgentToken:
+		m.ClearAgentToken()
+		return nil
+	}
+	return fmt.Errorf("unknown ResearchNode unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *ResearchNodeMutation) ResetEdge(name string) error {
+	switch name {
+	case researchnode.EdgeTenant:
+		m.ResetTenant()
+		return nil
+	case researchnode.EdgeProject:
+		m.ResetProject()
+		return nil
+	case researchnode.EdgeStudy:
+		m.ResetStudy()
+		return nil
+	case researchnode.EdgeExperiment:
+		m.ResetExperiment()
+		return nil
+	case researchnode.EdgeAgentToken:
+		m.ResetAgentToken()
+		return nil
+	case researchnode.EdgeOutgoingEdges:
+		m.ResetOutgoingEdges()
+		return nil
+	case researchnode.EdgeIncomingEdges:
+		m.ResetIncomingEdges()
+		return nil
+	}
+	return fmt.Errorf("unknown ResearchNode edge %s", name)
 }
 
 // ResourceProfileMutation represents an operation that mutates the ResourceProfile nodes in the graph.
@@ -38989,6 +43401,1259 @@ func (m *SessionMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown Session edge %s", name)
 }
 
+// StudyMutation represents an operation that mutates the Study nodes in the graph.
+type StudyMutation struct {
+	config
+	op                     Op
+	typ                    string
+	id                     *int
+	public_id              *uuid.UUID
+	created_at             *time.Time
+	updated_at             *time.Time
+	name                   *string
+	question               *string
+	summary                *string
+	status                 *study.Status
+	clearedFields          map[string]struct{}
+	tenant                 *int
+	clearedtenant          bool
+	project                *int
+	clearedproject         bool
+	agent_token            *int
+	clearedagent_token     bool
+	iteration_plans        map[int]struct{}
+	removediteration_plans map[int]struct{}
+	clearediteration_plans bool
+	research_nodes         map[int]struct{}
+	removedresearch_nodes  map[int]struct{}
+	clearedresearch_nodes  bool
+	research_edges         map[int]struct{}
+	removedresearch_edges  map[int]struct{}
+	clearedresearch_edges  bool
+	done                   bool
+	oldValue               func(context.Context) (*Study, error)
+	predicates             []predicate.Study
+}
+
+var _ ent.Mutation = (*StudyMutation)(nil)
+
+// studyOption allows management of the mutation configuration using functional options.
+type studyOption func(*StudyMutation)
+
+// newStudyMutation creates new mutation for the Study entity.
+func newStudyMutation(c config, op Op, opts ...studyOption) *StudyMutation {
+	m := &StudyMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeStudy,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withStudyID sets the ID field of the mutation.
+func withStudyID(id int) studyOption {
+	return func(m *StudyMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *Study
+		)
+		m.oldValue = func(ctx context.Context) (*Study, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().Study.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withStudy sets the old Study of the mutation.
+func withStudy(node *Study) studyOption {
+	return func(m *StudyMutation) {
+		m.oldValue = func(context.Context) (*Study, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m StudyMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m StudyMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *StudyMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *StudyMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().Study.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetPublicID sets the "public_id" field.
+func (m *StudyMutation) SetPublicID(u uuid.UUID) {
+	m.public_id = &u
+}
+
+// PublicID returns the value of the "public_id" field in the mutation.
+func (m *StudyMutation) PublicID() (r uuid.UUID, exists bool) {
+	v := m.public_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPublicID returns the old "public_id" field's value of the Study entity.
+// If the Study object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StudyMutation) OldPublicID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPublicID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPublicID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPublicID: %w", err)
+	}
+	return oldValue.PublicID, nil
+}
+
+// ResetPublicID resets all changes to the "public_id" field.
+func (m *StudyMutation) ResetPublicID() {
+	m.public_id = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *StudyMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *StudyMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the Study entity.
+// If the Study object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StudyMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *StudyMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *StudyMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *StudyMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the Study entity.
+// If the Study object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StudyMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *StudyMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *StudyMutation) SetTenantID(i int) {
+	m.tenant = &i
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *StudyMutation) TenantID() (r int, exists bool) {
+	v := m.tenant
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the Study entity.
+// If the Study object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StudyMutation) OldTenantID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *StudyMutation) ResetTenantID() {
+	m.tenant = nil
+}
+
+// SetProjectID sets the "project_id" field.
+func (m *StudyMutation) SetProjectID(i int) {
+	m.project = &i
+}
+
+// ProjectID returns the value of the "project_id" field in the mutation.
+func (m *StudyMutation) ProjectID() (r int, exists bool) {
+	v := m.project
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProjectID returns the old "project_id" field's value of the Study entity.
+// If the Study object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StudyMutation) OldProjectID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProjectID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProjectID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProjectID: %w", err)
+	}
+	return oldValue.ProjectID, nil
+}
+
+// ResetProjectID resets all changes to the "project_id" field.
+func (m *StudyMutation) ResetProjectID() {
+	m.project = nil
+}
+
+// SetAgentTokenID sets the "agent_token_id" field.
+func (m *StudyMutation) SetAgentTokenID(i int) {
+	m.agent_token = &i
+}
+
+// AgentTokenID returns the value of the "agent_token_id" field in the mutation.
+func (m *StudyMutation) AgentTokenID() (r int, exists bool) {
+	v := m.agent_token
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAgentTokenID returns the old "agent_token_id" field's value of the Study entity.
+// If the Study object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StudyMutation) OldAgentTokenID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAgentTokenID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAgentTokenID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAgentTokenID: %w", err)
+	}
+	return oldValue.AgentTokenID, nil
+}
+
+// ClearAgentTokenID clears the value of the "agent_token_id" field.
+func (m *StudyMutation) ClearAgentTokenID() {
+	m.agent_token = nil
+	m.clearedFields[study.FieldAgentTokenID] = struct{}{}
+}
+
+// AgentTokenIDCleared returns if the "agent_token_id" field was cleared in this mutation.
+func (m *StudyMutation) AgentTokenIDCleared() bool {
+	_, ok := m.clearedFields[study.FieldAgentTokenID]
+	return ok
+}
+
+// ResetAgentTokenID resets all changes to the "agent_token_id" field.
+func (m *StudyMutation) ResetAgentTokenID() {
+	m.agent_token = nil
+	delete(m.clearedFields, study.FieldAgentTokenID)
+}
+
+// SetName sets the "name" field.
+func (m *StudyMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *StudyMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the Study entity.
+// If the Study object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StudyMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *StudyMutation) ResetName() {
+	m.name = nil
+}
+
+// SetQuestion sets the "question" field.
+func (m *StudyMutation) SetQuestion(s string) {
+	m.question = &s
+}
+
+// Question returns the value of the "question" field in the mutation.
+func (m *StudyMutation) Question() (r string, exists bool) {
+	v := m.question
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldQuestion returns the old "question" field's value of the Study entity.
+// If the Study object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StudyMutation) OldQuestion(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldQuestion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldQuestion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldQuestion: %w", err)
+	}
+	return oldValue.Question, nil
+}
+
+// ResetQuestion resets all changes to the "question" field.
+func (m *StudyMutation) ResetQuestion() {
+	m.question = nil
+}
+
+// SetSummary sets the "summary" field.
+func (m *StudyMutation) SetSummary(s string) {
+	m.summary = &s
+}
+
+// Summary returns the value of the "summary" field in the mutation.
+func (m *StudyMutation) Summary() (r string, exists bool) {
+	v := m.summary
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSummary returns the old "summary" field's value of the Study entity.
+// If the Study object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StudyMutation) OldSummary(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSummary is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSummary requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSummary: %w", err)
+	}
+	return oldValue.Summary, nil
+}
+
+// ClearSummary clears the value of the "summary" field.
+func (m *StudyMutation) ClearSummary() {
+	m.summary = nil
+	m.clearedFields[study.FieldSummary] = struct{}{}
+}
+
+// SummaryCleared returns if the "summary" field was cleared in this mutation.
+func (m *StudyMutation) SummaryCleared() bool {
+	_, ok := m.clearedFields[study.FieldSummary]
+	return ok
+}
+
+// ResetSummary resets all changes to the "summary" field.
+func (m *StudyMutation) ResetSummary() {
+	m.summary = nil
+	delete(m.clearedFields, study.FieldSummary)
+}
+
+// SetStatus sets the "status" field.
+func (m *StudyMutation) SetStatus(s study.Status) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *StudyMutation) Status() (r study.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the Study entity.
+// If the Study object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StudyMutation) OldStatus(ctx context.Context) (v study.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *StudyMutation) ResetStatus() {
+	m.status = nil
+}
+
+// ClearTenant clears the "tenant" edge to the Tenant entity.
+func (m *StudyMutation) ClearTenant() {
+	m.clearedtenant = true
+	m.clearedFields[study.FieldTenantID] = struct{}{}
+}
+
+// TenantCleared reports if the "tenant" edge to the Tenant entity was cleared.
+func (m *StudyMutation) TenantCleared() bool {
+	return m.clearedtenant
+}
+
+// TenantIDs returns the "tenant" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// TenantID instead. It exists only for internal usage by the builders.
+func (m *StudyMutation) TenantIDs() (ids []int) {
+	if id := m.tenant; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetTenant resets all changes to the "tenant" edge.
+func (m *StudyMutation) ResetTenant() {
+	m.tenant = nil
+	m.clearedtenant = false
+}
+
+// ClearProject clears the "project" edge to the Project entity.
+func (m *StudyMutation) ClearProject() {
+	m.clearedproject = true
+	m.clearedFields[study.FieldProjectID] = struct{}{}
+}
+
+// ProjectCleared reports if the "project" edge to the Project entity was cleared.
+func (m *StudyMutation) ProjectCleared() bool {
+	return m.clearedproject
+}
+
+// ProjectIDs returns the "project" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ProjectID instead. It exists only for internal usage by the builders.
+func (m *StudyMutation) ProjectIDs() (ids []int) {
+	if id := m.project; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetProject resets all changes to the "project" edge.
+func (m *StudyMutation) ResetProject() {
+	m.project = nil
+	m.clearedproject = false
+}
+
+// ClearAgentToken clears the "agent_token" edge to the AgentToken entity.
+func (m *StudyMutation) ClearAgentToken() {
+	m.clearedagent_token = true
+	m.clearedFields[study.FieldAgentTokenID] = struct{}{}
+}
+
+// AgentTokenCleared reports if the "agent_token" edge to the AgentToken entity was cleared.
+func (m *StudyMutation) AgentTokenCleared() bool {
+	return m.AgentTokenIDCleared() || m.clearedagent_token
+}
+
+// AgentTokenIDs returns the "agent_token" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// AgentTokenID instead. It exists only for internal usage by the builders.
+func (m *StudyMutation) AgentTokenIDs() (ids []int) {
+	if id := m.agent_token; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetAgentToken resets all changes to the "agent_token" edge.
+func (m *StudyMutation) ResetAgentToken() {
+	m.agent_token = nil
+	m.clearedagent_token = false
+}
+
+// AddIterationPlanIDs adds the "iteration_plans" edge to the IterationPlan entity by ids.
+func (m *StudyMutation) AddIterationPlanIDs(ids ...int) {
+	if m.iteration_plans == nil {
+		m.iteration_plans = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.iteration_plans[ids[i]] = struct{}{}
+	}
+}
+
+// ClearIterationPlans clears the "iteration_plans" edge to the IterationPlan entity.
+func (m *StudyMutation) ClearIterationPlans() {
+	m.clearediteration_plans = true
+}
+
+// IterationPlansCleared reports if the "iteration_plans" edge to the IterationPlan entity was cleared.
+func (m *StudyMutation) IterationPlansCleared() bool {
+	return m.clearediteration_plans
+}
+
+// RemoveIterationPlanIDs removes the "iteration_plans" edge to the IterationPlan entity by IDs.
+func (m *StudyMutation) RemoveIterationPlanIDs(ids ...int) {
+	if m.removediteration_plans == nil {
+		m.removediteration_plans = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.iteration_plans, ids[i])
+		m.removediteration_plans[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedIterationPlans returns the removed IDs of the "iteration_plans" edge to the IterationPlan entity.
+func (m *StudyMutation) RemovedIterationPlansIDs() (ids []int) {
+	for id := range m.removediteration_plans {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// IterationPlansIDs returns the "iteration_plans" edge IDs in the mutation.
+func (m *StudyMutation) IterationPlansIDs() (ids []int) {
+	for id := range m.iteration_plans {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetIterationPlans resets all changes to the "iteration_plans" edge.
+func (m *StudyMutation) ResetIterationPlans() {
+	m.iteration_plans = nil
+	m.clearediteration_plans = false
+	m.removediteration_plans = nil
+}
+
+// AddResearchNodeIDs adds the "research_nodes" edge to the ResearchNode entity by ids.
+func (m *StudyMutation) AddResearchNodeIDs(ids ...int) {
+	if m.research_nodes == nil {
+		m.research_nodes = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.research_nodes[ids[i]] = struct{}{}
+	}
+}
+
+// ClearResearchNodes clears the "research_nodes" edge to the ResearchNode entity.
+func (m *StudyMutation) ClearResearchNodes() {
+	m.clearedresearch_nodes = true
+}
+
+// ResearchNodesCleared reports if the "research_nodes" edge to the ResearchNode entity was cleared.
+func (m *StudyMutation) ResearchNodesCleared() bool {
+	return m.clearedresearch_nodes
+}
+
+// RemoveResearchNodeIDs removes the "research_nodes" edge to the ResearchNode entity by IDs.
+func (m *StudyMutation) RemoveResearchNodeIDs(ids ...int) {
+	if m.removedresearch_nodes == nil {
+		m.removedresearch_nodes = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.research_nodes, ids[i])
+		m.removedresearch_nodes[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedResearchNodes returns the removed IDs of the "research_nodes" edge to the ResearchNode entity.
+func (m *StudyMutation) RemovedResearchNodesIDs() (ids []int) {
+	for id := range m.removedresearch_nodes {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResearchNodesIDs returns the "research_nodes" edge IDs in the mutation.
+func (m *StudyMutation) ResearchNodesIDs() (ids []int) {
+	for id := range m.research_nodes {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetResearchNodes resets all changes to the "research_nodes" edge.
+func (m *StudyMutation) ResetResearchNodes() {
+	m.research_nodes = nil
+	m.clearedresearch_nodes = false
+	m.removedresearch_nodes = nil
+}
+
+// AddResearchEdgeIDs adds the "research_edges" edge to the ResearchEdge entity by ids.
+func (m *StudyMutation) AddResearchEdgeIDs(ids ...int) {
+	if m.research_edges == nil {
+		m.research_edges = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.research_edges[ids[i]] = struct{}{}
+	}
+}
+
+// ClearResearchEdges clears the "research_edges" edge to the ResearchEdge entity.
+func (m *StudyMutation) ClearResearchEdges() {
+	m.clearedresearch_edges = true
+}
+
+// ResearchEdgesCleared reports if the "research_edges" edge to the ResearchEdge entity was cleared.
+func (m *StudyMutation) ResearchEdgesCleared() bool {
+	return m.clearedresearch_edges
+}
+
+// RemoveResearchEdgeIDs removes the "research_edges" edge to the ResearchEdge entity by IDs.
+func (m *StudyMutation) RemoveResearchEdgeIDs(ids ...int) {
+	if m.removedresearch_edges == nil {
+		m.removedresearch_edges = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.research_edges, ids[i])
+		m.removedresearch_edges[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedResearchEdges returns the removed IDs of the "research_edges" edge to the ResearchEdge entity.
+func (m *StudyMutation) RemovedResearchEdgesIDs() (ids []int) {
+	for id := range m.removedresearch_edges {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResearchEdgesIDs returns the "research_edges" edge IDs in the mutation.
+func (m *StudyMutation) ResearchEdgesIDs() (ids []int) {
+	for id := range m.research_edges {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetResearchEdges resets all changes to the "research_edges" edge.
+func (m *StudyMutation) ResetResearchEdges() {
+	m.research_edges = nil
+	m.clearedresearch_edges = false
+	m.removedresearch_edges = nil
+}
+
+// Where appends a list predicates to the StudyMutation builder.
+func (m *StudyMutation) Where(ps ...predicate.Study) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the StudyMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *StudyMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.Study, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *StudyMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *StudyMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (Study).
+func (m *StudyMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *StudyMutation) Fields() []string {
+	fields := make([]string, 0, 10)
+	if m.public_id != nil {
+		fields = append(fields, study.FieldPublicID)
+	}
+	if m.created_at != nil {
+		fields = append(fields, study.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, study.FieldUpdatedAt)
+	}
+	if m.tenant != nil {
+		fields = append(fields, study.FieldTenantID)
+	}
+	if m.project != nil {
+		fields = append(fields, study.FieldProjectID)
+	}
+	if m.agent_token != nil {
+		fields = append(fields, study.FieldAgentTokenID)
+	}
+	if m.name != nil {
+		fields = append(fields, study.FieldName)
+	}
+	if m.question != nil {
+		fields = append(fields, study.FieldQuestion)
+	}
+	if m.summary != nil {
+		fields = append(fields, study.FieldSummary)
+	}
+	if m.status != nil {
+		fields = append(fields, study.FieldStatus)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *StudyMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case study.FieldPublicID:
+		return m.PublicID()
+	case study.FieldCreatedAt:
+		return m.CreatedAt()
+	case study.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case study.FieldTenantID:
+		return m.TenantID()
+	case study.FieldProjectID:
+		return m.ProjectID()
+	case study.FieldAgentTokenID:
+		return m.AgentTokenID()
+	case study.FieldName:
+		return m.Name()
+	case study.FieldQuestion:
+		return m.Question()
+	case study.FieldSummary:
+		return m.Summary()
+	case study.FieldStatus:
+		return m.Status()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *StudyMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case study.FieldPublicID:
+		return m.OldPublicID(ctx)
+	case study.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case study.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case study.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case study.FieldProjectID:
+		return m.OldProjectID(ctx)
+	case study.FieldAgentTokenID:
+		return m.OldAgentTokenID(ctx)
+	case study.FieldName:
+		return m.OldName(ctx)
+	case study.FieldQuestion:
+		return m.OldQuestion(ctx)
+	case study.FieldSummary:
+		return m.OldSummary(ctx)
+	case study.FieldStatus:
+		return m.OldStatus(ctx)
+	}
+	return nil, fmt.Errorf("unknown Study field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *StudyMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case study.FieldPublicID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPublicID(v)
+		return nil
+	case study.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case study.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case study.FieldTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case study.FieldProjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProjectID(v)
+		return nil
+	case study.FieldAgentTokenID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAgentTokenID(v)
+		return nil
+	case study.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case study.FieldQuestion:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetQuestion(v)
+		return nil
+	case study.FieldSummary:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSummary(v)
+		return nil
+	case study.FieldStatus:
+		v, ok := value.(study.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Study field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *StudyMutation) AddedFields() []string {
+	var fields []string
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *StudyMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *StudyMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown Study numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *StudyMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(study.FieldAgentTokenID) {
+		fields = append(fields, study.FieldAgentTokenID)
+	}
+	if m.FieldCleared(study.FieldSummary) {
+		fields = append(fields, study.FieldSummary)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *StudyMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *StudyMutation) ClearField(name string) error {
+	switch name {
+	case study.FieldAgentTokenID:
+		m.ClearAgentTokenID()
+		return nil
+	case study.FieldSummary:
+		m.ClearSummary()
+		return nil
+	}
+	return fmt.Errorf("unknown Study nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *StudyMutation) ResetField(name string) error {
+	switch name {
+	case study.FieldPublicID:
+		m.ResetPublicID()
+		return nil
+	case study.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case study.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case study.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case study.FieldProjectID:
+		m.ResetProjectID()
+		return nil
+	case study.FieldAgentTokenID:
+		m.ResetAgentTokenID()
+		return nil
+	case study.FieldName:
+		m.ResetName()
+		return nil
+	case study.FieldQuestion:
+		m.ResetQuestion()
+		return nil
+	case study.FieldSummary:
+		m.ResetSummary()
+		return nil
+	case study.FieldStatus:
+		m.ResetStatus()
+		return nil
+	}
+	return fmt.Errorf("unknown Study field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *StudyMutation) AddedEdges() []string {
+	edges := make([]string, 0, 6)
+	if m.tenant != nil {
+		edges = append(edges, study.EdgeTenant)
+	}
+	if m.project != nil {
+		edges = append(edges, study.EdgeProject)
+	}
+	if m.agent_token != nil {
+		edges = append(edges, study.EdgeAgentToken)
+	}
+	if m.iteration_plans != nil {
+		edges = append(edges, study.EdgeIterationPlans)
+	}
+	if m.research_nodes != nil {
+		edges = append(edges, study.EdgeResearchNodes)
+	}
+	if m.research_edges != nil {
+		edges = append(edges, study.EdgeResearchEdges)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *StudyMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case study.EdgeTenant:
+		if id := m.tenant; id != nil {
+			return []ent.Value{*id}
+		}
+	case study.EdgeProject:
+		if id := m.project; id != nil {
+			return []ent.Value{*id}
+		}
+	case study.EdgeAgentToken:
+		if id := m.agent_token; id != nil {
+			return []ent.Value{*id}
+		}
+	case study.EdgeIterationPlans:
+		ids := make([]ent.Value, 0, len(m.iteration_plans))
+		for id := range m.iteration_plans {
+			ids = append(ids, id)
+		}
+		return ids
+	case study.EdgeResearchNodes:
+		ids := make([]ent.Value, 0, len(m.research_nodes))
+		for id := range m.research_nodes {
+			ids = append(ids, id)
+		}
+		return ids
+	case study.EdgeResearchEdges:
+		ids := make([]ent.Value, 0, len(m.research_edges))
+		for id := range m.research_edges {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *StudyMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 6)
+	if m.removediteration_plans != nil {
+		edges = append(edges, study.EdgeIterationPlans)
+	}
+	if m.removedresearch_nodes != nil {
+		edges = append(edges, study.EdgeResearchNodes)
+	}
+	if m.removedresearch_edges != nil {
+		edges = append(edges, study.EdgeResearchEdges)
+	}
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *StudyMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case study.EdgeIterationPlans:
+		ids := make([]ent.Value, 0, len(m.removediteration_plans))
+		for id := range m.removediteration_plans {
+			ids = append(ids, id)
+		}
+		return ids
+	case study.EdgeResearchNodes:
+		ids := make([]ent.Value, 0, len(m.removedresearch_nodes))
+		for id := range m.removedresearch_nodes {
+			ids = append(ids, id)
+		}
+		return ids
+	case study.EdgeResearchEdges:
+		ids := make([]ent.Value, 0, len(m.removedresearch_edges))
+		for id := range m.removedresearch_edges {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *StudyMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 6)
+	if m.clearedtenant {
+		edges = append(edges, study.EdgeTenant)
+	}
+	if m.clearedproject {
+		edges = append(edges, study.EdgeProject)
+	}
+	if m.clearedagent_token {
+		edges = append(edges, study.EdgeAgentToken)
+	}
+	if m.clearediteration_plans {
+		edges = append(edges, study.EdgeIterationPlans)
+	}
+	if m.clearedresearch_nodes {
+		edges = append(edges, study.EdgeResearchNodes)
+	}
+	if m.clearedresearch_edges {
+		edges = append(edges, study.EdgeResearchEdges)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *StudyMutation) EdgeCleared(name string) bool {
+	switch name {
+	case study.EdgeTenant:
+		return m.clearedtenant
+	case study.EdgeProject:
+		return m.clearedproject
+	case study.EdgeAgentToken:
+		return m.clearedagent_token
+	case study.EdgeIterationPlans:
+		return m.clearediteration_plans
+	case study.EdgeResearchNodes:
+		return m.clearedresearch_nodes
+	case study.EdgeResearchEdges:
+		return m.clearedresearch_edges
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *StudyMutation) ClearEdge(name string) error {
+	switch name {
+	case study.EdgeTenant:
+		m.ClearTenant()
+		return nil
+	case study.EdgeProject:
+		m.ClearProject()
+		return nil
+	case study.EdgeAgentToken:
+		m.ClearAgentToken()
+		return nil
+	}
+	return fmt.Errorf("unknown Study unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *StudyMutation) ResetEdge(name string) error {
+	switch name {
+	case study.EdgeTenant:
+		m.ResetTenant()
+		return nil
+	case study.EdgeProject:
+		m.ResetProject()
+		return nil
+	case study.EdgeAgentToken:
+		m.ResetAgentToken()
+		return nil
+	case study.EdgeIterationPlans:
+		m.ResetIterationPlans()
+		return nil
+	case study.EdgeResearchNodes:
+		m.ResetResearchNodes()
+		return nil
+	case study.EdgeResearchEdges:
+		m.ResetResearchEdges()
+		return nil
+	}
+	return fmt.Errorf("unknown Study edge %s", name)
+}
+
 // TenantMutation represents an operation that mutates the Tenant nodes in the graph.
 type TenantMutation struct {
 	config
@@ -39061,6 +44726,18 @@ type TenantMutation struct {
 	workspace_datasets           map[int]struct{}
 	removedworkspace_datasets    map[int]struct{}
 	clearedworkspace_datasets    bool
+	studies                      map[int]struct{}
+	removedstudies               map[int]struct{}
+	clearedstudies               bool
+	iteration_plans              map[int]struct{}
+	removediteration_plans       map[int]struct{}
+	clearediteration_plans       bool
+	research_nodes               map[int]struct{}
+	removedresearch_nodes        map[int]struct{}
+	clearedresearch_nodes        bool
+	research_edges               map[int]struct{}
+	removedresearch_edges        map[int]struct{}
+	clearedresearch_edges        bool
 	done                         bool
 	oldValue                     func(context.Context) (*Tenant, error)
 	predicates                   []predicate.Tenant
@@ -40424,6 +46101,222 @@ func (m *TenantMutation) ResetWorkspaceDatasets() {
 	m.removedworkspace_datasets = nil
 }
 
+// AddStudyIDs adds the "studies" edge to the Study entity by ids.
+func (m *TenantMutation) AddStudyIDs(ids ...int) {
+	if m.studies == nil {
+		m.studies = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.studies[ids[i]] = struct{}{}
+	}
+}
+
+// ClearStudies clears the "studies" edge to the Study entity.
+func (m *TenantMutation) ClearStudies() {
+	m.clearedstudies = true
+}
+
+// StudiesCleared reports if the "studies" edge to the Study entity was cleared.
+func (m *TenantMutation) StudiesCleared() bool {
+	return m.clearedstudies
+}
+
+// RemoveStudyIDs removes the "studies" edge to the Study entity by IDs.
+func (m *TenantMutation) RemoveStudyIDs(ids ...int) {
+	if m.removedstudies == nil {
+		m.removedstudies = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.studies, ids[i])
+		m.removedstudies[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedStudies returns the removed IDs of the "studies" edge to the Study entity.
+func (m *TenantMutation) RemovedStudiesIDs() (ids []int) {
+	for id := range m.removedstudies {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// StudiesIDs returns the "studies" edge IDs in the mutation.
+func (m *TenantMutation) StudiesIDs() (ids []int) {
+	for id := range m.studies {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetStudies resets all changes to the "studies" edge.
+func (m *TenantMutation) ResetStudies() {
+	m.studies = nil
+	m.clearedstudies = false
+	m.removedstudies = nil
+}
+
+// AddIterationPlanIDs adds the "iteration_plans" edge to the IterationPlan entity by ids.
+func (m *TenantMutation) AddIterationPlanIDs(ids ...int) {
+	if m.iteration_plans == nil {
+		m.iteration_plans = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.iteration_plans[ids[i]] = struct{}{}
+	}
+}
+
+// ClearIterationPlans clears the "iteration_plans" edge to the IterationPlan entity.
+func (m *TenantMutation) ClearIterationPlans() {
+	m.clearediteration_plans = true
+}
+
+// IterationPlansCleared reports if the "iteration_plans" edge to the IterationPlan entity was cleared.
+func (m *TenantMutation) IterationPlansCleared() bool {
+	return m.clearediteration_plans
+}
+
+// RemoveIterationPlanIDs removes the "iteration_plans" edge to the IterationPlan entity by IDs.
+func (m *TenantMutation) RemoveIterationPlanIDs(ids ...int) {
+	if m.removediteration_plans == nil {
+		m.removediteration_plans = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.iteration_plans, ids[i])
+		m.removediteration_plans[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedIterationPlans returns the removed IDs of the "iteration_plans" edge to the IterationPlan entity.
+func (m *TenantMutation) RemovedIterationPlansIDs() (ids []int) {
+	for id := range m.removediteration_plans {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// IterationPlansIDs returns the "iteration_plans" edge IDs in the mutation.
+func (m *TenantMutation) IterationPlansIDs() (ids []int) {
+	for id := range m.iteration_plans {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetIterationPlans resets all changes to the "iteration_plans" edge.
+func (m *TenantMutation) ResetIterationPlans() {
+	m.iteration_plans = nil
+	m.clearediteration_plans = false
+	m.removediteration_plans = nil
+}
+
+// AddResearchNodeIDs adds the "research_nodes" edge to the ResearchNode entity by ids.
+func (m *TenantMutation) AddResearchNodeIDs(ids ...int) {
+	if m.research_nodes == nil {
+		m.research_nodes = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.research_nodes[ids[i]] = struct{}{}
+	}
+}
+
+// ClearResearchNodes clears the "research_nodes" edge to the ResearchNode entity.
+func (m *TenantMutation) ClearResearchNodes() {
+	m.clearedresearch_nodes = true
+}
+
+// ResearchNodesCleared reports if the "research_nodes" edge to the ResearchNode entity was cleared.
+func (m *TenantMutation) ResearchNodesCleared() bool {
+	return m.clearedresearch_nodes
+}
+
+// RemoveResearchNodeIDs removes the "research_nodes" edge to the ResearchNode entity by IDs.
+func (m *TenantMutation) RemoveResearchNodeIDs(ids ...int) {
+	if m.removedresearch_nodes == nil {
+		m.removedresearch_nodes = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.research_nodes, ids[i])
+		m.removedresearch_nodes[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedResearchNodes returns the removed IDs of the "research_nodes" edge to the ResearchNode entity.
+func (m *TenantMutation) RemovedResearchNodesIDs() (ids []int) {
+	for id := range m.removedresearch_nodes {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResearchNodesIDs returns the "research_nodes" edge IDs in the mutation.
+func (m *TenantMutation) ResearchNodesIDs() (ids []int) {
+	for id := range m.research_nodes {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetResearchNodes resets all changes to the "research_nodes" edge.
+func (m *TenantMutation) ResetResearchNodes() {
+	m.research_nodes = nil
+	m.clearedresearch_nodes = false
+	m.removedresearch_nodes = nil
+}
+
+// AddResearchEdgeIDs adds the "research_edges" edge to the ResearchEdge entity by ids.
+func (m *TenantMutation) AddResearchEdgeIDs(ids ...int) {
+	if m.research_edges == nil {
+		m.research_edges = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.research_edges[ids[i]] = struct{}{}
+	}
+}
+
+// ClearResearchEdges clears the "research_edges" edge to the ResearchEdge entity.
+func (m *TenantMutation) ClearResearchEdges() {
+	m.clearedresearch_edges = true
+}
+
+// ResearchEdgesCleared reports if the "research_edges" edge to the ResearchEdge entity was cleared.
+func (m *TenantMutation) ResearchEdgesCleared() bool {
+	return m.clearedresearch_edges
+}
+
+// RemoveResearchEdgeIDs removes the "research_edges" edge to the ResearchEdge entity by IDs.
+func (m *TenantMutation) RemoveResearchEdgeIDs(ids ...int) {
+	if m.removedresearch_edges == nil {
+		m.removedresearch_edges = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.research_edges, ids[i])
+		m.removedresearch_edges[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedResearchEdges returns the removed IDs of the "research_edges" edge to the ResearchEdge entity.
+func (m *TenantMutation) RemovedResearchEdgesIDs() (ids []int) {
+	for id := range m.removedresearch_edges {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResearchEdgesIDs returns the "research_edges" edge IDs in the mutation.
+func (m *TenantMutation) ResearchEdgesIDs() (ids []int) {
+	for id := range m.research_edges {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetResearchEdges resets all changes to the "research_edges" edge.
+func (m *TenantMutation) ResetResearchEdges() {
+	m.research_edges = nil
+	m.clearedresearch_edges = false
+	m.removedresearch_edges = nil
+}
+
 // Where appends a list predicates to the TenantMutation builder.
 func (m *TenantMutation) Where(ps ...predicate.Tenant) {
 	m.predicates = append(m.predicates, ps...)
@@ -40625,7 +46518,7 @@ func (m *TenantMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *TenantMutation) AddedEdges() []string {
-	edges := make([]string, 0, 20)
+	edges := make([]string, 0, 24)
 	if m.users != nil {
 		edges = append(edges, tenant.EdgeUsers)
 	}
@@ -40685,6 +46578,18 @@ func (m *TenantMutation) AddedEdges() []string {
 	}
 	if m.workspace_datasets != nil {
 		edges = append(edges, tenant.EdgeWorkspaceDatasets)
+	}
+	if m.studies != nil {
+		edges = append(edges, tenant.EdgeStudies)
+	}
+	if m.iteration_plans != nil {
+		edges = append(edges, tenant.EdgeIterationPlans)
+	}
+	if m.research_nodes != nil {
+		edges = append(edges, tenant.EdgeResearchNodes)
+	}
+	if m.research_edges != nil {
+		edges = append(edges, tenant.EdgeResearchEdges)
 	}
 	return edges
 }
@@ -40813,13 +46718,37 @@ func (m *TenantMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case tenant.EdgeStudies:
+		ids := make([]ent.Value, 0, len(m.studies))
+		for id := range m.studies {
+			ids = append(ids, id)
+		}
+		return ids
+	case tenant.EdgeIterationPlans:
+		ids := make([]ent.Value, 0, len(m.iteration_plans))
+		for id := range m.iteration_plans {
+			ids = append(ids, id)
+		}
+		return ids
+	case tenant.EdgeResearchNodes:
+		ids := make([]ent.Value, 0, len(m.research_nodes))
+		for id := range m.research_nodes {
+			ids = append(ids, id)
+		}
+		return ids
+	case tenant.EdgeResearchEdges:
+		ids := make([]ent.Value, 0, len(m.research_edges))
+		for id := range m.research_edges {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *TenantMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 20)
+	edges := make([]string, 0, 24)
 	if m.removedusers != nil {
 		edges = append(edges, tenant.EdgeUsers)
 	}
@@ -40879,6 +46808,18 @@ func (m *TenantMutation) RemovedEdges() []string {
 	}
 	if m.removedworkspace_datasets != nil {
 		edges = append(edges, tenant.EdgeWorkspaceDatasets)
+	}
+	if m.removedstudies != nil {
+		edges = append(edges, tenant.EdgeStudies)
+	}
+	if m.removediteration_plans != nil {
+		edges = append(edges, tenant.EdgeIterationPlans)
+	}
+	if m.removedresearch_nodes != nil {
+		edges = append(edges, tenant.EdgeResearchNodes)
+	}
+	if m.removedresearch_edges != nil {
+		edges = append(edges, tenant.EdgeResearchEdges)
 	}
 	return edges
 }
@@ -41007,13 +46948,37 @@ func (m *TenantMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case tenant.EdgeStudies:
+		ids := make([]ent.Value, 0, len(m.removedstudies))
+		for id := range m.removedstudies {
+			ids = append(ids, id)
+		}
+		return ids
+	case tenant.EdgeIterationPlans:
+		ids := make([]ent.Value, 0, len(m.removediteration_plans))
+		for id := range m.removediteration_plans {
+			ids = append(ids, id)
+		}
+		return ids
+	case tenant.EdgeResearchNodes:
+		ids := make([]ent.Value, 0, len(m.removedresearch_nodes))
+		for id := range m.removedresearch_nodes {
+			ids = append(ids, id)
+		}
+		return ids
+	case tenant.EdgeResearchEdges:
+		ids := make([]ent.Value, 0, len(m.removedresearch_edges))
+		for id := range m.removedresearch_edges {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *TenantMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 20)
+	edges := make([]string, 0, 24)
 	if m.clearedusers {
 		edges = append(edges, tenant.EdgeUsers)
 	}
@@ -41074,6 +47039,18 @@ func (m *TenantMutation) ClearedEdges() []string {
 	if m.clearedworkspace_datasets {
 		edges = append(edges, tenant.EdgeWorkspaceDatasets)
 	}
+	if m.clearedstudies {
+		edges = append(edges, tenant.EdgeStudies)
+	}
+	if m.clearediteration_plans {
+		edges = append(edges, tenant.EdgeIterationPlans)
+	}
+	if m.clearedresearch_nodes {
+		edges = append(edges, tenant.EdgeResearchNodes)
+	}
+	if m.clearedresearch_edges {
+		edges = append(edges, tenant.EdgeResearchEdges)
+	}
 	return edges
 }
 
@@ -41121,6 +47098,14 @@ func (m *TenantMutation) EdgeCleared(name string) bool {
 		return m.clearedexperiment_proposals
 	case tenant.EdgeWorkspaceDatasets:
 		return m.clearedworkspace_datasets
+	case tenant.EdgeStudies:
+		return m.clearedstudies
+	case tenant.EdgeIterationPlans:
+		return m.clearediteration_plans
+	case tenant.EdgeResearchNodes:
+		return m.clearedresearch_nodes
+	case tenant.EdgeResearchEdges:
+		return m.clearedresearch_edges
 	}
 	return false
 }
@@ -41196,6 +47181,18 @@ func (m *TenantMutation) ResetEdge(name string) error {
 		return nil
 	case tenant.EdgeWorkspaceDatasets:
 		m.ResetWorkspaceDatasets()
+		return nil
+	case tenant.EdgeStudies:
+		m.ResetStudies()
+		return nil
+	case tenant.EdgeIterationPlans:
+		m.ResetIterationPlans()
+		return nil
+	case tenant.EdgeResearchNodes:
+		m.ResetResearchNodes()
+		return nil
+	case tenant.EdgeResearchEdges:
+		m.ResetResearchEdges()
 		return nil
 	}
 	return fmt.Errorf("unknown Tenant edge %s", name)

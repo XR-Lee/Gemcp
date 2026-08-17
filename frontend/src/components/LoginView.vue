@@ -36,7 +36,7 @@ async function login() {
     <section class="auth-panel">
       <div class="auth-brand">
         <span class="brand-mark"><FlaskConical :size="21" /></span>
-        <div><strong>Gemcp</strong><span>{{ t('GPU control plane', 'GPU 控制平面') }}</span></div>
+        <div><strong>Gemcp</strong><span>{{ t('Research workbench', '研究工作台') }}</span></div>
       </div>
       <div class="auth-heading">
         <p class="eyebrow">{{ t('Owner access', 'Owner 访问') }}</p>
@@ -54,8 +54,8 @@ async function login() {
     </section>
     <aside class="auth-context" :aria-label="t('Deployment status', '部署状态')">
       <div class="auth-context-inner">
-        <p class="eyebrow">{{ t('Private operations', '私有化运行') }}</p>
-        <h2>{{ t('Project policy before provider access.', '先执行 Project 策略，再访问 Provider。') }}</h2>
+        <p class="eyebrow">{{ t('Private research', '私有研究') }}</p>
+        <h2>{{ t('See the question, plan, and Graph. Lab details stay behind.', '先看问题、计划和 Graph，实验室细节留在后面。') }}</h2>
         <dl>
           <div><dt>{{ t('Ingress', '入口') }}</dt><dd>HTTPS / Cloudflare Tunnel</dd></div>
           <div><dt>{{ t('Agent protocol', 'Agent 协议') }}</dt><dd>MCP Streamable HTTP</dd></div>

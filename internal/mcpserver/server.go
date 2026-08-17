@@ -11,6 +11,7 @@ import (
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
 	"github.com/XR-Lee/Gemcp/internal/experiment"
 	gitrepository "github.com/XR-Lee/Gemcp/internal/repository"
+	"github.com/XR-Lee/Gemcp/internal/research"
 	"github.com/XR-Lee/Gemcp/internal/workspacecatalog"
 	mcpauth "github.com/modelcontextprotocol/go-sdk/auth"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -26,6 +27,7 @@ type Server struct {
 	experiments  *experiment.Service
 	repositories *gitrepository.Service
 	datasets     *workspacecatalog.Service
+	research     *research.Service
 	logger       *slog.Logger
 	handler      http.Handler
 }
@@ -40,7 +42,7 @@ type UsageGuide struct {
 	Markdown    string   `json:"markdown"`
 }
 
-const serverInstructions = "Report only controlled Agent workflow phases with report_agent_activity so the Owner can observe repository inspection and run monitoring; never include prompts, private reasoning, source contents, environment values, or credentials. Use prepare_experiment as the normal zero-cost path: provide a reviewed argv and optional repository/ref selectors, let Gemcp resolve immutable source, defaults, checks, cost, and server-side idempotency, then show the returned proposal and wait for human approval before submit_prepared_experiment. Use submit_experiment only as the Advanced shell-command compatibility path. Record the Experiment ID and monitor it to a terminal state."
+const serverInstructions = "Keep the Owner-facing research Graph current with get_research_workspace and update_research_workspace: a Study, iteration plan, and typed Graph are the human-visible work. Never include prompts, private reasoning, credentials, or environment dumps in research text. Report only controlled Agent workflow phases with report_agent_activity. Use prepare_experiment as the normal zero-cost execution path; wait for human approval before submit_prepared_experiment. Linking an Experiment to a Graph node never starts a workload. Use submit_experiment only as the Advanced shell-command compatibility path."
 
 type Option func(*Server)
 
@@ -48,6 +50,12 @@ func WithConfiguration(repositories *gitrepository.Service, datasets *workspacec
 	return func(server *Server) {
 		server.repositories = repositories
 		server.datasets = datasets
+	}
+}
+
+func WithResearch(service *research.Service) Option {
+	return func(server *Server) {
+		server.research = service
 	}
 }
 
@@ -86,6 +94,12 @@ func New(agentAuth *agentauth.Service, experiments *experiment.Service, version 
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "remove_workspace_dataset", Description: "Disable one Project workspace dataset declaration. Requires configure scope.",
 	}, server.removeWorkspaceDataset)
+	mcp.AddTool(mcpServer, &mcp.Tool{
+		Name: "get_research_workspace", Description: "Return Studies, the selected iteration plan, and the research Graph for the authenticated Project. This never starts a workload.",
+	}, server.getResearchWorkspace)
+	mcp.AddTool(mcpServer, &mcp.Tool{
+		Name: "update_research_workspace", Description: "Create or update a Study, replace the active iteration plan, or record a Graph node. This never starts a workload. Requires submit scope.",
+	}, server.updateResearchWorkspace)
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "report_agent_activity", Description: "Report a controlled workflow phase so the Owner console can show what the Agent is doing without collecting prompts or reasoning.",
 	}, server.reportAgentActivity)
@@ -302,6 +316,30 @@ func (s *Server) removeWorkspaceDataset(ctx context.Context, request *mcp.CallTo
 	return nil, view, s.configurationToolError("remove_workspace_dataset", err)
 }
 
+func (s *Server) getResearchWorkspace(ctx context.Context, request *mcp.CallToolRequest, input research.WorkspaceInput) (*mcp.CallToolResult, research.Workspace, error) {
+	principal, err := principalFrom(request)
+	if err != nil {
+		return nil, research.Workspace{}, err
+	}
+	if s.research == nil {
+		return nil, research.Workspace{}, errors.New("research workspace service is unavailable")
+	}
+	output, err := s.research.AgentWorkspace(ctx, principal, input)
+	return nil, output, s.researchToolError("get_research_workspace", err)
+}
+
+func (s *Server) updateResearchWorkspace(ctx context.Context, request *mcp.CallToolRequest, input research.UpdateInput) (*mcp.CallToolResult, research.Workspace, error) {
+	principal, err := principalFrom(request)
+	if err != nil {
+		return nil, research.Workspace{}, err
+	}
+	if s.research == nil {
+		return nil, research.Workspace{}, errors.New("research workspace service is unavailable")
+	}
+	output, err := s.research.AgentUpdate(ctx, principal, input)
+	return nil, output, s.researchToolError("update_research_workspace", err)
+}
+
 func (s *Server) reportAgentActivity(ctx context.Context, request *mcp.CallToolRequest, input experiment.ReportActivityInput) (*mcp.CallToolResult, experiment.ReportActivityResult, error) {
 	principal, err := principalFrom(request)
 	if err != nil {
@@ -413,6 +451,26 @@ func (s *Server) toolError(tool string, err error) error {
 		}
 	}
 	s.logger.Error("MCP tool failed", "tool", tool, "error", err)
+	return errors.New("internal control-plane error")
+}
+
+func (s *Server) researchToolError(tool string, err error) error {
+	if err == nil {
+		return nil
+	}
+	var validation *research.ValidationError
+	if errors.As(err, &validation) {
+		return errors.New(validation.Message)
+	}
+	for _, public := range []error{
+		research.ErrForbidden, research.ErrNotFound, research.ErrChoice, research.ErrStudyLimit,
+		research.ErrNodeLimit, research.ErrEdgeLimit, research.ErrStudyConflict,
+	} {
+		if errors.Is(err, public) {
+			return public
+		}
+	}
+	s.logger.Error("MCP research tool failed", "tool", tool, "error", err)
 	return errors.New("internal control-plane error")
 }
 

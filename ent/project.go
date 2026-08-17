@@ -85,9 +85,17 @@ type ProjectEdges struct {
 	ExperimentProposals []*ExperimentProposal `json:"experiment_proposals,omitempty"`
 	// WorkspaceDatasets holds the value of the workspace_datasets edge.
 	WorkspaceDatasets []*WorkspaceDataset `json:"workspace_datasets,omitempty"`
+	// Studies holds the value of the studies edge.
+	Studies []*Study `json:"studies,omitempty"`
+	// IterationPlans holds the value of the iteration_plans edge.
+	IterationPlans []*IterationPlan `json:"iteration_plans,omitempty"`
+	// ResearchNodes holds the value of the research_nodes edge.
+	ResearchNodes []*ResearchNode `json:"research_nodes,omitempty"`
+	// ResearchEdges holds the value of the research_edges edge.
+	ResearchEdges []*ResearchEdge `json:"research_edges,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [15]bool
+	loadedTypes [19]bool
 }
 
 // TenantOrErr returns the Tenant value or an error if the edge
@@ -225,6 +233,42 @@ func (e ProjectEdges) WorkspaceDatasetsOrErr() ([]*WorkspaceDataset, error) {
 		return e.WorkspaceDatasets, nil
 	}
 	return nil, &NotLoadedError{edge: "workspace_datasets"}
+}
+
+// StudiesOrErr returns the Studies value or an error if the edge
+// was not loaded in eager-loading.
+func (e ProjectEdges) StudiesOrErr() ([]*Study, error) {
+	if e.loadedTypes[15] {
+		return e.Studies, nil
+	}
+	return nil, &NotLoadedError{edge: "studies"}
+}
+
+// IterationPlansOrErr returns the IterationPlans value or an error if the edge
+// was not loaded in eager-loading.
+func (e ProjectEdges) IterationPlansOrErr() ([]*IterationPlan, error) {
+	if e.loadedTypes[16] {
+		return e.IterationPlans, nil
+	}
+	return nil, &NotLoadedError{edge: "iteration_plans"}
+}
+
+// ResearchNodesOrErr returns the ResearchNodes value or an error if the edge
+// was not loaded in eager-loading.
+func (e ProjectEdges) ResearchNodesOrErr() ([]*ResearchNode, error) {
+	if e.loadedTypes[17] {
+		return e.ResearchNodes, nil
+	}
+	return nil, &NotLoadedError{edge: "research_nodes"}
+}
+
+// ResearchEdgesOrErr returns the ResearchEdges value or an error if the edge
+// was not loaded in eager-loading.
+func (e ProjectEdges) ResearchEdgesOrErr() ([]*ResearchEdge, error) {
+	if e.loadedTypes[18] {
+		return e.ResearchEdges, nil
+	}
+	return nil, &NotLoadedError{edge: "research_edges"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -431,6 +475,26 @@ func (_m *Project) QueryExperimentProposals() *ExperimentProposalQuery {
 // QueryWorkspaceDatasets queries the "workspace_datasets" edge of the Project entity.
 func (_m *Project) QueryWorkspaceDatasets() *WorkspaceDatasetQuery {
 	return NewProjectClient(_m.config).QueryWorkspaceDatasets(_m)
+}
+
+// QueryStudies queries the "studies" edge of the Project entity.
+func (_m *Project) QueryStudies() *StudyQuery {
+	return NewProjectClient(_m.config).QueryStudies(_m)
+}
+
+// QueryIterationPlans queries the "iteration_plans" edge of the Project entity.
+func (_m *Project) QueryIterationPlans() *IterationPlanQuery {
+	return NewProjectClient(_m.config).QueryIterationPlans(_m)
+}
+
+// QueryResearchNodes queries the "research_nodes" edge of the Project entity.
+func (_m *Project) QueryResearchNodes() *ResearchNodeQuery {
+	return NewProjectClient(_m.config).QueryResearchNodes(_m)
+}
+
+// QueryResearchEdges queries the "research_edges" edge of the Project entity.
+func (_m *Project) QueryResearchEdges() *ResearchEdgeQuery {
+	return NewProjectClient(_m.config).QueryResearchEdges(_m)
 }
 
 // Update returns a builder for updating this Project.

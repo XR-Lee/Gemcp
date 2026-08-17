@@ -240,6 +240,50 @@ export type ProposalActivity = {
 }
 export type OperationsFeed = { activities: AgentActivity[]; proposals: ProposalActivity[]; generated_at: string }
 
+export type ResearchPlanStep = { title: string; detail?: string }
+export type ResearchStudySummary = { id: string; name: string; question: string; status: string; updated_at: string }
+export type ResearchPlan = {
+  id: string
+  status: string
+  goal: string
+  next_action: string
+  rationale?: string
+  steps: ResearchPlanStep[]
+  created_at: string
+  updated_at: string
+}
+export type ResearchNode = {
+  id: string
+  kind: string
+  title: string
+  summary?: string
+  status: string
+  metric_name?: string
+  metric_value?: number
+  experiment_id?: string
+  experiment_state?: string
+  created_at: string
+  updated_at: string
+}
+export type ResearchEdge = { id: string; from_id: string; to_id: string; relation: string }
+export type ResearchStudy = {
+  id: string
+  name: string
+  question: string
+  summary?: string
+  status: string
+  plan?: ResearchPlan
+  nodes: ResearchNode[]
+  edges: ResearchEdge[]
+  updated_at: string
+}
+export type ResearchWorkspace = {
+  project_id: string
+  studies: ResearchStudySummary[]
+  study?: ResearchStudy
+  generated_at: string
+}
+
 export type DiagnosticBackend = 'autodl_private' | 'self_hosted'
 export type DiagnosticSuite = 'gpu_connectivity' | 'pytorch_cuda'
 
@@ -868,6 +912,22 @@ export const api = {
     ),
   operations: (projectID: string) =>
     request<OperationsFeed>(`/api/v1/projects/${encodeURIComponent(projectID)}/operations?limit=50`),
+  research: (projectID: string, studyID = '') => {
+    const params = new URLSearchParams()
+    if (studyID) params.set('study_id', studyID)
+    const query = params.toString()
+    return request<ResearchWorkspace>(`/api/v1/projects/${encodeURIComponent(projectID)}/research${query ? `?${query}` : ''}`)
+  },
+  updateResearch: (projectID: string, payload: {
+    study?: { id?: string; name: string; question: string; summary?: string; status?: string }
+    plan?: { study_id?: string; goal: string; next_action: string; rationale?: string; steps?: ResearchPlanStep[] }
+    node?: {
+      study_id?: string; kind: string; title: string; summary?: string; status?: string
+      metric_name?: string; metric_value?: number; experiment_id?: string; from_node_id?: string; relation?: string
+    }
+  }) => request<ResearchWorkspace>(`/api/v1/projects/${encodeURIComponent(projectID)}/research`, {
+    method: 'PUT', body: JSON.stringify(payload),
+  }),
   cost: (projectID: string) => request<Cost>(`/api/v1/projects/${encodeURIComponent(projectID)}/cost`),
   diagnosticOptions: (projectID: string) =>
     request<DiagnosticOptions>(`/api/v1/projects/${encodeURIComponent(projectID)}/diagnostics/options`),

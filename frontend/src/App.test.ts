@@ -74,26 +74,21 @@ describe('App', () => {
       if (path.includes('/api/v1/repositories?')) return response({ data: [] })
       if (path.includes('/api/v1/experiments?')) return response({ data: [] })
       if (path.includes('/api/v1/projects/project-id/operations?')) return response({ data: { activities: [], proposals: [], generated_at: '2026-07-17T00:00:00Z' } })
-      if (path.endsWith('/api/v1/projects/project-id/cost')) return response({ data: {
-        period: '2026-07', monthly_budget_milli: 100000, reserved_milli: 0, charged_milli: 0,
-        adjustments_milli: 0, committed_milli: 0, available_milli: 100000,
-      } })
+      if (path.endsWith('/api/v1/projects/project-id/research')) return response({ data: { project_id: project.id, studies: [], generated_at: '2026-07-17T00:00:00Z' } })
       throw new Error(`unexpected request ${path}`)
     }))
 
     const wrapper = mount(App)
     await flushPromises()
 
-    expect(wrapper.text()).toContain('GPU control plane')
-    expect(wrapper.text()).toContain('Research')
-    expect(wrapper.text()).toContain('CNY 100.00')
+    expect(wrapper.text()).toContain('Research workbench')
+    expect(wrapper.text()).toContain('Start from a research question')
     expect(wrapper.text()).toContain('owner@example.com')
     expect(wrapper.text()).toContain('abc123')
 
     await wrapper.get('button[aria-label="Switch to Chinese"]').trigger('click')
-    expect(wrapper.text()).toContain('GPU 控制平面')
-    expect(wrapper.text()).toContain('运行管理')
-    expect(wrapper.text()).toContain('可用预算')
+    expect(wrapper.text()).toContain('研究工作台')
+    expect(wrapper.text()).toContain('从研究问题开始')
     expect(wrapper.get('button[aria-label="切换到英文"]').text()).toContain('EN')
     expect(document.documentElement.lang).toBe('zh-CN')
     expect(window.localStorage.getItem('gemcp.locale')).toBe('zh')
