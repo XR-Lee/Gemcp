@@ -62,6 +62,10 @@ Human --HTTPS Web--------+--> PostgreSQL
 
 The Vue frontend is embedded in the Go release binary. Redis, Kubernetes, and a separate frontend runtime are not required.
 
+## Outlook
+
+Because every decision that spends or closes a run already goes through MCP, the Graph can become more than a journal. Transparent annotation — which claim the Owner confirmed, which digest authorized the spend, which metric closed the run — is a way to grant the next permission, not only a way to explain the past. Off-graph Experiments stay in Lab; they do not authorize later science. That vision is written down in [Transparency as authorization](docs/transparency-authorization.md). It is not scheduled.
+
 ## Local checks
 
 Prerequisites: Go 1.26.6 and Node.js 22+.

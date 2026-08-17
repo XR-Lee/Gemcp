@@ -165,6 +165,7 @@ The following items still require the target environment or newly authorized pai
 
 ## Later increments
 
+- Transparency as authorization: treat Owner-visible Graph annotations as the permission to take the next legal MCP step, export a signed Study snapshot, and keep off-graph Experiments non-citable. Outlook only; see [Transparency as authorization](transparency-authorization.md).
 - Environment and resource-profile administration beyond first-run defaults.
 - Repository-key rotation UI.
 - Project-scoped Secret registration, rotation, and low-privilege Runner injection.

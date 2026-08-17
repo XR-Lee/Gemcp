@@ -104,3 +104,7 @@ The research home shows:
 - the latest linked result
 
 UUIDs, digests, backend IDs, and reservation math remain in Experiment detail and the Lab layer.
+
+## Outlook
+
+If MCP remains the only door, the same trail can later authorize work, not only record it. A confirmed digest, a closed on-graph result, and an Owner annotation would be capabilities: they unlock the next legal edge. Off-graph runs would stay non-authorizing. That is written as a future outlook in [Transparency as authorization](transparency-authorization.md), not as a committed release.
