@@ -1,20 +1,19 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { useIntervalFn } from '@vueuse/core'
 import {
-  Activity,
   Bell,
   Bot,
   Boxes,
   Check,
-  CircleDollarSign,
   Clipboard,
-  Clock3,
   Cpu,
   FlaskConical,
   GitBranch,
   KeyRound,
   LoaderCircle,
   LogOut,
+  Network,
   Plus,
   RefreshCw,
   Server,
@@ -23,8 +22,9 @@ import {
   WalletCards,
   X,
 } from '@lucide/vue'
-import { APIError, api, type Attempt, type BuildInfo, type Cost, type Experiment, type OperationsFeed, type Project, type Repository, type RuntimeStatus, type User } from '../api'
+import { APIError, api, type Attempt, type BuildInfo, type Experiment, type OperationsFeed, type Project, type Repository, type ResearchWorkspace, type RuntimeStatus, type User } from '../api'
 import { localizedState, useI18n } from '../i18n'
+import BrandMark from './BrandMark.vue'
 import ExperimentTable from './ExperimentTable.vue'
 import FinanceView from './FinanceView.vue'
 import LanguageToggle from './LanguageToggle.vue'
@@ -34,20 +34,27 @@ import AgentView from './AgentView.vue'
 import NodeView from './NodeView.vue'
 import DiagnosticsView from './DiagnosticsView.vue'
 import ExperimentDetail from './ExperimentDetail.vue'
+import ResearchView from './ResearchView.vue'
 import RunActivityPanel from './RunActivityPanel.vue'
+import WorkbenchDialog from './WorkbenchDialog.vue'
+import WorkbenchSelect from './WorkbenchSelect.vue'
 
 const props = defineProps<{ build: BuildInfo | null; user: User }>()
 const emit = defineEmits<{ signedOut: [] }>()
 
-type ViewName = 'overview' | 'experiments' | 'diagnostics' | 'finance' | 'projects' | 'agents' | 'nodes' | 'provider' | 'notifications'
-const activeView = ref<ViewName>('overview')
+type ViewName = 'research' | 'experiments' | 'diagnostics' | 'finance' | 'projects' | 'agents' | 'nodes' | 'provider' | 'notifications'
+const activeView = ref<ViewName>('research')
 const projects = ref<Project[]>([])
 const selectedProjectID = ref('')
+const selectedStudyID = ref('')
 const repositories = ref<Repository[]>([])
 const experiments = ref<Experiment[]>([])
-const cost = ref<Cost | null>(null)
 const runtimeStatus = ref<RuntimeStatus | null>(null)
 const operationsFeed = ref<OperationsFeed | null>(null)
+const researchWorkspace = ref<ResearchWorkspace | null>(null)
+const studyDialog = ref(false)
+const studyBusy = ref(false)
+const studyForm = reactive({ name: '', question: '', summary: '' })
 const operationsLoading = ref(false)
 const loading = ref(false)
 const error = ref('')
@@ -64,18 +71,15 @@ const dialogError = ref('')
 const copied = ref('')
 const repositoryForm = reactive({ name: '', sshURL: '', defaultBranch: 'main', fingerprint: '' })
 const { languageTag, t } = useI18n()
-let liveTimer = 0
 let liveRefreshInFlight = false
 let projectRefreshGeneration = 0
+const projectOptions = computed(() => projects.value.map((project) => ({ value: project.id, label: project.name })))
 
 const selectedProject = computed(() => projects.value.find((project) => project.id === selectedProjectID.value) ?? null)
-const runningCount = computed(() => experiments.value.filter((item) => ['provisioning', 'running', 'collecting', 'cancelling'].includes(item.state)).length)
-const queuedCount = computed(() => experiments.value.filter((item) => item.state === 'queued').length)
 const filteredExperiments = computed(() => stateFilter.value === 'all' ? experiments.value : experiments.value.filter((item) => item.state === stateFilter.value))
-const recentExperiments = computed(() => experiments.value.slice(0, 8))
 const viewTitle = computed(() => ({
-  overview: t('Overview', '概览'),
-  experiments: t('Experiments', '实验'),
+  research: t('Research', '研究'),
+  experiments: t('Evidence', '证据'),
   diagnostics: t('Diagnostics', '诊断'),
   finance: t('Budget and ledger', '预算与账本'),
   projects: t('Project configuration', 'Project 配置'),
@@ -84,6 +88,7 @@ const viewTitle = computed(() => ({
   provider: t('Private Cloud resources', '私有云资源'),
   notifications: t('Notifications', '通知'),
 })[activeView.value])
+const viewEyebrow = computed(() => ['research', 'experiments'].includes(activeView.value) ? t('Research', '研究') : t('Lab', '实验室'))
 
 function handleError(caught: unknown, fallback: string) {
   if (caught instanceof APIError && caught.status === 401) {
@@ -117,24 +122,27 @@ async function refreshProject(showSpinner = true) {
   if (!projectID) {
     repositories.value = []
     experiments.value = []
-    cost.value = null
     operationsFeed.value = null
+    researchWorkspace.value = null
+    selectedStudyID.value = ''
     return
   }
   if (showSpinner) loading.value = true
   error.value = ''
   try {
-    const [loadedRepositories, loadedExperiments, loadedCost, loadedOperations] = await Promise.all([
+    const [loadedRepositories, loadedExperiments, loadedOperations, loadedResearch] = await Promise.all([
       api.repositories(projectID),
       api.experiments(projectID),
-      api.cost(projectID),
       api.operations(projectID),
+      api.research(projectID, selectedStudyID.value),
     ])
     if (generation !== projectRefreshGeneration || selectedProjectID.value !== projectID) return
     repositories.value = loadedRepositories
     experiments.value = loadedExperiments
-    cost.value = loadedCost
     operationsFeed.value = loadedOperations
+    researchWorkspace.value = loadedResearch
+    if (loadedResearch.study) selectedStudyID.value = loadedResearch.study.id
+    else if (loadedResearch.studies.length === 1) selectedStudyID.value = loadedResearch.studies[0].id
   } catch (caught) {
     if (generation !== projectRefreshGeneration) return
     handleError(caught, t('Could not refresh this project.', '无法刷新此 Project。'))
@@ -144,21 +152,24 @@ async function refreshProject(showSpinner = true) {
 }
 
 async function refreshLive() {
-  if (liveRefreshInFlight || document.visibilityState !== 'visible' || !selectedProjectID.value || (!['overview', 'experiments'].includes(activeView.value) && !selectedExperiment.value)) return
+  if (liveRefreshInFlight || document.visibilityState !== 'visible' || !selectedProjectID.value || (!['research', 'experiments'].includes(activeView.value) && !selectedExperiment.value)) return
   liveRefreshInFlight = true
   operationsLoading.value = true
   const projectID = selectedProjectID.value
   try {
     const selectedID = selectedExperiment.value?.id
-    const [loadedExperiments, loadedOperations, detail, history] = await Promise.all([
+    const [loadedExperiments, loadedOperations, loadedResearch, detail, history] = await Promise.all([
       api.experiments(projectID),
       api.operations(projectID),
+      api.research(projectID, selectedStudyID.value),
       selectedID ? api.experiment(projectID, selectedID) : Promise.resolve(null),
       selectedID ? api.attempts(projectID, selectedID) : Promise.resolve([]),
     ])
     if (selectedProjectID.value !== projectID) return
     experiments.value = loadedExperiments
     operationsFeed.value = loadedOperations
+    researchWorkspace.value = loadedResearch
+    if (loadedResearch.study) selectedStudyID.value = loadedResearch.study.id
     if (detail && selectedExperiment.value?.id === detail.id) {
       selectedExperiment.value = detail
       attempts.value = history
@@ -216,6 +227,42 @@ async function signOut() {
     handleError(caught, t('Sign out failed. Try again after the connection recovers.', '退出失败，请在连接恢复后重试。'))
   } finally {
     signingOut.value = false
+  }
+}
+
+function openCreateStudy() {
+  studyForm.name = ''
+  studyForm.question = ''
+  studyForm.summary = ''
+  dialogError.value = ''
+  studyDialog.value = true
+}
+
+async function selectStudy(studyID: string) {
+  selectedStudyID.value = studyID
+  if (!selectedProjectID.value) return
+  try {
+    researchWorkspace.value = await api.research(selectedProjectID.value, studyID)
+  } catch (caught) {
+    handleError(caught, t('Could not load this Study.', '无法加载此 Study。'))
+  }
+}
+
+async function createStudy() {
+  if (!selectedProject.value) return
+  studyBusy.value = true
+  dialogError.value = ''
+  try {
+    const created = await api.updateResearch(selectedProject.value.id, {
+      study: { name: studyForm.name.trim(), question: studyForm.question.trim(), summary: studyForm.summary.trim() || undefined },
+    })
+    researchWorkspace.value = created
+    if (created.study) selectedStudyID.value = created.study.id
+    studyDialog.value = false
+  } catch (caught) {
+    dialogError.value = caught instanceof APIError ? caught.message : t('Study creation failed.', 'Study 创建失败。')
+  } finally {
+    studyBusy.value = false
   }
 }
 
@@ -296,23 +343,26 @@ function stateLabel(value: string) {
   return localizedState(value)
 }
 
+const { resume: resumeLive } = useIntervalFn(() => { void refreshLive() }, 5_000, { immediate: false })
+
 onMounted(async () => {
   await refreshAll()
-  liveTimer = window.setInterval(refreshLive, 5_000)
+  resumeLive()
 })
-onBeforeUnmount(() => window.clearInterval(liveTimer))
 </script>
 
 <template>
   <div class="app-shell console-shell">
     <aside class="sidebar">
       <div class="brand">
-        <span class="brand-mark"><FlaskConical :size="19" /></span>
-        <div><strong>Gemcp</strong><span>{{ t('GPU control plane', 'GPU 控制平面') }}</span></div>
+        <BrandMark :size="19" />
+        <div><strong>Gemcp</strong><span>{{ t('Research workbench', '研究工作台') }}</span></div>
       </div>
       <nav :aria-label="t('Primary navigation', '主导航')">
-        <button class="nav-item" :class="{ active: activeView === 'overview' }" type="button" :aria-label="t('Overview', '概览')" :title="t('Overview', '概览')" @click="activeView = 'overview'"><Activity :size="17" /><span>{{ t('Overview', '概览') }}</span></button>
-        <button class="nav-item" :class="{ active: activeView === 'experiments' }" type="button" :aria-label="t('Experiments', '实验')" :title="t('Experiments', '实验')" @click="activeView = 'experiments'"><FlaskConical :size="17" /><span>{{ t('Experiments', '实验') }}</span></button>
+        <p class="nav-group">{{ t('Research', '研究') }}</p>
+        <button class="nav-item" :class="{ active: activeView === 'research' }" type="button" :aria-label="t('Research', '研究')" :title="t('Research', '研究')" @click="activeView = 'research'"><Network :size="17" /><span>{{ t('Research', '研究') }}</span></button>
+        <button class="nav-item" :class="{ active: activeView === 'experiments' }" type="button" :aria-label="t('Evidence', '证据')" :title="t('Evidence', '证据')" @click="activeView = 'experiments'"><FlaskConical :size="17" /><span>{{ t('Evidence', '证据') }}</span></button>
+        <p class="nav-group">{{ t('Lab', '实验室') }}</p>
         <button class="nav-item" :class="{ active: activeView === 'diagnostics' }" type="button" :aria-label="t('Diagnostics', '诊断')" :title="t('Diagnostics', '诊断')" @click="activeView = 'diagnostics'"><Stethoscope :size="17" /><span>{{ t('Diagnostics', '诊断') }}</span></button>
         <button class="nav-item" :class="{ active: activeView === 'finance' }" type="button" :aria-label="t('Finance', '财务')" :title="t('Finance', '财务')" @click="activeView = 'finance'"><WalletCards :size="17" /><span>{{ t('Finance', '财务') }}</span></button>
         <button class="nav-item" :class="{ active: activeView === 'projects' }" type="button" aria-label="Project" title="Project" @click="activeView = 'projects'"><Boxes :size="17" /><span>Project</span></button>
@@ -328,11 +378,11 @@ onBeforeUnmount(() => window.clearInterval(liveTimer))
     <main class="console-main">
       <header class="topbar">
         <div>
-          <p class="eyebrow">{{ t('Operations', '运行管理') }}</p>
+          <p class="eyebrow">{{ viewEyebrow }}</p>
           <h1>{{ viewTitle }}</h1>
         </div>
         <div class="topbar-actions">
-          <label v-if="!['finance', 'nodes', 'provider', 'notifications'].includes(activeView)" class="project-select"><span>Project</span><select v-model="selectedProjectID" @change="refreshProject()"><option v-for="project in projects" :key="project.id" :value="project.id">{{ project.name }}</option></select></label>
+          <label v-if="!['finance', 'nodes', 'provider', 'notifications'].includes(activeView)" class="project-select"><span>Project</span><WorkbenchSelect v-model="selectedProjectID" :aria-label="t('Project', 'Project')" :options="projectOptions" @update:model-value="() => { void refreshProject() }" /></label>
           <span class="status online"><span class="status-dot" />{{ t('Online', '在线') }}</span>
           <LanguageToggle />
           <button v-if="!['finance', 'nodes', 'provider', 'notifications'].includes(activeView)" class="icon-button" type="button" :title="t('Refresh project', '刷新 Project')" :disabled="loading" @click="refreshAll"><RefreshCw :size="17" :class="{ spinning: loading }" /></button>
@@ -341,33 +391,10 @@ onBeforeUnmount(() => window.clearInterval(liveTimer))
 
       <div v-if="error" class="page-alert" role="alert">{{ error }}<button type="button" :title="t('Dismiss', '关闭')" @click="error = ''"><X :size="16" /></button></div>
 
-      <template v-if="activeView === 'overview'">
-        <section class="content-band">
-          <div class="metric-grid">
-            <div class="metric"><span>{{ t('Running', '运行中') }}</span><strong>{{ runningCount }}</strong><small>{{ t('Active provider lifecycle', '活跃的 Provider 生命周期') }}</small></div>
-            <div class="metric"><span>{{ t('Queued', '排队中') }}</span><strong>{{ queuedCount }}</strong><small>{{ t('Durable FIFO-ready queue', '持久化 FIFO 就绪队列') }}</small></div>
-            <div class="metric accent-green"><span>{{ t('Committed this period', '本周期已承诺') }}</span><strong>{{ money(cost?.committed_milli) }}</strong><small>{{ cost?.period ?? t('Current project period', '当前 Project 周期') }}</small></div>
-            <div class="metric accent-coral"><span>{{ t('Available budget', '可用预算') }}</span><strong>{{ money(cost?.available_milli) }}</strong><small>{{ t('Operational estimate', '运行估算') }}</small></div>
-          </div>
-        </section>
-        <section class="workspace operations-workspace">
-          <div class="section-heading"><div><h2>{{ t('Live operations', '实时运行动态') }}</h2><p>{{ t('Agent preparation, approval and execution state for this Project.', '此 Project 的 Agent 准备、批准和执行状态。') }}</p></div><span class="live-label"><span />{{ operationsLoading ? t('Refreshing', '正在刷新') : t('Live', '实时') }}</span></div>
-          <RunActivityPanel :feed="operationsFeed" :loading="operationsLoading" compact @open-experiment="openExperimentByID" />
-        </section>
-        <section class="workspace">
-          <div class="section-heading"><div><h2>{{ t('Recent experiments', '最近实验') }}</h2><p>{{ t('Latest Agent submissions for', 'Agent 最近提交至') }} {{ selectedProject?.name ?? t('this project', '此 Project') }}。</p></div><button class="text-button" type="button" @click="activeView = 'experiments'">{{ t('View all', '查看全部') }}</button></div>
-          <ExperimentTable :experiments="recentExperiments" compact @select="openExperiment" />
-        </section>
-        <section class="status-band">
-          <div><Server :size="18" /><span><strong>{{ !runtimeStatus?.scheduler_enabled ? (runtimeStatus?.scheduler_healthy ? t('Dispatch disabled', '调度已禁用') : t('Reconciler unavailable', '协调器不可用')) : runtimeStatus.scheduler_healthy ? t('Scheduler healthy', '调度器正常') : t('Scheduler unavailable', '调度器不可用') }}</strong><small>{{ runtimeStatus?.scheduler_enabled ? `${t('Global concurrency', '全局并发数')} ${runtimeStatus.global_concurrency}` : t('Reconciliation remains active', '协调仍保持运行') }}</small></span></div>
-          <div><ShieldCheck :size="18" /><span><strong>{{ runtimeStatus?.watchdog_healthy ? t('Watchdog healthy', 'Watchdog 正常') : t('Watchdog unavailable', 'Watchdog 不可用') }}</strong><small>{{ runtimeStatus?.watchdog_heartbeat ? dateTime(runtimeStatus.watchdog_heartbeat.last_seen_at) : t('No heartbeat', '无心跳') }}</small></span></div>
-          <div><Bell :size="18" /><span><strong>{{ runtimeStatus?.notification_worker_healthy ? t('Notification worker healthy', '通知 Worker 正常') : t('Notification worker unavailable', '通知 Worker 不可用') }}</strong><small>{{ runtimeStatus?.notification_heartbeat ? dateTime(runtimeStatus.notification_heartbeat.last_seen_at) : t('No heartbeat', '无心跳') }}</small></span></div>
-          <div><CircleDollarSign :size="18" /><span><strong>{{ money(cost?.monthly_budget_milli) }}</strong><small>{{ t('Monthly hard budget', '月度硬预算') }}</small></span></div>
-        </section>
-      </template>
+      <ResearchView v-if="activeView === 'research'" :workspace="researchWorkspace" :loading="loading" :selected-study-id="selectedStudyID" @select-study="selectStudy" @open-experiment="openExperimentByID" @create-study="openCreateStudy" />
 
       <section v-else-if="activeView === 'experiments'" class="page-workspace">
-        <div class="section-heading page-section-heading"><div><h2>{{ t('Experiments', '实验') }}</h2><p>{{ t('Immutable specifications and current lifecycle state.', '不可变规格和当前生命周期状态。') }}</p></div><div class="segmented-control" :aria-label="t('Experiment state filter', '实验状态筛选')"><button v-for="filter in ['all', 'queued', 'running', 'succeeded', 'failed']" :key="filter" type="button" :class="{ active: stateFilter === filter }" @click="stateFilter = filter">{{ filter === 'all' ? t('all', '全部') : stateLabel(filter) }}</button></div></div>
+        <div class="section-heading page-section-heading"><div><h2>{{ t('Evidence', '证据') }}</h2><p>{{ t('Linked Experiments remain the execution evidence behind the Graph.', '关联的 Experiment 仍是 Graph 背后的执行证据。') }}</p></div><div class="segmented-control" :aria-label="t('Experiment state filter', '实验状态筛选')"><button v-for="filter in ['all', 'queued', 'running', 'succeeded', 'failed']" :key="filter" type="button" :class="{ active: stateFilter === filter }" @click="stateFilter = filter">{{ filter === 'all' ? t('all', '全部') : stateLabel(filter) }}</button></div></div>
         <div class="experiment-operations"><RunActivityPanel :feed="operationsFeed" :loading="operationsLoading" @open-experiment="openExperimentByID" /></div>
         <ExperimentTable :experiments="filteredExperiments" @select="openExperiment" />
       </section>
@@ -403,6 +430,16 @@ onBeforeUnmount(() => window.clearInterval(liveTimer))
   </div>
 
   <ExperimentDetail v-if="selectedExperiment" :experiment="selectedExperiment" :attempts="attempts" :loading="attemptsLoading" :error="attemptsError" @close="closeExperiment" />
+
+  <WorkbenchDialog v-model:open="studyDialog" :title="t('Create study', '创建 Study')" :label="t('Create study', '创建 Study')" :description="t('Name the scientific question. This does not start a workload.', '先写下科学问题。这不会启动任何 workload。')">
+    <form class="dialog-form" @submit.prevent="createStudy">
+      <label>{{ t('Name', '名称') }}<input v-model="studyForm.name" required maxlength="80" placeholder="objbg-scan" spellcheck="false" /></label>
+      <label>{{ t('Research question', '研究问题') }}<textarea v-model="studyForm.question" required rows="4" maxlength="400" :placeholder="t('What should this Study answer?', '这个 Study 要回答什么问题？')"></textarea></label>
+      <label>{{ t('Summary', '摘要') }}<textarea v-model="studyForm.summary" rows="3" maxlength="800" :placeholder="t('Optional scientific context. No prompts or credentials.', '可选科学背景。不要写 prompt 或凭据。')"></textarea></label>
+      <div v-if="dialogError" class="form-error">{{ dialogError }}</div>
+      <button class="primary-button" type="submit" :disabled="studyBusy"><LoaderCircle v-if="studyBusy" :size="16" class="spinning" /><Plus v-else :size="16" />{{ t('Create study', '创建 Study') }}</button>
+    </form>
+  </WorkbenchDialog>
 
   <div v-if="repositoryDialog" class="modal-backdrop" @click.self="repositoryDialog = null">
     <section class="modal" role="dialog" aria-modal="true" :aria-label="repositoryDialog === 'create' ? t('Register repository', '注册仓库') : repositoryDialog === 'verify' ? t('Verify repository', '验证仓库') : t('Deploy public key', 'Deploy 公钥')">

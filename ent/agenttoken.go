@@ -62,9 +62,15 @@ type AgentTokenEdges struct {
 	ExperimentProposals []*ExperimentProposal `json:"experiment_proposals,omitempty"`
 	// WorkspaceDatasets holds the value of the workspace_datasets edge.
 	WorkspaceDatasets []*WorkspaceDataset `json:"workspace_datasets,omitempty"`
+	// Studies holds the value of the studies edge.
+	Studies []*Study `json:"studies,omitempty"`
+	// IterationPlans holds the value of the iteration_plans edge.
+	IterationPlans []*IterationPlan `json:"iteration_plans,omitempty"`
+	// ResearchNodes holds the value of the research_nodes edge.
+	ResearchNodes []*ResearchNode `json:"research_nodes,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [5]bool
+	loadedTypes [8]bool
 }
 
 // ProjectOrErr returns the Project value or an error if the edge
@@ -112,6 +118,33 @@ func (e AgentTokenEdges) WorkspaceDatasetsOrErr() ([]*WorkspaceDataset, error) {
 		return e.WorkspaceDatasets, nil
 	}
 	return nil, &NotLoadedError{edge: "workspace_datasets"}
+}
+
+// StudiesOrErr returns the Studies value or an error if the edge
+// was not loaded in eager-loading.
+func (e AgentTokenEdges) StudiesOrErr() ([]*Study, error) {
+	if e.loadedTypes[5] {
+		return e.Studies, nil
+	}
+	return nil, &NotLoadedError{edge: "studies"}
+}
+
+// IterationPlansOrErr returns the IterationPlans value or an error if the edge
+// was not loaded in eager-loading.
+func (e AgentTokenEdges) IterationPlansOrErr() ([]*IterationPlan, error) {
+	if e.loadedTypes[6] {
+		return e.IterationPlans, nil
+	}
+	return nil, &NotLoadedError{edge: "iteration_plans"}
+}
+
+// ResearchNodesOrErr returns the ResearchNodes value or an error if the edge
+// was not loaded in eager-loading.
+func (e AgentTokenEdges) ResearchNodesOrErr() ([]*ResearchNode, error) {
+	if e.loadedTypes[7] {
+		return e.ResearchNodes, nil
+	}
+	return nil, &NotLoadedError{edge: "research_nodes"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -262,6 +295,21 @@ func (_m *AgentToken) QueryExperimentProposals() *ExperimentProposalQuery {
 // QueryWorkspaceDatasets queries the "workspace_datasets" edge of the AgentToken entity.
 func (_m *AgentToken) QueryWorkspaceDatasets() *WorkspaceDatasetQuery {
 	return NewAgentTokenClient(_m.config).QueryWorkspaceDatasets(_m)
+}
+
+// QueryStudies queries the "studies" edge of the AgentToken entity.
+func (_m *AgentToken) QueryStudies() *StudyQuery {
+	return NewAgentTokenClient(_m.config).QueryStudies(_m)
+}
+
+// QueryIterationPlans queries the "iteration_plans" edge of the AgentToken entity.
+func (_m *AgentToken) QueryIterationPlans() *IterationPlanQuery {
+	return NewAgentTokenClient(_m.config).QueryIterationPlans(_m)
+}
+
+// QueryResearchNodes queries the "research_nodes" edge of the AgentToken entity.
+func (_m *AgentToken) QueryResearchNodes() *ResearchNodeQuery {
+	return NewAgentTokenClient(_m.config).QueryResearchNodes(_m)
 }
 
 // Update returns a builder for updating this AgentToken.

@@ -124,6 +124,8 @@ const (
 	EdgeDiagnosticRun = "diagnostic_run"
 	// EdgeProposal holds the string denoting the proposal edge name in mutations.
 	EdgeProposal = "proposal"
+	// EdgeResearchNodes holds the string denoting the research_nodes edge name in mutations.
+	EdgeResearchNodes = "research_nodes"
 	// Table holds the table name of the experiment in the database.
 	Table = "experiments"
 	// TenantTable is the table that holds the tenant relation/edge.
@@ -217,6 +219,13 @@ const (
 	ProposalInverseTable = "experiment_proposals"
 	// ProposalColumn is the table column denoting the proposal relation/edge.
 	ProposalColumn = "experiment_id"
+	// ResearchNodesTable is the table that holds the research_nodes relation/edge.
+	ResearchNodesTable = "research_nodes"
+	// ResearchNodesInverseTable is the table name for the ResearchNode entity.
+	// It exists in this package in order to avoid circular dependency with the "researchnode" package.
+	ResearchNodesInverseTable = "research_nodes"
+	// ResearchNodesColumn is the table column denoting the research_nodes relation/edge.
+	ResearchNodesColumn = "experiment_id"
 )
 
 // Columns holds all SQL columns for experiment fields.
@@ -658,6 +667,20 @@ func ByProposalField(field string, opts ...sql.OrderTermOption) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newProposalStep(), sql.OrderByField(field, opts...))
 	}
 }
+
+// ByResearchNodesCount orders the results by research_nodes count.
+func ByResearchNodesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newResearchNodesStep(), opts...)
+	}
+}
+
+// ByResearchNodes orders the results by research_nodes terms.
+func ByResearchNodes(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newResearchNodesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newTenantStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -747,5 +770,12 @@ func newProposalStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(ProposalInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2O, false, ProposalTable, ProposalColumn),
+	)
+}
+func newResearchNodesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ResearchNodesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ResearchNodesTable, ResearchNodesColumn),
 	)
 }

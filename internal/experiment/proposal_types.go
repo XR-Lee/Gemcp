@@ -57,6 +57,8 @@ type PrepareInput struct {
 	Environment       string   `json:"environment,omitempty" jsonschema:"approved environment name or ID; omit to resolve a compatible default"`
 	ResourceProfile   string   `json:"resource_profile,omitempty" jsonschema:"active resource profile name or ID; omit to resolve a compatible default"`
 	Image             string   `json:"image,omitempty" jsonschema:"public OCI image tag or digest; accepted only by an Owner-approved trusted Self-hosted workspace"`
+	FromNodeID        string   `json:"from_node_id,omitempty" jsonschema:"Graph hypothesis or plan node ID; required when the Project has an active Study"`
+	ExpectedMetric    string   `json:"expected_metric,omitempty" jsonschema:"optional metric name the Owner should expect after close_run"`
 }
 
 type ProposalChoice struct {
@@ -134,6 +136,8 @@ type PreparedProposal struct {
 	ReservedCostCNY         string             `json:"reserved_cost_cny"`
 	Checks                  []ProposalCheck    `json:"checks"`
 	ConfirmationDigest      string             `json:"confirmation_digest"`
+	FromNodeID              string             `json:"from_node_id,omitempty"`
+	ExpectedMetric          string             `json:"expected_metric,omitempty"`
 	ExpiresAt               time.Time          `json:"expires_at"`
 	CreatedAt               time.Time          `json:"created_at"`
 }
@@ -149,6 +153,7 @@ type SubmitPreparedInput struct {
 }
 
 type SubmitPreparedResult struct {
-	Experiment View `json:"experiment"`
-	Idempotent bool `json:"idempotent"`
+	Experiment View   `json:"experiment"`
+	RunNodeID  string `json:"run_node_id,omitempty"`
+	Idempotent bool   `json:"idempotent"`
 }

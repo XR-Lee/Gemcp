@@ -50,21 +50,23 @@ type proposalWorkspace struct {
 }
 
 type proposalResolved struct {
-	id          uuid.UUID
-	project     *ent.Project
-	repository  *ent.Repository
-	environment *ent.Environment
-	profile     *ent.ResourceProfile
-	image       string
-	workspace   *proposalWorkspace
-	ref         string
-	commitSHA   string
-	execution   executioncmd.Spec
-	preset      string
-	runtime     int
-	reservation int64
-	expiresAt   time.Time
-	checks      []ProposalCheck
+	id             uuid.UUID
+	project        *ent.Project
+	repository     *ent.Repository
+	environment    *ent.Environment
+	profile        *ent.ResourceProfile
+	image          string
+	workspace      *proposalWorkspace
+	ref            string
+	commitSHA      string
+	execution      executioncmd.Spec
+	preset         string
+	runtime        int
+	reservation    int64
+	expiresAt      time.Time
+	checks         []ProposalCheck
+	fromNodeID     string
+	expectedMetric string
 }
 
 type proposalPair struct {
@@ -138,7 +140,7 @@ func (s *Service) Prepare(ctx context.Context, principal agentauth.Principal, in
 		SetMaxRuntimeSeconds(resolved.runtime).
 		SetTimeoutExtensionSeconds(resolved.project.TimeoutExtensionSeconds).
 		SetTerminationGraceSeconds(resolved.project.TerminationGraceSeconds).
-		SetProjectSnapshot(proposalProjectSnapshot(resolved.project)).
+		SetProjectSnapshot(proposalStoredProjectSnapshot(resolved)).
 		SetRepositorySnapshot(repositorySnapshot(resolved.repository, resolved.project.PublicID.String())).
 		SetEnvironmentSnapshot(proposalEnvironmentSnapshot(resolved)).
 		SetResourceSnapshot(resourceSnapshot(resolved.profile)).
@@ -265,12 +267,17 @@ func (s *Service) resolveProposal(ctx context.Context, principal agentauth.Princ
 			return result, nil, err
 		}
 	}
+	fromNodeID, expectedMetric, err := s.resolveGraphOrigin(ctx, principal, input)
+	if err != nil {
+		return result, nil, err
+	}
 	now := s.now().UTC().Truncate(time.Microsecond)
 	return proposalResolved{
 		id: uuid.New(), project: projectRecord, repository: repositoryRecord, environment: environmentRecord, profile: profileRecord,
 		image: image, workspace: workspace,
 		ref: ref, commitSHA: commitSHA, execution: executionSpec, preset: preset, runtime: runtimeSeconds,
 		reservation: reservation, expiresAt: now.Add(s.proposalConfig.Lifetime).Truncate(time.Microsecond),
+		fromNodeID: fromNodeID, expectedMetric: expectedMetric,
 	}, nil, nil
 }
 
@@ -754,13 +761,17 @@ func proposalDigest(resolved proposalResolved) string {
 		RuntimePreset    string            `json:"runtime_preset"`
 		RuntimeSeconds   int               `json:"runtime_seconds"`
 		ReservationMilli int64             `json:"reservation_milli"`
+		FromNodeID       string            `json:"from_node_id,omitempty"`
+		ExpectedMetric   string            `json:"expected_metric,omitempty"`
 		ExpiresAt        time.Time         `json:"expires_at"`
 	}{
 		ProposalID: resolved.id.String(), Project: proposalProjectSnapshot(resolved.project),
 		Repository:  repositorySnapshot(resolved.repository, resolved.project.PublicID.String()),
 		Environment: proposalEnvironmentSnapshot(resolved), Resource: resourceSnapshot(resolved.profile),
 		RequestedRef: resolved.ref, CommitSHA: resolved.commitSHA, Execution: resolved.execution,
-		RuntimePreset: resolved.preset, RuntimeSeconds: resolved.runtime, ReservationMilli: resolved.reservation, ExpiresAt: resolved.expiresAt.UTC().Truncate(time.Microsecond),
+		RuntimePreset: resolved.preset, RuntimeSeconds: resolved.runtime, ReservationMilli: resolved.reservation,
+		FromNodeID: resolved.fromNodeID, ExpectedMetric: resolved.expectedMetric,
+		ExpiresAt: resolved.expiresAt.UTC().Truncate(time.Microsecond),
 	}
 	encoded, _ := json.Marshal(material)
 	digest := sha256.Sum256(encoded)
@@ -803,7 +814,8 @@ func preparedProposal(resolved proposalResolved, digest string, createdAt time.T
 		RuntimePreset: resolved.preset, MaxRuntimeSeconds: resolved.runtime,
 		TimeoutExtensionSeconds: resolved.project.TimeoutExtensionSeconds, TerminationGraceSeconds: resolved.project.TerminationGraceSeconds,
 		ReservedCostMilli: resolved.reservation, ReservedCostCNY: milliCNY(resolved.reservation), Checks: append([]ProposalCheck(nil), resolved.checks...),
-		ConfirmationDigest: digest, ExpiresAt: resolved.expiresAt, CreatedAt: createdAt,
+		ConfirmationDigest: digest, FromNodeID: resolved.fromNodeID, ExpectedMetric: resolved.expectedMetric,
+		ExpiresAt: resolved.expiresAt, CreatedAt: createdAt,
 	}
 }
 

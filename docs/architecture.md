@@ -6,7 +6,9 @@ Gemcp is a private single-organization service. The initial data model remains t
 
 The control plane owns:
 
-- Human configuration and audit through Web.
+- A research Graph and iteration plan that the Owner reviews first.
+- Isolated Docker sub-agents on authorized machines.
+- Human configuration and audit through a separate Lab layer.
 - Owner-confirmed, fixed-suite backend diagnostics through the normal Experiment lifecycle.
 - Agent authentication, zero-cost prepared proposals, confirmed submission, and Advanced experiment operations through MCP.
 - Project policy, budget reservation, and cost estimates.

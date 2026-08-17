@@ -791,6 +791,98 @@ func HasWorkspaceDatasetsWith(preds ...predicate.WorkspaceDataset) predicate.Ten
 	})
 }
 
+// HasStudies applies the HasEdge predicate on the "studies" edge.
+func HasStudies() predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, StudiesTable, StudiesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasStudiesWith applies the HasEdge predicate on the "studies" edge with a given conditions (other predicates).
+func HasStudiesWith(preds ...predicate.Study) predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := newStudiesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasIterationPlans applies the HasEdge predicate on the "iteration_plans" edge.
+func HasIterationPlans() predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, IterationPlansTable, IterationPlansColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasIterationPlansWith applies the HasEdge predicate on the "iteration_plans" edge with a given conditions (other predicates).
+func HasIterationPlansWith(preds ...predicate.IterationPlan) predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := newIterationPlansStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasResearchNodes applies the HasEdge predicate on the "research_nodes" edge.
+func HasResearchNodes() predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ResearchNodesTable, ResearchNodesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasResearchNodesWith applies the HasEdge predicate on the "research_nodes" edge with a given conditions (other predicates).
+func HasResearchNodesWith(preds ...predicate.ResearchNode) predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := newResearchNodesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasResearchEdges applies the HasEdge predicate on the "research_edges" edge.
+func HasResearchEdges() predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ResearchEdgesTable, ResearchEdgesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasResearchEdgesWith applies the HasEdge predicate on the "research_edges" edge with a given conditions (other predicates).
+func HasResearchEdgesWith(preds ...predicate.ResearchEdge) predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := newResearchEdgesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.Tenant) predicate.Tenant {
 	return predicate.Tenant(sql.AndPredicates(predicates...))

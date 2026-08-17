@@ -94,6 +94,8 @@ type View struct {
 	DeadlineAt            *time.Time              `json:"deadline_at,omitempty"`
 	FinishedAt            *time.Time              `json:"finished_at,omitempty"`
 	CancelRequestedAt     *time.Time              `json:"cancel_requested_at,omitempty"`
+	GraphLinked           bool                    `json:"graph_linked"`
+	Orphaned              bool                    `json:"orphaned"`
 }
 
 type AttemptView struct {

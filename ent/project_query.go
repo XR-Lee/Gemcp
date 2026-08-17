@@ -20,13 +20,17 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
+	"github.com/XR-Lee/Gemcp/ent/iterationplan"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/nodeprojectaccess"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/repository"
+	"github.com/XR-Lee/Gemcp/ent/researchedge"
+	"github.com/XR-Lee/Gemcp/ent/researchnode"
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
+	"github.com/XR-Lee/Gemcp/ent/study"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
 	"github.com/XR-Lee/Gemcp/ent/workspacedataset"
 )
@@ -53,6 +57,10 @@ type ProjectQuery struct {
 	withDiagnosticRuns      *DiagnosticRunQuery
 	withExperimentProposals *ExperimentProposalQuery
 	withWorkspaceDatasets   *WorkspaceDatasetQuery
+	withStudies             *StudyQuery
+	withIterationPlans      *IterationPlanQuery
+	withResearchNodes       *ResearchNodeQuery
+	withResearchEdges       *ResearchEdgeQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -419,6 +427,94 @@ func (_q *ProjectQuery) QueryWorkspaceDatasets() *WorkspaceDatasetQuery {
 	return query
 }
 
+// QueryStudies chains the current query on the "studies" edge.
+func (_q *ProjectQuery) QueryStudies() *StudyQuery {
+	query := (&StudyClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, selector),
+			sqlgraph.To(study.Table, study.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.StudiesTable, project.StudiesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryIterationPlans chains the current query on the "iteration_plans" edge.
+func (_q *ProjectQuery) QueryIterationPlans() *IterationPlanQuery {
+	query := (&IterationPlanClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, selector),
+			sqlgraph.To(iterationplan.Table, iterationplan.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.IterationPlansTable, project.IterationPlansColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryResearchNodes chains the current query on the "research_nodes" edge.
+func (_q *ProjectQuery) QueryResearchNodes() *ResearchNodeQuery {
+	query := (&ResearchNodeClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, selector),
+			sqlgraph.To(researchnode.Table, researchnode.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.ResearchNodesTable, project.ResearchNodesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryResearchEdges chains the current query on the "research_edges" edge.
+func (_q *ProjectQuery) QueryResearchEdges() *ResearchEdgeQuery {
+	query := (&ResearchEdgeClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, selector),
+			sqlgraph.To(researchedge.Table, researchedge.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.ResearchEdgesTable, project.ResearchEdgesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
 // First returns the first Project entity from the query.
 // Returns a *NotFoundError when no Project was found.
 func (_q *ProjectQuery) First(ctx context.Context) (*Project, error) {
@@ -626,6 +722,10 @@ func (_q *ProjectQuery) Clone() *ProjectQuery {
 		withDiagnosticRuns:      _q.withDiagnosticRuns.Clone(),
 		withExperimentProposals: _q.withExperimentProposals.Clone(),
 		withWorkspaceDatasets:   _q.withWorkspaceDatasets.Clone(),
+		withStudies:             _q.withStudies.Clone(),
+		withIterationPlans:      _q.withIterationPlans.Clone(),
+		withResearchNodes:       _q.withResearchNodes.Clone(),
+		withResearchEdges:       _q.withResearchEdges.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -797,6 +897,50 @@ func (_q *ProjectQuery) WithWorkspaceDatasets(opts ...func(*WorkspaceDatasetQuer
 	return _q
 }
 
+// WithStudies tells the query-builder to eager-load the nodes that are connected to
+// the "studies" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ProjectQuery) WithStudies(opts ...func(*StudyQuery)) *ProjectQuery {
+	query := (&StudyClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withStudies = query
+	return _q
+}
+
+// WithIterationPlans tells the query-builder to eager-load the nodes that are connected to
+// the "iteration_plans" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ProjectQuery) WithIterationPlans(opts ...func(*IterationPlanQuery)) *ProjectQuery {
+	query := (&IterationPlanClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withIterationPlans = query
+	return _q
+}
+
+// WithResearchNodes tells the query-builder to eager-load the nodes that are connected to
+// the "research_nodes" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ProjectQuery) WithResearchNodes(opts ...func(*ResearchNodeQuery)) *ProjectQuery {
+	query := (&ResearchNodeClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withResearchNodes = query
+	return _q
+}
+
+// WithResearchEdges tells the query-builder to eager-load the nodes that are connected to
+// the "research_edges" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ProjectQuery) WithResearchEdges(opts ...func(*ResearchEdgeQuery)) *ProjectQuery {
+	query := (&ResearchEdgeClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withResearchEdges = query
+	return _q
+}
+
 // GroupBy is used to group vertices by one or more fields/columns.
 // It is often used with aggregate functions, like: count, max, mean, min, sum.
 //
@@ -875,7 +1019,7 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 	var (
 		nodes       = []*Project{}
 		_spec       = _q.querySpec()
-		loadedTypes = [15]bool{
+		loadedTypes = [19]bool{
 			_q.withTenant != nil,
 			_q.withEnvironments != nil,
 			_q.withResourceProfiles != nil,
@@ -891,6 +1035,10 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 			_q.withDiagnosticRuns != nil,
 			_q.withExperimentProposals != nil,
 			_q.withWorkspaceDatasets != nil,
+			_q.withStudies != nil,
+			_q.withIterationPlans != nil,
+			_q.withResearchNodes != nil,
+			_q.withResearchEdges != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -1018,6 +1166,34 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 			func(n *Project, e *WorkspaceDataset) {
 				n.Edges.WorkspaceDatasets = append(n.Edges.WorkspaceDatasets, e)
 			}); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withStudies; query != nil {
+		if err := _q.loadStudies(ctx, query, nodes,
+			func(n *Project) { n.Edges.Studies = []*Study{} },
+			func(n *Project, e *Study) { n.Edges.Studies = append(n.Edges.Studies, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withIterationPlans; query != nil {
+		if err := _q.loadIterationPlans(ctx, query, nodes,
+			func(n *Project) { n.Edges.IterationPlans = []*IterationPlan{} },
+			func(n *Project, e *IterationPlan) { n.Edges.IterationPlans = append(n.Edges.IterationPlans, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withResearchNodes; query != nil {
+		if err := _q.loadResearchNodes(ctx, query, nodes,
+			func(n *Project) { n.Edges.ResearchNodes = []*ResearchNode{} },
+			func(n *Project, e *ResearchNode) { n.Edges.ResearchNodes = append(n.Edges.ResearchNodes, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withResearchEdges; query != nil {
+		if err := _q.loadResearchEdges(ctx, query, nodes,
+			func(n *Project) { n.Edges.ResearchEdges = []*ResearchEdge{} },
+			func(n *Project, e *ResearchEdge) { n.Edges.ResearchEdges = append(n.Edges.ResearchEdges, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -1458,6 +1634,126 @@ func (_q *ProjectQuery) loadWorkspaceDatasets(ctx context.Context, query *Worksp
 	}
 	query.Where(predicate.WorkspaceDataset(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(project.WorkspaceDatasetsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ProjectID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "project_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *ProjectQuery) loadStudies(ctx context.Context, query *StudyQuery, nodes []*Project, init func(*Project), assign func(*Project, *Study)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Project)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(study.FieldProjectID)
+	}
+	query.Where(predicate.Study(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(project.StudiesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ProjectID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "project_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *ProjectQuery) loadIterationPlans(ctx context.Context, query *IterationPlanQuery, nodes []*Project, init func(*Project), assign func(*Project, *IterationPlan)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Project)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(iterationplan.FieldProjectID)
+	}
+	query.Where(predicate.IterationPlan(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(project.IterationPlansColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ProjectID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "project_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *ProjectQuery) loadResearchNodes(ctx context.Context, query *ResearchNodeQuery, nodes []*Project, init func(*Project), assign func(*Project, *ResearchNode)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Project)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(researchnode.FieldProjectID)
+	}
+	query.Where(predicate.ResearchNode(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(project.ResearchNodesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ProjectID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "project_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *ProjectQuery) loadResearchEdges(ctx context.Context, query *ResearchEdgeQuery, nodes []*Project, init func(*Project), assign func(*Project, *ResearchEdge)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Project)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(researchedge.FieldProjectID)
+	}
+	query.Where(predicate.ResearchEdge(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(project.ResearchEdgesColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

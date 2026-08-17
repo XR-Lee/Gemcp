@@ -44,6 +44,10 @@ func (Project) Edges() []ent.Edge {
 		edge.To("diagnostic_runs", DiagnosticRun.Type),
 		edge.To("experiment_proposals", ExperimentProposal.Type),
 		edge.To("workspace_datasets", WorkspaceDataset.Type),
+		edge.To("studies", Study.Type),
+		edge.To("iteration_plans", IterationPlan.Type),
+		edge.To("research_nodes", ResearchNode.Type),
+		edge.To("research_edges", ResearchEdge.Type),
 	}
 }
 

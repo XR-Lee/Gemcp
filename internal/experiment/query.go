@@ -21,8 +21,10 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/nodeprojectaccess"
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/repository"
+	"github.com/XR-Lee/Gemcp/ent/researchnode"
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
 	"github.com/XR-Lee/Gemcp/ent/selfhostednode"
+	"github.com/XR-Lee/Gemcp/ent/study"
 	"github.com/XR-Lee/Gemcp/ent/workspacedataset"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
 	"github.com/XR-Lee/Gemcp/internal/workspacecatalog"
@@ -54,7 +56,11 @@ func (s *Service) Get(ctx context.Context, principal agentauth.Principal, experi
 	if err := s.enrichExecutionObservation(ctx, record, &view); err != nil {
 		return View{}, err
 	}
-	return view, nil
+	views := []View{view}
+	if err := s.attachGraphState(ctx, principal.ProjectID, []*ent.Experiment{record}, views); err != nil {
+		return View{}, err
+	}
+	return views[0], nil
 }
 
 func (s *Service) enrichRunnerStatus(ctx context.Context, experimentRecord *ent.Experiment, view *View) error {
@@ -131,7 +137,39 @@ func (s *Service) List(ctx context.Context, principal agentauth.Principal, input
 	for _, record := range records {
 		result.Experiments = append(result.Experiments, makeView(record))
 	}
+	if err := s.attachGraphState(ctx, principal.ProjectID, records, result.Experiments); err != nil {
+		return ListResult{}, err
+	}
 	return result, nil
+}
+
+func (s *Service) attachGraphState(ctx context.Context, projectID int, records []*ent.Experiment, views []View) error {
+	if len(records) == 0 {
+		return nil
+	}
+	hasStudy, err := s.client.Study.Query().Where(study.ProjectIDEQ(projectID), study.StatusEQ(study.StatusActive)).Exist(ctx)
+	if err != nil {
+		return err
+	}
+	ids := make([]int, 0, len(records))
+	for _, record := range records {
+		ids = append(ids, record.ID)
+	}
+	nodes, err := s.client.ResearchNode.Query().Where(researchnode.ExperimentIDIn(ids...)).All(ctx)
+	if err != nil {
+		return err
+	}
+	linked := map[int]bool{}
+	for _, node := range nodes {
+		if node.ExperimentID != nil {
+			linked[*node.ExperimentID] = true
+		}
+	}
+	for index, record := range records {
+		views[index].GraphLinked = linked[record.ID]
+		views[index].Orphaned = hasStudy && !views[index].GraphLinked
+	}
+	return nil
 }
 
 func (s *Service) Cancel(ctx context.Context, principal agentauth.Principal, experimentID string) (View, error) {

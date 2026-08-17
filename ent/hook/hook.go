@@ -129,6 +129,18 @@ func (f IdempotencyRecordFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.IdempotencyRecordMutation", m)
 }
 
+// The IterationPlanFunc type is an adapter to allow the use of ordinary
+// function as IterationPlan mutator.
+type IterationPlanFunc func(context.Context, *ent.IterationPlanMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f IterationPlanFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.IterationPlanMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.IterationPlanMutation", m)
+}
+
 // The NodeAssignmentFunc type is an adapter to allow the use of ordinary
 // function as NodeAssignment mutator.
 type NodeAssignmentFunc func(context.Context, *ent.NodeAssignmentMutation) (ent.Value, error)
@@ -273,6 +285,30 @@ func (f RepositoryFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, 
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RepositoryMutation", m)
 }
 
+// The ResearchEdgeFunc type is an adapter to allow the use of ordinary
+// function as ResearchEdge mutator.
+type ResearchEdgeFunc func(context.Context, *ent.ResearchEdgeMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ResearchEdgeFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ResearchEdgeMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ResearchEdgeMutation", m)
+}
+
+// The ResearchNodeFunc type is an adapter to allow the use of ordinary
+// function as ResearchNode mutator.
+type ResearchNodeFunc func(context.Context, *ent.ResearchNodeMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ResearchNodeFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ResearchNodeMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ResearchNodeMutation", m)
+}
+
 // The ResourceProfileFunc type is an adapter to allow the use of ordinary
 // function as ResourceProfile mutator.
 type ResourceProfileFunc func(context.Context, *ent.ResourceProfileMutation) (ent.Value, error)
@@ -319,6 +355,18 @@ func (f SessionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, err
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SessionMutation", m)
+}
+
+// The StudyFunc type is an adapter to allow the use of ordinary
+// function as Study mutator.
+type StudyFunc func(context.Context, *ent.StudyMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f StudyFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.StudyMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.StudyMutation", m)
 }
 
 // The TenantFunc type is an adapter to allow the use of ordinary

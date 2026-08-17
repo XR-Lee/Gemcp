@@ -16,7 +16,10 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
+	"github.com/XR-Lee/Gemcp/ent/iterationplan"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
+	"github.com/XR-Lee/Gemcp/ent/researchnode"
+	"github.com/XR-Lee/Gemcp/ent/study"
 	"github.com/XR-Lee/Gemcp/ent/workspacedataset"
 )
 
@@ -213,6 +216,51 @@ func (_u *AgentTokenUpdate) AddWorkspaceDatasets(v ...*WorkspaceDataset) *AgentT
 	return _u.AddWorkspaceDatasetIDs(ids...)
 }
 
+// AddStudyIDs adds the "studies" edge to the Study entity by IDs.
+func (_u *AgentTokenUpdate) AddStudyIDs(ids ...int) *AgentTokenUpdate {
+	_u.mutation.AddStudyIDs(ids...)
+	return _u
+}
+
+// AddStudies adds the "studies" edges to the Study entity.
+func (_u *AgentTokenUpdate) AddStudies(v ...*Study) *AgentTokenUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddStudyIDs(ids...)
+}
+
+// AddIterationPlanIDs adds the "iteration_plans" edge to the IterationPlan entity by IDs.
+func (_u *AgentTokenUpdate) AddIterationPlanIDs(ids ...int) *AgentTokenUpdate {
+	_u.mutation.AddIterationPlanIDs(ids...)
+	return _u
+}
+
+// AddIterationPlans adds the "iteration_plans" edges to the IterationPlan entity.
+func (_u *AgentTokenUpdate) AddIterationPlans(v ...*IterationPlan) *AgentTokenUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddIterationPlanIDs(ids...)
+}
+
+// AddResearchNodeIDs adds the "research_nodes" edge to the ResearchNode entity by IDs.
+func (_u *AgentTokenUpdate) AddResearchNodeIDs(ids ...int) *AgentTokenUpdate {
+	_u.mutation.AddResearchNodeIDs(ids...)
+	return _u
+}
+
+// AddResearchNodes adds the "research_nodes" edges to the ResearchNode entity.
+func (_u *AgentTokenUpdate) AddResearchNodes(v ...*ResearchNode) *AgentTokenUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddResearchNodeIDs(ids...)
+}
+
 // Mutation returns the AgentTokenMutation object of the builder.
 func (_u *AgentTokenUpdate) Mutation() *AgentTokenMutation {
 	return _u.mutation
@@ -300,6 +348,69 @@ func (_u *AgentTokenUpdate) RemoveWorkspaceDatasets(v ...*WorkspaceDataset) *Age
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveWorkspaceDatasetIDs(ids...)
+}
+
+// ClearStudies clears all "studies" edges to the Study entity.
+func (_u *AgentTokenUpdate) ClearStudies() *AgentTokenUpdate {
+	_u.mutation.ClearStudies()
+	return _u
+}
+
+// RemoveStudyIDs removes the "studies" edge to Study entities by IDs.
+func (_u *AgentTokenUpdate) RemoveStudyIDs(ids ...int) *AgentTokenUpdate {
+	_u.mutation.RemoveStudyIDs(ids...)
+	return _u
+}
+
+// RemoveStudies removes "studies" edges to Study entities.
+func (_u *AgentTokenUpdate) RemoveStudies(v ...*Study) *AgentTokenUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveStudyIDs(ids...)
+}
+
+// ClearIterationPlans clears all "iteration_plans" edges to the IterationPlan entity.
+func (_u *AgentTokenUpdate) ClearIterationPlans() *AgentTokenUpdate {
+	_u.mutation.ClearIterationPlans()
+	return _u
+}
+
+// RemoveIterationPlanIDs removes the "iteration_plans" edge to IterationPlan entities by IDs.
+func (_u *AgentTokenUpdate) RemoveIterationPlanIDs(ids ...int) *AgentTokenUpdate {
+	_u.mutation.RemoveIterationPlanIDs(ids...)
+	return _u
+}
+
+// RemoveIterationPlans removes "iteration_plans" edges to IterationPlan entities.
+func (_u *AgentTokenUpdate) RemoveIterationPlans(v ...*IterationPlan) *AgentTokenUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveIterationPlanIDs(ids...)
+}
+
+// ClearResearchNodes clears all "research_nodes" edges to the ResearchNode entity.
+func (_u *AgentTokenUpdate) ClearResearchNodes() *AgentTokenUpdate {
+	_u.mutation.ClearResearchNodes()
+	return _u
+}
+
+// RemoveResearchNodeIDs removes the "research_nodes" edge to ResearchNode entities by IDs.
+func (_u *AgentTokenUpdate) RemoveResearchNodeIDs(ids ...int) *AgentTokenUpdate {
+	_u.mutation.RemoveResearchNodeIDs(ids...)
+	return _u
+}
+
+// RemoveResearchNodes removes "research_nodes" edges to ResearchNode entities.
+func (_u *AgentTokenUpdate) RemoveResearchNodes(v ...*ResearchNode) *AgentTokenUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveResearchNodeIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -596,6 +707,141 @@ func (_u *AgentTokenUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.StudiesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.StudiesTable,
+			Columns: []string{agenttoken.StudiesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(study.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedStudiesIDs(); len(nodes) > 0 && !_u.mutation.StudiesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.StudiesTable,
+			Columns: []string{agenttoken.StudiesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(study.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.StudiesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.StudiesTable,
+			Columns: []string{agenttoken.StudiesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(study.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.IterationPlansCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.IterationPlansTable,
+			Columns: []string{agenttoken.IterationPlansColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(iterationplan.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedIterationPlansIDs(); len(nodes) > 0 && !_u.mutation.IterationPlansCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.IterationPlansTable,
+			Columns: []string{agenttoken.IterationPlansColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(iterationplan.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.IterationPlansIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.IterationPlansTable,
+			Columns: []string{agenttoken.IterationPlansColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(iterationplan.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ResearchNodesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.ResearchNodesTable,
+			Columns: []string{agenttoken.ResearchNodesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(researchnode.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedResearchNodesIDs(); len(nodes) > 0 && !_u.mutation.ResearchNodesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.ResearchNodesTable,
+			Columns: []string{agenttoken.ResearchNodesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(researchnode.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ResearchNodesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.ResearchNodesTable,
+			Columns: []string{agenttoken.ResearchNodesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(researchnode.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{agenttoken.Label}
@@ -796,6 +1042,51 @@ func (_u *AgentTokenUpdateOne) AddWorkspaceDatasets(v ...*WorkspaceDataset) *Age
 	return _u.AddWorkspaceDatasetIDs(ids...)
 }
 
+// AddStudyIDs adds the "studies" edge to the Study entity by IDs.
+func (_u *AgentTokenUpdateOne) AddStudyIDs(ids ...int) *AgentTokenUpdateOne {
+	_u.mutation.AddStudyIDs(ids...)
+	return _u
+}
+
+// AddStudies adds the "studies" edges to the Study entity.
+func (_u *AgentTokenUpdateOne) AddStudies(v ...*Study) *AgentTokenUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddStudyIDs(ids...)
+}
+
+// AddIterationPlanIDs adds the "iteration_plans" edge to the IterationPlan entity by IDs.
+func (_u *AgentTokenUpdateOne) AddIterationPlanIDs(ids ...int) *AgentTokenUpdateOne {
+	_u.mutation.AddIterationPlanIDs(ids...)
+	return _u
+}
+
+// AddIterationPlans adds the "iteration_plans" edges to the IterationPlan entity.
+func (_u *AgentTokenUpdateOne) AddIterationPlans(v ...*IterationPlan) *AgentTokenUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddIterationPlanIDs(ids...)
+}
+
+// AddResearchNodeIDs adds the "research_nodes" edge to the ResearchNode entity by IDs.
+func (_u *AgentTokenUpdateOne) AddResearchNodeIDs(ids ...int) *AgentTokenUpdateOne {
+	_u.mutation.AddResearchNodeIDs(ids...)
+	return _u
+}
+
+// AddResearchNodes adds the "research_nodes" edges to the ResearchNode entity.
+func (_u *AgentTokenUpdateOne) AddResearchNodes(v ...*ResearchNode) *AgentTokenUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddResearchNodeIDs(ids...)
+}
+
 // Mutation returns the AgentTokenMutation object of the builder.
 func (_u *AgentTokenUpdateOne) Mutation() *AgentTokenMutation {
 	return _u.mutation
@@ -883,6 +1174,69 @@ func (_u *AgentTokenUpdateOne) RemoveWorkspaceDatasets(v ...*WorkspaceDataset) *
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveWorkspaceDatasetIDs(ids...)
+}
+
+// ClearStudies clears all "studies" edges to the Study entity.
+func (_u *AgentTokenUpdateOne) ClearStudies() *AgentTokenUpdateOne {
+	_u.mutation.ClearStudies()
+	return _u
+}
+
+// RemoveStudyIDs removes the "studies" edge to Study entities by IDs.
+func (_u *AgentTokenUpdateOne) RemoveStudyIDs(ids ...int) *AgentTokenUpdateOne {
+	_u.mutation.RemoveStudyIDs(ids...)
+	return _u
+}
+
+// RemoveStudies removes "studies" edges to Study entities.
+func (_u *AgentTokenUpdateOne) RemoveStudies(v ...*Study) *AgentTokenUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveStudyIDs(ids...)
+}
+
+// ClearIterationPlans clears all "iteration_plans" edges to the IterationPlan entity.
+func (_u *AgentTokenUpdateOne) ClearIterationPlans() *AgentTokenUpdateOne {
+	_u.mutation.ClearIterationPlans()
+	return _u
+}
+
+// RemoveIterationPlanIDs removes the "iteration_plans" edge to IterationPlan entities by IDs.
+func (_u *AgentTokenUpdateOne) RemoveIterationPlanIDs(ids ...int) *AgentTokenUpdateOne {
+	_u.mutation.RemoveIterationPlanIDs(ids...)
+	return _u
+}
+
+// RemoveIterationPlans removes "iteration_plans" edges to IterationPlan entities.
+func (_u *AgentTokenUpdateOne) RemoveIterationPlans(v ...*IterationPlan) *AgentTokenUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveIterationPlanIDs(ids...)
+}
+
+// ClearResearchNodes clears all "research_nodes" edges to the ResearchNode entity.
+func (_u *AgentTokenUpdateOne) ClearResearchNodes() *AgentTokenUpdateOne {
+	_u.mutation.ClearResearchNodes()
+	return _u
+}
+
+// RemoveResearchNodeIDs removes the "research_nodes" edge to ResearchNode entities by IDs.
+func (_u *AgentTokenUpdateOne) RemoveResearchNodeIDs(ids ...int) *AgentTokenUpdateOne {
+	_u.mutation.RemoveResearchNodeIDs(ids...)
+	return _u
+}
+
+// RemoveResearchNodes removes "research_nodes" edges to ResearchNode entities.
+func (_u *AgentTokenUpdateOne) RemoveResearchNodes(v ...*ResearchNode) *AgentTokenUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveResearchNodeIDs(ids...)
 }
 
 // Where appends a list predicates to the AgentTokenUpdate builder.
@@ -1202,6 +1556,141 @@ func (_u *AgentTokenUpdateOne) sqlSave(ctx context.Context) (_node *AgentToken, 
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(workspacedataset.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.StudiesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.StudiesTable,
+			Columns: []string{agenttoken.StudiesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(study.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedStudiesIDs(); len(nodes) > 0 && !_u.mutation.StudiesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.StudiesTable,
+			Columns: []string{agenttoken.StudiesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(study.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.StudiesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.StudiesTable,
+			Columns: []string{agenttoken.StudiesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(study.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.IterationPlansCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.IterationPlansTable,
+			Columns: []string{agenttoken.IterationPlansColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(iterationplan.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedIterationPlansIDs(); len(nodes) > 0 && !_u.mutation.IterationPlansCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.IterationPlansTable,
+			Columns: []string{agenttoken.IterationPlansColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(iterationplan.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.IterationPlansIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.IterationPlansTable,
+			Columns: []string{agenttoken.IterationPlansColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(iterationplan.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ResearchNodesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.ResearchNodesTable,
+			Columns: []string{agenttoken.ResearchNodesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(researchnode.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedResearchNodesIDs(); len(nodes) > 0 && !_u.mutation.ResearchNodesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.ResearchNodesTable,
+			Columns: []string{agenttoken.ResearchNodesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(researchnode.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ResearchNodesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.ResearchNodesTable,
+			Columns: []string{agenttoken.ResearchNodesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(researchnode.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

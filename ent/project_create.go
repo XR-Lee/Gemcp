@@ -18,12 +18,16 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
+	"github.com/XR-Lee/Gemcp/ent/iterationplan"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/nodeprojectaccess"
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/repository"
+	"github.com/XR-Lee/Gemcp/ent/researchedge"
+	"github.com/XR-Lee/Gemcp/ent/researchnode"
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
+	"github.com/XR-Lee/Gemcp/ent/study"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
 	"github.com/XR-Lee/Gemcp/ent/workspacedataset"
 	"github.com/google/uuid"
@@ -405,6 +409,66 @@ func (_c *ProjectCreate) AddWorkspaceDatasets(v ...*WorkspaceDataset) *ProjectCr
 		ids[i] = v[i].ID
 	}
 	return _c.AddWorkspaceDatasetIDs(ids...)
+}
+
+// AddStudyIDs adds the "studies" edge to the Study entity by IDs.
+func (_c *ProjectCreate) AddStudyIDs(ids ...int) *ProjectCreate {
+	_c.mutation.AddStudyIDs(ids...)
+	return _c
+}
+
+// AddStudies adds the "studies" edges to the Study entity.
+func (_c *ProjectCreate) AddStudies(v ...*Study) *ProjectCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddStudyIDs(ids...)
+}
+
+// AddIterationPlanIDs adds the "iteration_plans" edge to the IterationPlan entity by IDs.
+func (_c *ProjectCreate) AddIterationPlanIDs(ids ...int) *ProjectCreate {
+	_c.mutation.AddIterationPlanIDs(ids...)
+	return _c
+}
+
+// AddIterationPlans adds the "iteration_plans" edges to the IterationPlan entity.
+func (_c *ProjectCreate) AddIterationPlans(v ...*IterationPlan) *ProjectCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddIterationPlanIDs(ids...)
+}
+
+// AddResearchNodeIDs adds the "research_nodes" edge to the ResearchNode entity by IDs.
+func (_c *ProjectCreate) AddResearchNodeIDs(ids ...int) *ProjectCreate {
+	_c.mutation.AddResearchNodeIDs(ids...)
+	return _c
+}
+
+// AddResearchNodes adds the "research_nodes" edges to the ResearchNode entity.
+func (_c *ProjectCreate) AddResearchNodes(v ...*ResearchNode) *ProjectCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddResearchNodeIDs(ids...)
+}
+
+// AddResearchEdgeIDs adds the "research_edges" edge to the ResearchEdge entity by IDs.
+func (_c *ProjectCreate) AddResearchEdgeIDs(ids ...int) *ProjectCreate {
+	_c.mutation.AddResearchEdgeIDs(ids...)
+	return _c
+}
+
+// AddResearchEdges adds the "research_edges" edges to the ResearchEdge entity.
+func (_c *ProjectCreate) AddResearchEdges(v ...*ResearchEdge) *ProjectCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddResearchEdgeIDs(ids...)
 }
 
 // Mutation returns the ProjectMutation object of the builder.
@@ -889,6 +953,70 @@ func (_c *ProjectCreate) createSpec() (*Project, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(workspacedataset.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.StudiesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.StudiesTable,
+			Columns: []string{project.StudiesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(study.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.IterationPlansIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.IterationPlansTable,
+			Columns: []string{project.IterationPlansColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(iterationplan.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ResearchNodesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.ResearchNodesTable,
+			Columns: []string{project.ResearchNodesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(researchnode.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ResearchEdgesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.ResearchEdgesTable,
+			Columns: []string{project.ResearchEdgesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(researchedge.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

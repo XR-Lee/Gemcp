@@ -141,10 +141,14 @@ func (f *executionFixture) addExperiment(t *testing.T) *ent.Experiment {
 }
 
 func (f *executionFixture) addExperimentWithSecrets(t *testing.T, secretNames []string) *ent.Experiment {
-	return f.addExperimentWithReservation(t, secretNames, 1000)
+	return f.addExperimentWithPeriod(t, secretNames, 1000, f.now.UTC().Format("2006-01"))
 }
 
 func (f *executionFixture) addExperimentWithReservation(t *testing.T, secretNames []string, reservation int64) *ent.Experiment {
+	return f.addExperimentWithPeriod(t, secretNames, reservation, f.now.UTC().Format("2006-01"))
+}
+
+func (f *executionFixture) addExperimentWithPeriod(t *testing.T, secretNames []string, reservation int64, period string) *ent.Experiment {
 	t.Helper()
 	ctx := context.Background()
 	publicID := uuid.New()
@@ -165,7 +169,7 @@ func (f *executionFixture) addExperimentWithReservation(t *testing.T, secretName
 		t.Fatal(err)
 	}
 	if _, err := f.client.BudgetEntry.Create().SetTenantID(f.tenant.ID).SetProjectID(f.project.ID).SetExperimentID(record.ID).
-		SetPeriod("2026-07").SetKind("reservation").SetAmountMilli(reservation).SetDescription("test reservation").Save(ctx); err != nil {
+		SetPeriod(period).SetKind("reservation").SetAmountMilli(reservation).SetDescription("test reservation").Save(ctx); err != nil {
 		t.Fatal(err)
 	}
 	return record
@@ -242,8 +246,9 @@ func TestEngineDispatchesSelfHostedProfileWithoutAutoDL(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	period := f.now.UTC().Format("2006-01")
 	if _, err := f.client.BudgetEntry.Create().SetTenantID(f.tenant.ID).SetProjectID(f.project.ID).SetExperimentID(record.ID).
-		SetPeriod("2026-07").SetKind("reservation").SetAmountMilli(0).SetDescription("unmetered").Save(ctx); err != nil {
+		SetPeriod(period).SetKind("reservation").SetAmountMilli(0).SetDescription("unmetered").Save(ctx); err != nil {
 		t.Fatal(err)
 	}
 	if err := f.engine.Tick(ctx); err != nil {
@@ -579,7 +584,7 @@ func TestTerminalResultClassifiesOwnerStopAndRunnerFailure(t *testing.T) {
 func TestDispatchRollsQueuedReservationIntoCurrentProjectPeriod(t *testing.T) {
 	f := newExecutionFixture(t)
 	f.now = time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
-	experimentRecord := f.addExperiment(t)
+	experimentRecord := f.addExperimentWithPeriod(t, nil, 1000, "2026-07")
 	if err := f.engine.Tick(context.Background()); err != nil {
 		t.Fatal(err)
 	}

@@ -5,16 +5,17 @@ This document is for an AI or automation Agent connected to a Gemcp MCP server. 
 ## Non-negotiable rules
 
 1. Treat the Agent Token as a secret. Never print it, commit it, place it in experiment arguments, or include it in chat or logs.
-2. Report controlled workflow transitions with `report_agent_activity`. Never send prompts, private reasoning, arbitrary free text, environment variables, credentials, or source contents as activity.
-3. Use `prepare_experiment` as the normal path. Let Gemcp resolve the repository, moving ref, full commit SHA, compatible defaults, preflight checks, cost, and idempotency.
-4. Submit normal workloads as an ordered `argv`. Do not wrap it in a shell, add output-path wrappers, or interpolate typed values into shell text.
-5. Show the human the returned repository, full commit, argv, runtime, backend resource, checks, expiry, and worst-case reservation.
-6. Wait for explicit human approval of the exact confirmation digest before calling `submit_prepared_experiment`.
-7. Submit a prepared proposal using only its proposal ID and exact digest. Never alter fields between preparation and submission.
-8. A proposal retry uses the same proposal ID and digest and returns the same Experiment. A failed paid Experiment is never automatically resubmitted.
-9. After submission, record the Experiment ID and monitor it to a terminal state. Do not infer success from Provider or Node startup alone.
-10. Use `cancel_experiment` when the human cancels work or when the submitted Experiment should no longer run.
-11. Use `submit_experiment` only when the human explicitly requests the Advanced shell-command compatibility path.
+2. Treat the research Graph as the execution contract. Call `get_next_actions` before spending. Keep the Owner-facing Study current with `get_research_workspace`. Never place prompts, private reasoning, credentials, or environment dumps in research text. Recording a Graph node never starts a workload.
+3. Report controlled workflow transitions with `report_agent_activity`. Never send prompts, private reasoning, arbitrary free text, environment variables, credentials, or source contents as activity.
+4. Use `prepare_experiment` as the normal execution path. Let Gemcp resolve the repository, moving ref, full commit SHA, compatible defaults, preflight checks, cost, and idempotency.
+5. Submit normal workloads as an ordered `argv`. Do not wrap it in a shell, add output-path wrappers, or interpolate typed values into shell text.
+6. Show the human the returned repository, full commit, argv, runtime, backend resource, checks, expiry, and worst-case reservation.
+7. Wait for explicit human approval of the exact confirmation digest before calling `submit_prepared_experiment`.
+8. Submit a prepared proposal using only its proposal ID and exact digest. Never alter fields between preparation and submission.
+9. A proposal retry uses the same proposal ID and digest and returns the same Experiment. A failed paid Experiment is never automatically resubmitted.
+10. After submission, Gemcp writes the Graph `run` node. Monitor the Experiment to a terminal state, then call `close_run` with the approved metric. Do not invent a result while the Experiment is still running. Do not infer success from Provider or Node startup alone.
+11. Use `cancel_experiment` when the human cancels work or when the submitted Experiment should no longer run.
+12. Use `submit_experiment` only when the human explicitly requests the Advanced shell-command compatibility path.
 
 ## Connection
 
@@ -63,6 +64,27 @@ Use this environment variable in a reviewed repository script instead of searchi
 
 Host Conda environments are not container environments and must not be registered as datasets. Select a public OCI image through trusted-workspace `prepare_experiment`, then keep dependency setup reproducible in that image or the verified repository.
 
+## Research workspace
+
+The Owner console starts from a Study, an iteration plan, and a research Graph. Infrastructure remains in a separate Lab layer. Call `get_next_actions` and `get_research_workspace` before preparing work. After a terminal Experiment, call `close_run` instead of free-form result nodes.
+
+A typical update is:
+
+```json
+{
+  "study": {
+    "name": "objbg-scan",
+    "question": "Can a cleaner OBJ-BG traversal raise ScanObjectNN accuracy without extra GPU hours?"
+  },
+  "plan": {
+    "goal": "Establish a reproducible OBJ-BG baseline.",
+    "next_action": "Record the current smoke-run accuracy as the first Graph result."
+  }
+}
+```
+
+`prepare_experiment` requires `from_node_id` when the Project has an active Study. That ID must be a hypothesis or plan node and is bound into the confirmation digest the Owner approves. `submit_prepared_experiment` then writes the `run` node. `produced` edges are only legal from `run` to `result`, and only `close_run` may write that result. The Graph is the human-visible lineage; argv, image, GPU, logs, and cleanup stay in Experiment detail. Multiple Studies require an explicit `study_id`.
+
 ## Required workflow
 
 ### 1. Inspect the local repository
@@ -84,7 +106,9 @@ The tool call contains transport context that the user should not have to copy:
   "repository_remote": "git@github.com:owner/repository.git",
   "ref": "main",
   "argv": ["python", "tools/smoke.py"],
-  "runtime_preset": "smoke"
+  "runtime_preset": "smoke",
+  "from_node_id": "hypothesis-or-plan-node-id",
+  "expected_metric": "overall_accuracy"
 }
 ```
 
@@ -228,9 +252,13 @@ The optional context is limited to repository remote, ref, and Experiment ID. `m
 | `list_workspace_datasets` | List declared dataset paths below approved workspace roots | `read` |
 | `register_workspace_dataset` | Declare a normalized relative dataset path | `configure` |
 | `remove_workspace_dataset` | Disable a dataset declaration without deleting data | `configure` |
+| `get_research_workspace` | Return Studies, the selected plan, Graph, and legal next actions | `read` |
+| `update_research_workspace` | Create or update a Study, plan, or Graph node without starting a workload | `submit` |
+| `get_next_actions` | Return the only Graph-legal next actions for the selected Study | `read` |
+| `close_run` | Write a result node on a terminal Experiment that already has a run | `submit` |
 | `report_agent_activity` | Report a controlled workflow phase without prompts or reasoning | `submit` |
-| `prepare_experiment` | Resolve and persist a zero-cost immutable argv proposal | `submit` |
-| `submit_prepared_experiment` | Submit one confirmed proposal, idempotently | `submit` |
+| `prepare_experiment` | Resolve a zero-cost argv proposal; bind `from_node_id` into the digest when a Study exists | `submit` |
+| `submit_prepared_experiment` | Submit one confirmed proposal and bind its Graph run node | `submit` |
 | `get_project_options` | Inspect Project policy, approved IDs, and authorized Self-hosted Node readiness | `read` |
 | `get_project_cost` | Inspect budget and accounting details for Advanced use | `read` |
 | `submit_experiment` | Advanced direct shell-command submission | `submit` |
@@ -271,13 +299,14 @@ The reservation is released at terminal settlement and replaced by an estimated 
 ## Recommended Agent instruction
 
 ```text
-Use Gemcp's prepared path for normal work. Inspect the current repository and call
-report_agent_activity at controlled workflow transitions without sending prompts,
-reasoning, source text, environment values, or credentials. Call
-prepare_experiment with an ordered argv and optional ref. Let Gemcp resolve IDs,
-commit, resources, checks, cost, and idempotency. Show the exact returned proposal
-and wait for explicit human approval of its digest. Then call
-submit_prepared_experiment once, monitor the Experiment to a terminal state, and
-report results and cleanup evidence. Use submit_experiment only for an explicitly
-requested Advanced shell-command workflow. Never expose credentials.
+Keep the Owner research Graph current. Inspect the current repository, update the
+Study and iteration plan, and call report_agent_activity at controlled workflow
+transitions without sending prompts, reasoning, source text, environment values,
+or credentials. Call prepare_experiment with an ordered argv and optional ref.
+Let Gemcp resolve IDs, commit, resources, checks, cost, and idempotency. Show the
+exact returned proposal and wait for explicit human approval of its digest. Then
+call submit_prepared_experiment once, attach the Experiment to a Graph node,
+monitor it to a terminal state, and report results and cleanup evidence. Use
+submit_experiment only for an explicitly requested Advanced shell-command
+workflow. Never expose credentials.
 ```

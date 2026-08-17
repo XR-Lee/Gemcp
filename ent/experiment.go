@@ -143,9 +143,11 @@ type ExperimentEdges struct {
 	DiagnosticRun *DiagnosticRun `json:"diagnostic_run,omitempty"`
 	// Proposal holds the value of the proposal edge.
 	Proposal *ExperimentProposal `json:"proposal,omitempty"`
+	// ResearchNodes holds the value of the research_nodes edge.
+	ResearchNodes []*ResearchNode `json:"research_nodes,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [13]bool
+	loadedTypes [14]bool
 }
 
 // TenantOrErr returns the Tenant value or an error if the edge
@@ -279,6 +281,15 @@ func (e ExperimentEdges) ProposalOrErr() (*ExperimentProposal, error) {
 		return nil, &NotFoundError{label: experimentproposal.Label}
 	}
 	return nil, &NotLoadedError{edge: "proposal"}
+}
+
+// ResearchNodesOrErr returns the ResearchNodes value or an error if the edge
+// was not loaded in eager-loading.
+func (e ExperimentEdges) ResearchNodesOrErr() ([]*ResearchNode, error) {
+	if e.loadedTypes[13] {
+		return e.ResearchNodes, nil
+	}
+	return nil, &NotLoadedError{edge: "research_nodes"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -666,6 +677,11 @@ func (_m *Experiment) QueryDiagnosticRun() *DiagnosticRunQuery {
 // QueryProposal queries the "proposal" edge of the Experiment entity.
 func (_m *Experiment) QueryProposal() *ExperimentProposalQuery {
 	return NewExperimentClient(_m.config).QueryProposal(_m)
+}
+
+// QueryResearchNodes queries the "research_nodes" edge of the Experiment entity.
+func (_m *Experiment) QueryResearchNodes() *ResearchNodeQuery {
+	return NewExperimentClient(_m.config).QueryResearchNodes(_m)
 }
 
 // Update returns a builder for updating this Experiment.

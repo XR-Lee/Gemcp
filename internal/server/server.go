@@ -25,6 +25,7 @@ import (
 	"github.com/XR-Lee/Gemcp/internal/notification"
 	providerservice "github.com/XR-Lee/Gemcp/internal/provider"
 	gitrepository "github.com/XR-Lee/Gemcp/internal/repository"
+	"github.com/XR-Lee/Gemcp/internal/research"
 	runnerservice "github.com/XR-Lee/Gemcp/internal/runner"
 	"github.com/XR-Lee/Gemcp/internal/secrets"
 	"github.com/XR-Lee/Gemcp/internal/selfhosted"
@@ -166,6 +167,11 @@ func New(deps Dependencies) *http.Server {
 	protected.GET("/experiments/:id/attempts", experimentHandlers.Attempts)
 	protected.GET("/projects/:id/cost", experimentHandlers.Cost)
 	protected.GET("/projects/:id/operations", experimentHandlers.Operations)
+	researchService := research.NewService(deps.Ent)
+	experimentService.SetGraphBinder(researchService)
+	researchHandlers := httpapi.NewResearchHandlers(researchService)
+	protected.GET("/projects/:id/research", researchHandlers.Get)
+	protected.PUT("/projects/:id/research", researchHandlers.Update)
 	diagnosticService := diagnostic.NewService(
 		deps.Ent, deps.Secrets, repositoryService, providerService, runtimeOperations, experimentService,
 		diagnostic.Config{SourceMaxBytes: deps.Config.RunnerSourceMaxBytes, SelfHostedEnabled: deps.Config.SelfHostedEnabled},
@@ -182,6 +188,7 @@ func New(deps Dependencies) *http.Server {
 	mcpHandler := mcpserver.New(
 		agentAuthService, experimentService, deps.Build.Version, nil,
 		mcpserver.WithConfiguration(repositoryService, workspacecatalog.NewService(deps.Ent)),
+		mcpserver.WithResearch(researchService),
 	).Handler()
 	router.Any("/mcp", gin.WrapH(mcpHandler))
 

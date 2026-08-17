@@ -132,6 +132,18 @@ Allow an Owner to authorize one normalized host directory for one Project and No
 
 Add an explicit `configure` scope for current-Project GitHub SSH repository registration and verification, plus bounded dataset declarations below an existing Owner-approved trusted workspace root. Expose stable container paths and controlled environment variables, bind active declarations into Proposal drift checks, require Node-side existence and symlink-containment validation, and keep host-root authorization Owner-only. Allow an Owner to update an existing active Token's scopes without exposing its secret.
 
+### v0.16.0 - research workbench
+
+Add Studies, superseded iteration plans, and a typed research Graph as the Owner home surface. Agents read and update that workspace through two MCP tools without starting workloads. Keep Diagnostics, Finance, Nodes, Provider, and Alerts in a separate Lab layer so Docker execution and control-plane detail stay one click away from the scientific question.
+
+### v0.16.1 - modern research UI kits
+
+Replace the card-grid Graph with Vue Flow, use Reka UI for Study and Project selectors and the create-Study dialog, drive visible-page polling with VueUse, and add Motion enter transitions on the research home. Execution, Proposal confirmation, and Lab pages remain unchanged.
+
+### v0.16.2 - Graph execution contract
+
+Keep LangGraph and other harnesses outside Gemcp. Enforce the research Graph through MCP: legal typed edges, `get_next_actions`, `from_node_id` in the Proposal digest, automatic run binding on `submit_prepared_experiment`, and `close_run` as the only result writer. Mark Experiments that never entered the Graph as orphaned on Evidence. Refresh the Owner brand mark and ink/paper/copper palette.
+
 ## In progress
 
 ### Repository readiness and Owner prepared experiments

@@ -371,7 +371,7 @@ watch(() => [props.active, period.value, projectFilter.value] as const, ([active
 .adjustment-preview { padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; background: #f8faf8; border: 1px solid #e1e6e2; border-radius: 5px; font-size: 11px; }
 .adjustment-preview strong { font-size: 14px; }
 .confirmation-row { min-height: 34px; flex-direction: row; align-items: flex-start; gap: 9px; line-height: 17px; }
-.confirmation-row input { width: 16px; height: 16px; min-height: 0; margin: 1px 0 0; flex: 0 0 auto; accent-color: #216e55; }
+.confirmation-row input { width: 16px; height: 16px; min-height: 0; margin: 1px 0 0; flex: 0 0 auto; accent-color: #c4621a; }
 @media (max-width: 1100px) {
   .finance-heading { align-items: flex-start; flex-direction: column; }
   .finance-actions { width: 100%; flex-wrap: wrap; }

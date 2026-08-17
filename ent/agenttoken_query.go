@@ -16,8 +16,11 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
+	"github.com/XR-Lee/Gemcp/ent/iterationplan"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 	"github.com/XR-Lee/Gemcp/ent/project"
+	"github.com/XR-Lee/Gemcp/ent/researchnode"
+	"github.com/XR-Lee/Gemcp/ent/study"
 	"github.com/XR-Lee/Gemcp/ent/workspacedataset"
 )
 
@@ -33,6 +36,9 @@ type AgentTokenQuery struct {
 	withIdempotencyRecords  *IdempotencyRecordQuery
 	withExperimentProposals *ExperimentProposalQuery
 	withWorkspaceDatasets   *WorkspaceDatasetQuery
+	withStudies             *StudyQuery
+	withIterationPlans      *IterationPlanQuery
+	withResearchNodes       *ResearchNodeQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -172,6 +178,72 @@ func (_q *AgentTokenQuery) QueryWorkspaceDatasets() *WorkspaceDatasetQuery {
 			sqlgraph.From(agenttoken.Table, agenttoken.FieldID, selector),
 			sqlgraph.To(workspacedataset.Table, workspacedataset.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, agenttoken.WorkspaceDatasetsTable, agenttoken.WorkspaceDatasetsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryStudies chains the current query on the "studies" edge.
+func (_q *AgentTokenQuery) QueryStudies() *StudyQuery {
+	query := (&StudyClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(agenttoken.Table, agenttoken.FieldID, selector),
+			sqlgraph.To(study.Table, study.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, agenttoken.StudiesTable, agenttoken.StudiesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryIterationPlans chains the current query on the "iteration_plans" edge.
+func (_q *AgentTokenQuery) QueryIterationPlans() *IterationPlanQuery {
+	query := (&IterationPlanClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(agenttoken.Table, agenttoken.FieldID, selector),
+			sqlgraph.To(iterationplan.Table, iterationplan.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, agenttoken.IterationPlansTable, agenttoken.IterationPlansColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryResearchNodes chains the current query on the "research_nodes" edge.
+func (_q *AgentTokenQuery) QueryResearchNodes() *ResearchNodeQuery {
+	query := (&ResearchNodeClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(agenttoken.Table, agenttoken.FieldID, selector),
+			sqlgraph.To(researchnode.Table, researchnode.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, agenttoken.ResearchNodesTable, agenttoken.ResearchNodesColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -376,6 +448,9 @@ func (_q *AgentTokenQuery) Clone() *AgentTokenQuery {
 		withIdempotencyRecords:  _q.withIdempotencyRecords.Clone(),
 		withExperimentProposals: _q.withExperimentProposals.Clone(),
 		withWorkspaceDatasets:   _q.withWorkspaceDatasets.Clone(),
+		withStudies:             _q.withStudies.Clone(),
+		withIterationPlans:      _q.withIterationPlans.Clone(),
+		withResearchNodes:       _q.withResearchNodes.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -434,6 +509,39 @@ func (_q *AgentTokenQuery) WithWorkspaceDatasets(opts ...func(*WorkspaceDatasetQ
 		opt(query)
 	}
 	_q.withWorkspaceDatasets = query
+	return _q
+}
+
+// WithStudies tells the query-builder to eager-load the nodes that are connected to
+// the "studies" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *AgentTokenQuery) WithStudies(opts ...func(*StudyQuery)) *AgentTokenQuery {
+	query := (&StudyClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withStudies = query
+	return _q
+}
+
+// WithIterationPlans tells the query-builder to eager-load the nodes that are connected to
+// the "iteration_plans" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *AgentTokenQuery) WithIterationPlans(opts ...func(*IterationPlanQuery)) *AgentTokenQuery {
+	query := (&IterationPlanClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withIterationPlans = query
+	return _q
+}
+
+// WithResearchNodes tells the query-builder to eager-load the nodes that are connected to
+// the "research_nodes" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *AgentTokenQuery) WithResearchNodes(opts ...func(*ResearchNodeQuery)) *AgentTokenQuery {
+	query := (&ResearchNodeClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withResearchNodes = query
 	return _q
 }
 
@@ -515,12 +623,15 @@ func (_q *AgentTokenQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*A
 	var (
 		nodes       = []*AgentToken{}
 		_spec       = _q.querySpec()
-		loadedTypes = [5]bool{
+		loadedTypes = [8]bool{
 			_q.withProject != nil,
 			_q.withExperiments != nil,
 			_q.withIdempotencyRecords != nil,
 			_q.withExperimentProposals != nil,
 			_q.withWorkspaceDatasets != nil,
+			_q.withStudies != nil,
+			_q.withIterationPlans != nil,
+			_q.withResearchNodes != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -578,6 +689,27 @@ func (_q *AgentTokenQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*A
 			func(n *AgentToken, e *WorkspaceDataset) {
 				n.Edges.WorkspaceDatasets = append(n.Edges.WorkspaceDatasets, e)
 			}); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withStudies; query != nil {
+		if err := _q.loadStudies(ctx, query, nodes,
+			func(n *AgentToken) { n.Edges.Studies = []*Study{} },
+			func(n *AgentToken, e *Study) { n.Edges.Studies = append(n.Edges.Studies, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withIterationPlans; query != nil {
+		if err := _q.loadIterationPlans(ctx, query, nodes,
+			func(n *AgentToken) { n.Edges.IterationPlans = []*IterationPlan{} },
+			func(n *AgentToken, e *IterationPlan) { n.Edges.IterationPlans = append(n.Edges.IterationPlans, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withResearchNodes; query != nil {
+		if err := _q.loadResearchNodes(ctx, query, nodes,
+			func(n *AgentToken) { n.Edges.ResearchNodes = []*ResearchNode{} },
+			func(n *AgentToken, e *ResearchNode) { n.Edges.ResearchNodes = append(n.Edges.ResearchNodes, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -721,6 +853,105 @@ func (_q *AgentTokenQuery) loadWorkspaceDatasets(ctx context.Context, query *Wor
 	}
 	query.Where(predicate.WorkspaceDataset(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(agenttoken.WorkspaceDatasetsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.AgentTokenID
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "agent_token_id" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "agent_token_id" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *AgentTokenQuery) loadStudies(ctx context.Context, query *StudyQuery, nodes []*AgentToken, init func(*AgentToken), assign func(*AgentToken, *Study)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*AgentToken)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(study.FieldAgentTokenID)
+	}
+	query.Where(predicate.Study(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(agenttoken.StudiesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.AgentTokenID
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "agent_token_id" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "agent_token_id" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *AgentTokenQuery) loadIterationPlans(ctx context.Context, query *IterationPlanQuery, nodes []*AgentToken, init func(*AgentToken), assign func(*AgentToken, *IterationPlan)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*AgentToken)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(iterationplan.FieldAgentTokenID)
+	}
+	query.Where(predicate.IterationPlan(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(agenttoken.IterationPlansColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.AgentTokenID
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "agent_token_id" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "agent_token_id" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *AgentTokenQuery) loadResearchNodes(ctx context.Context, query *ResearchNodeQuery, nodes []*AgentToken, init func(*AgentToken), assign func(*AgentToken, *ResearchNode)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*AgentToken)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(researchnode.FieldAgentTokenID)
+	}
+	query.Where(predicate.ResearchNode(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(agenttoken.ResearchNodesColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

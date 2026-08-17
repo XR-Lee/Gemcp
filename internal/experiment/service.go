@@ -63,7 +63,22 @@ type Service struct {
 	providerReader ProposalProviderReader
 	runtimeReader  ProposalRuntimeReader
 	proposalConfig ProposalConfig
+	graphBinder    GraphBinder
 	now            func() time.Time
+}
+
+type GraphBinder interface {
+	BindPreparedRun(context.Context, agentauth.Principal, string, string, string) (string, error)
+}
+
+func WithGraphBinder(binder GraphBinder) ServiceOption {
+	return func(service *Service) {
+		service.graphBinder = binder
+	}
+}
+
+func (s *Service) SetGraphBinder(binder GraphBinder) {
+	s.graphBinder = binder
 }
 
 type ServiceOption func(*Service)

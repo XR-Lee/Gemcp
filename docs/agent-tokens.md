@@ -79,7 +79,7 @@ POST /api/v1/agent-enrollments/complete
 
 Installer downloads, enrollment requests, and MCP verification use `User-Agent: Gemcp-Pi-Setup/1` so reverse proxies can identify the machine client. This header is not authentication; setup code and Agent Bearer Token checks remain mandatory.
 
-Claim is retryable until setup completes and creates a provisional Token limited to `read` and the setup deadline. After all seventeen tools plus the guide, options, and cost checks pass, complete atomically applies the Owner-selected scopes and full credential lifetime. Completion is idempotent so a lost final HTTP response can be retried safely. Invalid, expired, revoked, or completed claims return the same `410 AGENT_SETUP_INVALID` response.
+Claim is retryable until setup completes and creates a provisional Token limited to `read` and the setup deadline. After all twenty-one tools plus the guide, options, and cost checks pass, complete atomically applies the Owner-selected scopes and full credential lifetime. Completion is idempotent so a lost final HTTP response can be retried safely. Invalid, expired, revoked, or completed claims return the same `410 AGENT_SETUP_INVALID` response.
 
 The Owner can revoke pending or claimed enrollment:
 

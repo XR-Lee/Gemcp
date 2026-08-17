@@ -22,6 +22,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/repository"
+	"github.com/XR-Lee/Gemcp/ent/researchnode"
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
 	"github.com/google/uuid"
@@ -605,6 +606,21 @@ func (_c *ExperimentCreate) SetNillableProposalID(id *int) *ExperimentCreate {
 // SetProposal sets the "proposal" edge to the ExperimentProposal entity.
 func (_c *ExperimentCreate) SetProposal(v *ExperimentProposal) *ExperimentCreate {
 	return _c.SetProposalID(v.ID)
+}
+
+// AddResearchNodeIDs adds the "research_nodes" edge to the ResearchNode entity by IDs.
+func (_c *ExperimentCreate) AddResearchNodeIDs(ids ...int) *ExperimentCreate {
+	_c.mutation.AddResearchNodeIDs(ids...)
+	return _c
+}
+
+// AddResearchNodes adds the "research_nodes" edges to the ResearchNode entity.
+func (_c *ExperimentCreate) AddResearchNodes(v ...*ResearchNode) *ExperimentCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddResearchNodeIDs(ids...)
 }
 
 // Mutation returns the ExperimentMutation object of the builder.
@@ -1219,6 +1235,22 @@ func (_c *ExperimentCreate) createSpec() (*Experiment, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(experimentproposal.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ResearchNodesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   experiment.ResearchNodesTable,
+			Columns: []string{experiment.ResearchNodesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(researchnode.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
