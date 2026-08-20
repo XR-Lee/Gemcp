@@ -11,7 +11,7 @@ This page is the complete coding-Agent handoff for an Owner-approved trusted Sel
 - Required commit: `{{GEMCP_COMMIT}}`
 - Repository: `git@github.com:XR-Lee/Gemcp.git`
 
-The node binary and control plane must use the same release. The repository is private, so the GPU host or its coding Agent needs independent read access to GitHub. The Node Setup Link does not grant repository access.
+The node binary and control plane must use the same release. Clone the exact commit below; do not assume a `v{{GEMCP_VERSION}}` git tag exists. The repository is private, so the GPU host or its coding Agent needs independent read access to GitHub. The Node Setup Link does not grant repository access.
 
 ## Setup-link boundary
 
@@ -43,9 +43,11 @@ If a prerequisite is missing, storage is insufficient, or installing it would re
 From the GPU host:
 
 ```bash
-git clone --branch "v{{GEMCP_VERSION}}" --depth 1 \
-  git@github.com:XR-Lee/Gemcp.git Gemcp
+git init Gemcp
 cd Gemcp
+git remote add origin git@github.com:XR-Lee/Gemcp.git
+git fetch --depth 1 origin "{{GEMCP_COMMIT}}"
+git checkout --detach FETCH_HEAD
 test "$(git rev-parse HEAD)" = "{{GEMCP_COMMIT}}"
 make build-node
 ./bin/gemcp-node version
