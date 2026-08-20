@@ -2,6 +2,8 @@
 
 Gemcp is a private research workbench. Sub-agents run inside Docker on Owner-approved machines; the main surface shows a Study, iteration plan, and research Graph. Provider credentials, node authorization, budgets, lifecycle enforcement, and audit data stay in a separate Lab layer.
 
+Testers (including Jiyao Pu / Linear XIN-28): start at the [tester brief](docs/tester-brief.md). Use `main` or tag `alpha-0.16`. Do not use the stale `Jiyao` branch.
+
 ## Current release
 
 `v0.16.2` (published git tag `alpha-0.16`; there is no `v0.16.2` tag) turns the research Graph into an MCP execution contract. Agents call `get_next_actions` before spending. `prepare_experiment` binds `from_node_id` into the confirmation digest when a Study exists. `submit_prepared_experiment` writes the run node. `close_run` is the only way to record a result. Experiments that never enter the Graph are marked orphaned on Evidence. The Owner console uses a lineage brand mark and an ink/paper/copper palette.
@@ -63,6 +65,8 @@ Human --HTTPS Web--------+--> PostgreSQL
 The Vue frontend is embedded in the Go release binary. Redis, Kubernetes, and a separate frontend runtime are not required.
 
 ## Local checks
+
+For a first local run, follow the [tester brief](docs/tester-brief.md) (tree, `.env`, HTTP cookies, and what not to file as a bug).
 
 Prerequisites: Go 1.26.6 and Node.js 22+.
 
@@ -180,4 +184,4 @@ Bind the origin to localhost and publish it through the configured Cloudflare Tu
 
 No real AutoDL, SMTP, Git, Runner, Agent setup, Node setup, or experiment secret belongs in this repository. Provider, SMTP, and Git private credentials are encrypted at rest. Agent and Node setup codes and their long-lived Tokens are stored only as HMAC digests; setup retry credentials are deterministically derived and never stored recoverably. AutoDL Runner Tokens are Attempt-scoped, stored as HMAC digests plus recoverable ciphertext only until execution finalizes, and never passed to the user command environment. Self-hosted workload containers receive no Gemcp credential. Local phase-zero Token files and reports are Git-ignored and must be mode `0600` inside a mode `0700` directory.
 
-See [Architecture](docs/architecture.md), the [Research workbench](docs/research-workbench.md), the [Experiment interface simplification proposal](docs/experiment-interface-simplification.md), and [Roadmap](docs/roadmap.md).
+See the [tester brief](docs/tester-brief.md), [Architecture](docs/architecture.md), the [Research workbench](docs/research-workbench.md), the [Experiment interface simplification proposal](docs/experiment-interface-simplification.md), and [Roadmap](docs/roadmap.md).
