@@ -61,14 +61,21 @@ func TestNodeSetupIsSelfContainedAgentHandoff(t *testing.T) {
 		origin + "/node/setup?lang=en#code=...", origin + "/node/setup?lang=zh", "v0.10.3", commit,
 		"git@github.com:XR-Lee/Gemcp.git", "make build-node", "pending_verification",
 		"Do not install or upgrade the NVIDIA Driver", "/var/lib/gemcp-node/storage", "upgrade-gemcp-node.sh",
+		`git fetch --depth 1 origin "` + commit + `"`,
+		"do not assume a `v0.10.3` git tag exists",
 	} {
 		if !strings.Contains(setup, required) {
 			t.Fatalf("node setup guide does not contain %q", required)
 		}
 	}
+	if strings.Contains(setup, `git clone --branch "v0.10.3"`) || strings.Contains(chinese, `git clone --branch "v0.10.3"`) {
+		t.Fatal("node setup must clone the exact commit, not a version tag")
+	}
 	for _, required := range []string{
 		origin + "/node/setup?lang=zh#code=...", origin + "/node/setup?lang=en", "v0.10.3", commit,
 		"代码仓库", "不得安装或升级 NVIDIA Driver", "/var/lib/gemcp-node/storage", "pending_verification", "upgrade-gemcp-node.sh",
+		`git fetch --depth 1 origin "` + commit + `"`,
+		"不要假设存在 `v0.10.3` 标签",
 	} {
 		if !strings.Contains(chinese, required) {
 			t.Fatalf("Chinese node setup guide does not contain %q", required)
@@ -80,6 +87,21 @@ func TestNodeSetupIsSelfContainedAgentHandoff(t *testing.T) {
 				t.Fatalf("node setup guide retained %q", placeholder)
 			}
 		}
+	}
+}
+
+func TestEnvExampleVersionMatchesReleaseFile(t *testing.T) {
+	version, err := os.ReadFile(filepath.Join("..", "VERSION"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	example, err := os.ReadFile(filepath.Join("..", ".env.example"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "GEMCP_VERSION=" + strings.TrimSpace(string(version))
+	if !strings.Contains(string(example), want) {
+		t.Fatalf(".env.example does not contain %q", want)
 	}
 }
 

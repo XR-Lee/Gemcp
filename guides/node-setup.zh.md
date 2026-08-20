@@ -11,7 +11,7 @@
 - 要求提交：`{{GEMCP_COMMIT}}`
 - 代码仓库：`git@github.com:XR-Lee/Gemcp.git`
 
-节点二进制与控制面必须使用同一版本。代码仓库为私有仓库，因此 GPU 主机或其编码 Agent 必须独立具备 GitHub 只读权限；Node Setup Link 不授予仓库访问权限。
+节点二进制与控制面必须使用同一版本。按下方精确 commit 检出，不要假设存在 `v{{GEMCP_VERSION}}` 标签。代码仓库为私有仓库，因此 GPU 主机或其编码 Agent 必须独立具备 GitHub 只读权限；Node Setup Link 不授予仓库访问权限。
 
 ## Setup Link 安全边界
 
@@ -43,9 +43,11 @@
 在 GPU 主机上执行：
 
 ```bash
-git clone --branch "v{{GEMCP_VERSION}}" --depth 1 \
-  git@github.com:XR-Lee/Gemcp.git Gemcp
+git init Gemcp
 cd Gemcp
+git remote add origin git@github.com:XR-Lee/Gemcp.git
+git fetch --depth 1 origin "{{GEMCP_COMMIT}}"
+git checkout --detach FETCH_HEAD
 test "$(git rev-parse HEAD)" = "{{GEMCP_COMMIT}}"
 make build-node
 ./bin/gemcp-node version

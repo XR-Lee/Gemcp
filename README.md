@@ -4,7 +4,7 @@ Gemcp is a private research workbench. Sub-agents run inside Docker on Owner-app
 
 ## Current release
 
-`v0.16.2` (`alpha-0.16`) turns the research Graph into an MCP execution contract. Agents call `get_next_actions` before spending. `prepare_experiment` binds `from_node_id` into the confirmation digest when a Study exists. `submit_prepared_experiment` writes the run node. `close_run` is the only way to record a result. Experiments that never enter the Graph are marked orphaned on Evidence. The Owner console uses a lineage brand mark and an ink/paper/copper palette.
+`v0.16.2` (published git tag `alpha-0.16`; there is no `v0.16.2` tag) turns the research Graph into an MCP execution contract. Agents call `get_next_actions` before spending. `prepare_experiment` binds `from_node_id` into the confirmation digest when a Study exists. `submit_prepared_experiment` writes the run node. `close_run` is the only way to record a result. Experiments that never enter the Graph are marked orphaned on Evidence. The Owner console uses a lineage brand mark and an ink/paper/copper palette.
 
 `v0.16.1` replaces the hand-rolled research surface with Vue Flow, Reka UI, VueUse, and Motion. The Graph is now a connected lineage canvas; Study and Project selectors and the create-Study dialog use accessible primitives; live refresh uses VueUse. Recording a Graph node still never starts a workload.
 
@@ -77,10 +77,12 @@ npx --prefix frontend playwright install chromium
 make frontend-e2e
 ```
 
-The backend requires PostgreSQL when started:
+The backend requires PostgreSQL when started. `.env.example` is the production Compose template: it still needs generated credentials, and `GEMCP_SECURE_COOKIES=true` will block login on plain HTTP.
 
 ```bash
 cp .env.example .env
+# Write real values from ./bin/gemcp keygen and ./bin/gemcp bootstrap-token.
+# For local HTTP, also set GEMCP_ENV=development and GEMCP_SECURE_COOKIES=false.
 GEMCP_DATABASE_URL='postgres://gemcp:gemcp@127.0.0.1:5432/gemcp?sslmode=disable' ./bin/gemcp serve
 ```
 
