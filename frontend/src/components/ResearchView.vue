@@ -1,29 +1,49 @@
 <script setup lang="ts">
-import { computed, markRaw } from 'vue'
+import { computed, markRaw, ref } from 'vue'
 import type { Edge, Node } from '@vue-flow/core'
 import { Position, VueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
 import { MiniMap } from '@vue-flow/minimap'
-import { FlaskConical, GitBranch, Network, Plus, Sparkles } from '@lucide/vue'
+import { Check, Clipboard, FlaskConical, GitBranch, Network, Plus, Sparkles } from '@lucide/vue'
 import { motion } from 'motion-v'
-import type { ResearchNode, ResearchWorkspace } from '../api'
+import type { Experiment, Project, Repository, ResearchNode, ResearchWorkspace } from '../api'
 import { localizedState, useI18n } from '../i18n'
+import { buildResearchAttachPrompt } from '../researchAttachPrompt'
 import ResearchGraphNode from './ResearchGraphNode.vue'
+import WorkbenchDialog from './WorkbenchDialog.vue'
 import WorkbenchSelect from './WorkbenchSelect.vue'
 
 const props = defineProps<{
   workspace: ResearchWorkspace | null
   loading: boolean
   selectedStudyId: string
+  project?: Project | null
+  repositories?: Repository[]
+  experiments?: Experiment[]
 }>()
 const emit = defineEmits<{
   selectStudy: [studyID: string]
   openExperiment: [experimentID: string]
   createStudy: []
 }>()
-const { languageTag, t } = useI18n()
+const { locale, languageTag, t } = useI18n()
 const nodeTypes = { research: markRaw(ResearchGraphNode) }
+const attachOpen = ref(false)
+const copied = ref(false)
+const attachPrompt = computed(() => buildResearchAttachPrompt({
+  locale: locale.value,
+  project: props.project,
+  repositories: props.repositories,
+  experiments: props.experiments,
+  workspace: props.workspace,
+}))
+
+async function copyAttachPrompt() {
+  await navigator.clipboard.writeText(attachPrompt.value)
+  copied.value = true
+  window.setTimeout(() => (copied.value = false), 1600)
+}
 
 const study = computed(() => props.workspace?.study ?? null)
 const studies = computed(() => props.workspace?.studies ?? [])
@@ -125,6 +145,7 @@ function dateTime(value?: string) {
           :aria-label="t('Study', 'Study')"
           :options="studyOptions"
         />
+        <button class="secondary-button small-button" type="button" :aria-label="t('Attach prompt', '入图 Prompt')" @click="attachOpen = true"><Clipboard :size="16" />{{ t('Attach prompt', '入图 Prompt') }}</button>
         <button class="secondary-button small-button" type="button" @click="emit('createStudy')"><Plus :size="16" />{{ t('New study', '新建 Study') }}</button>
       </div>
     </motion.div>
@@ -213,7 +234,28 @@ function dateTime(value?: string) {
       <span class="empty-icon"><FlaskConical :size="21" /></span>
       <h3>{{ t('Start from a research question', '从研究问题开始') }}</h3>
       <p>{{ t('The main surface is the Study, plan, and Graph. Nodes, budgets, and Provider details stay in Lab.', '主界面只展示 Study、计划和 Graph。节点、预算和 Provider 细节留在 Lab。') }}</p>
-      <button class="primary-button" type="button" @click="emit('createStudy')"><Plus :size="16" />{{ t('Create the first study', '创建第一个 Study') }}</button>
+      <div class="research-empty-actions">
+        <button class="secondary-button" type="button" :aria-label="t('Attach prompt', '入图 Prompt')" @click="attachOpen = true"><Clipboard :size="16" />{{ t('Attach prompt', '入图 Prompt') }}</button>
+        <button class="primary-button" type="button" @click="emit('createStudy')"><Plus :size="16" />{{ t('Create the first study', '创建第一个 Study') }}</button>
+      </div>
     </div>
   </section>
+
+  <WorkbenchDialog
+    v-model:open="attachOpen"
+    :title="t('Attach prompt', '入图 Prompt')"
+    :label="t('Attach prompt', '入图 Prompt')"
+    :description="t('Give this to a coding Agent that already has Gemcp MCP. It tells the Agent how to put the current repository on the Graph. It contains no Token.', '交给已经接好 Gemcp MCP 的编码 Agent。它说明如何把当前仓库挂上 Graph，不含 Token。')"
+  >
+    <div class="dialog-form attach-prompt-form">
+      <label class="attach-prompt-label">
+        <span>{{ t('Agent prompt', 'Agent Prompt') }}</span>
+        <textarea class="attach-prompt" readonly rows="18" spellcheck="false" :value="attachPrompt"></textarea>
+      </label>
+      <button class="primary-button" type="button" @click="copyAttachPrompt">
+        <Check v-if="copied" :size="16" /><Clipboard v-else :size="16" />
+        {{ copied ? t('Copied', '已复制') : t('Copy for Agent', '复制给 Agent') }}
+      </button>
+    </div>
+  </WorkbenchDialog>
 </template>

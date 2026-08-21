@@ -1,5 +1,5 @@
-import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { flushPromises, mount } from '@vue/test-utils'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useI18n } from '../i18n'
 import ResearchView from './ResearchView.vue'
 
@@ -32,19 +32,24 @@ const workspace = {
   generated_at: '2026-07-28T18:05:00Z',
 }
 
+const flowStubs = {
+  VueFlow: { template: '<div class="vue-flow"><slot /></div>' },
+  Background: true,
+  MiniMap: true,
+  Controls: true,
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+  useI18n().setLocale('en')
+})
+
 describe('ResearchView', () => {
   it('renders the study, next action, and Graph canvas', () => {
     useI18n().setLocale('en')
     const wrapper = mount(ResearchView, {
       props: { workspace, loading: false, selectedStudyId: 'study-1' },
-      global: {
-        stubs: {
-          VueFlow: { template: '<div class="vue-flow"><slot /></div>' },
-          Background: true,
-          MiniMap: true,
-          Controls: true,
-        },
-      },
+      global: { stubs: flowStubs },
     })
     expect(wrapper.text()).toContain('objbg-scan')
     expect(wrapper.text()).toContain('Record the current smoke-run accuracy as the first Graph result.')
@@ -53,5 +58,38 @@ describe('ResearchView', () => {
     expect(wrapper.find('.vue-flow').exists()).toBe(true)
     expect(wrapper.text()).toContain('OBJ-BG smoke accuracy')
     expect(wrapper.text()).toContain('Record a hypothesis')
+    expect(wrapper.get('button[aria-label="Attach prompt"]').exists()).toBe(true)
+  })
+
+  it('copies an attach prompt that names the current repository and Graph contract', async () => {
+    const writeText = vi.fn(async () => undefined)
+    vi.stubGlobal('navigator', { language: 'en-GB', clipboard: { writeText } })
+    useI18n().setLocale('en')
+    const wrapper = mount(ResearchView, {
+      props: {
+        workspace,
+        loading: false,
+        selectedStudyId: 'study-1',
+        project: {
+          id: 'project-id', name: 'Point Models', slug: 'point-models', status: 'active',
+          monthly_budget_milli: 1, max_experiment_milli: 1, max_concurrency: 1,
+          max_runtime_seconds: 1, timeout_extension_seconds: 1, termination_grace_seconds: 1, timezone: 'UTC',
+        },
+        repositories: [{
+          id: 'repo-1', project_id: 'project-id', name: 'dynamic-point-mamba',
+          ssh_url: 'git@github.com:research/dynamic-point-mamba.git', default_branch: 'main', status: 'active',
+        }],
+      },
+      attachTo: document.body,
+      global: { stubs: flowStubs },
+    })
+    await wrapper.get('button[aria-label="Attach prompt"]').trigger('click')
+    await flushPromises()
+    expect(document.body.textContent).toContain('Give this to a coding Agent that already has Gemcp MCP')
+    const prompt = document.body.querySelector('.attach-prompt') as HTMLTextAreaElement
+    expect(prompt.value).toContain('git@github.com:research/dynamic-point-mamba.git')
+    expect(prompt.value).toContain('get_next_actions')
+    await document.body.querySelector<HTMLButtonElement>('.attach-prompt-form .primary-button')?.click()
+    expect(writeText).toHaveBeenCalledWith(prompt.value)
   })
 })

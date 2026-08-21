@@ -546,6 +546,24 @@ label small { color: #858e88; font-size: 10px; font-weight: 500; }
   border-radius: 10px;
   transform: translate(-50%, -50%);
 }
+.workbench-dialog:has(.attach-prompt-form) { width: min(720px, calc(100vw - 28px)); }
+.attach-prompt-label { display: grid; gap: 8px; }
+.attach-prompt-label span { color: #6d776f; font-size: 12px; }
+.attach-prompt {
+  width: 100%;
+  min-height: 280px;
+  padding: 12px 14px;
+  resize: vertical;
+  border: 1px solid #dce2dd;
+  border-radius: 8px;
+  background: #f6f4ef;
+  color: #24342b;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 18px;
+}
+.research-empty-actions { margin-top: 16px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.research-empty .research-empty-actions .primary-button { margin-top: 0; }
 .workbench-dialog header { min-height: 68px; padding: 16px 16px 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .workbench-dialog h2 { margin: 0; font-size: 18px; }
 .workbench-dialog p { margin: 4px 0 0; color: #6d776f; font-size: 12px; }
