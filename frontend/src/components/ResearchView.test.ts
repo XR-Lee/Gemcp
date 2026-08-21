@@ -58,7 +58,7 @@ describe('ResearchView', () => {
     expect(wrapper.find('.vue-flow').exists()).toBe(true)
     expect(wrapper.text()).toContain('OBJ-BG smoke accuracy')
     expect(wrapper.text()).toContain('Record a hypothesis')
-    expect(wrapper.get('button[aria-label="Attach prompt"]').exists()).toBe(true)
+    expect(wrapper.find('button[aria-label="Attach prompt"]').exists()).toBe(true)
   })
 
   it('copies an attach prompt that names the current repository and Graph contract', async () => {
