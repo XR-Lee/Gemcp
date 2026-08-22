@@ -83,7 +83,7 @@ A typical update is:
 }
 ```
 
-`prepare_experiment` requires `from_node_id` when the Project has an active Study. That ID must be a hypothesis or plan node and is bound into the confirmation digest the Owner approves. `submit_prepared_experiment` then writes the `run` node. `produced` edges are only legal from `run` to `result`, and only `close_run` may write that result. The Graph is the human-visible lineage; argv, image, GPU, logs, and cleanup stay in Experiment detail. Multiple Studies require an explicit `study_id`.
+`prepare_experiment` requires `from_node_id` when the Project has an active Study. That ID must be a hypothesis or plan node and is bound into the confirmation digest the Owner approves. `submit_prepared_experiment` then writes the `run` node. `produced` edges are only legal from `run` to `result`, and only `close_run` may write that result. Historical evidence uses `observation` nodes hung off a hypothesis with `leads_to`; do not leave observations unlinked. The Graph is the human-visible lineage; argv, image, GPU, logs, and cleanup stay in Experiment detail. Multiple Studies require an explicit `study_id`.
 
 ## Required workflow
 

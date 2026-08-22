@@ -1,10 +1,12 @@
 # Research workbench
 
-Status: released as `v0.16.2` / `alpha-0.16`
+Status: released as `v0.17.0` / `alpha-0.17`
 
 UI kits in `v0.16.1`: Vue Flow for the Graph, Reka UI for selectors and dialogs, VueUse for live refresh, Motion for enter transitions.
 
 `v0.16.2` turns that Graph into an MCP execution contract: legal edges, `get_next_actions`, `from_node_id` in the Proposal digest, automatic run binding on submit, and `close_run` as the only result writer.
+
+`v0.17.0` makes an imported repository usable: Study import, directory-scoped MCP, a time-axis Graph with fullscreen and double-click detail, success/failure stamps, and default selection of the latest import.
 
 Scope: Owner-facing research Graph and iteration plans, Agent-reported scientific progress, and a separate Lab layer for infrastructure. Execution, Docker isolation, Proposal confirmation, and Node protocol stay in place; the Graph now gates what an external harness may do next.
 

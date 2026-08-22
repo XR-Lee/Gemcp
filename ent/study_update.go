@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/XR-Lee/Gemcp/ent/iterationplan"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
+	"github.com/XR-Lee/Gemcp/ent/repository"
 	"github.com/XR-Lee/Gemcp/ent/researchedge"
 	"github.com/XR-Lee/Gemcp/ent/researchnode"
 	"github.com/XR-Lee/Gemcp/ent/study"
@@ -34,6 +35,26 @@ func (_u *StudyUpdate) Where(ps ...predicate.Study) *StudyUpdate {
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *StudyUpdate) SetUpdatedAt(v time.Time) *StudyUpdate {
 	_u.mutation.SetUpdatedAt(v)
+	return _u
+}
+
+// SetRepositoryID sets the "repository_id" field.
+func (_u *StudyUpdate) SetRepositoryID(v int) *StudyUpdate {
+	_u.mutation.SetRepositoryID(v)
+	return _u
+}
+
+// SetNillableRepositoryID sets the "repository_id" field if the given value is not nil.
+func (_u *StudyUpdate) SetNillableRepositoryID(v *int) *StudyUpdate {
+	if v != nil {
+		_u.SetRepositoryID(*v)
+	}
+	return _u
+}
+
+// ClearRepositoryID clears the value of the "repository_id" field.
+func (_u *StudyUpdate) ClearRepositoryID() *StudyUpdate {
+	_u.mutation.ClearRepositoryID()
 	return _u
 }
 
@@ -99,6 +120,11 @@ func (_u *StudyUpdate) SetNillableStatus(v *study.Status) *StudyUpdate {
 	return _u
 }
 
+// SetRepository sets the "repository" edge to the Repository entity.
+func (_u *StudyUpdate) SetRepository(v *Repository) *StudyUpdate {
+	return _u.SetRepositoryID(v.ID)
+}
+
 // AddIterationPlanIDs adds the "iteration_plans" edge to the IterationPlan entity by IDs.
 func (_u *StudyUpdate) AddIterationPlanIDs(ids ...int) *StudyUpdate {
 	_u.mutation.AddIterationPlanIDs(ids...)
@@ -147,6 +173,12 @@ func (_u *StudyUpdate) AddResearchEdges(v ...*ResearchEdge) *StudyUpdate {
 // Mutation returns the StudyMutation object of the builder.
 func (_u *StudyUpdate) Mutation() *StudyMutation {
 	return _u.mutation
+}
+
+// ClearRepository clears the "repository" edge to the Repository entity.
+func (_u *StudyUpdate) ClearRepository() *StudyUpdate {
+	_u.mutation.ClearRepository()
+	return _u
 }
 
 // ClearIterationPlans clears all "iteration_plans" edges to the IterationPlan entity.
@@ -303,6 +335,35 @@ func (_u *StudyUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(study.FieldStatus, field.TypeEnum, value)
+	}
+	if _u.mutation.RepositoryCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   study.RepositoryTable,
+			Columns: []string{study.RepositoryColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(repository.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RepositoryIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   study.RepositoryTable,
+			Columns: []string{study.RepositoryColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(repository.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _u.mutation.IterationPlansCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -465,6 +526,26 @@ func (_u *StudyUpdateOne) SetUpdatedAt(v time.Time) *StudyUpdateOne {
 	return _u
 }
 
+// SetRepositoryID sets the "repository_id" field.
+func (_u *StudyUpdateOne) SetRepositoryID(v int) *StudyUpdateOne {
+	_u.mutation.SetRepositoryID(v)
+	return _u
+}
+
+// SetNillableRepositoryID sets the "repository_id" field if the given value is not nil.
+func (_u *StudyUpdateOne) SetNillableRepositoryID(v *int) *StudyUpdateOne {
+	if v != nil {
+		_u.SetRepositoryID(*v)
+	}
+	return _u
+}
+
+// ClearRepositoryID clears the value of the "repository_id" field.
+func (_u *StudyUpdateOne) ClearRepositoryID() *StudyUpdateOne {
+	_u.mutation.ClearRepositoryID()
+	return _u
+}
+
 // SetName sets the "name" field.
 func (_u *StudyUpdateOne) SetName(v string) *StudyUpdateOne {
 	_u.mutation.SetName(v)
@@ -527,6 +608,11 @@ func (_u *StudyUpdateOne) SetNillableStatus(v *study.Status) *StudyUpdateOne {
 	return _u
 }
 
+// SetRepository sets the "repository" edge to the Repository entity.
+func (_u *StudyUpdateOne) SetRepository(v *Repository) *StudyUpdateOne {
+	return _u.SetRepositoryID(v.ID)
+}
+
 // AddIterationPlanIDs adds the "iteration_plans" edge to the IterationPlan entity by IDs.
 func (_u *StudyUpdateOne) AddIterationPlanIDs(ids ...int) *StudyUpdateOne {
 	_u.mutation.AddIterationPlanIDs(ids...)
@@ -575,6 +661,12 @@ func (_u *StudyUpdateOne) AddResearchEdges(v ...*ResearchEdge) *StudyUpdateOne {
 // Mutation returns the StudyMutation object of the builder.
 func (_u *StudyUpdateOne) Mutation() *StudyMutation {
 	return _u.mutation
+}
+
+// ClearRepository clears the "repository" edge to the Repository entity.
+func (_u *StudyUpdateOne) ClearRepository() *StudyUpdateOne {
+	_u.mutation.ClearRepository()
+	return _u
 }
 
 // ClearIterationPlans clears all "iteration_plans" edges to the IterationPlan entity.
@@ -761,6 +853,35 @@ func (_u *StudyUpdateOne) sqlSave(ctx context.Context) (_node *Study, err error)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(study.FieldStatus, field.TypeEnum, value)
+	}
+	if _u.mutation.RepositoryCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   study.RepositoryTable,
+			Columns: []string{study.RepositoryColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(repository.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RepositoryIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   study.RepositoryTable,
+			Columns: []string{study.RepositoryColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(repository.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _u.mutation.IterationPlansCleared() {
 		edge := &sqlgraph.EdgeSpec{

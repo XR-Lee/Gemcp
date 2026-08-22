@@ -16,6 +16,7 @@ func (Study) Fields() []ent.Field {
 	return []ent.Field{
 		field.Int("tenant_id").Immutable(),
 		field.Int("project_id").Immutable(),
+		field.Int("repository_id").Optional().Nillable(),
 		field.Int("agent_token_id").Optional().Nillable().Immutable(),
 		field.String("name").NotEmpty().MaxLen(120),
 		field.Text("question").NotEmpty(),
@@ -28,6 +29,7 @@ func (Study) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.From("tenant", Tenant.Type).Ref("studies").Field("tenant_id").Unique().Required().Immutable(),
 		edge.From("project", Project.Type).Ref("studies").Field("project_id").Unique().Required().Immutable(),
+		edge.From("repository", Repository.Type).Ref("studies").Field("repository_id").Unique(),
 		edge.From("agent_token", AgentToken.Type).Ref("studies").Field("agent_token_id").Unique().Immutable(),
 		edge.To("iteration_plans", IterationPlan.Type),
 		edge.To("research_nodes", ResearchNode.Type),

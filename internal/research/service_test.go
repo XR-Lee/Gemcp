@@ -72,6 +72,45 @@ func TestAgentMaintainsStudyPlanAndGraphWithoutStartingWorkloads(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if !containsActionKind(hypothesis.NextActions, "record_hypothesis") || !containsActionKind(hypothesis.NextActions, "record_observation") {
+		t.Fatalf("thin graph next actions = %+v", hypothesis.NextActions)
+	}
+	observation, err := service.AgentUpdate(ctx, principal, UpdateInput{
+		Node: &NodeInput{
+			Kind: "observation", Title: "README reports 86.4 on OBJ-BG", Summary: "Paper table lists overall accuracy 86.4.",
+			FromNodeID: hypothesis.Study.Nodes[1].ID, Relation: "leads_to",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasEdge(observation.Study.Edges, hypothesis.Study.Nodes[1].ID, observation.Study.Nodes[2].ID, "leads_to") {
+		t.Fatalf("observation was not hung off the hypothesis: %+v", observation.Study.Edges)
+	}
+	if _, err := service.AgentUpdate(ctx, principal, UpdateInput{
+		Node: &NodeInput{Kind: "observation", Title: "Illegal question evidence", FromNodeID: created.Study.Nodes[0].ID, Relation: "leads_to"},
+	}); err == nil {
+		t.Fatal("accepted observation hanging off the question")
+	}
+	orphan, err := service.AgentUpdate(ctx, principal, UpdateInput{
+		Node: &NodeInput{Kind: "observation", Title: "Unlinked table row", Summary: "Created without an edge first."},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	linked, err := service.AgentUpdate(ctx, principal, UpdateInput{
+		Node: &NodeInput{
+			ID: orphan.Study.Nodes[len(orphan.Study.Nodes)-1].ID, Kind: "observation",
+			Title: "Unlinked table row", Summary: "Now attached to the hypothesis.",
+			FromNodeID: hypothesis.Study.Nodes[1].ID, Relation: "leads_to",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasEdge(linked.Study.Edges, hypothesis.Study.Nodes[1].ID, orphan.Study.Nodes[len(orphan.Study.Nodes)-1].ID, "leads_to") {
+		t.Fatalf("existing observation was not attached: %+v", linked.Study.Edges)
+	}
 	run, err := service.AgentUpdate(ctx, principal, UpdateInput{
 		Node: &NodeInput{
 			Kind: "run", Title: "OBJ-BG smoke", Status: "succeeded",
@@ -82,18 +121,22 @@ func TestAgentMaintainsStudyPlanAndGraphWithoutStartingWorkloads(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	runID := nodeIDByExperiment(run.Study.Nodes, experimentRecord.PublicID.String())
+	if runID == "" {
+		t.Fatalf("run node missing: %+v", run.Study.Nodes)
+	}
 	metric := 86.4
 	updated, err := service.AgentUpdate(ctx, principal, UpdateInput{
 		Node: &NodeInput{
 			Kind: "result", Title: "OBJ-BG smoke accuracy", Summary: "The existing smoke Experiment reached 86.4 overall accuracy.",
 			Status: "succeeded", MetricName: "overall_accuracy", MetricValue: &metric,
-			FromNodeID: run.Study.Nodes[2].ID, Relation: "produced",
+			FromNodeID: runID, Relation: "produced",
 		},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if updated.Study == nil || len(updated.Study.Nodes) != 4 || len(updated.Study.Edges) != 3 || updated.Study.Nodes[2].ExperimentID != experimentRecord.PublicID.String() {
+	if updated.Study == nil || len(updated.Study.Nodes) != 6 || len(updated.Study.Edges) != 5 || nodeIDByExperiment(updated.Study.Nodes, experimentRecord.PublicID.String()) == "" {
 		t.Fatalf("updated graph = %+v", updated.Study)
 	}
 
@@ -124,7 +167,7 @@ func TestAgentMaintainsStudyPlanAndGraphWithoutStartingWorkloads(t *testing.T) {
 	if err != nil || owner.Study == nil || owner.Study.ID != created.Study.ID || owner.Study.Plan == nil {
 		t.Fatalf("OwnerWorkspace() = %+v, %v", owner, err)
 	}
-	if audits, _ := client.AuditEvent.Query().Count(ctx); audits != 5 {
+	if audits, _ := client.AuditEvent.Query().Count(ctx); audits != 8 {
 		t.Fatalf("audit count = %d", audits)
 	}
 }
@@ -148,8 +191,12 @@ func TestStudySelectorIsRequiredWhenMultipleStudiesExist(t *testing.T) {
 		t.Fatal(err)
 	}
 	workspace, err := service.AgentWorkspace(ctx, principal, WorkspaceInput{})
-	if err != nil || workspace.Study != nil || len(workspace.Studies) != 2 {
+	if err != nil || workspace.Study == nil || workspace.Study.Name != "second" || len(workspace.Studies) != 2 {
 		t.Fatalf("AgentWorkspace() = %+v, %v", workspace, err)
+	}
+	owner, err := service.OwnerWorkspace(ctx, tenant.ID, project.PublicID.String(), "")
+	if err != nil || owner.Study == nil || owner.Study.Name != "second" {
+		t.Fatalf("OwnerWorkspace() = %+v, %v", owner, err)
 	}
 	if _, err := service.AgentUpdate(ctx, principal, UpdateInput{
 		Plan: &PlanInput{Goal: "Need an explicit Study", NextAction: "Choose first or second before replacing the plan."},
@@ -228,4 +275,75 @@ func TestCloseRunRequiresTerminalExperimentAndWritesProducedResult(t *testing.T)
 	if err != nil || len(actions.Actions) == 0 || actions.Actions[0].Kind == "close_run" {
 		t.Fatalf("next actions after close = %+v, %v", actions, err)
 	}
+}
+
+func TestCreateStudyBindsExistingRepository(t *testing.T) {
+	client := enttest.Open(t, dialect.SQLite, "file:research-import-repo?mode=memory&cache=shared&_fk=1")
+	defer client.Close()
+	ctx := context.Background()
+	tenant, _ := client.Tenant.Create().SetName("Test").Save(ctx)
+	project, _ := client.Project.Create().SetTenantID(tenant.ID).SetName("Research").SetSlug("research").SetMonthlyBudgetMilli(1).SetMaxExperimentMilli(1).Save(ctx)
+	otherProject, _ := client.Project.Create().SetTenantID(tenant.ID).SetName("Other").SetSlug("other").SetMonthlyBudgetMilli(1).SetMaxExperimentMilli(1).Save(ctx)
+	token, _ := client.AgentToken.Create().SetProjectID(project.ID).SetLabel("lab-agent").SetPrefix("gmc_lab").SetTokenHash([]byte("import-hash")).SetScopes([]string{"read", "submit"}).Save(ctx)
+	repository, _ := client.Repository.Create().SetProjectID(project.ID).SetName("dynamic-point-mamba").SetSSHURL("git@github.com:research/dynamic-point-mamba.git").SetSSHHost("github.com").SetDefaultBranch("main").SetStatus("active").Save(ctx)
+	foreign, _ := client.Repository.Create().SetProjectID(otherProject.ID).SetName("foreign").SetSSHURL("git@github.com:research/foreign.git").SetSSHHost("github.com").SetDefaultBranch("main").SetStatus("active").Save(ctx)
+	principal := agentauth.Principal{
+		TenantID: tenant.ID, ProjectID: project.ID, ProjectPublicID: project.PublicID.String(),
+		TokenID: token.ID, TokenPublicID: token.PublicID.String(), Scopes: token.Scopes,
+	}
+	service := NewService(client)
+
+	created, err := service.AgentUpdate(ctx, principal, UpdateInput{
+		Study: &StudyInput{
+			Name: "dynamic-point-mamba", Question: "What should this Study learn from dynamic-point-mamba?",
+			RepositoryID: repository.PublicID.String(),
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if created.Study == nil || created.Study.Repository == nil {
+		t.Fatalf("created study missing repository = %+v", created.Study)
+	}
+	if created.Study.Repository.ID != repository.PublicID.String() || created.Study.Repository.Name != "dynamic-point-mamba" || created.Study.Repository.Status != "active" {
+		t.Fatalf("bound repository = %+v", created.Study.Repository)
+	}
+
+	if _, err := service.AgentUpdate(ctx, principal, UpdateInput{
+		Study: &StudyInput{Name: "cross", Question: "Should a foreign repository bind here?", RepositoryID: foreign.PublicID.String()},
+	}); err == nil {
+		t.Fatal("accepted a cross-Project repository")
+	}
+	if _, err := service.AgentUpdate(ctx, principal, UpdateInput{
+		Study: &StudyInput{Name: "bad-id", Question: "Should a garbage repository ID fail?", RepositoryID: "not-a-uuid"},
+	}); err == nil {
+		t.Fatal("accepted an invalid repository_id")
+	}
+}
+
+func containsActionKind(actions []NextAction, kind string) bool {
+	for _, action := range actions {
+		if action.Kind == kind {
+			return true
+		}
+	}
+	return false
+}
+
+func hasEdge(edges []EdgeView, fromID, toID, relation string) bool {
+	for _, edge := range edges {
+		if edge.FromID == fromID && edge.ToID == toID && edge.Relation == relation {
+			return true
+		}
+	}
+	return false
+}
+
+func nodeIDByExperiment(nodes []NodeView, experimentID string) string {
+	for _, node := range nodes {
+		if node.ExperimentID == experimentID && node.Kind == "run" {
+			return node.ID
+		}
+	}
+	return ""
 }

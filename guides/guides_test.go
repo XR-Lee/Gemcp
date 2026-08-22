@@ -39,7 +39,7 @@ func TestPiSetupAssetsUseTrustedRenderedOrigin(t *testing.T) {
 			t.Fatalf("%s retained the public URL placeholder", name)
 		}
 	}
-	for _, required := range []string{origin + "/agent/setup/install.mjs", "GEMCP_PI_SETUP_OK", "explicit human approval"} {
+	for _, required := range []string{origin + "/agent/setup/install.mjs", "GEMCP_PI_SETUP_OK", "explicit human approval", "Claude Code", "Codex", "OpenCode", "Grok"} {
 		if !strings.Contains(setup, required) {
 			t.Fatalf("setup guide does not contain %q", required)
 		}

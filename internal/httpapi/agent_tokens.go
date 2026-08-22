@@ -158,7 +158,7 @@ func (h *AgentTokenHandlers) writeError(c *gin.Context, err error) {
 	case errors.Is(err, agentaccess.ErrProjectArchived):
 		writeError(c, http.StatusConflict, "PROJECT_ARCHIVED", "archived projects cannot issue new Agent tokens")
 	case errors.Is(err, agentaccess.ErrPublicURLUnavailable):
-		writeError(c, http.StatusServiceUnavailable, "MCP_PUBLIC_URL_UNAVAILABLE", "GEMCP_PUBLIC_URL must be a credential-free HTTPS origin before exporting MCP configuration")
+		writeError(c, http.StatusServiceUnavailable, "MCP_PUBLIC_URL_UNAVAILABLE", "GEMCP_PUBLIC_URL must be a credential-free HTTPS origin, or HTTP on localhost, before exporting MCP configuration")
 	case errors.Is(err, agentaccess.ErrActiveTokenLimit):
 		writeError(c, http.StatusConflict, "AGENT_TOKEN_LIMIT", "this project already has the maximum number of active Agent tokens")
 	case errors.Is(err, agentaccess.ErrEnrollmentLimit):

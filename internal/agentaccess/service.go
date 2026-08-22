@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net"
 	"net/url"
 	"strings"
 	"time"
@@ -423,9 +424,26 @@ func configFileName(projectSlug string) string {
 	return serverName(projectSlug) + "-mcp.json"
 }
 
+func isLoopbackHost(host string) bool {
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
 func canonicalPublicURL(publicURL string) string {
 	parsed, err := url.Parse(strings.TrimRight(strings.TrimSpace(publicURL), "/"))
-	if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || strings.Trim(parsed.Path, "/") != "" {
+	if err != nil || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || strings.Trim(parsed.Path, "/") != "" {
+		return ""
+	}
+	switch parsed.Scheme {
+	case "https":
+	case "http":
+		if !isLoopbackHost(parsed.Hostname()) {
+			return ""
+		}
+	default:
 		return ""
 	}
 	return strings.TrimRight(parsed.String(), "/")

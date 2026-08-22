@@ -55,10 +55,65 @@ describe('ResearchView', () => {
     expect(wrapper.text()).toContain('Record the current smoke-run accuracy as the first Graph result.')
     expect(wrapper.text()).toContain('Research Graph')
     expect(wrapper.find('.graph-canvas').exists()).toBe(true)
+    expect(wrapper.find('.graph-shell').exists()).toBe(true)
     expect(wrapper.find('.vue-flow').exists()).toBe(true)
+    expect(wrapper.find('button[aria-label="Fullscreen graph"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('exploration time')
     expect(wrapper.text()).toContain('OBJ-BG smoke accuracy')
     expect(wrapper.text()).toContain('Record a hypothesis')
     expect(wrapper.find('button[aria-label="Attach prompt"]').exists()).toBe(true)
+    expect(wrapper.find('.research-mcp-banner').exists()).toBe(false)
+  })
+
+  it('reminds the Owner to bind an Agent over MCP after a Study is registered', async () => {
+    useI18n().setLocale('en')
+    const wrapper = mount(ResearchView, {
+      props: {
+        workspace: {
+          ...workspace,
+          study: {
+            ...workspace.study,
+            plan: undefined,
+            repository: {
+              id: 'repo-1', name: 'DynamicPointMamba',
+              ssh_url: 'git@github.com:XR-Lee/DynamicPointMamba.git', default_branch: 'main', status: 'active',
+            },
+          },
+        },
+        loading: false,
+        selectedStudyId: 'study-1',
+        hasActiveAgent: false,
+      },
+      global: { stubs: flowStubs },
+    })
+    expect(wrapper.find('.research-mcp-banner').text()).toContain('Bind an Agent, then enable MCP in this repository directory')
+    expect(wrapper.text()).toContain('DynamicPointMamba')
+    expect(wrapper.text()).toContain('in that directory, not as a global MCP')
+    await wrapper.get('.research-mcp-actions .primary-button').trigger('click')
+    expect(wrapper.emitted('openAgents')).toEqual([[]])
+  })
+
+  it('shows a bound research repository on the study heading', () => {
+    useI18n().setLocale('en')
+    const wrapper = mount(ResearchView, {
+      props: {
+        workspace: {
+          ...workspace,
+          study: {
+            ...workspace.study,
+            repository: {
+              id: 'repo-1', name: 'dynamic-point-mamba',
+              ssh_url: 'git@github.com:research/dynamic-point-mamba.git', default_branch: 'main', status: 'active',
+            },
+          },
+        },
+        loading: false,
+        selectedStudyId: 'study-1',
+      },
+      global: { stubs: flowStubs },
+    })
+    expect(wrapper.find('.research-repo').text()).toContain('dynamic-point-mamba')
+    expect(wrapper.text()).toContain('git@github.com:research/dynamic-point-mamba.git')
   })
 
   it('copies an attach prompt that names the current repository and Graph contract', async () => {
@@ -85,7 +140,7 @@ describe('ResearchView', () => {
     })
     await wrapper.get('button[aria-label="Attach prompt"]').trigger('click')
     await flushPromises()
-    expect(document.body.textContent).toContain('Give this to a coding Agent that already has Gemcp MCP')
+    expect(document.body.textContent).toContain('reconstruct experimental branches, hypotheses, conclusions, and evidence')
     const prompt = document.body.querySelector('.attach-prompt') as HTMLTextAreaElement
     expect(prompt.value).toContain('git@github.com:research/dynamic-point-mamba.git')
     expect(prompt.value).toContain('get_next_actions')

@@ -26,6 +26,8 @@ const (
 	FieldTenantID = "tenant_id"
 	// FieldProjectID holds the string denoting the project_id field in the database.
 	FieldProjectID = "project_id"
+	// FieldRepositoryID holds the string denoting the repository_id field in the database.
+	FieldRepositoryID = "repository_id"
 	// FieldAgentTokenID holds the string denoting the agent_token_id field in the database.
 	FieldAgentTokenID = "agent_token_id"
 	// FieldName holds the string denoting the name field in the database.
@@ -40,6 +42,8 @@ const (
 	EdgeTenant = "tenant"
 	// EdgeProject holds the string denoting the project edge name in mutations.
 	EdgeProject = "project"
+	// EdgeRepository holds the string denoting the repository edge name in mutations.
+	EdgeRepository = "repository"
 	// EdgeAgentToken holds the string denoting the agent_token edge name in mutations.
 	EdgeAgentToken = "agent_token"
 	// EdgeIterationPlans holds the string denoting the iteration_plans edge name in mutations.
@@ -64,6 +68,13 @@ const (
 	ProjectInverseTable = "projects"
 	// ProjectColumn is the table column denoting the project relation/edge.
 	ProjectColumn = "project_id"
+	// RepositoryTable is the table that holds the repository relation/edge.
+	RepositoryTable = "studies"
+	// RepositoryInverseTable is the table name for the Repository entity.
+	// It exists in this package in order to avoid circular dependency with the "repository" package.
+	RepositoryInverseTable = "repositories"
+	// RepositoryColumn is the table column denoting the repository relation/edge.
+	RepositoryColumn = "repository_id"
 	// AgentTokenTable is the table that holds the agent_token relation/edge.
 	AgentTokenTable = "studies"
 	// AgentTokenInverseTable is the table name for the AgentToken entity.
@@ -102,6 +113,7 @@ var Columns = []string{
 	FieldUpdatedAt,
 	FieldTenantID,
 	FieldProjectID,
+	FieldRepositoryID,
 	FieldAgentTokenID,
 	FieldName,
 	FieldQuestion,
@@ -194,6 +206,11 @@ func ByProjectID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldProjectID, opts...).ToFunc()
 }
 
+// ByRepositoryID orders the results by the repository_id field.
+func ByRepositoryID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRepositoryID, opts...).ToFunc()
+}
+
 // ByAgentTokenID orders the results by the agent_token_id field.
 func ByAgentTokenID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAgentTokenID, opts...).ToFunc()
@@ -230,6 +247,13 @@ func ByTenantField(field string, opts ...sql.OrderTermOption) OrderOption {
 func ByProjectField(field string, opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
 		sqlgraph.OrderByNeighborTerms(s, newProjectStep(), sql.OrderByField(field, opts...))
+	}
+}
+
+// ByRepositoryField orders the results by repository field.
+func ByRepositoryField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newRepositoryStep(), sql.OrderByField(field, opts...))
 	}
 }
 
@@ -293,6 +317,13 @@ func newProjectStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(ProjectInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.M2O, true, ProjectTable, ProjectColumn),
+	)
+}
+func newRepositoryStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(RepositoryInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, true, RepositoryTable, RepositoryColumn),
 	)
 }
 func newAgentTokenStep() *sqlgraph.Step {

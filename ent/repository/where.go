@@ -880,6 +880,29 @@ func HasExperimentProposalsWith(preds ...predicate.ExperimentProposal) predicate
 	})
 }
 
+// HasStudies applies the HasEdge predicate on the "studies" edge.
+func HasStudies() predicate.Repository {
+	return predicate.Repository(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, StudiesTable, StudiesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasStudiesWith applies the HasEdge predicate on the "studies" edge with a given conditions (other predicates).
+func HasStudiesWith(preds ...predicate.Study) predicate.Repository {
+	return predicate.Repository(func(s *sql.Selector) {
+		step := newStudiesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.Repository) predicate.Repository {
 	return predicate.Repository(sql.AndPredicates(predicates...))

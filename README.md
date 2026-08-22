@@ -2,9 +2,11 @@
 
 Gemcp is a private research workbench. Sub-agents run inside Docker on Owner-approved machines; the main surface shows a Study, iteration plan, and research Graph. Provider credentials, node authorization, budgets, lifecycle enforcement, and audit data stay in a separate Lab layer.
 
-Testers (including Jiyao Pu / Linear XIN-28): start at the [tester brief](docs/tester-brief.md). Use `main` or tag `alpha-0.16`. Do not use the stale `Jiyao` branch.
+Testers (including Jiyao Pu / Linear XIN-28): start at the [tester brief](docs/tester-brief.md). Use `main` or tag `alpha-0.17`. Do not use the stale `Jiyao` branch.
 
 ## Current release
+
+`v0.17.0` (`alpha-0.17`) makes an imported research repository usable on the Owner home. Import a Study from a registered repo or a GitHub SSH URL. MCP stays directory-scoped; one setup link covers Pi, Codex, OpenCode, Claude Code, and Grok. The Graph is a capped, fullscreen, time-axis canvas: double-click a node for its record, green/red stamps mark success and failure, and the active path ends at the newest linked record. Research opens the latest imported Project and Study.
 
 `v0.16.2` (published git tag `alpha-0.16`; there is no `v0.16.2` tag) turns the research Graph into an MCP execution contract. Agents call `get_next_actions` before spending. `prepare_experiment` binds `from_node_id` into the confirmation digest when a Study exists. `submit_prepared_experiment` writes the run node. `close_run` is the only way to record a result. Experiments that never enter the Graph are marked orphaned on Evidence. The Owner console uses a lineage brand mark and an ink/paper/copper palette.
 
@@ -63,10 +65,6 @@ Human --HTTPS Web--------+--> PostgreSQL
 ```
 
 The Vue frontend is embedded in the Go release binary. Redis, Kubernetes, and a separate frontend runtime are not required.
-
-## Outlook
-
-Because every decision that spends or closes a run already goes through MCP, the Graph can become more than a journal. Transparent annotation — which claim the Owner confirmed, which digest authorized the spend, which metric closed the run — is a way to grant the next permission, not only a way to explain the past. Off-graph Experiments stay in Lab; they do not authorize later science. That vision is written down in [Transparency as authorization](docs/transparency-authorization.md). It is not scheduled.
 
 ## Local checks
 

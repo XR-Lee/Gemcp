@@ -24,6 +24,8 @@ import {
 } from '@lucide/vue'
 import { APIError, api, type Attempt, type BuildInfo, type Experiment, type OperationsFeed, type Project, type Repository, type ResearchWorkspace, type RuntimeStatus, type User } from '../api'
 import { localizedState, useI18n } from '../i18n'
+import { pickDefaultProjectID } from '../projectSelect'
+import { draftStudyFromRepository, repositoryNameFromSSHURL } from '../studyImport'
 import BrandMark from './BrandMark.vue'
 import ExperimentTable from './ExperimentTable.vue'
 import FinanceView from './FinanceView.vue'
@@ -52,9 +54,10 @@ const experiments = ref<Experiment[]>([])
 const runtimeStatus = ref<RuntimeStatus | null>(null)
 const operationsFeed = ref<OperationsFeed | null>(null)
 const researchWorkspace = ref<ResearchWorkspace | null>(null)
+const hasActiveAgent = ref(false)
 const studyDialog = ref(false)
 const studyBusy = ref(false)
-const studyForm = reactive({ name: '', question: '', summary: '' })
+const studyForm = reactive({ name: '', question: '', summary: '', importSource: 'url', sshURL: '', defaultBranch: 'main' })
 const operationsLoading = ref(false)
 const loading = ref(false)
 const error = ref('')
@@ -64,13 +67,25 @@ const attempts = ref<Attempt[]>([])
 const attemptsLoading = ref(false)
 const attemptsError = ref('')
 const stateFilter = ref('all')
-const repositoryDialog = ref<'create' | 'key' | 'verify' | null>(null)
+const repositoryDialog = ref<'create' | 'key' | null>(null)
 const selectedRepository = ref<Repository | null>(null)
 const repositoryBusy = ref(false)
 const dialogError = ref('')
 const copied = ref('')
-const repositoryForm = reactive({ name: '', sshURL: '', defaultBranch: 'main', fingerprint: '' })
-const { languageTag, t } = useI18n()
+const repositoryForm = reactive({ name: '', sshURL: '', defaultBranch: 'main' })
+const attemptedVerify = new Set<string>()
+const { locale, languageTag, t } = useI18n()
+const studyImportOptions = computed(() => {
+  const options = repositories.value.map((repository) => ({
+    value: repository.id,
+    label: `${repository.name} [${repository.status}]`,
+  }))
+  options.push({ value: 'url', label: t('Paste a GitHub SSH URL', '粘贴 GitHub SSH URL') })
+  options.push({ value: 'blank', label: t('Start from a question only', '只写研究问题') })
+  return options
+})
+const importingExistingRepository = computed(() => studyForm.importSource !== 'url' && studyForm.importSource !== 'blank')
+const importingNewRepository = computed(() => studyForm.importSource === 'url')
 let liveRefreshInFlight = false
 let projectRefreshGeneration = 0
 const projectOptions = computed(() => projects.value.map((project) => ({ value: project.id, label: project.name })))
@@ -105,9 +120,7 @@ async function refreshAll() {
     const [loadedProjects, loadedRuntime] = await Promise.all([api.projects(), api.runtimeStatus()])
     projects.value = loadedProjects
     runtimeStatus.value = loadedRuntime
-    if (!loadedProjects.some((item) => item.id === selectedProjectID.value)) {
-      selectedProjectID.value = loadedProjects[0]?.id ?? ''
-    }
+    selectedProjectID.value = pickDefaultProjectID(loadedProjects, selectedProjectID.value)
     await refreshProject(false)
   } catch (caught) {
     handleError(caught, t('Could not load the control-plane state.', '无法加载控制平面状态。'))
@@ -124,25 +137,29 @@ async function refreshProject(showSpinner = true) {
     experiments.value = []
     operationsFeed.value = null
     researchWorkspace.value = null
+    hasActiveAgent.value = false
     selectedStudyID.value = ''
     return
   }
   if (showSpinner) loading.value = true
   error.value = ''
   try {
-    const [loadedRepositories, loadedExperiments, loadedOperations, loadedResearch] = await Promise.all([
+    const [loadedRepositories, loadedExperiments, loadedOperations, loadedResearch, loadedAgents] = await Promise.all([
       api.repositories(projectID),
       api.experiments(projectID),
       api.operations(projectID),
       api.research(projectID, selectedStudyID.value),
+      api.agentTokens(projectID),
     ])
     if (generation !== projectRefreshGeneration || selectedProjectID.value !== projectID) return
     repositories.value = loadedRepositories
     experiments.value = loadedExperiments
     operationsFeed.value = loadedOperations
     researchWorkspace.value = loadedResearch
+    hasActiveAgent.value = (loadedAgents.tokens ?? []).some((token) => token.status === 'active')
     if (loadedResearch.study) selectedStudyID.value = loadedResearch.study.id
-    else if (loadedResearch.studies.length === 1) selectedStudyID.value = loadedResearch.studies[0].id
+    else if (loadedResearch.studies.length) selectedStudyID.value = loadedResearch.studies[0].id
+    if (showSpinner) await verifyPendingGitHubRepositories(generation, projectID)
   } catch (caught) {
     if (generation !== projectRefreshGeneration) return
     handleError(caught, t('Could not refresh this project.', '无法刷新此 Project。'))
@@ -230,10 +247,40 @@ async function signOut() {
   }
 }
 
+function applyStudyDraft(input: { name: string; ssh_url: string; default_branch?: string }) {
+  const draft = draftStudyFromRepository(input, locale.value)
+  studyForm.name = draft.name
+  studyForm.question = draft.question
+  studyForm.summary = draft.summary
+}
+
+function onStudyImportSourceChange(value: string) {
+  studyForm.importSource = value
+  if (value === 'blank') {
+    studyForm.sshURL = ''
+    return
+  }
+  if (value === 'url') {
+    if (studyForm.sshURL) applyStudyDraft({ name: repositoryNameFromSSHURL(studyForm.sshURL), ssh_url: studyForm.sshURL, default_branch: studyForm.defaultBranch })
+    return
+  }
+  const repository = repositories.value.find((item) => item.id === value)
+  if (repository) applyStudyDraft(repository)
+}
+
+function onStudySSHURLInput() {
+  const name = repositoryNameFromSSHURL(studyForm.sshURL)
+  if (name) applyStudyDraft({ name, ssh_url: studyForm.sshURL, default_branch: studyForm.defaultBranch })
+}
+
 function openCreateStudy() {
   studyForm.name = ''
   studyForm.question = ''
   studyForm.summary = ''
+  studyForm.sshURL = ''
+  studyForm.defaultBranch = 'main'
+  studyForm.importSource = repositories.value[0]?.id ?? 'url'
+  if (repositories.value[0]) applyStudyDraft(repositories.value[0])
   dialogError.value = ''
   studyDialog.value = true
 }
@@ -253,12 +300,41 @@ async function createStudy() {
   studyBusy.value = true
   dialogError.value = ''
   try {
+    let repositoryID = importingExistingRepository.value ? studyForm.importSource : ''
+    let pendingKey: Repository | null = null
+    if (importingNewRepository.value) {
+      const sshURL = studyForm.sshURL.trim()
+      if (!repositoryNameFromSSHURL(sshURL)) {
+        dialogError.value = t('Use a GitHub SSH URL like git@github.com:owner/repository.git.', '请使用 git@github.com:owner/repository.git 这种 GitHub SSH URL。')
+        return
+      }
+      const createdRepository = await api.createRepository({
+        project_id: selectedProject.value.id,
+        name: studyForm.name.trim() || repositoryNameFromSSHURL(sshURL),
+        ssh_url: sshURL,
+        default_branch: studyForm.defaultBranch.trim() || 'main',
+      })
+      repositoryID = createdRepository.id
+      pendingKey = createdRepository.status === 'pending_key' ? createdRepository : null
+      await refreshProject(false)
+    }
     const created = await api.updateResearch(selectedProject.value.id, {
-      study: { name: studyForm.name.trim(), question: studyForm.question.trim(), summary: studyForm.summary.trim() || undefined },
+      study: {
+        name: studyForm.name.trim(),
+        question: studyForm.question.trim(),
+        summary: studyForm.summary.trim() || undefined,
+        repository_id: repositoryID || undefined,
+      },
     })
     researchWorkspace.value = created
     if (created.study) selectedStudyID.value = created.study.id
     studyDialog.value = false
+    const bound = pendingKey ?? repositories.value.find((item) => item.id === repositoryID)
+    if (bound?.status === 'pending_key') {
+      selectedRepository.value = bound
+      const verified = await tryVerifyRepository(bound)
+      repositoryDialog.value = verified?.status === 'active' ? null : 'key'
+    }
   } catch (caught) {
     dialogError.value = caught instanceof APIError ? caught.message : t('Study creation failed.', 'Study 创建失败。')
   } finally {
@@ -287,7 +363,8 @@ async function createRepository() {
       default_branch: repositoryForm.defaultBranch.trim(),
     })
     selectedRepository.value = created
-    repositoryDialog.value = 'key'
+    const verified = await tryVerifyRepository(created)
+    repositoryDialog.value = verified?.status === 'active' ? null : 'key'
     await refreshProject(false)
   } catch (caught) {
     dialogError.value = caught instanceof APIError ? caught.message : t('Repository registration failed.', '仓库注册失败。')
@@ -302,23 +379,46 @@ function openKey(repository: Repository) {
   repositoryDialog.value = 'key'
 }
 
-function openVerify(repository: Repository) {
-  selectedRepository.value = repository
-  repositoryForm.fingerprint = repository.host_key_fingerprint ?? ''
-  dialogError.value = ''
-  repositoryDialog.value = 'verify'
+async function tryVerifyRepository(repository: Repository) {
+  attemptedVerify.add(repository.id)
+  try {
+    const verified = await api.verifyRepository(repository.id)
+    repositories.value = repositories.value.map((item) => item.id === verified.id ? verified : item)
+    if (selectedRepository.value?.id === verified.id) selectedRepository.value = verified
+    return verified
+  } catch {
+    return null
+  }
 }
 
-async function verifyRepository() {
-  if (!selectedRepository.value) return
+async function verifyPendingGitHubRepositories(generation: number, projectID: string) {
+  const pending = repositories.value.filter((item) => item.status === 'pending_key' && !attemptedVerify.has(item.id))
+  for (const repository of pending) {
+    const verified = await tryVerifyRepository(repository)
+    if (generation !== projectRefreshGeneration || selectedProjectID.value !== projectID) return
+    if (verified?.status === 'active' && repositoryDialog.value && selectedRepository.value?.id === verified.id) {
+      repositoryDialog.value = null
+    }
+  }
+}
+
+async function verifyRepository(repository = selectedRepository.value) {
+  if (!repository) return
+  selectedRepository.value = repository
   repositoryBusy.value = true
   dialogError.value = ''
   try {
-    await api.verifyRepository(selectedRepository.value.id, repositoryForm.fingerprint.trim())
-    repositoryDialog.value = null
-    await refreshProject(false)
+    const verified = await tryVerifyRepository(repository)
+    if (verified?.status === 'active') {
+      repositoryDialog.value = null
+      await refreshProject(false)
+      return
+    }
+    repositoryDialog.value = 'key'
+    dialogError.value = t('Add this Gemcp public key on GitHub first: a read-only repository Deploy Key, or your account SSH keys if Deploy Key is unavailable. Then verify again.', '请先把这把 Gemcp 公钥加到 GitHub：仓库只读 Deploy Key，或 Deploy Key 加不上时加到账号 SSH keys。然后再验证。')
   } catch (caught) {
     dialogError.value = caught instanceof APIError ? caught.message : t('Repository verification failed.', '仓库验证失败。')
+    repositoryDialog.value = 'key'
   } finally {
     repositoryBusy.value = false
   }
@@ -391,7 +491,7 @@ onMounted(async () => {
 
       <div v-if="error" class="page-alert" role="alert">{{ error }}<button type="button" :title="t('Dismiss', '关闭')" @click="error = ''"><X :size="16" /></button></div>
 
-      <ResearchView v-if="activeView === 'research'" :workspace="researchWorkspace" :loading="loading" :selected-study-id="selectedStudyID" :project="selectedProject" :repositories="repositories" :experiments="experiments" @select-study="selectStudy" @open-experiment="openExperimentByID" @create-study="openCreateStudy" />
+      <ResearchView v-if="activeView === 'research'" :workspace="researchWorkspace" :loading="loading" :selected-study-id="selectedStudyID" :project="selectedProject" :repositories="repositories" :experiments="experiments" :has-active-agent="hasActiveAgent" @select-study="selectStudy" @open-experiment="openExperimentByID" @create-study="openCreateStudy" @open-agents="activeView = 'agents'" />
 
       <section v-else-if="activeView === 'experiments'" class="page-workspace">
         <div class="section-heading page-section-heading"><div><h2>{{ t('Evidence', '证据') }}</h2><p>{{ t('Linked Experiments remain the execution evidence behind the Graph.', '关联的 Experiment 仍是 Graph 背后的执行证据。') }}</p></div><div class="segmented-control" :aria-label="t('Experiment state filter', '实验状态筛选')"><button v-for="filter in ['all', 'queued', 'running', 'succeeded', 'failed']" :key="filter" type="button" :class="{ active: stateFilter === filter }" @click="stateFilter = filter">{{ filter === 'all' ? t('all', '全部') : stateLabel(filter) }}</button></div></div>
@@ -413,7 +513,7 @@ onMounted(async () => {
         <div v-if="repositories.length" class="table-scroll">
           <table class="data-table repository-table">
             <thead><tr><th>{{ t('Status', '状态') }}</th><th>{{ t('Name', '名称') }}</th><th>SSH URL</th><th>{{ t('Branch', '分支') }}</th><th>{{ t('Verified', '已验证') }}</th><th>{{ t('Actions', '操作') }}</th></tr></thead>
-            <tbody><tr v-for="repository in repositories" :key="repository.id"><td><span class="state-badge" :data-state="repository.status"><span />{{ stateLabel(repository.status) }}</span></td><td>{{ repository.name }}</td><td><code>{{ repository.ssh_url }}</code></td><td><code>{{ repository.default_branch }}</code></td><td>{{ dateTime(repository.last_verified_at) }}</td><td><div class="table-actions"><button class="icon-button" type="button" :title="t('View Deploy public key', '查看 Deploy 公钥')" @click="openKey(repository)"><KeyRound :size="16" /></button><button class="icon-button" type="button" :title="t('Verify repository', '验证仓库')" @click="openVerify(repository)"><ShieldCheck :size="16" /></button></div></td></tr></tbody>
+            <tbody><tr v-for="repository in repositories" :key="repository.id"><td><span class="state-badge" :data-state="repository.status"><span />{{ stateLabel(repository.status) }}</span></td><td>{{ repository.name }}</td><td><code>{{ repository.ssh_url }}</code></td><td><code>{{ repository.default_branch }}</code></td><td>{{ dateTime(repository.last_verified_at) }}</td><td><div class="table-actions"><button class="icon-button" type="button" :title="t('View Deploy public key', '查看 Deploy 公钥')" @click="openKey(repository)"><KeyRound :size="16" /></button><button class="icon-button" type="button" :title="t('Verify repository', '验证仓库')" @click="verifyRepository(repository)"><ShieldCheck :size="16" /></button></div></td></tr></tbody>
           </table>
         </div>
         <div v-else class="empty-state compact-empty"><span class="empty-icon"><GitBranch :size="21" /></span><h3>{{ t('No repositories registered', '尚未注册仓库') }}</h3><p>{{ t('Register the private GitHub repository used by the first experiment.', '注册首个实验使用的私有 GitHub 仓库。') }}</p></div>
@@ -431,19 +531,25 @@ onMounted(async () => {
 
   <ExperimentDetail v-if="selectedExperiment" :experiment="selectedExperiment" :attempts="attempts" :loading="attemptsLoading" :error="attemptsError" @close="closeExperiment" />
 
-  <WorkbenchDialog v-model:open="studyDialog" :title="t('Create study', '创建 Study')" :label="t('Create study', '创建 Study')" :description="t('Name the scientific question. This does not start a workload.', '先写下科学问题。这不会启动任何 workload。')">
+  <WorkbenchDialog v-model:open="studyDialog" :title="t('Import study', '从仓库导入')" :label="t('Import study', '从仓库导入')" :description="t('Start from an existing research repository. This binds the Study to that repo and does not start a workload.', '从已有研究仓库开始。Study 会绑上该仓库，不会启动作业。')">
     <form class="dialog-form" @submit.prevent="createStudy">
+      <label class="study-import-label">
+        <span>{{ t('Import from', '导入来源') }}</span>
+        <WorkbenchSelect v-model="studyForm.importSource" :aria-label="t('Import from', '导入来源')" :options="studyImportOptions" @update:model-value="onStudyImportSourceChange" />
+      </label>
+      <label v-if="importingNewRepository">{{ t('GitHub SSH URL', 'GitHub SSH URL') }}<input v-model="studyForm.sshURL" required maxlength="512" placeholder="git@github.com:owner/repository.git" spellcheck="false" @input="onStudySSHURLInput" /></label>
+      <label v-if="importingNewRepository">{{ t('Default branch', '默认分支') }}<input v-model="studyForm.defaultBranch" maxlength="255" placeholder="main" spellcheck="false" /></label>
       <label>{{ t('Name', '名称') }}<input v-model="studyForm.name" required maxlength="80" placeholder="objbg-scan" spellcheck="false" /></label>
       <label>{{ t('Research question', '研究问题') }}<textarea v-model="studyForm.question" required rows="4" maxlength="400" :placeholder="t('What should this Study answer?', '这个 Study 要回答什么问题？')"></textarea></label>
       <label>{{ t('Summary', '摘要') }}<textarea v-model="studyForm.summary" rows="3" maxlength="800" :placeholder="t('Optional scientific context. No prompts or credentials.', '可选科学背景。不要写 prompt 或凭据。')"></textarea></label>
       <div v-if="dialogError" class="form-error">{{ dialogError }}</div>
-      <button class="primary-button" type="submit" :disabled="studyBusy"><LoaderCircle v-if="studyBusy" :size="16" class="spinning" /><Plus v-else :size="16" />{{ t('Create study', '创建 Study') }}</button>
+      <button class="primary-button" type="submit" :disabled="studyBusy"><LoaderCircle v-if="studyBusy" :size="16" class="spinning" /><Plus v-else :size="16" />{{ importingNewRepository ? t('Import repository and study', '导入仓库并创建 Study') : t('Create study', '创建 Study') }}</button>
     </form>
   </WorkbenchDialog>
 
   <div v-if="repositoryDialog" class="modal-backdrop" @click.self="repositoryDialog = null">
-    <section class="modal" role="dialog" aria-modal="true" :aria-label="repositoryDialog === 'create' ? t('Register repository', '注册仓库') : repositoryDialog === 'verify' ? t('Verify repository', '验证仓库') : t('Deploy public key', 'Deploy 公钥')">
-      <header><div><p class="eyebrow">{{ t('Private Git', '私有 Git') }}</p><h2>{{ repositoryDialog === 'create' ? t('Register repository', '注册仓库') : repositoryDialog === 'verify' ? t('Verify host and access', '验证主机和访问') : t('Deploy public key', 'Deploy 公钥') }}</h2></div><button class="icon-button" type="button" :title="t('Close', '关闭')" @click="repositoryDialog = null"><X :size="17" /></button></header>
+    <section class="modal" role="dialog" aria-modal="true" :aria-label="repositoryDialog === 'create' ? t('Register repository', '注册仓库') : t('Deploy public key', 'Deploy 公钥')">
+      <header><div><p class="eyebrow">{{ t('Private Git', '私有 Git') }}</p><h2>{{ repositoryDialog === 'create' ? t('Register repository', '注册仓库') : t('Deploy public key', 'Deploy 公钥') }}</h2></div><button class="icon-button" type="button" :title="t('Close', '关闭')" @click="repositoryDialog = null"><X :size="17" /></button></header>
       <form v-if="repositoryDialog === 'create'" class="dialog-form" @submit.prevent="createRepository">
         <label>{{ t('Name', '名称') }}<input v-model="repositoryForm.name" required /></label>
         <label>GitHub SSH URL<input v-model="repositoryForm.sshURL" placeholder="git@github.com:owner/repository.git" required spellcheck="false" /></label>
@@ -452,17 +558,13 @@ onMounted(async () => {
         <button class="primary-button" type="submit" :disabled="repositoryBusy"><LoaderCircle v-if="repositoryBusy" :size="16" class="spinning" /><Plus v-else :size="16" />{{ t('Generate Deploy Key', '生成 Deploy Key') }}</button>
       </form>
       <div v-else-if="repositoryDialog === 'key' && selectedRepository" class="key-panel">
-        <p>{{ t('Add this public key to', '将此公钥添加到') }} <strong>{{ selectedRepository.name }}</strong>，{{ t('as a read-only GitHub Deploy Key.', '设为只读 GitHub Deploy Key。') }}</p>
+        <p>{{ t('Add this public key to', '将此公钥添加到') }} <strong>{{ selectedRepository.name }}</strong> {{ t('as a read-only GitHub Deploy Key.', '设为只读 GitHub Deploy Key。') }}</p>
         <div class="code-box"><code>{{ selectedRepository.deploy_public_key }}</code><button class="icon-button" type="button" :title="copied === 'deploy-key' ? t('Copied', '已复制') : t('Copy Deploy public key', '复制 Deploy 公钥')" @click="copy(selectedRepository.deploy_public_key ?? '', 'deploy-key')"><Check v-if="copied === 'deploy-key'" :size="16" /><Clipboard v-else :size="16" /></button></div>
-        <button class="primary-button" type="button" @click="openVerify(selectedRepository)"><ShieldCheck :size="16" />{{ t('Continue to verification', '继续验证') }}</button>
-      </div>
-      <form v-else-if="selectedRepository" class="dialog-form" @submit.prevent="verifyRepository">
-        <div class="repository-summary"><GitBranch :size="17" /><span><strong>{{ selectedRepository.name }}</strong><small>{{ selectedRepository.ssh_url }}</small></span></div>
-        <label>{{ t('Trusted GitHub host-key fingerprint', '可信 GitHub 主机密钥指纹') }}<input v-model="repositoryForm.fingerprint" placeholder="SHA256:..." required spellcheck="false" /></label>
-        <p class="form-note">{{ t("Use the current fingerprint from GitHub's official HTTPS documentation, not an unverified key scan.", '请使用 GitHub 官方 HTTPS 文档中的当前指纹，不要使用未经验证的密钥扫描结果。') }}</p>
+        <p class="form-note">{{ t('If you cannot add a repository Deploy Key, add this same Gemcp public key to your GitHub account SSH keys. Verification still works. That is wider than a Deploy Key, but it is still this Gemcp key, not your personal id_ed25519.', '仓库 Deploy Key 加不上时，把这把 Gemcp 公钥加到 GitHub 账号的 SSH keys。验证同样能过。权限比 Deploy Key 宽，但仍是 Gemcp 这把钥匙，不是你的 id_ed25519。') }} <a class="form-note-link" href="https://github.com/settings/keys" target="_blank" rel="noreferrer">{{ t('Settings → SSH and GPG keys', 'Settings → SSH and GPG keys') }}</a></p>
+        <p class="form-note">{{ t('Gemcp pins GitHub with the official Ed25519 host fingerprint. After the key is on GitHub, verification runs without a fingerprint field.', 'Gemcp 使用 GitHub 官方 Ed25519 主机指纹。公钥加到 GitHub 后会自动验证，不用再填指纹。') }}</p>
         <div v-if="dialogError" class="form-error">{{ dialogError }}</div>
-        <button class="primary-button" type="submit" :disabled="repositoryBusy"><LoaderCircle v-if="repositoryBusy" :size="16" class="spinning" /><ShieldCheck v-else :size="16" />{{ t('Verify repository', '验证仓库') }}</button>
-      </form>
+        <button class="primary-button" type="button" :disabled="repositoryBusy" @click="verifyRepository(selectedRepository)"><LoaderCircle v-if="repositoryBusy" :size="16" class="spinning" /><ShieldCheck v-else :size="16" />{{ t('Verify repository', '验证仓库') }}</button>
+      </div>
     </section>
   </div>
 </template>

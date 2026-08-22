@@ -22,11 +22,11 @@ Existing active Token scopes can be edited from the Agents table. The update tak
 1. Sign in to Gemcp and select the intended project.
 2. Confirm the repository is active and its exact commit is pushed.
 3. Confirm the approved environment, GPU profile, budget, runtime, extension, grace, and concurrency policy.
-4. For Pi, open **Agents**, choose **Pi setup link**, select minimum scopes and a finite credential lifetime, then create a short-lived link.
-5. Send the one-time link only to the intended Pi Agent. Do not open it through an untrusted link previewer or store it in a repository.
-6. Let the Agent run the fixed installer. Its provisional credential is read-only until tool, guide, option, and cost verification succeeds.
-7. Confirm the setup row becomes **Completed**, then let the Agent run `/reload` once to expose the native `gemcp_*` tools.
-8. For other clients, use the advanced **Token** action and install the one-time secret through that client's secret store.
+4. Open **Agents**, choose **MCP setup link**, select minimum scopes and a finite credential lifetime, then create a short-lived link.
+5. Send the one-time link only to the intended Agent. It works for Pi, Codex, OpenCode, Claude Code, and Grok. Do not open it through an untrusted link previewer or store it in a repository.
+6. Let the Agent enable Gemcp MCP in the research repository directory. Its provisional credential is read-only until tool, guide, option, and cost verification succeeds.
+7. Confirm the setup row becomes **Completed**, then let the Agent reload or restart its MCP client once so the Gemcp tools are available.
+8. The advanced **Token** action remains available when you must install a secret through a client's secret store without the setup link.
 9. Require the Agent to show the exact prepared Proposal, full commit, argv, resource, runtime, digest, expiry, and worst-case reservation before paid work.
 10. Monitor the Study, iteration plan, and research Graph first. Agent phases, Proposals, Experiments, runtime evidence, live output, and backend cleanup remain in the Lab layer. Activity is limited to controlled phases and must never contain prompts, reasoning, source contents, environment values, or credentials. The Agent follows `get_next_actions`, binds `from_node_id` into prepared Proposals, and closes runs with `close_run`. Graph tools never start a workload.
 11. Revoke the issued Token immediately if its use is unexpected.
@@ -39,13 +39,13 @@ Transport: MCP Streamable HTTP
 Header: Authorization: Bearer <Agent Token>
 ```
 
-The Pi setup flow writes this authentication configuration automatically. The advanced downloaded JSON embeds a live secret and should be imported only into the intended non-Pi client.
+The MCP setup flow writes this authentication configuration for the Agent that claimed the link. Enable it in the research repository directory. The advanced downloaded JSON embeds a live secret and should be imported only into the intended client.
 
-## Pi setup links
+## MCP setup links
 
-A Pi setup link stores its 256-bit setup code only in the URL fragment. Browsers do not include the fragment in the setup-page request, access log, or Referer. Previewing the public setup page does not consume the link.
+An MCP setup link stores its 256-bit setup code only in the URL fragment. Browsers do not include the fragment in the setup-page request, access log, or Referer. Previewing the public setup page does not consume the link. The same link enrolls Pi, Codex, OpenCode, Claude Code, or Grok.
 
-Claiming creates a short-lived `read`-only credential and writes it to the Pi agent directory's `mcp.json` with mode `0600`. The fixed installer preserves other MCP servers, discovers all twenty-one Gemcp tools, calls `get_usage_guide`, `get_project_options`, and `get_project_cost`, and then completes enrollment. Completion atomically applies the Owner-selected scopes and credential lifetime. The database stores only HMAC-SHA-256 digests of the setup code and Agent Token.
+Claiming creates a short-lived `read`-only credential. The Agent stores that credential in a directory-local MCP config for its client. Pi may still use the fixed installer, which writes the Pi agent directory's `mcp.json` with mode `0600` and preserves other MCP servers. Every client must discover all twenty-one Gemcp tools, call `get_usage_guide`, `get_project_options`, and `get_project_cost`, and then complete enrollment. Completion atomically applies the Owner-selected scopes and credential lifetime. The database stores only HMAC-SHA-256 digests of the setup code and Agent Token.
 
 The setup link is shown once, may be claimed repeatedly only until completion for retry safety, and becomes unusable after completion, expiry, or revocation. The Owner can revoke pending or claimed setup from the console; revoking a claimed setup also revokes its provisional Token.
 
@@ -129,7 +129,41 @@ url = "https://<gemcp-host>/mcp"
 bearer_token_env_var = "GEMCP_AGENT_TOKEN"
 ```
 
-Set `GEMCP_AGENT_TOKEN` before launching Codex and verify with `codex mcp list` or `/mcp`.
+Set `GEMCP_AGENT_TOKEN` before launching Codex and verify with `codex mcp list` or `/mcp`. Prefer a trusted project's `.codex/config.toml` over a user-wide Codex host file.
+
+### OpenCode
+
+Project `opencode.json`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "gemcp-project": {
+      "type": "remote",
+      "url": "https://<gemcp-host>/mcp",
+      "enabled": true,
+      "headers": {
+        "Authorization": "Bearer ${GEMCP_AGENT_TOKEN}"
+      }
+    }
+  }
+}
+```
+
+Launch OpenCode with `GEMCP_AGENT_TOKEN` in its environment and confirm the Gemcp tools in the current repository only.
+
+### Grok
+
+Project `.grok/config.toml`:
+
+```toml
+[mcp_servers.gemcp-project]
+url = "https://<gemcp-host>/mcp"
+headers = { Authorization = "Bearer ${GEMCP_AGENT_TOKEN}" }
+```
+
+Set `GEMCP_AGENT_TOKEN` before launching Grok and verify with `grok mcp list` or `grok mcp doctor gemcp-project`. Prefer `--scope project` over a user-wide `~/.grok/config.toml`. Grok also loads project `.mcp.json`.
 
 ### Other clients
 
@@ -139,9 +173,9 @@ Gemcp primes an authenticated standalone SSE stream with a standard comment so r
 
 ## Agent handoff
 
-For Pi, send the one-time setup link, public project task, human approval policy, spend ceiling, and expected result contract. The link is itself a short-lived bearer capability; send it only in the intended private Agent session and do not repeat it after setup succeeds.
+Send the one-time MCP setup link, public project task, human approval policy, spend ceiling, and expected result contract. The link is itself a short-lived bearer capability; send it only in the intended private Agent session and do not repeat it after setup succeeds.
 
-For other clients, configure the MCP connection with the secret Token through a separate secret channel, then give the Agent the non-secret `agent-mcp.md` guide and task. Do not paste a long-lived Agent Token into the Agent's natural-language prompt. The MCP client should inject it as an HTTP header.
+If you used the advanced Token path instead, configure the MCP connection with the secret Token through a separate secret channel, then give the Agent the non-secret `agent-mcp.md` guide and task. Do not paste a long-lived Agent Token into the Agent's natural-language prompt. The MCP client should inject it as an HTTP header.
 
 Recommended instruction:
 

@@ -20,13 +20,15 @@ type fakeGitVerifier struct {
 	accessErr   error
 	commitErr   error
 	privateKey  []byte
+	fingerprint string
 	commitSHA   string
 	ref         string
 	resolvedSHA string
 }
 
-func (f *fakeGitVerifier) VerifyAccess(_ context.Context, _, _ string, privateKey []byte, _ string) error {
+func (f *fakeGitVerifier) VerifyAccess(_ context.Context, _, _ string, privateKey []byte, fingerprint string) error {
 	f.privateKey = append([]byte(nil), privateKey...)
+	f.fingerprint = fingerprint
 	return f.accessErr
 }
 
@@ -96,6 +98,9 @@ func TestRepositoryDeployKeyLifecycle(t *testing.T) {
 	verified, err := service.Verify(ctx, tenant.ID, created.ID, "SHA256:expected-host-key-fingerprint")
 	if err != nil {
 		t.Fatalf("Verify() error = %v", err)
+	}
+	if verifier.fingerprint != "SHA256:expected-host-key-fingerprint" {
+		t.Fatalf("Verify() fingerprint = %q", verifier.fingerprint)
 	}
 	if verified.Status != "active" || !strings.HasPrefix(verified.DeployPublicKey, "ssh-ed25519 ") || !strings.Contains(string(verifier.privateKey), "OPENSSH PRIVATE KEY") {
 		t.Fatalf("unexpected verified repository: %+v", verified)
@@ -218,5 +223,31 @@ func TestAgentRepositoryRegistrationIsProjectScopedAndAudited(t *testing.T) {
 	}
 	if audits, _ := client.AuditEvent.Query().Count(ctx); audits != 2 {
 		t.Fatalf("agent audit count = %d", audits)
+	}
+}
+
+func TestVerifyUsesOfficialGitHubFingerprintWhenOmitted(t *testing.T) {
+	client := enttest.Open(t, dialect.SQLite, "file:repository-official-pin?mode=memory&cache=shared&_fk=1")
+	defer client.Close()
+	ctx := context.Background()
+	tenant, _ := client.Tenant.Create().SetName("Test").Save(ctx)
+	project, _ := client.Project.Create().SetTenantID(tenant.ID).SetName("Project").SetSlug("project").SetMonthlyBudgetMilli(1).SetMaxExperimentMilli(1).Save(ctx)
+	key, _ := secrets.GenerateMasterKey()
+	box, _ := secrets.New(key)
+	verifier := &fakeGitVerifier{}
+	service := NewService(client, box, verifier)
+	created, err := service.Create(ctx, tenant.ID, Input{ProjectID: project.PublicID.String(), Name: "main", SSHURL: "git@github.com:XR-Lee/DynamicPointMamba.git"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	verified, err := service.Verify(ctx, tenant.ID, created.ID, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if verifier.fingerprint != githubEd25519Fingerprint {
+		t.Fatalf("official fingerprint = %q", verifier.fingerprint)
+	}
+	if verified.Status != "active" || verified.HostKeyFingerprint == nil || *verified.HostKeyFingerprint != githubEd25519Fingerprint {
+		t.Fatalf("verified repository = %+v", verified)
 	}
 }

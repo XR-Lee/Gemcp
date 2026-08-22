@@ -23,6 +23,10 @@ const workspace: ResearchWorkspace = {
   study: {
     id: 'study-1', name: 'objbg-scan', question: 'Can a cleaner traversal raise accuracy?',
     status: 'active', updated_at: '2026-08-21T00:00:00Z',
+    repository: {
+      id: 'repo-1', name: 'dynamic-point-mamba',
+      ssh_url: 'git@github.com:research/dynamic-point-mamba.git', default_branch: 'main', status: 'active',
+    },
     plan: {
       id: 'plan-1', status: 'active', goal: 'Baseline first',
       next_action: 'Attach the existing smoke run',
@@ -61,9 +65,16 @@ describe('buildResearchAttachPrompt', () => {
     const prompt = buildResearchAttachPrompt({
       locale: 'en', project, repositories, experiments: [orphan], workspace,
     })
-    expect(prompt).toContain('Attach this repository to the Gemcp research Graph')
+    expect(prompt).toContain('Reconstruct this repository on the Gemcp research Graph')
+    expect(prompt).toContain('Gemcp MCP enabled for this workspace only')
+    expect(prompt).toContain('not a four-node stub')
+    expect(prompt).toContain('observation')
+    expect(prompt).toContain('Never create an unlinked observation')
+    expect(prompt).toContain('15 to 60 nodes')
     expect(prompt).toContain('git@github.com:research/dynamic-point-mamba.git')
     expect(prompt).toContain('Study: objbg-scan (study-1)')
+    expect(prompt).toContain('Bound repository: dynamic-point-mamba')
+    expect(prompt).toContain('Coverage: thin')
     expect(prompt).toContain('prepare_experiment → prepare_experiment from_node_id=node-h')
     expect(prompt).toContain('experiment-orphan')
     expect(prompt).toContain('close_run')
@@ -79,9 +90,11 @@ describe('buildResearchAttachPrompt', () => {
       experiments: [],
       workspace: { project_id: 'project-id', studies: [], generated_at: '2026-08-21T00:00:00Z' },
     })
-    expect(prompt).toContain('把当前仓库挂上 Gemcp 研究 Graph')
+    expect(prompt).toContain('把仓库的实验谱系画到 Gemcp 研究 Graph 上')
     expect(prompt).toContain('Study：还没有')
     expect(prompt).toContain('update_research_workspace')
     expect(prompt).toContain('get_next_actions')
+    expect(prompt).toContain('observation')
+    expect(prompt).toContain('四个节点')
   })
 })

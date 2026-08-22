@@ -1,8 +1,8 @@
 # Agent Token management
 
-Gemcp Owners can enroll Pi Agents or issue, inspect, and revoke project-scoped Agent Tokens after first-run setup. Pi setup links are the default Pi workflow; direct Token export remains the advanced path for other MCP clients. All Owner management routes require an authenticated Owner Session and CSRF protection.
+Gemcp Owners can enroll MCP clients or issue, inspect, and revoke project-scoped Agent Tokens after first-run setup. MCP setup links are the default workflow for Pi, Codex, OpenCode, Claude Code, and Grok; direct Token export remains the advanced path. All Owner management routes require an authenticated Owner Session and CSRF protection.
 
-Long-lived Agent Token plaintext is never listed. PostgreSQL stores only HMAC-SHA-256 digests, prefixes, scopes, status, expiry, and usage timestamps. Pi setup also stores only a digest of its short-lived setup code; its retryable provisional Token is deterministically derived with the server master key and is never stored recoverably.
+Long-lived Agent Token plaintext is never listed. PostgreSQL stores only HMAC-SHA-256 digests, prefixes, scopes, status, expiry, and usage timestamps. MCP setup also stores only a digest of its short-lived setup code; its retryable provisional Token is deterministically derived with the server master key and is never stored recoverably.
 
 ## List project tokens
 
@@ -50,7 +50,7 @@ Token `status` is `active`, `expired`, or `revoked`. Expiry is evaluated at resp
 
 The same response includes `enrollments`, containing only setup metadata such as label, requested scopes, status, expiry, claim/completion timestamps, and issued Token prefix. It never includes a setup code, setup URL, or Token secret. The newest 50 enrollments are returned, with `enrollments_truncated: true` when older history exists.
 
-## Create a Pi setup link
+## Create an MCP setup link
 
 ```http
 POST /api/v1/projects/<project-uuid>/agent-enrollments
@@ -60,7 +60,7 @@ X-CSRF-Token: <session-csrf-token>
 
 ```json
 {
-  "label": "pi-training-agent",
+  "label": "research-agent",
   "scopes": ["read", "submit", "cancel"],
   "expires_in_days": 30,
   "never_expires": false,
@@ -185,13 +185,13 @@ Gemcp records `agent_token.revoked` once when status first changes. Owners may l
 ## Console workflow
 
 1. Sign in as Owner, select the project, and open **Agents**.
-2. Choose **Pi setup link**, select minimum scopes plus finite setup and credential lifetimes, and create the one-time link.
-3. Send the link only to the intended private Pi Agent session. It is a bearer capability until completion.
-4. Let the Agent run the trusted installer; do not copy a Token or edit MCP JSON manually.
-5. Confirm the enrollment becomes **Completed** and the Agent reports all four checks, then let it run `/reload` once.
+2. Choose **MCP setup link**, select minimum scopes plus finite setup and credential lifetimes, and create the one-time link.
+3. Send the link only to the intended private Agent session. It is a bearer capability until completion and works for Pi, Codex, OpenCode, Claude Code, and Grok.
+4. Let the Agent enable Gemcp MCP in the research repository directory; do not copy a Token into chat.
+5. Confirm the enrollment becomes **Completed** and the Agent reports all four checks, then let it reload or restart its MCP client once.
 6. Require the Agent to present the full commit, command, runtime, approved resource, idempotency key, and worst-case reservation before paid work.
 7. Revoke the issued Token after rotation or any unexpected use and confirm the old client receives 401.
 
-For a non-Pi client, choose the advanced **Token** action, import the one-time JSON into its secret store, and use the separate credential-free Agent handoff guide.
+The advanced **Token** action remains available when a client must import a one-time JSON secret without using the setup link. Use the separate credential-free Agent handoff guide after that client is configured.
 
 The running service also exposes the non-secret Owner and Agent guides at `/docs/owner-mcp.md` and `/docs/agent-mcp.md`. See [Third-party MCP clients](mcp.md) for the MCP Resource/Prompt discovery paths and client-specific configuration.

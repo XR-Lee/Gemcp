@@ -12,11 +12,17 @@ Every request requires a project-scoped Agent Token:
 Authorization: Bearer gmc_<identifier>_<secret>
 ```
 
-For Pi, create a short-lived **Pi setup link** from the Owner console and let the Agent install its own credential. For other clients, create a Token from the advanced console action or the [Agent access API](agent-tokens.md). Gemcp stores only HMAC-SHA-256 digests. Revocation and expiration are checked on every HTTP request, and the authenticated Token identity is bound to the MCP session.
+Create a short-lived **MCP setup link** from the Owner console and let the Agent install its own credential. The same link works for Pi, Codex, OpenCode, Claude Code, and Grok. Enable Gemcp in the research repository directory, not as a global MCP. The advanced **Token** action remains available through the console or the [Agent access API](agent-tokens.md). Gemcp stores only HMAC-SHA-256 digests. Revocation and expiration are checked on every HTTP request, and the authenticated Token identity is bound to the MCP session.
+
+## MCP setup link
+
+The Owner sends one URL from `/agent/setup#code=...`. The Agent reads the public setup instructions at `/agent/setup` and enrolls its own MCP client. The code remains in the URL fragment and is not sent by link previews or ordinary page requests.
+
+Claiming creates a short-lived `read`-only credential. After the Agent discovers all twenty-one tools and verifies guide, options, and cost, completion activates the Owner-selected scopes and lifetime. Claim and complete are retry-safe if the final response is lost.
 
 ## Pi with pi-mcp-adapter
 
-Gemcp's preferred Pi flow requires the already-installed `pi-mcp-adapter`. The Owner sends one URL from `/agent/setup#code=...`; the Agent reads the public setup instructions and runs the fixed installer from the same configured origin. The code remains in the URL fragment and is not sent by link previews or ordinary page requests.
+Pi can run the fixed installer from the same configured origin when `pi-mcp-adapter` is already installed.
 
 The installer merges a `gemcp-<project>` server into `<Pi agent dir>/mcp.json`, preserves existing servers, writes mode `0600`, exposes all twenty-one bounded Gemcp tools through `directTools`, and verifies tool discovery plus guide, options, and cost calls. A local credential-reading helper supports the current session without printing the Token. One `/reload` activates native `gemcp-<project>_*` tools through the adapter.
 
@@ -173,7 +179,47 @@ export GEMCP_AGENT_TOKEN='gmc_abcd123_<secret>'
 codex mcp list
 ```
 
-In ChatGPT desktop, open **Settings**, select **MCP servers**, and restart after adding the Streamable HTTP server. Use `/mcp` in Codex or ChatGPT to inspect the connection. Codex configuration is TOML, so the exported JSON is a source for the URL and Token rather than a directly importable file.
+In ChatGPT desktop, open **Settings**, select **MCP servers**, and restart after adding the Streamable HTTP server. Use `/mcp` in Codex or ChatGPT to inspect the connection. Codex configuration is TOML, so the exported JSON is a source for the URL and Token rather than a directly importable file. Prefer a trusted project's `.codex/config.toml`.
+
+## OpenCode
+
+OpenCode reads project configuration from `opencode.json` or `opencode.jsonc`. Remote HTTP servers use `type: "remote"` under the top-level `mcp` key:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "gemcp-project": {
+      "type": "remote",
+      "url": "https://gemcp.example.com/mcp",
+      "enabled": true,
+      "headers": {
+        "Authorization": "Bearer ${GEMCP_AGENT_TOKEN}"
+      }
+    }
+  }
+}
+```
+
+Set `GEMCP_AGENT_TOKEN` in the OpenCode process environment and keep the file in the research repository directory. Do not commit a live Token.
+
+## Grok
+
+Grok Build reads project `.grok/config.toml` first, then also loads `.mcp.json`, `.cursor/mcp.json`, and `~/.claude.json`. Prefer a project file so Gemcp is not a global MCP:
+
+```toml
+[mcp_servers.gemcp-project]
+url = "https://gemcp.example.com/mcp"
+headers = { Authorization = "Bearer ${GEMCP_AGENT_TOKEN}" }
+```
+
+```bash
+export GEMCP_AGENT_TOKEN
+grok mcp list
+grok mcp doctor gemcp-project
+```
+
+`grok mcp add --scope project --transport http gemcp-project https://gemcp.example.com/mcp --header "Authorization: Bearer ${GEMCP_AGENT_TOKEN}"` writes the same project file. Grok expands `${GEMCP_AGENT_TOKEN}` at load time. Do not commit a live Token or put Gemcp in `~/.grok/config.toml` unless this machine exists only for this repository.
 
 ## Other MCP clients
 

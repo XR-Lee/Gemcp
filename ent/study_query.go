@@ -16,6 +16,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/iterationplan"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 	"github.com/XR-Lee/Gemcp/ent/project"
+	"github.com/XR-Lee/Gemcp/ent/repository"
 	"github.com/XR-Lee/Gemcp/ent/researchedge"
 	"github.com/XR-Lee/Gemcp/ent/researchnode"
 	"github.com/XR-Lee/Gemcp/ent/study"
@@ -31,6 +32,7 @@ type StudyQuery struct {
 	predicates         []predicate.Study
 	withTenant         *TenantQuery
 	withProject        *ProjectQuery
+	withRepository     *RepositoryQuery
 	withAgentToken     *AgentTokenQuery
 	withIterationPlans *IterationPlanQuery
 	withResearchNodes  *ResearchNodeQuery
@@ -108,6 +110,28 @@ func (_q *StudyQuery) QueryProject() *ProjectQuery {
 			sqlgraph.From(study.Table, study.FieldID, selector),
 			sqlgraph.To(project.Table, project.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, true, study.ProjectTable, study.ProjectColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryRepository chains the current query on the "repository" edge.
+func (_q *StudyQuery) QueryRepository() *RepositoryQuery {
+	query := (&RepositoryClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(study.Table, study.FieldID, selector),
+			sqlgraph.To(repository.Table, repository.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, study.RepositoryTable, study.RepositoryColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -397,6 +421,7 @@ func (_q *StudyQuery) Clone() *StudyQuery {
 		predicates:         append([]predicate.Study{}, _q.predicates...),
 		withTenant:         _q.withTenant.Clone(),
 		withProject:        _q.withProject.Clone(),
+		withRepository:     _q.withRepository.Clone(),
 		withAgentToken:     _q.withAgentToken.Clone(),
 		withIterationPlans: _q.withIterationPlans.Clone(),
 		withResearchNodes:  _q.withResearchNodes.Clone(),
@@ -426,6 +451,17 @@ func (_q *StudyQuery) WithProject(opts ...func(*ProjectQuery)) *StudyQuery {
 		opt(query)
 	}
 	_q.withProject = query
+	return _q
+}
+
+// WithRepository tells the query-builder to eager-load the nodes that are connected to
+// the "repository" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *StudyQuery) WithRepository(opts ...func(*RepositoryQuery)) *StudyQuery {
+	query := (&RepositoryClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withRepository = query
 	return _q
 }
 
@@ -551,9 +587,10 @@ func (_q *StudyQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Study,
 	var (
 		nodes       = []*Study{}
 		_spec       = _q.querySpec()
-		loadedTypes = [6]bool{
+		loadedTypes = [7]bool{
 			_q.withTenant != nil,
 			_q.withProject != nil,
+			_q.withRepository != nil,
 			_q.withAgentToken != nil,
 			_q.withIterationPlans != nil,
 			_q.withResearchNodes != nil,
@@ -587,6 +624,12 @@ func (_q *StudyQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Study,
 	if query := _q.withProject; query != nil {
 		if err := _q.loadProject(ctx, query, nodes, nil,
 			func(n *Study, e *Project) { n.Edges.Project = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withRepository; query != nil {
+		if err := _q.loadRepository(ctx, query, nodes, nil,
+			func(n *Study, e *Repository) { n.Edges.Repository = e }); err != nil {
 			return nil, err
 		}
 	}
@@ -671,6 +714,38 @@ func (_q *StudyQuery) loadProject(ctx context.Context, query *ProjectQuery, node
 		nodes, ok := nodeids[n.ID]
 		if !ok {
 			return fmt.Errorf(`unexpected foreign-key "project_id" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
+	}
+	return nil
+}
+func (_q *StudyQuery) loadRepository(ctx context.Context, query *RepositoryQuery, nodes []*Study, init func(*Study), assign func(*Study, *Repository)) error {
+	ids := make([]int, 0, len(nodes))
+	nodeids := make(map[int][]*Study)
+	for i := range nodes {
+		if nodes[i].RepositoryID == nil {
+			continue
+		}
+		fk := *nodes[i].RepositoryID
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(repository.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "repository_id" returned %v`, n.ID)
 		}
 		for i := range nodes {
 			assign(nodes[i], n)
@@ -831,6 +906,9 @@ func (_q *StudyQuery) querySpec() *sqlgraph.QuerySpec {
 		}
 		if _q.withProject != nil {
 			_spec.Node.AddColumnOnce(study.FieldProjectID)
+		}
+		if _q.withRepository != nil {
+			_spec.Node.AddColumnOnce(study.FieldRepositoryID)
 		}
 		if _q.withAgentToken != nil {
 			_spec.Node.AddColumnOnce(study.FieldAgentTokenID)

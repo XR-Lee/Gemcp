@@ -1840,7 +1840,7 @@ func init() {
 	// study.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	study.UpdateDefaultUpdatedAt = studyDescUpdatedAt.UpdateDefault.(func() time.Time)
 	// studyDescName is the schema descriptor for name field.
-	studyDescName := studyFields[3].Descriptor()
+	studyDescName := studyFields[4].Descriptor()
 	// study.NameValidator is a validator for the "name" field. It is called by the builders before save.
 	study.NameValidator = func() func(string) error {
 		validators := studyDescName.Validators
@@ -1858,7 +1858,7 @@ func init() {
 		}
 	}()
 	// studyDescQuestion is the schema descriptor for question field.
-	studyDescQuestion := studyFields[4].Descriptor()
+	studyDescQuestion := studyFields[5].Descriptor()
 	// study.QuestionValidator is a validator for the "question" field. It is called by the builders before save.
 	study.QuestionValidator = studyDescQuestion.Validators[0].(func(string) error)
 	tenantMixin := schema.Tenant{}.Mixin()

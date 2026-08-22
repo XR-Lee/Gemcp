@@ -156,7 +156,7 @@ func (s *Service) IssueEnrollment(ctx context.Context, tenantID int, actorID, pr
 		return result, err
 	}
 	if !containsScope(scopes, "read") {
-		return result, invalid("Pi setup link scopes must include read")
+		return result, invalid("MCP setup link scopes must include read")
 	}
 	setupMinutes := defaultSetupExpiresInMinutes
 	if input.SetupExpiresInMinutes != nil {

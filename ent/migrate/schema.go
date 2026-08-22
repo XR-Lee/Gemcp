@@ -1621,6 +1621,7 @@ var (
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "paused", "archived"}, Default: "active"},
 		{Name: "agent_token_id", Type: field.TypeInt, Nullable: true},
 		{Name: "project_id", Type: field.TypeInt},
+		{Name: "repository_id", Type: field.TypeInt, Nullable: true},
 		{Name: "tenant_id", Type: field.TypeInt},
 	}
 	// StudiesTable holds the schema information for the "studies" table.
@@ -1642,8 +1643,14 @@ var (
 				OnDelete:   schema.NoAction,
 			},
 			{
-				Symbol:     "studies_tenants_studies",
+				Symbol:     "studies_repositories_studies",
 				Columns:    []*schema.Column{StudiesColumns[10]},
+				RefColumns: []*schema.Column{RepositoriesColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+			{
+				Symbol:     "studies_tenants_studies",
+				Columns:    []*schema.Column{StudiesColumns[11]},
 				RefColumns: []*schema.Column{TenantsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -1891,7 +1898,8 @@ func init() {
 	SessionsTable.ForeignKeys[0].RefTable = UsersTable
 	StudiesTable.ForeignKeys[0].RefTable = AgentTokensTable
 	StudiesTable.ForeignKeys[1].RefTable = ProjectsTable
-	StudiesTable.ForeignKeys[2].RefTable = TenantsTable
+	StudiesTable.ForeignKeys[2].RefTable = RepositoriesTable
+	StudiesTable.ForeignKeys[3].RefTable = TenantsTable
 	UsersTable.ForeignKeys[0].RefTable = TenantsTable
 	WorkspaceDatasetsTable.ForeignKeys[0].RefTable = AgentTokensTable
 	WorkspaceDatasetsTable.ForeignKeys[1].RefTable = ProjectsTable

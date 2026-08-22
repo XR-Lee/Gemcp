@@ -144,6 +144,10 @@ Replace the card-grid Graph with Vue Flow, use Reka UI for Study and Project sel
 
 Keep LangGraph and other harnesses outside Gemcp. Enforce the research Graph through MCP: legal typed edges, `get_next_actions`, `from_node_id` in the Proposal digest, automatic run binding on `submit_prepared_experiment`, and `close_run` as the only result writer. Mark Experiments that never entered the Graph as orphaned on Evidence. Refresh the Owner brand mark and ink/paper/copper palette.
 
+### v0.17.0 - imported Graph you can actually explore
+
+Import a Study from a registered repository or a pasted GitHub SSH URL, pin GitHub with the official host key, and keep MCP directory-scoped for Pi, Codex, OpenCode, Claude Code, and Grok. Reconstruct experimental branches onto the Graph. The canvas is height-capped with fullscreen, a time axis, double-click detail, success/failure stamps, and an active path that follows the newest linked record. Research defaults to the latest imported Project and Study.
+
 ## In progress
 
 ### Repository readiness and Owner prepared experiments
