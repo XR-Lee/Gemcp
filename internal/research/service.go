@@ -15,6 +15,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/iterationplan"
 	"github.com/XR-Lee/Gemcp/ent/project"
+	"github.com/XR-Lee/Gemcp/ent/repository"
 	"github.com/XR-Lee/Gemcp/ent/researchedge"
 	"github.com/XR-Lee/Gemcp/ent/researchnode"
 	"github.com/XR-Lee/Gemcp/ent/study"
@@ -59,11 +60,12 @@ type WorkspaceInput struct {
 }
 
 type StudyInput struct {
-	ID       string `json:"id,omitempty" jsonschema:"existing Study ID when updating"`
-	Name     string `json:"name" jsonschema:"stable Study name"`
-	Question string `json:"question" jsonschema:"research question shown to the Owner"`
-	Summary  string `json:"summary,omitempty" jsonschema:"short scientific summary without prompts or credentials"`
-	Status   string `json:"status,omitempty" jsonschema:"active, paused, or archived"`
+	ID           string `json:"id,omitempty" jsonschema:"existing Study ID when updating"`
+	Name         string `json:"name" jsonschema:"stable Study name"`
+	Question     string `json:"question" jsonschema:"research question shown to the Owner"`
+	Summary      string `json:"summary,omitempty" jsonschema:"short scientific summary without prompts or credentials"`
+	Status       string `json:"status,omitempty" jsonschema:"active, paused, or archived"`
+	RepositoryID string `json:"repository_id,omitempty" jsonschema:"same-Project repository to bind as this Study's source"`
 }
 
 type PlanStep struct {
@@ -81,6 +83,7 @@ type PlanInput struct {
 
 type NodeInput struct {
 	StudyID      string   `json:"study_id,omitempty" jsonschema:"Study ID; omit when the Project has exactly one Study"`
+	ID           string   `json:"id,omitempty" jsonschema:"existing Graph node ID when attaching an edge or updating that node"`
 	Kind         string   `json:"kind" jsonschema:"question, hypothesis, plan, run, result, observation, or decision"`
 	Title        string   `json:"title" jsonschema:"short Graph node title"`
 	Summary      string   `json:"summary,omitempty" jsonschema:"bounded scientific claim or observation"`
@@ -138,16 +141,25 @@ type EdgeView struct {
 	Relation string `json:"relation"`
 }
 
+type StudyRepositoryView struct {
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	SSHURL        string `json:"ssh_url"`
+	DefaultBranch string `json:"default_branch"`
+	Status        string `json:"status"`
+}
+
 type StudyView struct {
-	ID        string     `json:"id"`
-	Name      string     `json:"name"`
-	Question  string     `json:"question"`
-	Summary   string     `json:"summary,omitempty"`
-	Status    string     `json:"status"`
-	Plan      *PlanView  `json:"plan,omitempty"`
-	Nodes     []NodeView `json:"nodes"`
-	Edges     []EdgeView `json:"edges"`
-	UpdatedAt time.Time  `json:"updated_at"`
+	ID         string                `json:"id"`
+	Name       string                `json:"name"`
+	Question   string                `json:"question"`
+	Summary    string                `json:"summary,omitempty"`
+	Status     string                `json:"status"`
+	Repository *StudyRepositoryView  `json:"repository,omitempty"`
+	Plan       *PlanView             `json:"plan,omitempty"`
+	Nodes      []NodeView            `json:"nodes"`
+	Edges      []EdgeView            `json:"edges"`
+	UpdatedAt  time.Time             `json:"updated_at"`
 }
 
 type Workspace struct {
@@ -215,12 +227,12 @@ func (s *Service) OwnerUpdate(ctx context.Context, tenantID int, actorID, projec
 }
 
 func (s *Service) workspace(ctx context.Context, current actor, studyID string) (Workspace, error) {
-	studies, err := s.client.Study.Query().Where(study.ProjectIDEQ(current.projectID)).Order(ent.Desc(study.FieldUpdatedAt)).All(ctx)
+	studies, err := s.client.Study.Query().Where(study.ProjectIDEQ(current.projectID)).WithRepository().Order(ent.Desc(study.FieldUpdatedAt)).All(ctx)
 	if err != nil {
 		return Workspace{}, err
 	}
 	result := Workspace{ProjectID: current.projectPublic, Studies: makeStudySummaries(studies), GeneratedAt: time.Now().UTC()}
-	selected, err := selectStudy(studies, studyID)
+	selected, err := defaultStudy(studies, studyID)
 	if err != nil {
 		return Workspace{}, err
 	}
@@ -321,6 +333,13 @@ func upsertStudy(ctx context.Context, tx *ent.Tx, current actor, studies []*ent.
 	if err != nil {
 		return nil, err
 	}
+	var bound *ent.Repository
+	if strings.TrimSpace(input.RepositoryID) != "" {
+		bound, err = findProjectRepository(ctx, tx, current.projectID, input.RepositoryID)
+		if err != nil {
+			return nil, err
+		}
+	}
 	existing, err := findStudy(studies, input.ID, name)
 	if err != nil {
 		return nil, err
@@ -332,6 +351,9 @@ func upsertStudy(ctx context.Context, tx *ent.Tx, current actor, studies []*ent.
 		create := tx.Study.Create().
 			SetTenantID(current.tenantID).SetProjectID(current.projectID).
 			SetName(name).SetQuestion(question).SetSummary(summary).SetStatus(status)
+		if bound != nil {
+			create.SetRepositoryID(bound.ID)
+		}
 		if current.tokenID != nil {
 			create.SetAgentTokenID(*current.tokenID)
 		}
@@ -351,9 +373,7 @@ func upsertStudy(ctx context.Context, tx *ent.Tx, current actor, studies []*ent.
 		if _, err := nodeCreate.Save(ctx); err != nil {
 			return nil, err
 		}
-		if err := writeAudit(ctx, tx, current, "research.study_created", "study", record.PublicID.String(), map[string]any{
-			"name": name, "status": string(status),
-		}); err != nil {
+		if err := writeAudit(ctx, tx, current, "research.study_created", "study", record.PublicID.String(), studyAudit(name, status, bound)); err != nil {
 			return nil, err
 		}
 		return record, nil
@@ -367,16 +387,18 @@ func upsertStudy(ctx context.Context, tx *ent.Tx, current actor, studies []*ent.
 	if strings.TrimSpace(input.Status) == "" {
 		status = existing.Status
 	}
-	updated, err := existing.Update().SetName(name).SetQuestion(question).SetSummary(summary).SetStatus(status).Save(ctx)
+	update := existing.Update().SetName(name).SetQuestion(question).SetSummary(summary).SetStatus(status)
+	if bound != nil {
+		update.SetRepositoryID(bound.ID)
+	}
+	updated, err := update.Save(ctx)
 	if err != nil {
 		if ent.IsConstraintError(err) {
 			return nil, ErrStudyConflict
 		}
 		return nil, err
 	}
-	if err := writeAudit(ctx, tx, current, "research.study_updated", "study", updated.PublicID.String(), map[string]any{
-		"name": name, "status": string(status),
-	}); err != nil {
+	if err := writeAudit(ctx, tx, current, "research.study_updated", "study", updated.PublicID.String(), studyAudit(name, status, bound)); err != nil {
 		return nil, err
 	}
 	return updated, nil
@@ -468,7 +490,17 @@ func recordNode(ctx context.Context, tx *ent.Tx, current actor, selected *ent.St
 		return nil, err
 	}
 	var record *ent.ResearchNode
-	if experimentRecord != nil {
+	if strings.TrimSpace(input.ID) != "" {
+		existing, findErr := findNode(nodes, input.ID)
+		if findErr != nil {
+			return nil, invalid("id must be a Graph node ID in this Study")
+		}
+		if existing.Kind != kind {
+			return nil, invalid("id refers to a different kind of Graph node")
+		}
+		record = existing
+	}
+	if record == nil && experimentRecord != nil {
 		for _, node := range nodes {
 			if node.ExperimentID != nil && *node.ExperimentID == experimentRecord.ID {
 				if node.Kind != kind {
@@ -591,6 +623,14 @@ func (s *Service) studyView(ctx context.Context, selected *ent.Study) (StudyView
 		Status: string(selected.Status), Nodes: make([]NodeView, 0, len(nodes)), Edges: make([]EdgeView, 0, len(edges)),
 		UpdatedAt: selected.UpdatedAt.UTC(),
 	}
+	if repo, err := attachedRepository(ctx, s.client, selected); err != nil {
+		return StudyView{}, err
+	} else if repo != nil {
+		view.Repository = &StudyRepositoryView{
+			ID: repo.PublicID.String(), Name: repo.Name, SSHURL: repo.SSHURL,
+			DefaultBranch: repo.DefaultBranch, Status: string(repo.Status),
+		}
+	}
 	for _, plan := range plans {
 		if plan.Status == iterationplan.StatusActive {
 			copied := makePlanView(plan)
@@ -626,6 +666,40 @@ func (s *Service) project(ctx context.Context, tenantID int, projectPublicID str
 	return record, err
 }
 
+func studyAudit(name string, status study.Status, bound *ent.Repository) map[string]any {
+	metadata := map[string]any{"name": name, "status": string(status)}
+	if bound != nil {
+		metadata["repository_id"] = bound.PublicID.String()
+	}
+	return metadata
+}
+
+func attachedRepository(ctx context.Context, client *ent.Client, selected *ent.Study) (*ent.Repository, error) {
+	if selected.Edges.Repository != nil {
+		return selected.Edges.Repository, nil
+	}
+	if selected.RepositoryID == nil {
+		return nil, nil
+	}
+	record, err := client.Repository.Get(ctx, *selected.RepositoryID)
+	if ent.IsNotFound(err) {
+		return nil, nil
+	}
+	return record, err
+}
+
+func findProjectRepository(ctx context.Context, tx *ent.Tx, projectID int, repositoryPublicID string) (*ent.Repository, error) {
+	publicID, err := uuid.Parse(strings.TrimSpace(repositoryPublicID))
+	if err != nil {
+		return nil, invalid("repository_id must be a Project repository ID")
+	}
+	record, err := tx.Repository.Query().Where(repository.ProjectIDEQ(projectID), repository.PublicIDEQ(publicID)).Only(ctx)
+	if ent.IsNotFound(err) {
+		return nil, invalid("linked repository was not found in this Project")
+	}
+	return record, err
+}
+
 func findProjectExperiment(ctx context.Context, tx *ent.Tx, projectID int, experimentPublicID string) (*ent.Experiment, error) {
 	publicID, err := uuid.Parse(strings.TrimSpace(experimentPublicID))
 	if err != nil {
@@ -649,6 +723,16 @@ func selectStudy(studies []*ent.Study, studyID string) (*ent.Study, error) {
 		return studies[0], nil
 	}
 	return nil, nil
+}
+
+func defaultStudy(studies []*ent.Study, studyID string) (*ent.Study, error) {
+	if strings.TrimSpace(studyID) != "" {
+		return findStudy(studies, studyID, "")
+	}
+	if len(studies) == 0 {
+		return nil, nil
+	}
+	return studies[0], nil
 }
 
 func findStudy(studies []*ent.Study, studyID, name string) (*ent.Study, error) {

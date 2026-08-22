@@ -83,7 +83,8 @@ const research = {
       { id: 'e3', from_id: 'n-p', to_id: 'n-run', relation: 'leads_to' },
       { id: 'e4', from_id: 'n-run', to_id: 'n-r', relation: 'produced' },
       { id: 'e5', from_id: 'n-r', to_id: 'n-h', relation: 'supports' },
-      { id: 'e6', from_id: 'n-o', to_id: 'n-d', relation: 'leads_to' },
+      { id: 'e6', from_id: 'n-h', to_id: 'n-o', relation: 'leads_to' },
+      { id: 'e7', from_id: 'n-o', to_id: 'n-d', relation: 'leads_to' },
     ],
   },
   next_actions: empty ? [] : [{

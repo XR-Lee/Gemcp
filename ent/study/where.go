@@ -81,6 +81,11 @@ func ProjectID(v int) predicate.Study {
 	return predicate.Study(sql.FieldEQ(FieldProjectID, v))
 }
 
+// RepositoryID applies equality check predicate on the "repository_id" field. It's identical to RepositoryIDEQ.
+func RepositoryID(v int) predicate.Study {
+	return predicate.Study(sql.FieldEQ(FieldRepositoryID, v))
+}
+
 // AgentTokenID applies equality check predicate on the "agent_token_id" field. It's identical to AgentTokenIDEQ.
 func AgentTokenID(v int) predicate.Study {
 	return predicate.Study(sql.FieldEQ(FieldAgentTokenID, v))
@@ -259,6 +264,36 @@ func ProjectIDIn(vs ...int) predicate.Study {
 // ProjectIDNotIn applies the NotIn predicate on the "project_id" field.
 func ProjectIDNotIn(vs ...int) predicate.Study {
 	return predicate.Study(sql.FieldNotIn(FieldProjectID, vs...))
+}
+
+// RepositoryIDEQ applies the EQ predicate on the "repository_id" field.
+func RepositoryIDEQ(v int) predicate.Study {
+	return predicate.Study(sql.FieldEQ(FieldRepositoryID, v))
+}
+
+// RepositoryIDNEQ applies the NEQ predicate on the "repository_id" field.
+func RepositoryIDNEQ(v int) predicate.Study {
+	return predicate.Study(sql.FieldNEQ(FieldRepositoryID, v))
+}
+
+// RepositoryIDIn applies the In predicate on the "repository_id" field.
+func RepositoryIDIn(vs ...int) predicate.Study {
+	return predicate.Study(sql.FieldIn(FieldRepositoryID, vs...))
+}
+
+// RepositoryIDNotIn applies the NotIn predicate on the "repository_id" field.
+func RepositoryIDNotIn(vs ...int) predicate.Study {
+	return predicate.Study(sql.FieldNotIn(FieldRepositoryID, vs...))
+}
+
+// RepositoryIDIsNil applies the IsNil predicate on the "repository_id" field.
+func RepositoryIDIsNil() predicate.Study {
+	return predicate.Study(sql.FieldIsNull(FieldRepositoryID))
+}
+
+// RepositoryIDNotNil applies the NotNil predicate on the "repository_id" field.
+func RepositoryIDNotNil() predicate.Study {
+	return predicate.Study(sql.FieldNotNull(FieldRepositoryID))
 }
 
 // AgentTokenIDEQ applies the EQ predicate on the "agent_token_id" field.
@@ -554,6 +589,29 @@ func HasProject() predicate.Study {
 func HasProjectWith(preds ...predicate.Project) predicate.Study {
 	return predicate.Study(func(s *sql.Selector) {
 		step := newProjectStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasRepository applies the HasEdge predicate on the "repository" edge.
+func HasRepository() predicate.Study {
+	return predicate.Study(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, RepositoryTable, RepositoryColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasRepositoryWith applies the HasEdge predicate on the "repository" edge with a given conditions (other predicates).
+func HasRepositoryWith(preds ...predicate.Repository) predicate.Study {
+	return predicate.Study(func(s *sql.Selector) {
+		step := newRepositoryStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

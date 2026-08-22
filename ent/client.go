@@ -5109,6 +5109,22 @@ func (c *RepositoryClient) QueryExperimentProposals(_m *Repository) *ExperimentP
 	return query
 }
 
+// QueryStudies queries the studies edge of a Repository.
+func (c *RepositoryClient) QueryStudies(_m *Repository) *StudyQuery {
+	query := (&StudyClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(repository.Table, repository.FieldID, id),
+			sqlgraph.To(study.Table, study.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, repository.StudiesTable, repository.StudiesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *RepositoryClient) Hooks() []Hook {
 	return c.hooks.Repository
@@ -6417,6 +6433,22 @@ func (c *StudyClient) QueryProject(_m *Study) *ProjectQuery {
 			sqlgraph.From(study.Table, study.FieldID, id),
 			sqlgraph.To(project.Table, project.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, true, study.ProjectTable, study.ProjectColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryRepository queries the repository edge of a Study.
+func (c *StudyClient) QueryRepository(_m *Study) *RepositoryQuery {
+	query := (&RepositoryClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(study.Table, study.FieldID, id),
+			sqlgraph.To(repository.Table, repository.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, study.RepositoryTable, study.RepositoryColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil

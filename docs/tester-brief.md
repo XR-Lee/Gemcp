@@ -2,14 +2,14 @@
 
 Linear [XIN-28](https://linear.app/xinrunli/issue/XIN-28/gemcp-development) asked Jiyao Pu to test Gemcp. This is the checklist. It is not a product spec.
 
-快速开始：测 `main` 或 tag `alpha-0.16`（版本字符串 `v0.16.2`），**不要**用名为 `Jiyao` 的分支（停在 v0.15.1，没有研究工作台）。本地 HTTP 必须 `GEMCP_ENV=development` 且 `GEMCP_SECURE_COOKIES=false`，并用 `./bin/gemcp keygen` / `bootstrap-token` 替换 `.env` 占位符。调度和自托管默认关闭。下面英文是完整步骤。
+快速开始：测 `main` 或 tag `alpha-0.17`（版本字符串 `v0.17.0`），**不要**用名为 `Jiyao` 的分支（停在 v0.15.1，没有研究工作台）。本地 HTTP 必须 `GEMCP_ENV=development` 且 `GEMCP_SECURE_COOKIES=false`，并用 `./bin/gemcp keygen` / `bootstrap-token` 替换 `.env` 占位符。调度和自托管默认关闭。下面英文是完整步骤。
 
 ## Which tree
 
 | Use | Do not use |
 | --- | --- |
-| `main`, or the published tag `alpha-0.16` | Branch `Jiyao` (frozen at v0.15.1; no Research / Graph / Lab split) |
-| Version string `0.16.2` / `v0.16.2` | A `v0.16.2` git tag (it does not exist) |
+| `main`, or the published tag `alpha-0.17` | Branch `Jiyao` (frozen at v0.15.1; no Research / Graph / Lab split) |
+| Version string `0.17.0` / `v0.17.0` | Older tags such as `alpha-0.16` |
 | This repo: `git@github.com:XR-Lee/Gemcp.git` (private; you need GitHub access) | The public Ruby gem `baweaver/gemcp` |
 
 Confirm after checkout:
@@ -19,11 +19,11 @@ git fetch --tags origin
 git checkout main
 git pull origin main
 git rev-parse HEAD
-# expect the same commit as tag alpha-0.16 unless newer commits landed on main
-git rev-parse alpha-0.16
+# expect the same commit as tag alpha-0.17 unless newer commits landed on main
+git rev-parse alpha-0.17
 ```
 
-`VERSION` should read `0.16.2`. The running binary reports that version plus the commit you built.
+`VERSION` should read `0.17.0`. The running binary reports that version plus the commit you built.
 
 ## Local start (HTTP)
 
@@ -90,7 +90,7 @@ Both stay off after upgrade on purpose.
 | Flag | Effect | Extra requirement |
 | --- | --- | --- |
 | `GEMCP_SCHEDULER_ENABLED=true` | FIFO dispatch of new Experiments (AutoDL and self-hosted) | `GEMCP_PUBLIC_URL` must be a credential-free **HTTPS** origin; Watchdog should be running |
-| `GEMCP_SELF_HOSTED_ENABLED=true` | Node enrollment, Nodes console, `gemcp-node` | Same HTTPS `GEMCP_PUBLIC_URL`; Linux x86_64 NVIDIA host; Node Setup clones the **exact commit**, not `v0.16.2` |
+| `GEMCP_SELF_HOSTED_ENABLED=true` | Node enrollment, Nodes console, `gemcp-node` | Same HTTPS `GEMCP_PUBLIC_URL`; Linux x86_64 NVIDIA host; Node Setup clones the **exact commit**, not `v0.17.0` |
 
 A local HTTP process **cannot** enable these flags. `config.Load` rejects non-HTTPS public URLs when either flag is true.
 

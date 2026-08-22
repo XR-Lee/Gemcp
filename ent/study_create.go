@@ -13,6 +13,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/agenttoken"
 	"github.com/XR-Lee/Gemcp/ent/iterationplan"
 	"github.com/XR-Lee/Gemcp/ent/project"
+	"github.com/XR-Lee/Gemcp/ent/repository"
 	"github.com/XR-Lee/Gemcp/ent/researchedge"
 	"github.com/XR-Lee/Gemcp/ent/researchnode"
 	"github.com/XR-Lee/Gemcp/ent/study"
@@ -81,6 +82,20 @@ func (_c *StudyCreate) SetProjectID(v int) *StudyCreate {
 	return _c
 }
 
+// SetRepositoryID sets the "repository_id" field.
+func (_c *StudyCreate) SetRepositoryID(v int) *StudyCreate {
+	_c.mutation.SetRepositoryID(v)
+	return _c
+}
+
+// SetNillableRepositoryID sets the "repository_id" field if the given value is not nil.
+func (_c *StudyCreate) SetNillableRepositoryID(v *int) *StudyCreate {
+	if v != nil {
+		_c.SetRepositoryID(*v)
+	}
+	return _c
+}
+
 // SetAgentTokenID sets the "agent_token_id" field.
 func (_c *StudyCreate) SetAgentTokenID(v int) *StudyCreate {
 	_c.mutation.SetAgentTokenID(v)
@@ -143,6 +158,11 @@ func (_c *StudyCreate) SetTenant(v *Tenant) *StudyCreate {
 // SetProject sets the "project" edge to the Project entity.
 func (_c *StudyCreate) SetProject(v *Project) *StudyCreate {
 	return _c.SetProjectID(v.ID)
+}
+
+// SetRepository sets the "repository" edge to the Repository entity.
+func (_c *StudyCreate) SetRepository(v *Repository) *StudyCreate {
+	return _c.SetRepositoryID(v.ID)
 }
 
 // SetAgentToken sets the "agent_token" edge to the AgentToken entity.
@@ -381,6 +401,23 @@ func (_c *StudyCreate) createSpec() (*Study, *sqlgraph.CreateSpec) {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_node.ProjectID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.RepositoryIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   study.RepositoryTable,
+			Columns: []string{study.RepositoryColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(repository.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.RepositoryID = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	if nodes := _c.mutation.AgentTokenIDs(); len(nodes) > 0 {

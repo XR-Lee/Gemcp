@@ -51,7 +51,7 @@ func legalEdge(fromKind, toKind researchnode.Kind, relation researchedge.Relatio
 		case researchnode.KindQuestion:
 			return toKind == researchnode.KindHypothesis || toKind == researchnode.KindPlan
 		case researchnode.KindHypothesis:
-			return toKind == researchnode.KindPlan || toKind == researchnode.KindRun || toKind == researchnode.KindDecision
+			return toKind == researchnode.KindPlan || toKind == researchnode.KindRun || toKind == researchnode.KindDecision || toKind == researchnode.KindObservation
 		case researchnode.KindPlan:
 			return toKind == researchnode.KindRun || toKind == researchnode.KindPlan
 		case researchnode.KindResult, researchnode.KindObservation:
@@ -84,7 +84,7 @@ func deriveNextActions(view *StudyView) []NextAction {
 		outgoing[edge.FromID] = append(outgoing[edge.FromID], edge)
 	}
 	nodesByID := map[string]NodeView{}
-	var question, hypotheses, plans, runs, results []NodeView
+	var question, hypotheses, plans, runs, results, observations []NodeView
 	for _, node := range view.Nodes {
 		nodesByID[node.ID] = node
 		switch node.Kind {
@@ -98,11 +98,13 @@ func deriveNextActions(view *StudyView) []NextAction {
 			runs = append(runs, node)
 		case "result":
 			results = append(results, node)
+		case "observation":
+			observations = append(observations, node)
 		}
 	}
-	actions := make([]NextAction, 0, 6)
+	actions := make([]NextAction, 0, 8)
 	add := func(action NextAction) {
-		if len(actions) >= 6 {
+		if len(actions) >= 8 {
 			return
 		}
 		action.StudyID = view.ID
@@ -116,9 +118,30 @@ func deriveNextActions(view *StudyView) []NextAction {
 		add(NextAction{
 			Kind: "record_hypothesis", Tool: "update_research_workspace", FromNodeID: fromID,
 			Title:  "Record a hypothesis",
-			Detail: "A paid run must start from a hypothesis or plan node, not from the question alone.",
+			Detail: "A paid run must start from a hypothesis or plan node, not from the question alone. First import should then keep mapping other experimental branches from the repository.",
 		})
 		return actions
+	}
+	thinLineage := len(hypotheses) < 3 || (len(observations) == 0 && len(results) == 0)
+	if thinLineage {
+		fromID := ""
+		if len(question) > 0 {
+			fromID = question[0].ID
+		}
+		add(NextAction{
+			Kind: "record_hypothesis", Tool: "update_research_workspace", FromNodeID: fromID,
+			Title:  "Record another experimental branch",
+			Detail: "Map a distinct method, ablation, dataset, or failed direction from the repository. One hypothesis is not a lineage.",
+		})
+		obsFrom := ""
+		if len(hypotheses) > 0 {
+			obsFrom = hypotheses[0].ID
+		}
+		add(NextAction{
+			Kind: "record_observation", Tool: "update_research_workspace", FromNodeID: obsFrom,
+			Title:  "Record historical evidence",
+			Detail: "Hang README, paper, table, or commit evidence off a hypothesis with relation=leads_to. Do not leave observations unlinked. Do not invent metrics or free-write a result.",
+		})
 	}
 	for _, node := range append(append([]NodeView{}, plans...), hypotheses...) {
 		if hasOutgoingKind(outgoing, nodesByID, node.ID, "run") {
@@ -148,14 +171,14 @@ func deriveNextActions(view *StudyView) []NextAction {
 			Detail: "Do not invent a result while the Experiment is still running.",
 		})
 	}
-	for _, node := range results {
+	for _, node := range append(append([]NodeView{}, results...), observations...) {
 		if hasOutgoingKind(outgoing, nodesByID, node.ID, "decision") {
 			continue
 		}
 		add(NextAction{
 			Kind: "record_decision", Tool: "update_research_workspace", FromNodeID: node.ID,
 			Title:  "Record a decision from " + node.Title,
-			Detail: "Say whether the result supports the hypothesis before preparing another run.",
+			Detail: "Say whether the evidence supports the hypothesis before preparing another run.",
 		})
 	}
 	return actions

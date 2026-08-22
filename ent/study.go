@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/XR-Lee/Gemcp/ent/agenttoken"
 	"github.com/XR-Lee/Gemcp/ent/project"
+	"github.com/XR-Lee/Gemcp/ent/repository"
 	"github.com/XR-Lee/Gemcp/ent/study"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
 	"github.com/google/uuid"
@@ -31,6 +32,8 @@ type Study struct {
 	TenantID int `json:"tenant_id,omitempty"`
 	// ProjectID holds the value of the "project_id" field.
 	ProjectID int `json:"project_id,omitempty"`
+	// RepositoryID holds the value of the "repository_id" field.
+	RepositoryID *int `json:"repository_id,omitempty"`
 	// AgentTokenID holds the value of the "agent_token_id" field.
 	AgentTokenID *int `json:"agent_token_id,omitempty"`
 	// Name holds the value of the "name" field.
@@ -53,6 +56,8 @@ type StudyEdges struct {
 	Tenant *Tenant `json:"tenant,omitempty"`
 	// Project holds the value of the project edge.
 	Project *Project `json:"project,omitempty"`
+	// Repository holds the value of the repository edge.
+	Repository *Repository `json:"repository,omitempty"`
 	// AgentToken holds the value of the agent_token edge.
 	AgentToken *AgentToken `json:"agent_token,omitempty"`
 	// IterationPlans holds the value of the iteration_plans edge.
@@ -63,7 +68,7 @@ type StudyEdges struct {
 	ResearchEdges []*ResearchEdge `json:"research_edges,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [6]bool
+	loadedTypes [7]bool
 }
 
 // TenantOrErr returns the Tenant value or an error if the edge
@@ -88,12 +93,23 @@ func (e StudyEdges) ProjectOrErr() (*Project, error) {
 	return nil, &NotLoadedError{edge: "project"}
 }
 
+// RepositoryOrErr returns the Repository value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e StudyEdges) RepositoryOrErr() (*Repository, error) {
+	if e.Repository != nil {
+		return e.Repository, nil
+	} else if e.loadedTypes[2] {
+		return nil, &NotFoundError{label: repository.Label}
+	}
+	return nil, &NotLoadedError{edge: "repository"}
+}
+
 // AgentTokenOrErr returns the AgentToken value or an error if the edge
 // was not loaded in eager-loading, or loaded but was not found.
 func (e StudyEdges) AgentTokenOrErr() (*AgentToken, error) {
 	if e.AgentToken != nil {
 		return e.AgentToken, nil
-	} else if e.loadedTypes[2] {
+	} else if e.loadedTypes[3] {
 		return nil, &NotFoundError{label: agenttoken.Label}
 	}
 	return nil, &NotLoadedError{edge: "agent_token"}
@@ -102,7 +118,7 @@ func (e StudyEdges) AgentTokenOrErr() (*AgentToken, error) {
 // IterationPlansOrErr returns the IterationPlans value or an error if the edge
 // was not loaded in eager-loading.
 func (e StudyEdges) IterationPlansOrErr() ([]*IterationPlan, error) {
-	if e.loadedTypes[3] {
+	if e.loadedTypes[4] {
 		return e.IterationPlans, nil
 	}
 	return nil, &NotLoadedError{edge: "iteration_plans"}
@@ -111,7 +127,7 @@ func (e StudyEdges) IterationPlansOrErr() ([]*IterationPlan, error) {
 // ResearchNodesOrErr returns the ResearchNodes value or an error if the edge
 // was not loaded in eager-loading.
 func (e StudyEdges) ResearchNodesOrErr() ([]*ResearchNode, error) {
-	if e.loadedTypes[4] {
+	if e.loadedTypes[5] {
 		return e.ResearchNodes, nil
 	}
 	return nil, &NotLoadedError{edge: "research_nodes"}
@@ -120,7 +136,7 @@ func (e StudyEdges) ResearchNodesOrErr() ([]*ResearchNode, error) {
 // ResearchEdgesOrErr returns the ResearchEdges value or an error if the edge
 // was not loaded in eager-loading.
 func (e StudyEdges) ResearchEdgesOrErr() ([]*ResearchEdge, error) {
-	if e.loadedTypes[5] {
+	if e.loadedTypes[6] {
 		return e.ResearchEdges, nil
 	}
 	return nil, &NotLoadedError{edge: "research_edges"}
@@ -131,7 +147,7 @@ func (*Study) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case study.FieldID, study.FieldTenantID, study.FieldProjectID, study.FieldAgentTokenID:
+		case study.FieldID, study.FieldTenantID, study.FieldProjectID, study.FieldRepositoryID, study.FieldAgentTokenID:
 			values[i] = new(sql.NullInt64)
 		case study.FieldName, study.FieldQuestion, study.FieldSummary, study.FieldStatus:
 			values[i] = new(sql.NullString)
@@ -190,6 +206,13 @@ func (_m *Study) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ProjectID = int(value.Int64)
 			}
+		case study.FieldRepositoryID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field repository_id", values[i])
+			} else if value.Valid {
+				_m.RepositoryID = new(int)
+				*_m.RepositoryID = int(value.Int64)
+			}
 		case study.FieldAgentTokenID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field agent_token_id", values[i])
@@ -242,6 +265,11 @@ func (_m *Study) QueryTenant() *TenantQuery {
 // QueryProject queries the "project" edge of the Study entity.
 func (_m *Study) QueryProject() *ProjectQuery {
 	return NewStudyClient(_m.config).QueryProject(_m)
+}
+
+// QueryRepository queries the "repository" edge of the Study entity.
+func (_m *Study) QueryRepository() *RepositoryQuery {
+	return NewStudyClient(_m.config).QueryRepository(_m)
 }
 
 // QueryAgentToken queries the "agent_token" edge of the Study entity.
@@ -301,6 +329,11 @@ func (_m *Study) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("project_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ProjectID))
+	builder.WriteString(", ")
+	if v := _m.RepositoryID; v != nil {
+		builder.WriteString("repository_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	if v := _m.AgentTokenID; v != nil {
 		builder.WriteString("agent_token_id=")

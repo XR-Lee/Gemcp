@@ -1,10 +1,12 @@
 # Research workbench
 
-Status: released as `v0.16.2` / `alpha-0.16`
+Status: released as `v0.17.0` / `alpha-0.17`
 
 UI kits in `v0.16.1`: Vue Flow for the Graph, Reka UI for selectors and dialogs, VueUse for live refresh, Motion for enter transitions.
 
 `v0.16.2` turns that Graph into an MCP execution contract: legal edges, `get_next_actions`, `from_node_id` in the Proposal digest, automatic run binding on submit, and `close_run` as the only result writer.
+
+`v0.17.0` makes an imported repository usable: Study import, directory-scoped MCP, a time-axis Graph with fullscreen and double-click detail, success/failure stamps, and default selection of the latest import.
 
 Scope: Owner-facing research Graph and iteration plans, Agent-reported scientific progress, and a separate Lab layer for infrastructure. Execution, Docker isolation, Proposal confirmation, and Node protocol stay in place; the Graph now gates what an external harness may do next.
 
@@ -104,3 +106,7 @@ The research home shows:
 - the latest linked result
 
 UUIDs, digests, backend IDs, and reservation math remain in Experiment detail and the Lab layer.
+
+## Outlook
+
+If MCP remains the only door, the same trail can later authorize work, not only record it. A confirmed digest, a closed on-graph result, and an Owner annotation would be capabilities: they unlock the next legal edge. Off-graph runs would stay non-authorizing. That is written as a future outlook in [Transparency as authorization](transparency-authorization.md), not as a committed release.

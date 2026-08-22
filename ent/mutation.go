@@ -34173,6 +34173,9 @@ type RepositoryMutation struct {
 	experiment_proposals          map[int]struct{}
 	removedexperiment_proposals   map[int]struct{}
 	clearedexperiment_proposals   bool
+	studies                       map[int]struct{}
+	removedstudies                map[int]struct{}
+	clearedstudies                bool
 	done                          bool
 	oldValue                      func(context.Context) (*Repository, error)
 	predicates                    []predicate.Repository
@@ -34931,6 +34934,60 @@ func (m *RepositoryMutation) ResetExperimentProposals() {
 	m.removedexperiment_proposals = nil
 }
 
+// AddStudyIDs adds the "studies" edge to the Study entity by ids.
+func (m *RepositoryMutation) AddStudyIDs(ids ...int) {
+	if m.studies == nil {
+		m.studies = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.studies[ids[i]] = struct{}{}
+	}
+}
+
+// ClearStudies clears the "studies" edge to the Study entity.
+func (m *RepositoryMutation) ClearStudies() {
+	m.clearedstudies = true
+}
+
+// StudiesCleared reports if the "studies" edge to the Study entity was cleared.
+func (m *RepositoryMutation) StudiesCleared() bool {
+	return m.clearedstudies
+}
+
+// RemoveStudyIDs removes the "studies" edge to the Study entity by IDs.
+func (m *RepositoryMutation) RemoveStudyIDs(ids ...int) {
+	if m.removedstudies == nil {
+		m.removedstudies = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.studies, ids[i])
+		m.removedstudies[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedStudies returns the removed IDs of the "studies" edge to the Study entity.
+func (m *RepositoryMutation) RemovedStudiesIDs() (ids []int) {
+	for id := range m.removedstudies {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// StudiesIDs returns the "studies" edge IDs in the mutation.
+func (m *RepositoryMutation) StudiesIDs() (ids []int) {
+	for id := range m.studies {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetStudies resets all changes to the "studies" edge.
+func (m *RepositoryMutation) ResetStudies() {
+	m.studies = nil
+	m.clearedstudies = false
+	m.removedstudies = nil
+}
+
 // Where appends a list predicates to the RepositoryMutation builder.
 func (m *RepositoryMutation) Where(ps ...predicate.Repository) {
 	m.predicates = append(m.predicates, ps...)
@@ -35298,7 +35355,7 @@ func (m *RepositoryMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *RepositoryMutation) AddedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 4)
 	if m.project != nil {
 		edges = append(edges, repository.EdgeProject)
 	}
@@ -35307,6 +35364,9 @@ func (m *RepositoryMutation) AddedEdges() []string {
 	}
 	if m.experiment_proposals != nil {
 		edges = append(edges, repository.EdgeExperimentProposals)
+	}
+	if m.studies != nil {
+		edges = append(edges, repository.EdgeStudies)
 	}
 	return edges
 }
@@ -35331,18 +35391,27 @@ func (m *RepositoryMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case repository.EdgeStudies:
+		ids := make([]ent.Value, 0, len(m.studies))
+		for id := range m.studies {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *RepositoryMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 4)
 	if m.removedexperiments != nil {
 		edges = append(edges, repository.EdgeExperiments)
 	}
 	if m.removedexperiment_proposals != nil {
 		edges = append(edges, repository.EdgeExperimentProposals)
+	}
+	if m.removedstudies != nil {
+		edges = append(edges, repository.EdgeStudies)
 	}
 	return edges
 }
@@ -35363,13 +35432,19 @@ func (m *RepositoryMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case repository.EdgeStudies:
+		ids := make([]ent.Value, 0, len(m.removedstudies))
+		for id := range m.removedstudies {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *RepositoryMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 4)
 	if m.clearedproject {
 		edges = append(edges, repository.EdgeProject)
 	}
@@ -35378,6 +35453,9 @@ func (m *RepositoryMutation) ClearedEdges() []string {
 	}
 	if m.clearedexperiment_proposals {
 		edges = append(edges, repository.EdgeExperimentProposals)
+	}
+	if m.clearedstudies {
+		edges = append(edges, repository.EdgeStudies)
 	}
 	return edges
 }
@@ -35392,6 +35470,8 @@ func (m *RepositoryMutation) EdgeCleared(name string) bool {
 		return m.clearedexperiments
 	case repository.EdgeExperimentProposals:
 		return m.clearedexperiment_proposals
+	case repository.EdgeStudies:
+		return m.clearedstudies
 	}
 	return false
 }
@@ -35419,6 +35499,9 @@ func (m *RepositoryMutation) ResetEdge(name string) error {
 		return nil
 	case repository.EdgeExperimentProposals:
 		m.ResetExperimentProposals()
+		return nil
+	case repository.EdgeStudies:
+		m.ResetStudies()
 		return nil
 	}
 	return fmt.Errorf("unknown Repository edge %s", name)
@@ -43419,6 +43502,8 @@ type StudyMutation struct {
 	clearedtenant          bool
 	project                *int
 	clearedproject         bool
+	repository             *int
+	clearedrepository      bool
 	agent_token            *int
 	clearedagent_token     bool
 	iteration_plans        map[int]struct{}
@@ -43713,6 +43798,55 @@ func (m *StudyMutation) ResetProjectID() {
 	m.project = nil
 }
 
+// SetRepositoryID sets the "repository_id" field.
+func (m *StudyMutation) SetRepositoryID(i int) {
+	m.repository = &i
+}
+
+// RepositoryID returns the value of the "repository_id" field in the mutation.
+func (m *StudyMutation) RepositoryID() (r int, exists bool) {
+	v := m.repository
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRepositoryID returns the old "repository_id" field's value of the Study entity.
+// If the Study object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StudyMutation) OldRepositoryID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRepositoryID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRepositoryID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRepositoryID: %w", err)
+	}
+	return oldValue.RepositoryID, nil
+}
+
+// ClearRepositoryID clears the value of the "repository_id" field.
+func (m *StudyMutation) ClearRepositoryID() {
+	m.repository = nil
+	m.clearedFields[study.FieldRepositoryID] = struct{}{}
+}
+
+// RepositoryIDCleared returns if the "repository_id" field was cleared in this mutation.
+func (m *StudyMutation) RepositoryIDCleared() bool {
+	_, ok := m.clearedFields[study.FieldRepositoryID]
+	return ok
+}
+
+// ResetRepositoryID resets all changes to the "repository_id" field.
+func (m *StudyMutation) ResetRepositoryID() {
+	m.repository = nil
+	delete(m.clearedFields, study.FieldRepositoryID)
+}
+
 // SetAgentTokenID sets the "agent_token_id" field.
 func (m *StudyMutation) SetAgentTokenID(i int) {
 	m.agent_token = &i
@@ -43973,6 +44107,33 @@ func (m *StudyMutation) ResetProject() {
 	m.clearedproject = false
 }
 
+// ClearRepository clears the "repository" edge to the Repository entity.
+func (m *StudyMutation) ClearRepository() {
+	m.clearedrepository = true
+	m.clearedFields[study.FieldRepositoryID] = struct{}{}
+}
+
+// RepositoryCleared reports if the "repository" edge to the Repository entity was cleared.
+func (m *StudyMutation) RepositoryCleared() bool {
+	return m.RepositoryIDCleared() || m.clearedrepository
+}
+
+// RepositoryIDs returns the "repository" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// RepositoryID instead. It exists only for internal usage by the builders.
+func (m *StudyMutation) RepositoryIDs() (ids []int) {
+	if id := m.repository; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetRepository resets all changes to the "repository" edge.
+func (m *StudyMutation) ResetRepository() {
+	m.repository = nil
+	m.clearedrepository = false
+}
+
 // ClearAgentToken clears the "agent_token" edge to the AgentToken entity.
 func (m *StudyMutation) ClearAgentToken() {
 	m.clearedagent_token = true
@@ -44196,7 +44357,7 @@ func (m *StudyMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *StudyMutation) Fields() []string {
-	fields := make([]string, 0, 10)
+	fields := make([]string, 0, 11)
 	if m.public_id != nil {
 		fields = append(fields, study.FieldPublicID)
 	}
@@ -44211,6 +44372,9 @@ func (m *StudyMutation) Fields() []string {
 	}
 	if m.project != nil {
 		fields = append(fields, study.FieldProjectID)
+	}
+	if m.repository != nil {
+		fields = append(fields, study.FieldRepositoryID)
 	}
 	if m.agent_token != nil {
 		fields = append(fields, study.FieldAgentTokenID)
@@ -44245,6 +44409,8 @@ func (m *StudyMutation) Field(name string) (ent.Value, bool) {
 		return m.TenantID()
 	case study.FieldProjectID:
 		return m.ProjectID()
+	case study.FieldRepositoryID:
+		return m.RepositoryID()
 	case study.FieldAgentTokenID:
 		return m.AgentTokenID()
 	case study.FieldName:
@@ -44274,6 +44440,8 @@ func (m *StudyMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldTenantID(ctx)
 	case study.FieldProjectID:
 		return m.OldProjectID(ctx)
+	case study.FieldRepositoryID:
+		return m.OldRepositoryID(ctx)
 	case study.FieldAgentTokenID:
 		return m.OldAgentTokenID(ctx)
 	case study.FieldName:
@@ -44327,6 +44495,13 @@ func (m *StudyMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetProjectID(v)
+		return nil
+	case study.FieldRepositoryID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRepositoryID(v)
 		return nil
 	case study.FieldAgentTokenID:
 		v, ok := value.(int)
@@ -44396,6 +44571,9 @@ func (m *StudyMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *StudyMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(study.FieldRepositoryID) {
+		fields = append(fields, study.FieldRepositoryID)
+	}
 	if m.FieldCleared(study.FieldAgentTokenID) {
 		fields = append(fields, study.FieldAgentTokenID)
 	}
@@ -44416,6 +44594,9 @@ func (m *StudyMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *StudyMutation) ClearField(name string) error {
 	switch name {
+	case study.FieldRepositoryID:
+		m.ClearRepositoryID()
+		return nil
 	case study.FieldAgentTokenID:
 		m.ClearAgentTokenID()
 		return nil
@@ -44445,6 +44626,9 @@ func (m *StudyMutation) ResetField(name string) error {
 	case study.FieldProjectID:
 		m.ResetProjectID()
 		return nil
+	case study.FieldRepositoryID:
+		m.ResetRepositoryID()
+		return nil
 	case study.FieldAgentTokenID:
 		m.ResetAgentTokenID()
 		return nil
@@ -44466,12 +44650,15 @@ func (m *StudyMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *StudyMutation) AddedEdges() []string {
-	edges := make([]string, 0, 6)
+	edges := make([]string, 0, 7)
 	if m.tenant != nil {
 		edges = append(edges, study.EdgeTenant)
 	}
 	if m.project != nil {
 		edges = append(edges, study.EdgeProject)
+	}
+	if m.repository != nil {
+		edges = append(edges, study.EdgeRepository)
 	}
 	if m.agent_token != nil {
 		edges = append(edges, study.EdgeAgentToken)
@@ -44498,6 +44685,10 @@ func (m *StudyMutation) AddedIDs(name string) []ent.Value {
 		}
 	case study.EdgeProject:
 		if id := m.project; id != nil {
+			return []ent.Value{*id}
+		}
+	case study.EdgeRepository:
+		if id := m.repository; id != nil {
 			return []ent.Value{*id}
 		}
 	case study.EdgeAgentToken:
@@ -44528,7 +44719,7 @@ func (m *StudyMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *StudyMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 6)
+	edges := make([]string, 0, 7)
 	if m.removediteration_plans != nil {
 		edges = append(edges, study.EdgeIterationPlans)
 	}
@@ -44569,12 +44760,15 @@ func (m *StudyMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *StudyMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 6)
+	edges := make([]string, 0, 7)
 	if m.clearedtenant {
 		edges = append(edges, study.EdgeTenant)
 	}
 	if m.clearedproject {
 		edges = append(edges, study.EdgeProject)
+	}
+	if m.clearedrepository {
+		edges = append(edges, study.EdgeRepository)
 	}
 	if m.clearedagent_token {
 		edges = append(edges, study.EdgeAgentToken)
@@ -44599,6 +44793,8 @@ func (m *StudyMutation) EdgeCleared(name string) bool {
 		return m.clearedtenant
 	case study.EdgeProject:
 		return m.clearedproject
+	case study.EdgeRepository:
+		return m.clearedrepository
 	case study.EdgeAgentToken:
 		return m.clearedagent_token
 	case study.EdgeIterationPlans:
@@ -44621,6 +44817,9 @@ func (m *StudyMutation) ClearEdge(name string) error {
 	case study.EdgeProject:
 		m.ClearProject()
 		return nil
+	case study.EdgeRepository:
+		m.ClearRepository()
+		return nil
 	case study.EdgeAgentToken:
 		m.ClearAgentToken()
 		return nil
@@ -44637,6 +44836,9 @@ func (m *StudyMutation) ResetEdge(name string) error {
 		return nil
 	case study.EdgeProject:
 		m.ResetProject()
+		return nil
+	case study.EdgeRepository:
+		m.ResetRepository()
 		return nil
 	case study.EdgeAgentToken:
 		m.ResetAgentToken()

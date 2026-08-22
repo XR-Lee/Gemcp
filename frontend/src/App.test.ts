@@ -75,6 +75,7 @@ describe('App', () => {
       if (path.includes('/api/v1/experiments?')) return response({ data: [] })
       if (path.includes('/api/v1/projects/project-id/operations?')) return response({ data: { activities: [], proposals: [], generated_at: '2026-07-17T00:00:00Z' } })
       if (path.endsWith('/api/v1/projects/project-id/research')) return response({ data: { project_id: project.id, studies: [], generated_at: '2026-07-17T00:00:00Z' } })
+      if (path.endsWith('/api/v1/projects/project-id/agent-tokens')) return response({ data: { tokens: [], enrollments: [], config_file_name: 'mcp.json' } })
       throw new Error(`unexpected request ${path}`)
     }))
 
@@ -82,13 +83,13 @@ describe('App', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('Research workbench')
-    expect(wrapper.text()).toContain('Start from a research question')
+    expect(wrapper.text()).toContain('Import from a research repository')
     expect(wrapper.text()).toContain('owner@example.com')
     expect(wrapper.text()).toContain('abc123')
 
     await wrapper.get('button[aria-label="Switch to Chinese"]').trigger('click')
     expect(wrapper.text()).toContain('研究工作台')
-    expect(wrapper.text()).toContain('从研究问题开始')
+    expect(wrapper.text()).toContain('从已有研究仓库导入')
     expect(wrapper.get('button[aria-label="切换到英文"]').text()).toContain('EN')
     expect(document.documentElement.lang).toBe('zh-CN')
     expect(window.localStorage.getItem('gemcp.locale')).toBe('zh')

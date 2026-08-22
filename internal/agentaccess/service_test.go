@@ -425,4 +425,28 @@ func TestPiEnrollmentExpiryAndRevocation(t *testing.T) {
 	}
 }
 
+func TestLoopbackHTTPPublicURLAllowsMCPExport(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	service := NewService(f.client, f.box, "http://127.0.0.1:18080/")
+	service.now = f.service.now
+	listed, err := service.List(ctx, f.tenant.ID, f.project.PublicID.String())
+	if err != nil || listed.MCPURL != "http://127.0.0.1:18080/mcp" || listed.ConfigTemplate == nil {
+		t.Fatalf("List() result=%+v err=%v", listed, err)
+	}
+	issued, err := service.Issue(ctx, f.tenant.ID, "owner", f.project.PublicID.String(), IssueInput{Label: "local-loopback"})
+	if err != nil || issued.MCPURL != "http://127.0.0.1:18080/mcp" {
+		t.Fatalf("Issue() result=%+v err=%v", issued, err)
+	}
+	if canonicalPublicURL("http://localhost:18080") != "http://localhost:18080" {
+		t.Fatalf("localhost loopback = %q", canonicalPublicURL("http://localhost:18080"))
+	}
+	if canonicalPublicURL("https://gemcp.example.com") != "https://gemcp.example.com" {
+		t.Fatalf("https origin = %q", canonicalPublicURL("https://gemcp.example.com"))
+	}
+	if canonicalPublicURL("http://gemcp.example.com") != "" {
+		t.Fatal("accepted a non-loopback HTTP origin")
+	}
+}
+
 func intPointer(value int) *int { return &value }

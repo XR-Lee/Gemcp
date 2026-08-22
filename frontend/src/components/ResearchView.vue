@@ -1,29 +1,46 @@
 <script setup lang="ts">
-import { computed, markRaw } from 'vue'
-import type { Edge, Node } from '@vue-flow/core'
-import { Position, VueFlow } from '@vue-flow/core'
-import { Background } from '@vue-flow/background'
-import { Controls } from '@vue-flow/controls'
-import { MiniMap } from '@vue-flow/minimap'
-import { FlaskConical, GitBranch, Network, Plus, Sparkles } from '@lucide/vue'
+import { computed, ref } from 'vue'
+import { Bot, Check, Clipboard, FlaskConical, GitBranch, Network, Plus, Sparkles } from '@lucide/vue'
 import { motion } from 'motion-v'
-import type { ResearchNode, ResearchWorkspace } from '../api'
+import type { Experiment, Project, Repository, ResearchWorkspace } from '../api'
 import { localizedState, useI18n } from '../i18n'
-import ResearchGraphNode from './ResearchGraphNode.vue'
+import { buildResearchAttachPrompt } from '../researchAttachPrompt'
+import { layoutResearchGraph } from '../researchGraphLayout'
+import ResearchGraphCanvas from './ResearchGraphCanvas.vue'
+import WorkbenchDialog from './WorkbenchDialog.vue'
 import WorkbenchSelect from './WorkbenchSelect.vue'
 
 const props = defineProps<{
   workspace: ResearchWorkspace | null
   loading: boolean
   selectedStudyId: string
+  project?: Project | null
+  repositories?: Repository[]
+  experiments?: Experiment[]
+  hasActiveAgent?: boolean
 }>()
 const emit = defineEmits<{
   selectStudy: [studyID: string]
   openExperiment: [experimentID: string]
   createStudy: []
+  openAgents: []
 }>()
-const { languageTag, t } = useI18n()
-const nodeTypes = { research: markRaw(ResearchGraphNode) }
+const { locale, languageTag, t } = useI18n()
+const attachOpen = ref(false)
+const copied = ref(false)
+const attachPrompt = computed(() => buildResearchAttachPrompt({
+  locale: locale.value,
+  project: props.project,
+  repositories: props.repositories,
+  experiments: props.experiments,
+  workspace: props.workspace,
+}))
+
+async function copyAttachPrompt() {
+  await navigator.clipboard.writeText(attachPrompt.value)
+  copied.value = true
+  window.setTimeout(() => (copied.value = false), 1600)
+}
 
 const study = computed(() => props.workspace?.study ?? null)
 const studies = computed(() => props.workspace?.studies ?? [])
@@ -35,75 +52,27 @@ const selectedStudyModel = computed({
   set: (value: string) => emit('selectStudy', value),
 })
 const studyOptions = computed(() => studies.value.map((item) => ({ value: item.id, label: item.name })))
-const kindOrder = ['question', 'hypothesis', 'plan', 'run', 'result', 'observation', 'decision'] as const
-
-const graphNodes = computed<Node[]>(() => {
-  const columns = new Map<string, ResearchNode[]>()
-  for (const kind of kindOrder) columns.set(kind, [])
-  for (const node of nodes.value) {
-    const bucket = columns.get(node.kind) ?? columns.get('decision')
-    bucket?.push(node)
+const needsAgentHandoff = computed(() => Boolean(study.value && !study.value.plan))
+const boundRepositoryName = computed(() => study.value?.repository?.name || props.repositories?.[0]?.name || '')
+const agentHandoffDetail = computed(() => {
+  const repository = boundRepositoryName.value
+  if (repository) {
+    return t(
+      `This Study is registered against ${repository}. Open that repository locally and enable Gemcp MCP in that directory, not as a global MCP. Then give the Agent the attach prompt so it can map experimental branches, hypotheses, conclusions, and evidence onto the Graph.`,
+      `Study 已经注册，并绑上了 ${repository}。请在本地打开这个仓库，在该目录里开启 Gemcp MCP，不要开成全局 MCP。再把入图 Prompt 给 Agent，让它把实验分支、假设、结论和证据画到 Graph 上。`,
+    )
   }
-  const result: Node[] = []
-  let column = 0
-  for (const kind of kindOrder) {
-    const items = columns.get(kind) ?? []
-    if (!items.length) continue
-    items.forEach((node, row) => {
-      result.push({
-        id: node.id,
-        type: 'research',
-        position: { x: 36 + column * 280, y: 28 + row * 168 },
-        data: {
-          node,
-          kindLabel: kindLabel(node.kind),
-          onOpenEvidence: (experimentID: string) => emit('openExperiment', experimentID),
-        },
-        sourcePosition: Position.Right,
-        targetPosition: Position.Left,
-      })
-    })
-    column += 1
-  }
-  return result
+  return t(
+    'This Study is registered. Open the research repository locally and enable Gemcp MCP in that directory, not as a global MCP. Then give the Agent the attach prompt so it can map experimental branches, hypotheses, conclusions, and evidence onto the Graph.',
+    'Study 已经注册。请在本地打开研究仓库，在该目录里开启 Gemcp MCP，不要开成全局 MCP。再把入图 Prompt 给 Agent，让它把实验分支、假设、结论和证据画到 Graph 上。',
+  )
 })
-
-const graphEdges = computed<Edge[]>(() => edges.value.map((edge) => ({
-  id: edge.id,
-  source: edge.from_id,
-  target: edge.to_id,
-  label: relationLabel(edge.relation),
-  type: 'smoothstep',
-  animated: edge.relation === 'produced' || edge.relation === 'leads_to',
-})))
-
-function relationLabel(value: string) {
-  const labels: Record<string, [string, string]> = {
-    leads_to: ['leads to', '引出'],
-    compares: ['compares', '对比'],
-    supersedes: ['supersedes', '替代'],
-    supports: ['supports', '支持'],
-    contradicts: ['contradicts', '反驳'],
-    produced: ['produced', '产生'],
-  }
-  const label = labels[value] ?? [value, value]
-  return t(label[0], label[1])
-}
-
-function kindLabel(value: string) {
-  const labels: Record<string, [string, string]> = {
-    question: ['Question', '问题'],
-    hypothesis: ['Hypothesis', '假设'],
-    plan: ['Plan', '计划'],
-    run: ['Run', '运行'],
-    result: ['Result', '结果'],
-    observation: ['Observation', '观察'],
-    decision: ['Decision', '决策'],
-  }
-  const label = labels[value] ?? [value, value]
-  return t(label[0], label[1])
-}
-
+const focusNodeIDs = computed(() => (props.workspace?.next_actions ?? []).map((action) => action.from_node_id).filter((id): id is string => Boolean(id)))
+const graphLayout = computed(() => layoutResearchGraph({
+  nodes: nodes.value,
+  edges: edges.value,
+  focusNodeIDs: focusNodeIDs.value,
+}))
 function dateTime(value?: string) {
   if (!value) return t('Not set', '未设置')
   return new Intl.DateTimeFormat(languageTag.value, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
@@ -116,7 +85,8 @@ function dateTime(value?: string) {
       <div>
         <p class="eyebrow">{{ t('Research', '研究') }}</p>
         <h2>{{ study?.name ?? t('No study yet', '还没有 Study') }}</h2>
-        <p>{{ study?.question ?? t('The Agent can open a Study and keep the Graph current. Docker execution stays in the Lab layer.', 'Agent 可以创建 Study 并维护研究 Graph；Docker 执行仍留在 Lab 层。') }}</p>
+        <p>{{ study?.question ?? t('Import an existing research repository, or write a question. Docker execution stays in the Lab layer.', '从已有研究仓库导入，或先写下问题。Docker 执行仍留在 Lab 层。') }}</p>
+        <p v-if="study?.repository" class="research-repo"><GitBranch :size="13" />{{ study.repository.name }} · {{ study.repository.ssh_url }}</p>
       </div>
       <div class="research-heading-actions">
         <WorkbenchSelect
@@ -125,6 +95,7 @@ function dateTime(value?: string) {
           :aria-label="t('Study', 'Study')"
           :options="studyOptions"
         />
+        <button class="secondary-button small-button" type="button" :aria-label="t('Attach prompt', '入图 Prompt')" @click="attachOpen = true"><Clipboard :size="16" />{{ t('Attach prompt', '入图 Prompt') }}</button>
         <button class="secondary-button small-button" type="button" @click="emit('createStudy')"><Plus :size="16" />{{ t('New study', '新建 Study') }}</button>
       </div>
     </motion.div>
@@ -132,11 +103,22 @@ function dateTime(value?: string) {
     <div v-if="loading && !workspace" class="research-loading">{{ t('Loading research workspace...', '正在加载研究工作区...') }}</div>
 
     <template v-else-if="study">
+      <aside v-if="needsAgentHandoff" class="research-mcp-banner" role="status">
+        <div>
+          <span class="research-kicker"><Bot :size="15" />MCP</span>
+          <strong>{{ hasActiveAgent ? t('Enable Gemcp MCP in this repository directory', '在这个仓库目录里开启 Gemcp MCP') : t('Bind an Agent, then enable MCP in this repository directory', '先绑定 Agent，再在这个仓库目录里开启 MCP') }}</strong>
+          <p>{{ agentHandoffDetail }}</p>
+        </div>
+        <div class="research-mcp-actions">
+          <button class="primary-button small-button" type="button" @click="emit('openAgents')"><Bot :size="16" />{{ hasActiveAgent ? t('Open Agent MCP', '打开 Agent MCP') : t('Bind Agent', '绑定 Agent') }}</button>
+          <button class="secondary-button small-button" type="button" @click="attachOpen = true"><Clipboard :size="16" />{{ t('Attach prompt', '入图 Prompt') }}</button>
+        </div>
+      </aside>
       <div class="research-summary">
         <motion.article class="research-card next-card" :initial="{ y: 8 }" :animate="{ y: 0 }" :transition="{ duration: 0.22 }">
           <span class="research-kicker"><Sparkles :size="15" />{{ t('Next action', '下一步') }}</span>
           <strong>{{ study.plan?.next_action ?? t('No active plan yet', '还没有活跃计划') }}</strong>
-          <p>{{ study.plan?.goal ?? t('Ask the Agent to replace the iteration plan after it inspects the repository.', '让 Agent 检查仓库后更新迭代计划。') }}</p>
+          <p>{{ study.plan?.goal ?? t('Ask the Agent to reconstruct experimental branches, hypotheses, conclusions, and evidence from the repository.', '让 Agent 从仓库重建实验分支、假设、结论和证据。') }}</p>
           <ul v-if="workspace?.next_actions?.length" class="contract-actions">
             <li v-for="action in workspace.next_actions" :key="`${action.kind}-${action.from_node_id || action.tool}`">
               <strong>{{ action.title }}</strong>
@@ -172,28 +154,17 @@ function dateTime(value?: string) {
         <div class="section-heading">
           <div>
             <h2>{{ t('Research Graph', '研究 Graph') }}</h2>
-            <p>{{ t('Hypotheses, runs, results, and decisions. Execution detail stays behind evidence links.', '假设、运行、结果和决策。执行细节留在证据链接后面。') }}</p>
+            <p>{{ t('The top axis is exploration time. The bright trail ends at the newest record. Green and red marks are successes and failures.', '顶轴是探索时间。亮的轨迹停在最新一条记录。绿是成功，红是失败。') }}</p>
           </div>
-          <span class="live-label"><Network :size="13" />{{ nodes.length }} {{ t('nodes', '个节点') }}</span>
+          <span class="live-label"><Network :size="13" />{{ nodes.length }} {{ t('nodes', '个节点') }} · {{ graphLayout.activeNodeIDs.length }} {{ t('on active path', '条在 active path') }}</span>
         </div>
-        <div v-if="graphNodes.length" class="graph-canvas">
-          <VueFlow
-            :nodes="graphNodes"
-            :edges="graphEdges"
-            :node-types="nodeTypes"
-            :min-zoom="0.4"
-            :max-zoom="1.6"
-            fit-view-on-init
-            :nodes-draggable="false"
-            :nodes-connectable="false"
-            :elements-selectable="false"
-            :pan-on-scroll="true"
-          >
-            <Background pattern-color="#d8d0c4" :gap="18" />
-            <MiniMap pannable zoomable />
-            <Controls />
-          </VueFlow>
-        </div>
+        <ResearchGraphCanvas
+          v-if="nodes.length"
+          :nodes="nodes"
+          :edges="edges"
+          :layout="graphLayout"
+          @open-experiment="emit('openExperiment', $event)"
+        />
         <div v-else class="empty-state compact-empty">
           <span class="empty-icon"><GitBranch :size="21" /></span>
           <h3>{{ t('Graph is empty', 'Graph 还是空的') }}</h3>
@@ -211,9 +182,30 @@ function dateTime(value?: string) {
 
     <div v-else class="empty-state research-empty">
       <span class="empty-icon"><FlaskConical :size="21" /></span>
-      <h3>{{ t('Start from a research question', '从研究问题开始') }}</h3>
-      <p>{{ t('The main surface is the Study, plan, and Graph. Nodes, budgets, and Provider details stay in Lab.', '主界面只展示 Study、计划和 Graph。节点、预算和 Provider 细节留在 Lab。') }}</p>
-      <button class="primary-button" type="button" @click="emit('createStudy')"><Plus :size="16" />{{ t('Create the first study', '创建第一个 Study') }}</button>
+      <h3>{{ t('Import from a research repository', '从已有研究仓库导入') }}</h3>
+      <p>{{ t('Pick a registered repository or paste a GitHub SSH URL. That creates a Study bound to the repo and does not start a workload.', '选一个已注册仓库，或粘贴 GitHub SSH URL。会创建一个绑上该仓库的 Study，不会启动作业。') }}</p>
+      <div class="research-empty-actions">
+        <button class="secondary-button" type="button" :aria-label="t('Attach prompt', '入图 Prompt')" @click="attachOpen = true"><Clipboard :size="16" />{{ t('Attach prompt', '入图 Prompt') }}</button>
+        <button class="primary-button" type="button" @click="emit('createStudy')"><Plus :size="16" />{{ t('Import study', '从仓库导入') }}</button>
+      </div>
     </div>
   </section>
+
+  <WorkbenchDialog
+    v-model:open="attachOpen"
+    :title="t('Attach prompt', '入图 Prompt')"
+    :label="t('Attach prompt', '入图 Prompt')"
+    :description="t('Give this to a coding Agent that has Gemcp MCP enabled in this repository directory. It tells the Agent to reconstruct experimental branches, hypotheses, conclusions, and evidence on the Graph. It contains no Token.', '交给在这个仓库目录里开了 Gemcp MCP 的编码 Agent。它要求 Agent 把实验分支、假设、结论和证据重建到 Graph 上，不含 Token。')"
+  >
+    <div class="dialog-form attach-prompt-form">
+      <label class="attach-prompt-label">
+        <span>{{ t('Agent prompt', 'Agent Prompt') }}</span>
+        <textarea class="attach-prompt" readonly rows="18" spellcheck="false" :value="attachPrompt"></textarea>
+      </label>
+      <button class="primary-button" type="button" @click="copyAttachPrompt">
+        <Check v-if="copied" :size="16" /><Clipboard v-else :size="16" />
+        {{ copied ? t('Copied', '已复制') : t('Copy for Agent', '复制给 Agent') }}
+      </button>
+    </div>
+  </WorkbenchDialog>
 </template>

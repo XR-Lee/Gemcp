@@ -17,6 +17,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/repository"
+	"github.com/XR-Lee/Gemcp/ent/study"
 )
 
 // RepositoryQuery is the builder for querying Repository entities.
@@ -29,6 +30,7 @@ type RepositoryQuery struct {
 	withProject             *ProjectQuery
 	withExperiments         *ExperimentQuery
 	withExperimentProposals *ExperimentProposalQuery
+	withStudies             *StudyQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -124,6 +126,28 @@ func (_q *RepositoryQuery) QueryExperimentProposals() *ExperimentProposalQuery {
 			sqlgraph.From(repository.Table, repository.FieldID, selector),
 			sqlgraph.To(experimentproposal.Table, experimentproposal.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, repository.ExperimentProposalsTable, repository.ExperimentProposalsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryStudies chains the current query on the "studies" edge.
+func (_q *RepositoryQuery) QueryStudies() *StudyQuery {
+	query := (&StudyClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(repository.Table, repository.FieldID, selector),
+			sqlgraph.To(study.Table, study.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, repository.StudiesTable, repository.StudiesColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -326,6 +350,7 @@ func (_q *RepositoryQuery) Clone() *RepositoryQuery {
 		withProject:             _q.withProject.Clone(),
 		withExperiments:         _q.withExperiments.Clone(),
 		withExperimentProposals: _q.withExperimentProposals.Clone(),
+		withStudies:             _q.withStudies.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -362,6 +387,17 @@ func (_q *RepositoryQuery) WithExperimentProposals(opts ...func(*ExperimentPropo
 		opt(query)
 	}
 	_q.withExperimentProposals = query
+	return _q
+}
+
+// WithStudies tells the query-builder to eager-load the nodes that are connected to
+// the "studies" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *RepositoryQuery) WithStudies(opts ...func(*StudyQuery)) *RepositoryQuery {
+	query := (&StudyClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withStudies = query
 	return _q
 }
 
@@ -443,10 +479,11 @@ func (_q *RepositoryQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*R
 	var (
 		nodes       = []*Repository{}
 		_spec       = _q.querySpec()
-		loadedTypes = [3]bool{
+		loadedTypes = [4]bool{
 			_q.withProject != nil,
 			_q.withExperiments != nil,
 			_q.withExperimentProposals != nil,
+			_q.withStudies != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -486,6 +523,13 @@ func (_q *RepositoryQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*R
 			func(n *Repository, e *ExperimentProposal) {
 				n.Edges.ExperimentProposals = append(n.Edges.ExperimentProposals, e)
 			}); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withStudies; query != nil {
+		if err := _q.loadStudies(ctx, query, nodes,
+			func(n *Repository) { n.Edges.Studies = []*Study{} },
+			func(n *Repository, e *Study) { n.Edges.Studies = append(n.Edges.Studies, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -576,6 +620,39 @@ func (_q *RepositoryQuery) loadExperimentProposals(ctx context.Context, query *E
 		node, ok := nodeids[fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "repository_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *RepositoryQuery) loadStudies(ctx context.Context, query *StudyQuery, nodes []*Repository, init func(*Repository), assign func(*Repository, *Study)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Repository)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(study.FieldRepositoryID)
+	}
+	query.Where(predicate.Study(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(repository.StudiesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.RepositoryID
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "repository_id" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "repository_id" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
 	}

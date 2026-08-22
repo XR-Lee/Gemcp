@@ -48,6 +48,8 @@ const (
 	EdgeExperiments = "experiments"
 	// EdgeExperimentProposals holds the string denoting the experiment_proposals edge name in mutations.
 	EdgeExperimentProposals = "experiment_proposals"
+	// EdgeStudies holds the string denoting the studies edge name in mutations.
+	EdgeStudies = "studies"
 	// Table holds the table name of the repository in the database.
 	Table = "repositories"
 	// ProjectTable is the table that holds the project relation/edge.
@@ -71,6 +73,13 @@ const (
 	ExperimentProposalsInverseTable = "experiment_proposals"
 	// ExperimentProposalsColumn is the table column denoting the experiment_proposals relation/edge.
 	ExperimentProposalsColumn = "repository_id"
+	// StudiesTable is the table that holds the studies relation/edge.
+	StudiesTable = "studies"
+	// StudiesInverseTable is the table name for the Study entity.
+	// It exists in this package in order to avoid circular dependency with the "study" package.
+	StudiesInverseTable = "studies"
+	// StudiesColumn is the table column denoting the studies relation/edge.
+	StudiesColumn = "repository_id"
 )
 
 // Columns holds all SQL columns for repository fields.
@@ -259,6 +268,20 @@ func ByExperimentProposals(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOpti
 		sqlgraph.OrderByNeighborTerms(s, newExperimentProposalsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByStudiesCount orders the results by studies count.
+func ByStudiesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newStudiesStep(), opts...)
+	}
+}
+
+// ByStudies orders the results by studies terms.
+func ByStudies(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newStudiesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newProjectStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -278,5 +301,12 @@ func newExperimentProposalsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(ExperimentProposalsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, ExperimentProposalsTable, ExperimentProposalsColumn),
+	)
+}
+func newStudiesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(StudiesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, StudiesTable, StudiesColumn),
 	)
 }

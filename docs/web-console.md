@@ -18,7 +18,7 @@ The operations console provides:
 - Current project hard-budget totals and queued or active experiment counts.
 - Recent immutable experiment lists, Attempt history, output paths, log tails, and metrics.
 - Project limits and private GitHub repository registration and verification.
-- One-time Pi setup links with claim/completion status, automated MCP verification, scoped Agent Token activation and revocation, plus advanced one-time MCP JSON export.
+- One-time MCP setup links with claim/completion status, automated MCP verification for Pi, Codex, OpenCode, Claude Code, and Grok, scoped Agent Token activation and revocation, plus advanced one-time MCP JSON export.
 - Encrypted SMTP configuration and durable notification delivery history.
 
 Provider controls operate only on persisted Gemcp ownership records. External deployments stay visible but cannot be stopped from Gemcp. Agent MCP tools remain the submission and cancellation boundary; the Owner UI does not expose arbitrary machine commands.
@@ -27,7 +27,7 @@ Provider controls operate only on persisted Gemcp ownership records. External de
 
 Owner authentication uses an HttpOnly, Secure, SameSite=Strict Session cookie. State-changing API requests also require the CSRF token issued at login. API and MCP responses use `Cache-Control: no-store`; first-run and newly issued Agent Tokens, one-time MCP exports, and encrypted-credential inputs must not be cached. Closing the reveal dialog clears its plaintext Token and config from application state.
 
-The responsive UI is covered by mocked Playwright tests for desktop and mobile Setup, login, project, repository, Pi setup-link issuance, Agent Token export/revocation, experiment and Attempt details, live Provider resources, managed stop, emergency stop, Token rotation, SMTP settings, notification history, runtime health, and bottom-navigation states:
+The responsive UI is covered by mocked Playwright tests for desktop and mobile Setup, login, project, repository, MCP setup-link issuance, Agent Token export/revocation, experiment and Attempt details, live Provider resources, managed stop, emergency stop, Token rotation, SMTP settings, notification history, runtime health, and bottom-navigation states:
 
 ```bash
 cd frontend

@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/XR-Lee/Gemcp/ent"
 	"github.com/XR-Lee/Gemcp/ent/project"
@@ -28,6 +29,8 @@ type projectView struct {
 	TimeoutExtensionSeconds int    `json:"timeout_extension_seconds"`
 	TerminationGraceSeconds int    `json:"termination_grace_seconds"`
 	Timezone                string `json:"timezone"`
+	CreatedAt               string `json:"created_at"`
+	UpdatedAt               string `json:"updated_at"`
 }
 
 func (h *ProjectHandlers) List(c *gin.Context) {
@@ -52,6 +55,8 @@ func (h *ProjectHandlers) List(c *gin.Context) {
 			MaxConcurrency: record.MaxConcurrency, MaxRuntimeSeconds: record.MaxRuntimeSeconds,
 			TimeoutExtensionSeconds: record.TimeoutExtensionSeconds, TerminationGraceSeconds: record.TerminationGraceSeconds,
 			Timezone: record.Timezone,
+			CreatedAt: record.CreatedAt.UTC().Format(time.RFC3339),
+			UpdatedAt: record.UpdatedAt.UTC().Format(time.RFC3339),
 		})
 	}
 	c.JSON(http.StatusOK, gin.H{"data": views})

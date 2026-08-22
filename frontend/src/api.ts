@@ -24,6 +24,8 @@ export type Project = {
   timeout_extension_seconds: number
   termination_grace_seconds: number
   timezone: string
+  created_at?: string
+  updated_at?: string
 }
 
 export type AgentScope = 'read' | 'submit' | 'cancel' | 'configure'
@@ -268,12 +270,20 @@ export type ResearchNode = {
   updated_at: string
 }
 export type ResearchEdge = { id: string; from_id: string; to_id: string; relation: string }
+export type ResearchStudyRepository = {
+  id: string
+  name: string
+  ssh_url: string
+  default_branch: string
+  status: string
+}
 export type ResearchStudy = {
   id: string
   name: string
   question: string
   summary?: string
   status: string
+  repository?: ResearchStudyRepository
   plan?: ResearchPlan
   nodes: ResearchNode[]
   edges: ResearchEdge[]
@@ -904,10 +914,10 @@ export const api = {
     request<Repository[]>(`/api/v1/repositories?project_id=${encodeURIComponent(projectID)}`),
   createRepository: (payload: { project_id: string; name: string; ssh_url: string; default_branch: string }) =>
     request<Repository>('/api/v1/repositories', { method: 'POST', body: JSON.stringify(payload) }),
-  verifyRepository: (repositoryID: string, hostKeyFingerprint: string) =>
+  verifyRepository: (repositoryID: string, hostKeyFingerprint = '') =>
     request<Repository>(`/api/v1/repositories/${encodeURIComponent(repositoryID)}/verify`, {
       method: 'POST',
-      body: JSON.stringify({ host_key_fingerprint: hostKeyFingerprint }),
+      body: JSON.stringify(hostKeyFingerprint ? { host_key_fingerprint: hostKeyFingerprint } : {}),
     }),
   experiments: (projectID: string, states: string[] = []) => {
     const params = new URLSearchParams({ project_id: projectID, limit: '100' })
@@ -931,7 +941,7 @@ export const api = {
     return request<ResearchWorkspace>(`/api/v1/projects/${encodeURIComponent(projectID)}/research${query ? `?${query}` : ''}`)
   },
   updateResearch: (projectID: string, payload: {
-    study?: { id?: string; name: string; question: string; summary?: string; status?: string }
+    study?: { id?: string; name: string; question: string; summary?: string; status?: string; repository_id?: string }
     plan?: { study_id?: string; goal: string; next_action: string; rationale?: string; steps?: ResearchPlanStep[] }
     node?: {
       study_id?: string; kind: string; title: string; summary?: string; status?: string

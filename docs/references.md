@@ -13,6 +13,7 @@ Gemcp is an independent implementation. These projects inform specific design ch
 - Cursor MCP JSON and environment interpolation: `https://cursor.com/docs/mcp`.
 - VS Code MCP server configuration: `https://code.visualstudio.com/docs/copilot/chat/mcp-servers`.
 - OpenAI Codex Streamable HTTP and bearer-token configuration: `https://developers.openai.com/codex/mcp`.
+- Grok Build project MCP configuration: `https://docs.x.ai/build/features/mcp-servers`.
 - AutoDL Private Cloud Developer API: `https://private.autodl.com/docs/esd_api_doc/`.
 - AutoDL Private Cloud image and storage behavior: `https://private.autodl.com/docs/image/` and `https://private.autodl.com/docs/fs/`.
 

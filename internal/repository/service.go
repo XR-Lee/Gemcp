@@ -28,6 +28,13 @@ var (
 	branchPattern         = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/-]{0,254}$`)
 )
 
+// Official GitHub SSH host-key fingerprints from
+// https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints
+const (
+	githubHost               = "github.com"
+	githubEd25519Fingerprint = "SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU"
+)
+
 const deployKeyAADPrefix = "gemcp:repository-deploy-key:v1:"
 
 type ValidationError struct{ Message string }
@@ -51,7 +58,7 @@ type AgentInput struct {
 
 type AgentVerifyInput struct {
 	RepositoryID    string `json:"repository_id" jsonschema:"pending repository ID returned by register_repository"`
-	HostFingerprint string `json:"host_key_fingerprint,omitempty" jsonschema:"approved SHA256 SSH host fingerprint; omit to reuse this Project's established GitHub pin"`
+	HostFingerprint string `json:"host_key_fingerprint,omitempty" jsonschema:"optional SHA256 SSH host fingerprint; omit to use GitHub's official pin or this Project's established pin"`
 }
 
 type ListResult struct {
@@ -230,15 +237,9 @@ func (s *Service) VerifyForAgent(ctx context.Context, tenantID int, actorID, pro
 	if err != nil {
 		return View{}, err
 	}
-	fingerprint := strings.TrimSpace(input.HostFingerprint)
-	if fingerprint == "" {
-		fingerprint, err = s.establishedHostFingerprint(ctx, tenantID, projectID, record.SSHHost)
-		if err != nil {
-			return View{}, err
-		}
-	}
-	if !strings.HasPrefix(fingerprint, "SHA256:") || len(fingerprint) < 20 || len(fingerprint) > 100 {
-		return View{}, invalid("valid SHA256 host key fingerprint is required")
+	fingerprint, err := s.resolveVerifyFingerprint(ctx, tenantID, projectID, record.SSHHost, input.HostFingerprint)
+	if err != nil {
+		return View{}, err
 	}
 	privateKey, err := s.decryptKey(record)
 	if err != nil {
@@ -278,6 +279,42 @@ func (s *Service) VerifyForAgent(ctx context.Context, tenantID int, actorID, pro
 	return makeView(current, projectPublicID, true), nil
 }
 
+func validHostFingerprint(value string) bool {
+	return strings.HasPrefix(value, "SHA256:") && len(value) >= 20 && len(value) <= 100
+}
+
+func officialGitHubFingerprint(host string) string {
+	if host == githubHost {
+		return githubEd25519Fingerprint
+	}
+	return ""
+}
+
+func resolveHostFingerprint(host, provided string) (string, error) {
+	provided = strings.TrimSpace(provided)
+	if provided != "" {
+		if !validHostFingerprint(provided) {
+			return "", invalid("valid SHA256 host key fingerprint is required")
+		}
+		return provided, nil
+	}
+	if fingerprint := officialGitHubFingerprint(host); fingerprint != "" {
+		return fingerprint, nil
+	}
+	return "", invalid("valid SHA256 host key fingerprint is required")
+}
+
+func (s *Service) resolveVerifyFingerprint(ctx context.Context, tenantID int, projectID uuid.UUID, host, provided string) (string, error) {
+	provided = strings.TrimSpace(provided)
+	if provided != "" {
+		return resolveHostFingerprint(host, provided)
+	}
+	if fingerprint, err := s.establishedHostFingerprint(ctx, tenantID, projectID, host); err == nil {
+		return fingerprint, nil
+	}
+	return resolveHostFingerprint(host, "")
+}
+
 func (s *Service) establishedHostFingerprint(ctx context.Context, tenantID int, projectID uuid.UUID, host string) (string, error) {
 	records, err := s.client.Repository.Query().Where(
 		entrepository.SSHHostEQ(host), entrepository.StatusEQ(entrepository.StatusActive), entrepository.HostKeyFingerprintNEQ(""),
@@ -305,9 +342,9 @@ func (s *Service) Verify(ctx context.Context, tenantID int, publicID, fingerprin
 	if err != nil {
 		return view, err
 	}
-	fingerprint = strings.TrimSpace(fingerprint)
-	if !strings.HasPrefix(fingerprint, "SHA256:") || len(fingerprint) < 20 || len(fingerprint) > 100 {
-		return view, invalid("valid SHA256 host key fingerprint is required")
+	fingerprint, err = resolveHostFingerprint(record.SSHHost, fingerprint)
+	if err != nil {
+		return view, err
 	}
 	privateKey, err := s.decryptKey(record)
 	if err != nil {
