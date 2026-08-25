@@ -15,6 +15,7 @@ import (
 	entproject "github.com/XR-Lee/Gemcp/ent/project"
 	entrepository "github.com/XR-Lee/Gemcp/ent/repository"
 	"github.com/XR-Lee/Gemcp/internal/secrets"
+	"github.com/XR-Lee/Gemcp/internal/validation"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/ssh"
 )
@@ -37,9 +38,9 @@ const (
 
 const deployKeyAADPrefix = "gemcp:repository-deploy-key:v1:"
 
-type ValidationError struct{ Message string }
+type validationDomain struct{}
 
-func (e *ValidationError) Error() string { return e.Message }
+type ValidationError = validation.Error[validationDomain]
 
 func invalid(message string) error { return &ValidationError{Message: message} }
 

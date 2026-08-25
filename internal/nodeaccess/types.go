@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/XR-Lee/Gemcp/internal/nodeprotocol"
+	"github.com/XR-Lee/Gemcp/internal/validation"
 )
 
 const (
@@ -30,9 +31,9 @@ var (
 	ErrConflict          = errors.New("node synchronization conflict")
 )
 
-type ValidationError struct{ Message string }
+type validationDomain struct{}
 
-func (e *ValidationError) Error() string { return e.Message }
+type ValidationError = validation.Error[validationDomain]
 
 func invalid(message string) error { return &ValidationError{Message: message} }
 

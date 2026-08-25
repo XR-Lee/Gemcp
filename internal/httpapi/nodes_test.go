@@ -177,6 +177,30 @@ func TestNodeEnrollmentAndSyncHTTPContract(t *testing.T) {
 	}
 }
 
+func TestNodeValidationErrorsKeepDomainCodes(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	handlers := &NodeHandlers{}
+	tests := []struct {
+		name string
+		err  error
+		code string
+	}{
+		{name: "node access", err: &nodeaccess.ValidationError{Message: "invalid enrollment"}, code: "INVALID_NODE_REQUEST"},
+		{name: "self hosted runtime", err: &selfhosted.ValidationError{Message: "invalid runtime"}, code: "INVALID_SELF_HOSTED_RUNTIME"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			context, _ := gin.CreateTestContext(response)
+			handlers.writeError(context, test.err)
+			if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), `"code":"`+test.code+`"`) {
+				t.Fatalf("response status=%d body=%s", response.Code, response.Body.String())
+			}
+		})
+	}
+}
+
 func jsonRequest(t *testing.T, method, target string, value any) *http.Request {
 	t.Helper()
 	encoded, err := json.Marshal(value)
