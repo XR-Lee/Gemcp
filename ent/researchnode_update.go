@@ -151,6 +151,46 @@ func (_u *ResearchNodeUpdate) ClearMetricValue() *ResearchNodeUpdate {
 	return _u
 }
 
+// SetOccurredAt sets the "occurred_at" field.
+func (_u *ResearchNodeUpdate) SetOccurredAt(v time.Time) *ResearchNodeUpdate {
+	_u.mutation.SetOccurredAt(v)
+	return _u
+}
+
+// SetNillableOccurredAt sets the "occurred_at" field if the given value is not nil.
+func (_u *ResearchNodeUpdate) SetNillableOccurredAt(v *time.Time) *ResearchNodeUpdate {
+	if v != nil {
+		_u.SetOccurredAt(*v)
+	}
+	return _u
+}
+
+// ClearOccurredAt clears the value of the "occurred_at" field.
+func (_u *ResearchNodeUpdate) ClearOccurredAt() *ResearchNodeUpdate {
+	_u.mutation.ClearOccurredAt()
+	return _u
+}
+
+// SetCommitSha sets the "commit_sha" field.
+func (_u *ResearchNodeUpdate) SetCommitSha(v string) *ResearchNodeUpdate {
+	_u.mutation.SetCommitSha(v)
+	return _u
+}
+
+// SetNillableCommitSha sets the "commit_sha" field if the given value is not nil.
+func (_u *ResearchNodeUpdate) SetNillableCommitSha(v *string) *ResearchNodeUpdate {
+	if v != nil {
+		_u.SetCommitSha(*v)
+	}
+	return _u
+}
+
+// ClearCommitSha clears the value of the "commit_sha" field.
+func (_u *ResearchNodeUpdate) ClearCommitSha() *ResearchNodeUpdate {
+	_u.mutation.ClearCommitSha()
+	return _u
+}
+
 // SetExperiment sets the "experiment" edge to the Experiment entity.
 func (_u *ResearchNodeUpdate) SetExperiment(v *Experiment) *ResearchNodeUpdate {
 	return _u.SetExperimentID(v.ID)
@@ -292,6 +332,11 @@ func (_u *ResearchNodeUpdate) check() error {
 			return &ValidationError{Name: "metric_name", err: fmt.Errorf(`ent: validator failed for field "ResearchNode.metric_name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.CommitSha(); ok {
+		if err := researchnode.CommitShaValidator(v); err != nil {
+			return &ValidationError{Name: "commit_sha", err: fmt.Errorf(`ent: validator failed for field "ResearchNode.commit_sha": %w`, err)}
+		}
+	}
 	if _u.mutation.TenantCleared() && len(_u.mutation.TenantIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "ResearchNode.tenant"`)
 	}
@@ -345,6 +390,18 @@ func (_u *ResearchNodeUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if _u.mutation.MetricValueCleared() {
 		_spec.ClearField(researchnode.FieldMetricValue, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.OccurredAt(); ok {
+		_spec.SetField(researchnode.FieldOccurredAt, field.TypeTime, value)
+	}
+	if _u.mutation.OccurredAtCleared() {
+		_spec.ClearField(researchnode.FieldOccurredAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.CommitSha(); ok {
+		_spec.SetField(researchnode.FieldCommitSha, field.TypeString, value)
+	}
+	if _u.mutation.CommitShaCleared() {
+		_spec.ClearField(researchnode.FieldCommitSha, field.TypeString)
 	}
 	if _u.mutation.ExperimentCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -606,6 +663,46 @@ func (_u *ResearchNodeUpdateOne) ClearMetricValue() *ResearchNodeUpdateOne {
 	return _u
 }
 
+// SetOccurredAt sets the "occurred_at" field.
+func (_u *ResearchNodeUpdateOne) SetOccurredAt(v time.Time) *ResearchNodeUpdateOne {
+	_u.mutation.SetOccurredAt(v)
+	return _u
+}
+
+// SetNillableOccurredAt sets the "occurred_at" field if the given value is not nil.
+func (_u *ResearchNodeUpdateOne) SetNillableOccurredAt(v *time.Time) *ResearchNodeUpdateOne {
+	if v != nil {
+		_u.SetOccurredAt(*v)
+	}
+	return _u
+}
+
+// ClearOccurredAt clears the value of the "occurred_at" field.
+func (_u *ResearchNodeUpdateOne) ClearOccurredAt() *ResearchNodeUpdateOne {
+	_u.mutation.ClearOccurredAt()
+	return _u
+}
+
+// SetCommitSha sets the "commit_sha" field.
+func (_u *ResearchNodeUpdateOne) SetCommitSha(v string) *ResearchNodeUpdateOne {
+	_u.mutation.SetCommitSha(v)
+	return _u
+}
+
+// SetNillableCommitSha sets the "commit_sha" field if the given value is not nil.
+func (_u *ResearchNodeUpdateOne) SetNillableCommitSha(v *string) *ResearchNodeUpdateOne {
+	if v != nil {
+		_u.SetCommitSha(*v)
+	}
+	return _u
+}
+
+// ClearCommitSha clears the value of the "commit_sha" field.
+func (_u *ResearchNodeUpdateOne) ClearCommitSha() *ResearchNodeUpdateOne {
+	_u.mutation.ClearCommitSha()
+	return _u
+}
+
 // SetExperiment sets the "experiment" edge to the Experiment entity.
 func (_u *ResearchNodeUpdateOne) SetExperiment(v *Experiment) *ResearchNodeUpdateOne {
 	return _u.SetExperimentID(v.ID)
@@ -760,6 +857,11 @@ func (_u *ResearchNodeUpdateOne) check() error {
 			return &ValidationError{Name: "metric_name", err: fmt.Errorf(`ent: validator failed for field "ResearchNode.metric_name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.CommitSha(); ok {
+		if err := researchnode.CommitShaValidator(v); err != nil {
+			return &ValidationError{Name: "commit_sha", err: fmt.Errorf(`ent: validator failed for field "ResearchNode.commit_sha": %w`, err)}
+		}
+	}
 	if _u.mutation.TenantCleared() && len(_u.mutation.TenantIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "ResearchNode.tenant"`)
 	}
@@ -830,6 +932,18 @@ func (_u *ResearchNodeUpdateOne) sqlSave(ctx context.Context) (_node *ResearchNo
 	}
 	if _u.mutation.MetricValueCleared() {
 		_spec.ClearField(researchnode.FieldMetricValue, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.OccurredAt(); ok {
+		_spec.SetField(researchnode.FieldOccurredAt, field.TypeTime, value)
+	}
+	if _u.mutation.OccurredAtCleared() {
+		_spec.ClearField(researchnode.FieldOccurredAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.CommitSha(); ok {
+		_spec.SetField(researchnode.FieldCommitSha, field.TypeString, value)
+	}
+	if _u.mutation.CommitShaCleared() {
+		_spec.ClearField(researchnode.FieldCommitSha, field.TypeString)
 	}
 	if _u.mutation.ExperimentCleared() {
 		edge := &sqlgraph.EdgeSpec{

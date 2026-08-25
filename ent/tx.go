@@ -22,6 +22,14 @@ type Tx struct {
 	AuditEvent *AuditEventClient
 	// BudgetEntry is the client for interacting with the BudgetEntry builders.
 	BudgetEntry *BudgetEntryClient
+	// CloudSSHAssignment is the client for interacting with the CloudSSHAssignment builders.
+	CloudSSHAssignment *CloudSSHAssignmentClient
+	// CloudSSHNode is the client for interacting with the CloudSSHNode builders.
+	CloudSSHNode *CloudSSHNodeClient
+	// CloudSSHProjectAccess is the client for interacting with the CloudSSHProjectAccess builders.
+	CloudSSHProjectAccess *CloudSSHProjectAccessClient
+	// DatasetBinding is the client for interacting with the DatasetBinding builders.
+	DatasetBinding *DatasetBindingClient
 	// DiagnosticRun is the client for interacting with the DiagnosticRun builders.
 	DiagnosticRun *DiagnosticRunClient
 	// Environment is the client for interacting with the Environment builders.
@@ -214,6 +222,10 @@ func (tx *Tx) init() {
 	tx.Attempt = NewAttemptClient(tx.config)
 	tx.AuditEvent = NewAuditEventClient(tx.config)
 	tx.BudgetEntry = NewBudgetEntryClient(tx.config)
+	tx.CloudSSHAssignment = NewCloudSSHAssignmentClient(tx.config)
+	tx.CloudSSHNode = NewCloudSSHNodeClient(tx.config)
+	tx.CloudSSHProjectAccess = NewCloudSSHProjectAccessClient(tx.config)
+	tx.DatasetBinding = NewDatasetBindingClient(tx.config)
 	tx.DiagnosticRun = NewDiagnosticRunClient(tx.config)
 	tx.Environment = NewEnvironmentClient(tx.config)
 	tx.Experiment = NewExperimentClient(tx.config)

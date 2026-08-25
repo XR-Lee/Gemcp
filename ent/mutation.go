@@ -16,6 +16,10 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/auditevent"
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
+	"github.com/XR-Lee/Gemcp/ent/cloudsshassignment"
+	"github.com/XR-Lee/Gemcp/ent/cloudsshnode"
+	"github.com/XR-Lee/Gemcp/ent/cloudsshprojectaccess"
+	"github.com/XR-Lee/Gemcp/ent/datasetbinding"
 	"github.com/XR-Lee/Gemcp/ent/diagnosticrun"
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
@@ -57,39 +61,43 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
-	TypeAgentEnrollment     = "AgentEnrollment"
-	TypeAgentToken          = "AgentToken"
-	TypeAttempt             = "Attempt"
-	TypeAuditEvent          = "AuditEvent"
-	TypeBudgetEntry         = "BudgetEntry"
-	TypeDiagnosticRun       = "DiagnosticRun"
-	TypeEnvironment         = "Environment"
-	TypeExperiment          = "Experiment"
-	TypeExperimentProposal  = "ExperimentProposal"
-	TypeIdempotencyRecord   = "IdempotencyRecord"
-	TypeIterationPlan       = "IterationPlan"
-	TypeNodeAssignment      = "NodeAssignment"
-	TypeNodeCommand         = "NodeCommand"
-	TypeNodeEnrollment      = "NodeEnrollment"
-	TypeNodeEvent           = "NodeEvent"
-	TypeNodeProjectAccess   = "NodeProjectAccess"
-	TypeNotification        = "Notification"
-	TypeNotificationSetting = "NotificationSetting"
-	TypeProject             = "Project"
-	TypeProviderAccount     = "ProviderAccount"
-	TypeProviderResource    = "ProviderResource"
-	TypeRecordMixin         = "RecordMixin"
-	TypeRepository          = "Repository"
-	TypeResearchEdge        = "ResearchEdge"
-	TypeResearchNode        = "ResearchNode"
-	TypeResourceProfile     = "ResourceProfile"
-	TypeSelfHostedNode      = "SelfHostedNode"
-	TypeServiceHeartbeat    = "ServiceHeartbeat"
-	TypeSession             = "Session"
-	TypeStudy               = "Study"
-	TypeTenant              = "Tenant"
-	TypeUser                = "User"
-	TypeWorkspaceDataset    = "WorkspaceDataset"
+	TypeAgentEnrollment       = "AgentEnrollment"
+	TypeAgentToken            = "AgentToken"
+	TypeAttempt               = "Attempt"
+	TypeAuditEvent            = "AuditEvent"
+	TypeBudgetEntry           = "BudgetEntry"
+	TypeCloudSSHAssignment    = "CloudSSHAssignment"
+	TypeCloudSSHNode          = "CloudSSHNode"
+	TypeCloudSSHProjectAccess = "CloudSSHProjectAccess"
+	TypeDatasetBinding        = "DatasetBinding"
+	TypeDiagnosticRun         = "DiagnosticRun"
+	TypeEnvironment           = "Environment"
+	TypeExperiment            = "Experiment"
+	TypeExperimentProposal    = "ExperimentProposal"
+	TypeIdempotencyRecord     = "IdempotencyRecord"
+	TypeIterationPlan         = "IterationPlan"
+	TypeNodeAssignment        = "NodeAssignment"
+	TypeNodeCommand           = "NodeCommand"
+	TypeNodeEnrollment        = "NodeEnrollment"
+	TypeNodeEvent             = "NodeEvent"
+	TypeNodeProjectAccess     = "NodeProjectAccess"
+	TypeNotification          = "Notification"
+	TypeNotificationSetting   = "NotificationSetting"
+	TypeProject               = "Project"
+	TypeProviderAccount       = "ProviderAccount"
+	TypeProviderResource      = "ProviderResource"
+	TypeRecordMixin           = "RecordMixin"
+	TypeRepository            = "Repository"
+	TypeResearchEdge          = "ResearchEdge"
+	TypeResearchNode          = "ResearchNode"
+	TypeResourceProfile       = "ResourceProfile"
+	TypeSelfHostedNode        = "SelfHostedNode"
+	TypeServiceHeartbeat      = "ServiceHeartbeat"
+	TypeSession               = "Session"
+	TypeStudy                 = "Study"
+	TypeTenant                = "Tenant"
+	TypeUser                  = "User"
+	TypeWorkspaceDataset      = "WorkspaceDataset"
 )
 
 // AgentEnrollmentMutation represents an operation that mutates the AgentEnrollment nodes in the graph.
@@ -1404,6 +1412,9 @@ type AgentTokenMutation struct {
 	workspace_datasets          map[int]struct{}
 	removedworkspace_datasets   map[int]struct{}
 	clearedworkspace_datasets   bool
+	dataset_bindings            map[int]struct{}
+	removeddataset_bindings     map[int]struct{}
+	cleareddataset_bindings     bool
 	studies                     map[int]struct{}
 	removedstudies              map[int]struct{}
 	clearedstudies              bool
@@ -2232,6 +2243,60 @@ func (m *AgentTokenMutation) ResetWorkspaceDatasets() {
 	m.removedworkspace_datasets = nil
 }
 
+// AddDatasetBindingIDs adds the "dataset_bindings" edge to the DatasetBinding entity by ids.
+func (m *AgentTokenMutation) AddDatasetBindingIDs(ids ...int) {
+	if m.dataset_bindings == nil {
+		m.dataset_bindings = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.dataset_bindings[ids[i]] = struct{}{}
+	}
+}
+
+// ClearDatasetBindings clears the "dataset_bindings" edge to the DatasetBinding entity.
+func (m *AgentTokenMutation) ClearDatasetBindings() {
+	m.cleareddataset_bindings = true
+}
+
+// DatasetBindingsCleared reports if the "dataset_bindings" edge to the DatasetBinding entity was cleared.
+func (m *AgentTokenMutation) DatasetBindingsCleared() bool {
+	return m.cleareddataset_bindings
+}
+
+// RemoveDatasetBindingIDs removes the "dataset_bindings" edge to the DatasetBinding entity by IDs.
+func (m *AgentTokenMutation) RemoveDatasetBindingIDs(ids ...int) {
+	if m.removeddataset_bindings == nil {
+		m.removeddataset_bindings = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.dataset_bindings, ids[i])
+		m.removeddataset_bindings[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedDatasetBindings returns the removed IDs of the "dataset_bindings" edge to the DatasetBinding entity.
+func (m *AgentTokenMutation) RemovedDatasetBindingsIDs() (ids []int) {
+	for id := range m.removeddataset_bindings {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// DatasetBindingsIDs returns the "dataset_bindings" edge IDs in the mutation.
+func (m *AgentTokenMutation) DatasetBindingsIDs() (ids []int) {
+	for id := range m.dataset_bindings {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetDatasetBindings resets all changes to the "dataset_bindings" edge.
+func (m *AgentTokenMutation) ResetDatasetBindings() {
+	m.dataset_bindings = nil
+	m.cleareddataset_bindings = false
+	m.removeddataset_bindings = nil
+}
+
 // AddStudyIDs adds the "studies" edge to the Study entity by ids.
 func (m *AgentTokenMutation) AddStudyIDs(ids ...int) {
 	if m.studies == nil {
@@ -2732,7 +2797,7 @@ func (m *AgentTokenMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *AgentTokenMutation) AddedEdges() []string {
-	edges := make([]string, 0, 8)
+	edges := make([]string, 0, 9)
 	if m.project != nil {
 		edges = append(edges, agenttoken.EdgeProject)
 	}
@@ -2747,6 +2812,9 @@ func (m *AgentTokenMutation) AddedEdges() []string {
 	}
 	if m.workspace_datasets != nil {
 		edges = append(edges, agenttoken.EdgeWorkspaceDatasets)
+	}
+	if m.dataset_bindings != nil {
+		edges = append(edges, agenttoken.EdgeDatasetBindings)
 	}
 	if m.studies != nil {
 		edges = append(edges, agenttoken.EdgeStudies)
@@ -2792,6 +2860,12 @@ func (m *AgentTokenMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case agenttoken.EdgeDatasetBindings:
+		ids := make([]ent.Value, 0, len(m.dataset_bindings))
+		for id := range m.dataset_bindings {
+			ids = append(ids, id)
+		}
+		return ids
 	case agenttoken.EdgeStudies:
 		ids := make([]ent.Value, 0, len(m.studies))
 		for id := range m.studies {
@@ -2816,7 +2890,7 @@ func (m *AgentTokenMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *AgentTokenMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 8)
+	edges := make([]string, 0, 9)
 	if m.removedexperiments != nil {
 		edges = append(edges, agenttoken.EdgeExperiments)
 	}
@@ -2828,6 +2902,9 @@ func (m *AgentTokenMutation) RemovedEdges() []string {
 	}
 	if m.removedworkspace_datasets != nil {
 		edges = append(edges, agenttoken.EdgeWorkspaceDatasets)
+	}
+	if m.removeddataset_bindings != nil {
+		edges = append(edges, agenttoken.EdgeDatasetBindings)
 	}
 	if m.removedstudies != nil {
 		edges = append(edges, agenttoken.EdgeStudies)
@@ -2869,6 +2946,12 @@ func (m *AgentTokenMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case agenttoken.EdgeDatasetBindings:
+		ids := make([]ent.Value, 0, len(m.removeddataset_bindings))
+		for id := range m.removeddataset_bindings {
+			ids = append(ids, id)
+		}
+		return ids
 	case agenttoken.EdgeStudies:
 		ids := make([]ent.Value, 0, len(m.removedstudies))
 		for id := range m.removedstudies {
@@ -2893,7 +2976,7 @@ func (m *AgentTokenMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *AgentTokenMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 8)
+	edges := make([]string, 0, 9)
 	if m.clearedproject {
 		edges = append(edges, agenttoken.EdgeProject)
 	}
@@ -2908,6 +2991,9 @@ func (m *AgentTokenMutation) ClearedEdges() []string {
 	}
 	if m.clearedworkspace_datasets {
 		edges = append(edges, agenttoken.EdgeWorkspaceDatasets)
+	}
+	if m.cleareddataset_bindings {
+		edges = append(edges, agenttoken.EdgeDatasetBindings)
 	}
 	if m.clearedstudies {
 		edges = append(edges, agenttoken.EdgeStudies)
@@ -2935,6 +3021,8 @@ func (m *AgentTokenMutation) EdgeCleared(name string) bool {
 		return m.clearedexperiment_proposals
 	case agenttoken.EdgeWorkspaceDatasets:
 		return m.clearedworkspace_datasets
+	case agenttoken.EdgeDatasetBindings:
+		return m.cleareddataset_bindings
 	case agenttoken.EdgeStudies:
 		return m.clearedstudies
 	case agenttoken.EdgeIterationPlans:
@@ -2975,6 +3063,9 @@ func (m *AgentTokenMutation) ResetEdge(name string) error {
 	case agenttoken.EdgeWorkspaceDatasets:
 		m.ResetWorkspaceDatasets()
 		return nil
+	case agenttoken.EdgeDatasetBindings:
+		m.ResetDatasetBindings()
+		return nil
 	case agenttoken.EdgeStudies:
 		m.ResetStudies()
 		return nil
@@ -2991,48 +3082,50 @@ func (m *AgentTokenMutation) ResetEdge(name string) error {
 // AttemptMutation represents an operation that mutates the Attempt nodes in the graph.
 type AttemptMutation struct {
 	config
-	op                      Op
-	typ                     string
-	id                      *int
-	public_id               *uuid.UUID
-	created_at              *time.Time
-	updated_at              *time.Time
-	number                  *int
-	addnumber               *int
-	state                   *string
-	provider_resource_id    *string
-	runner_token_hash       *[]byte
-	runner_token_ciphertext *string
-	runner_token_expires_at *time.Time
-	source_downloads        *int
-	addsource_downloads     *int
-	last_heartbeat_at       *time.Time
-	retry_reason            *string
-	failure_code            *string
-	failure_reason          *string
-	started_at              *time.Time
-	finished_at             *time.Time
-	estimated_cost_milli    *int64
-	addestimated_cost_milli *int64
-	exit_code               *int
-	addexit_code            *int
-	log_tail                *string
-	metrics                 *map[string]interface{}
-	provider_request_ids    *map[string]string
-	clearedFields           map[string]struct{}
-	tenant                  *int
-	clearedtenant           bool
-	project                 *int
-	clearedproject          bool
-	experiment              *int
-	clearedexperiment       bool
-	owned_resource          *int
-	clearedowned_resource   bool
-	node_assignment         *int
-	clearednode_assignment  bool
-	done                    bool
-	oldValue                func(context.Context) (*Attempt, error)
-	predicates              []predicate.Attempt
+	op                          Op
+	typ                         string
+	id                          *int
+	public_id                   *uuid.UUID
+	created_at                  *time.Time
+	updated_at                  *time.Time
+	number                      *int
+	addnumber                   *int
+	state                       *string
+	provider_resource_id        *string
+	runner_token_hash           *[]byte
+	runner_token_ciphertext     *string
+	runner_token_expires_at     *time.Time
+	source_downloads            *int
+	addsource_downloads         *int
+	last_heartbeat_at           *time.Time
+	retry_reason                *string
+	failure_code                *string
+	failure_reason              *string
+	started_at                  *time.Time
+	finished_at                 *time.Time
+	estimated_cost_milli        *int64
+	addestimated_cost_milli     *int64
+	exit_code                   *int
+	addexit_code                *int
+	log_tail                    *string
+	metrics                     *map[string]interface{}
+	provider_request_ids        *map[string]string
+	clearedFields               map[string]struct{}
+	tenant                      *int
+	clearedtenant               bool
+	project                     *int
+	clearedproject              bool
+	experiment                  *int
+	clearedexperiment           bool
+	owned_resource              *int
+	clearedowned_resource       bool
+	node_assignment             *int
+	clearednode_assignment      bool
+	cloud_ssh_assignment        *int
+	clearedcloud_ssh_assignment bool
+	done                        bool
+	oldValue                    func(context.Context) (*Attempt, error)
+	predicates                  []predicate.Attempt
 }
 
 var _ ent.Mutation = (*AttemptMutation)(nil)
@@ -4419,6 +4512,45 @@ func (m *AttemptMutation) ResetNodeAssignment() {
 	m.clearednode_assignment = false
 }
 
+// SetCloudSSHAssignmentID sets the "cloud_ssh_assignment" edge to the CloudSSHAssignment entity by id.
+func (m *AttemptMutation) SetCloudSSHAssignmentID(id int) {
+	m.cloud_ssh_assignment = &id
+}
+
+// ClearCloudSSHAssignment clears the "cloud_ssh_assignment" edge to the CloudSSHAssignment entity.
+func (m *AttemptMutation) ClearCloudSSHAssignment() {
+	m.clearedcloud_ssh_assignment = true
+}
+
+// CloudSSHAssignmentCleared reports if the "cloud_ssh_assignment" edge to the CloudSSHAssignment entity was cleared.
+func (m *AttemptMutation) CloudSSHAssignmentCleared() bool {
+	return m.clearedcloud_ssh_assignment
+}
+
+// CloudSSHAssignmentID returns the "cloud_ssh_assignment" edge ID in the mutation.
+func (m *AttemptMutation) CloudSSHAssignmentID() (id int, exists bool) {
+	if m.cloud_ssh_assignment != nil {
+		return *m.cloud_ssh_assignment, true
+	}
+	return
+}
+
+// CloudSSHAssignmentIDs returns the "cloud_ssh_assignment" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// CloudSSHAssignmentID instead. It exists only for internal usage by the builders.
+func (m *AttemptMutation) CloudSSHAssignmentIDs() (ids []int) {
+	if id := m.cloud_ssh_assignment; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetCloudSSHAssignment resets all changes to the "cloud_ssh_assignment" edge.
+func (m *AttemptMutation) ResetCloudSSHAssignment() {
+	m.cloud_ssh_assignment = nil
+	m.clearedcloud_ssh_assignment = false
+}
+
 // Where appends a list predicates to the AttemptMutation builder.
 func (m *AttemptMutation) Where(ps ...predicate.Attempt) {
 	m.predicates = append(m.predicates, ps...)
@@ -5081,7 +5213,7 @@ func (m *AttemptMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *AttemptMutation) AddedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 6)
 	if m.tenant != nil {
 		edges = append(edges, attempt.EdgeTenant)
 	}
@@ -5096,6 +5228,9 @@ func (m *AttemptMutation) AddedEdges() []string {
 	}
 	if m.node_assignment != nil {
 		edges = append(edges, attempt.EdgeNodeAssignment)
+	}
+	if m.cloud_ssh_assignment != nil {
+		edges = append(edges, attempt.EdgeCloudSSHAssignment)
 	}
 	return edges
 }
@@ -5124,13 +5259,17 @@ func (m *AttemptMutation) AddedIDs(name string) []ent.Value {
 		if id := m.node_assignment; id != nil {
 			return []ent.Value{*id}
 		}
+	case attempt.EdgeCloudSSHAssignment:
+		if id := m.cloud_ssh_assignment; id != nil {
+			return []ent.Value{*id}
+		}
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *AttemptMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 6)
 	return edges
 }
 
@@ -5142,7 +5281,7 @@ func (m *AttemptMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *AttemptMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 6)
 	if m.clearedtenant {
 		edges = append(edges, attempt.EdgeTenant)
 	}
@@ -5157,6 +5296,9 @@ func (m *AttemptMutation) ClearedEdges() []string {
 	}
 	if m.clearednode_assignment {
 		edges = append(edges, attempt.EdgeNodeAssignment)
+	}
+	if m.clearedcloud_ssh_assignment {
+		edges = append(edges, attempt.EdgeCloudSSHAssignment)
 	}
 	return edges
 }
@@ -5175,6 +5317,8 @@ func (m *AttemptMutation) EdgeCleared(name string) bool {
 		return m.clearedowned_resource
 	case attempt.EdgeNodeAssignment:
 		return m.clearednode_assignment
+	case attempt.EdgeCloudSSHAssignment:
+		return m.clearedcloud_ssh_assignment
 	}
 	return false
 }
@@ -5198,6 +5342,9 @@ func (m *AttemptMutation) ClearEdge(name string) error {
 	case attempt.EdgeNodeAssignment:
 		m.ClearNodeAssignment()
 		return nil
+	case attempt.EdgeCloudSSHAssignment:
+		m.ClearCloudSSHAssignment()
+		return nil
 	}
 	return fmt.Errorf("unknown Attempt unique edge %s", name)
 }
@@ -5220,6 +5367,9 @@ func (m *AttemptMutation) ResetEdge(name string) error {
 		return nil
 	case attempt.EdgeNodeAssignment:
 		m.ResetNodeAssignment()
+		return nil
+	case attempt.EdgeCloudSSHAssignment:
+		m.ResetCloudSSHAssignment()
 		return nil
 	}
 	return fmt.Errorf("unknown Attempt edge %s", name)
@@ -7314,6 +7464,5624 @@ func (m *BudgetEntryMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown BudgetEntry edge %s", name)
+}
+
+// CloudSSHAssignmentMutation represents an operation that mutates the CloudSSHAssignment nodes in the graph.
+type CloudSSHAssignmentMutation struct {
+	config
+	op                Op
+	typ               string
+	id                *int
+	public_id         *uuid.UUID
+	created_at        *time.Time
+	updated_at        *time.Time
+	state             *cloudsshassignment.State
+	remote_dir        *string
+	container_id      *string
+	output_ref        *string
+	started_at        *time.Time
+	last_heartbeat_at *time.Time
+	deadline_at       *time.Time
+	hard_deadline_at  *time.Time
+	stop_requested_at *time.Time
+	stop_reason       *string
+	finished_at       *time.Time
+	exit_code         *int
+	addexit_code      *int
+	log_tail          *string
+	metrics           *map[string]interface{}
+	failure_code      *string
+	failure_reason    *string
+	last_error        *string
+	clearedFields     map[string]struct{}
+	tenant            *int
+	clearedtenant     bool
+	project           *int
+	clearedproject    bool
+	experiment        *int
+	clearedexperiment bool
+	attempt           *int
+	clearedattempt    bool
+	node              *int
+	clearednode       bool
+	done              bool
+	oldValue          func(context.Context) (*CloudSSHAssignment, error)
+	predicates        []predicate.CloudSSHAssignment
+}
+
+var _ ent.Mutation = (*CloudSSHAssignmentMutation)(nil)
+
+// cloudsshassignmentOption allows management of the mutation configuration using functional options.
+type cloudsshassignmentOption func(*CloudSSHAssignmentMutation)
+
+// newCloudSSHAssignmentMutation creates new mutation for the CloudSSHAssignment entity.
+func newCloudSSHAssignmentMutation(c config, op Op, opts ...cloudsshassignmentOption) *CloudSSHAssignmentMutation {
+	m := &CloudSSHAssignmentMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeCloudSSHAssignment,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withCloudSSHAssignmentID sets the ID field of the mutation.
+func withCloudSSHAssignmentID(id int) cloudsshassignmentOption {
+	return func(m *CloudSSHAssignmentMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *CloudSSHAssignment
+		)
+		m.oldValue = func(ctx context.Context) (*CloudSSHAssignment, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().CloudSSHAssignment.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withCloudSSHAssignment sets the old CloudSSHAssignment of the mutation.
+func withCloudSSHAssignment(node *CloudSSHAssignment) cloudsshassignmentOption {
+	return func(m *CloudSSHAssignmentMutation) {
+		m.oldValue = func(context.Context) (*CloudSSHAssignment, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m CloudSSHAssignmentMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m CloudSSHAssignmentMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *CloudSSHAssignmentMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *CloudSSHAssignmentMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().CloudSSHAssignment.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetPublicID sets the "public_id" field.
+func (m *CloudSSHAssignmentMutation) SetPublicID(u uuid.UUID) {
+	m.public_id = &u
+}
+
+// PublicID returns the value of the "public_id" field in the mutation.
+func (m *CloudSSHAssignmentMutation) PublicID() (r uuid.UUID, exists bool) {
+	v := m.public_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPublicID returns the old "public_id" field's value of the CloudSSHAssignment entity.
+// If the CloudSSHAssignment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHAssignmentMutation) OldPublicID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPublicID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPublicID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPublicID: %w", err)
+	}
+	return oldValue.PublicID, nil
+}
+
+// ResetPublicID resets all changes to the "public_id" field.
+func (m *CloudSSHAssignmentMutation) ResetPublicID() {
+	m.public_id = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *CloudSSHAssignmentMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *CloudSSHAssignmentMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the CloudSSHAssignment entity.
+// If the CloudSSHAssignment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHAssignmentMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *CloudSSHAssignmentMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *CloudSSHAssignmentMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *CloudSSHAssignmentMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the CloudSSHAssignment entity.
+// If the CloudSSHAssignment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHAssignmentMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *CloudSSHAssignmentMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *CloudSSHAssignmentMutation) SetTenantID(i int) {
+	m.tenant = &i
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *CloudSSHAssignmentMutation) TenantID() (r int, exists bool) {
+	v := m.tenant
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the CloudSSHAssignment entity.
+// If the CloudSSHAssignment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHAssignmentMutation) OldTenantID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *CloudSSHAssignmentMutation) ResetTenantID() {
+	m.tenant = nil
+}
+
+// SetProjectID sets the "project_id" field.
+func (m *CloudSSHAssignmentMutation) SetProjectID(i int) {
+	m.project = &i
+}
+
+// ProjectID returns the value of the "project_id" field in the mutation.
+func (m *CloudSSHAssignmentMutation) ProjectID() (r int, exists bool) {
+	v := m.project
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProjectID returns the old "project_id" field's value of the CloudSSHAssignment entity.
+// If the CloudSSHAssignment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHAssignmentMutation) OldProjectID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProjectID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProjectID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProjectID: %w", err)
+	}
+	return oldValue.ProjectID, nil
+}
+
+// ResetProjectID resets all changes to the "project_id" field.
+func (m *CloudSSHAssignmentMutation) ResetProjectID() {
+	m.project = nil
+}
+
+// SetExperimentID sets the "experiment_id" field.
+func (m *CloudSSHAssignmentMutation) SetExperimentID(i int) {
+	m.experiment = &i
+}
+
+// ExperimentID returns the value of the "experiment_id" field in the mutation.
+func (m *CloudSSHAssignmentMutation) ExperimentID() (r int, exists bool) {
+	v := m.experiment
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExperimentID returns the old "experiment_id" field's value of the CloudSSHAssignment entity.
+// If the CloudSSHAssignment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHAssignmentMutation) OldExperimentID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExperimentID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExperimentID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExperimentID: %w", err)
+	}
+	return oldValue.ExperimentID, nil
+}
+
+// ResetExperimentID resets all changes to the "experiment_id" field.
+func (m *CloudSSHAssignmentMutation) ResetExperimentID() {
+	m.experiment = nil
+}
+
+// SetAttemptID sets the "attempt_id" field.
+func (m *CloudSSHAssignmentMutation) SetAttemptID(i int) {
+	m.attempt = &i
+}
+
+// AttemptID returns the value of the "attempt_id" field in the mutation.
+func (m *CloudSSHAssignmentMutation) AttemptID() (r int, exists bool) {
+	v := m.attempt
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAttemptID returns the old "attempt_id" field's value of the CloudSSHAssignment entity.
+// If the CloudSSHAssignment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHAssignmentMutation) OldAttemptID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAttemptID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAttemptID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAttemptID: %w", err)
+	}
+	return oldValue.AttemptID, nil
+}
+
+// ResetAttemptID resets all changes to the "attempt_id" field.
+func (m *CloudSSHAssignmentMutation) ResetAttemptID() {
+	m.attempt = nil
+}
+
+// SetNodeID sets the "node_id" field.
+func (m *CloudSSHAssignmentMutation) SetNodeID(i int) {
+	m.node = &i
+}
+
+// NodeID returns the value of the "node_id" field in the mutation.
+func (m *CloudSSHAssignmentMutation) NodeID() (r int, exists bool) {
+	v := m.node
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNodeID returns the old "node_id" field's value of the CloudSSHAssignment entity.
+// If the CloudSSHAssignment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHAssignmentMutation) OldNodeID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNodeID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNodeID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNodeID: %w", err)
+	}
+	return oldValue.NodeID, nil
+}
+
+// ResetNodeID resets all changes to the "node_id" field.
+func (m *CloudSSHAssignmentMutation) ResetNodeID() {
+	m.node = nil
+}
+
+// SetState sets the "state" field.
+func (m *CloudSSHAssignmentMutation) SetState(c cloudsshassignment.State) {
+	m.state = &c
+}
+
+// State returns the value of the "state" field in the mutation.
+func (m *CloudSSHAssignmentMutation) State() (r cloudsshassignment.State, exists bool) {
+	v := m.state
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldState returns the old "state" field's value of the CloudSSHAssignment entity.
+// If the CloudSSHAssignment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHAssignmentMutation) OldState(ctx context.Context) (v cloudsshassignment.State, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldState is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldState requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldState: %w", err)
+	}
+	return oldValue.State, nil
+}
+
+// ResetState resets all changes to the "state" field.
+func (m *CloudSSHAssignmentMutation) ResetState() {
+	m.state = nil
+}
+
+// SetRemoteDir sets the "remote_dir" field.
+func (m *CloudSSHAssignmentMutation) SetRemoteDir(s string) {
+	m.remote_dir = &s
+}
+
+// RemoteDir returns the value of the "remote_dir" field in the mutation.
+func (m *CloudSSHAssignmentMutation) RemoteDir() (r string, exists bool) {
+	v := m.remote_dir
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRemoteDir returns the old "remote_dir" field's value of the CloudSSHAssignment entity.
+// If the CloudSSHAssignment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHAssignmentMutation) OldRemoteDir(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRemoteDir is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRemoteDir requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRemoteDir: %w", err)
+	}
+	return oldValue.RemoteDir, nil
+}
+
+// ResetRemoteDir resets all changes to the "remote_dir" field.
+func (m *CloudSSHAssignmentMutation) ResetRemoteDir() {
+	m.remote_dir = nil
+}
+
+// SetContainerID sets the "container_id" field.
+func (m *CloudSSHAssignmentMutation) SetContainerID(s string) {
+	m.container_id = &s
+}
+
+// ContainerID returns the value of the "container_id" field in the mutation.
+func (m *CloudSSHAssignmentMutation) ContainerID() (r string, exists bool) {
+	v := m.container_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldContainerID returns the old "container_id" field's value of the CloudSSHAssignment entity.
+// If the CloudSSHAssignment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHAssignmentMutation) OldContainerID(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldContainerID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldContainerID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldContainerID: %w", err)
+	}
+	return oldValue.ContainerID, nil
+}
+
+// ClearContainerID clears the value of the "container_id" field.
+func (m *CloudSSHAssignmentMutation) ClearContainerID() {
+	m.container_id = nil
+	m.clearedFields[cloudsshassignment.FieldContainerID] = struct{}{}
+}
+
+// ContainerIDCleared returns if the "container_id" field was cleared in this mutation.
+func (m *CloudSSHAssignmentMutation) ContainerIDCleared() bool {
+	_, ok := m.clearedFields[cloudsshassignment.FieldContainerID]
+	return ok
+}
+
+// ResetContainerID resets all changes to the "container_id" field.
+func (m *CloudSSHAssignmentMutation) ResetContainerID() {
+	m.container_id = nil
+	delete(m.clearedFields, cloudsshassignment.FieldContainerID)
+}
+
+// SetOutputRef sets the "output_ref" field.
+func (m *CloudSSHAssignmentMutation) SetOutputRef(s string) {
+	m.output_ref = &s
+}
+
+// OutputRef returns the value of the "output_ref" field in the mutation.
+func (m *CloudSSHAssignmentMutation) OutputRef() (r string, exists bool) {
+	v := m.output_ref
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOutputRef returns the old "output_ref" field's value of the CloudSSHAssignment entity.
+// If the CloudSSHAssignment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHAssignmentMutation) OldOutputRef(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOutputRef is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOutputRef requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOutputRef: %w", err)
+	}
+	return oldValue.OutputRef, nil
+}
+
+// ResetOutputRef resets all changes to the "output_ref" field.
+func (m *CloudSSHAssignmentMutation) ResetOutputRef() {
+	m.output_ref = nil
+}
+
+// SetStartedAt sets the "started_at" field.
+func (m *CloudSSHAssignmentMutation) SetStartedAt(t time.Time) {
+	m.started_at = &t
+}
+
+// StartedAt returns the value of the "started_at" field in the mutation.
+func (m *CloudSSHAssignmentMutation) StartedAt() (r time.Time, exists bool) {
+	v := m.started_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStartedAt returns the old "started_at" field's value of the CloudSSHAssignment entity.
+// If the CloudSSHAssignment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHAssignmentMutation) OldStartedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStartedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStartedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStartedAt: %w", err)
+	}
+	return oldValue.StartedAt, nil
+}
+
+// ClearStartedAt clears the value of the "started_at" field.
+func (m *CloudSSHAssignmentMutation) ClearStartedAt() {
+	m.started_at = nil
+	m.clearedFields[cloudsshassignment.FieldStartedAt] = struct{}{}
+}
+
+// StartedAtCleared returns if the "started_at" field was cleared in this mutation.
+func (m *CloudSSHAssignmentMutation) StartedAtCleared() bool {
+	_, ok := m.clearedFields[cloudsshassignment.FieldStartedAt]
+	return ok
+}
+
+// ResetStartedAt resets all changes to the "started_at" field.
+func (m *CloudSSHAssignmentMutation) ResetStartedAt() {
+	m.started_at = nil
+	delete(m.clearedFields, cloudsshassignment.FieldStartedAt)
+}
+
+// SetLastHeartbeatAt sets the "last_heartbeat_at" field.
+func (m *CloudSSHAssignmentMutation) SetLastHeartbeatAt(t time.Time) {
+	m.last_heartbeat_at = &t
+}
+
+// LastHeartbeatAt returns the value of the "last_heartbeat_at" field in the mutation.
+func (m *CloudSSHAssignmentMutation) LastHeartbeatAt() (r time.Time, exists bool) {
+	v := m.last_heartbeat_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastHeartbeatAt returns the old "last_heartbeat_at" field's value of the CloudSSHAssignment entity.
+// If the CloudSSHAssignment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHAssignmentMutation) OldLastHeartbeatAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastHeartbeatAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastHeartbeatAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastHeartbeatAt: %w", err)
+	}
+	return oldValue.LastHeartbeatAt, nil
+}
+
+// ClearLastHeartbeatAt clears the value of the "last_heartbeat_at" field.
+func (m *CloudSSHAssignmentMutation) ClearLastHeartbeatAt() {
+	m.last_heartbeat_at = nil
+	m.clearedFields[cloudsshassignment.FieldLastHeartbeatAt] = struct{}{}
+}
+
+// LastHeartbeatAtCleared returns if the "last_heartbeat_at" field was cleared in this mutation.
+func (m *CloudSSHAssignmentMutation) LastHeartbeatAtCleared() bool {
+	_, ok := m.clearedFields[cloudsshassignment.FieldLastHeartbeatAt]
+	return ok
+}
+
+// ResetLastHeartbeatAt resets all changes to the "last_heartbeat_at" field.
+func (m *CloudSSHAssignmentMutation) ResetLastHeartbeatAt() {
+	m.last_heartbeat_at = nil
+	delete(m.clearedFields, cloudsshassignment.FieldLastHeartbeatAt)
+}
+
+// SetDeadlineAt sets the "deadline_at" field.
+func (m *CloudSSHAssignmentMutation) SetDeadlineAt(t time.Time) {
+	m.deadline_at = &t
+}
+
+// DeadlineAt returns the value of the "deadline_at" field in the mutation.
+func (m *CloudSSHAssignmentMutation) DeadlineAt() (r time.Time, exists bool) {
+	v := m.deadline_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeadlineAt returns the old "deadline_at" field's value of the CloudSSHAssignment entity.
+// If the CloudSSHAssignment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHAssignmentMutation) OldDeadlineAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeadlineAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeadlineAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeadlineAt: %w", err)
+	}
+	return oldValue.DeadlineAt, nil
+}
+
+// ClearDeadlineAt clears the value of the "deadline_at" field.
+func (m *CloudSSHAssignmentMutation) ClearDeadlineAt() {
+	m.deadline_at = nil
+	m.clearedFields[cloudsshassignment.FieldDeadlineAt] = struct{}{}
+}
+
+// DeadlineAtCleared returns if the "deadline_at" field was cleared in this mutation.
+func (m *CloudSSHAssignmentMutation) DeadlineAtCleared() bool {
+	_, ok := m.clearedFields[cloudsshassignment.FieldDeadlineAt]
+	return ok
+}
+
+// ResetDeadlineAt resets all changes to the "deadline_at" field.
+func (m *CloudSSHAssignmentMutation) ResetDeadlineAt() {
+	m.deadline_at = nil
+	delete(m.clearedFields, cloudsshassignment.FieldDeadlineAt)
+}
+
+// SetHardDeadlineAt sets the "hard_deadline_at" field.
+func (m *CloudSSHAssignmentMutation) SetHardDeadlineAt(t time.Time) {
+	m.hard_deadline_at = &t
+}
+
+// HardDeadlineAt returns the value of the "hard_deadline_at" field in the mutation.
+func (m *CloudSSHAssignmentMutation) HardDeadlineAt() (r time.Time, exists bool) {
+	v := m.hard_deadline_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHardDeadlineAt returns the old "hard_deadline_at" field's value of the CloudSSHAssignment entity.
+// If the CloudSSHAssignment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHAssignmentMutation) OldHardDeadlineAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHardDeadlineAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHardDeadlineAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHardDeadlineAt: %w", err)
+	}
+	return oldValue.HardDeadlineAt, nil
+}
+
+// ClearHardDeadlineAt clears the value of the "hard_deadline_at" field.
+func (m *CloudSSHAssignmentMutation) ClearHardDeadlineAt() {
+	m.hard_deadline_at = nil
+	m.clearedFields[cloudsshassignment.FieldHardDeadlineAt] = struct{}{}
+}
+
+// HardDeadlineAtCleared returns if the "hard_deadline_at" field was cleared in this mutation.
+func (m *CloudSSHAssignmentMutation) HardDeadlineAtCleared() bool {
+	_, ok := m.clearedFields[cloudsshassignment.FieldHardDeadlineAt]
+	return ok
+}
+
+// ResetHardDeadlineAt resets all changes to the "hard_deadline_at" field.
+func (m *CloudSSHAssignmentMutation) ResetHardDeadlineAt() {
+	m.hard_deadline_at = nil
+	delete(m.clearedFields, cloudsshassignment.FieldHardDeadlineAt)
+}
+
+// SetStopRequestedAt sets the "stop_requested_at" field.
+func (m *CloudSSHAssignmentMutation) SetStopRequestedAt(t time.Time) {
+	m.stop_requested_at = &t
+}
+
+// StopRequestedAt returns the value of the "stop_requested_at" field in the mutation.
+func (m *CloudSSHAssignmentMutation) StopRequestedAt() (r time.Time, exists bool) {
+	v := m.stop_requested_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStopRequestedAt returns the old "stop_requested_at" field's value of the CloudSSHAssignment entity.
+// If the CloudSSHAssignment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHAssignmentMutation) OldStopRequestedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStopRequestedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStopRequestedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStopRequestedAt: %w", err)
+	}
+	return oldValue.StopRequestedAt, nil
+}
+
+// ClearStopRequestedAt clears the value of the "stop_requested_at" field.
+func (m *CloudSSHAssignmentMutation) ClearStopRequestedAt() {
+	m.stop_requested_at = nil
+	m.clearedFields[cloudsshassignment.FieldStopRequestedAt] = struct{}{}
+}
+
+// StopRequestedAtCleared returns if the "stop_requested_at" field was cleared in this mutation.
+func (m *CloudSSHAssignmentMutation) StopRequestedAtCleared() bool {
+	_, ok := m.clearedFields[cloudsshassignment.FieldStopRequestedAt]
+	return ok
+}
+
+// ResetStopRequestedAt resets all changes to the "stop_requested_at" field.
+func (m *CloudSSHAssignmentMutation) ResetStopRequestedAt() {
+	m.stop_requested_at = nil
+	delete(m.clearedFields, cloudsshassignment.FieldStopRequestedAt)
+}
+
+// SetStopReason sets the "stop_reason" field.
+func (m *CloudSSHAssignmentMutation) SetStopReason(s string) {
+	m.stop_reason = &s
+}
+
+// StopReason returns the value of the "stop_reason" field in the mutation.
+func (m *CloudSSHAssignmentMutation) StopReason() (r string, exists bool) {
+	v := m.stop_reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStopReason returns the old "stop_reason" field's value of the CloudSSHAssignment entity.
+// If the CloudSSHAssignment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHAssignmentMutation) OldStopReason(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStopReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStopReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStopReason: %w", err)
+	}
+	return oldValue.StopReason, nil
+}
+
+// ClearStopReason clears the value of the "stop_reason" field.
+func (m *CloudSSHAssignmentMutation) ClearStopReason() {
+	m.stop_reason = nil
+	m.clearedFields[cloudsshassignment.FieldStopReason] = struct{}{}
+}
+
+// StopReasonCleared returns if the "stop_reason" field was cleared in this mutation.
+func (m *CloudSSHAssignmentMutation) StopReasonCleared() bool {
+	_, ok := m.clearedFields[cloudsshassignment.FieldStopReason]
+	return ok
+}
+
+// ResetStopReason resets all changes to the "stop_reason" field.
+func (m *CloudSSHAssignmentMutation) ResetStopReason() {
+	m.stop_reason = nil
+	delete(m.clearedFields, cloudsshassignment.FieldStopReason)
+}
+
+// SetFinishedAt sets the "finished_at" field.
+func (m *CloudSSHAssignmentMutation) SetFinishedAt(t time.Time) {
+	m.finished_at = &t
+}
+
+// FinishedAt returns the value of the "finished_at" field in the mutation.
+func (m *CloudSSHAssignmentMutation) FinishedAt() (r time.Time, exists bool) {
+	v := m.finished_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFinishedAt returns the old "finished_at" field's value of the CloudSSHAssignment entity.
+// If the CloudSSHAssignment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHAssignmentMutation) OldFinishedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFinishedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFinishedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFinishedAt: %w", err)
+	}
+	return oldValue.FinishedAt, nil
+}
+
+// ClearFinishedAt clears the value of the "finished_at" field.
+func (m *CloudSSHAssignmentMutation) ClearFinishedAt() {
+	m.finished_at = nil
+	m.clearedFields[cloudsshassignment.FieldFinishedAt] = struct{}{}
+}
+
+// FinishedAtCleared returns if the "finished_at" field was cleared in this mutation.
+func (m *CloudSSHAssignmentMutation) FinishedAtCleared() bool {
+	_, ok := m.clearedFields[cloudsshassignment.FieldFinishedAt]
+	return ok
+}
+
+// ResetFinishedAt resets all changes to the "finished_at" field.
+func (m *CloudSSHAssignmentMutation) ResetFinishedAt() {
+	m.finished_at = nil
+	delete(m.clearedFields, cloudsshassignment.FieldFinishedAt)
+}
+
+// SetExitCode sets the "exit_code" field.
+func (m *CloudSSHAssignmentMutation) SetExitCode(i int) {
+	m.exit_code = &i
+	m.addexit_code = nil
+}
+
+// ExitCode returns the value of the "exit_code" field in the mutation.
+func (m *CloudSSHAssignmentMutation) ExitCode() (r int, exists bool) {
+	v := m.exit_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExitCode returns the old "exit_code" field's value of the CloudSSHAssignment entity.
+// If the CloudSSHAssignment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHAssignmentMutation) OldExitCode(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExitCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExitCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExitCode: %w", err)
+	}
+	return oldValue.ExitCode, nil
+}
+
+// AddExitCode adds i to the "exit_code" field.
+func (m *CloudSSHAssignmentMutation) AddExitCode(i int) {
+	if m.addexit_code != nil {
+		*m.addexit_code += i
+	} else {
+		m.addexit_code = &i
+	}
+}
+
+// AddedExitCode returns the value that was added to the "exit_code" field in this mutation.
+func (m *CloudSSHAssignmentMutation) AddedExitCode() (r int, exists bool) {
+	v := m.addexit_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearExitCode clears the value of the "exit_code" field.
+func (m *CloudSSHAssignmentMutation) ClearExitCode() {
+	m.exit_code = nil
+	m.addexit_code = nil
+	m.clearedFields[cloudsshassignment.FieldExitCode] = struct{}{}
+}
+
+// ExitCodeCleared returns if the "exit_code" field was cleared in this mutation.
+func (m *CloudSSHAssignmentMutation) ExitCodeCleared() bool {
+	_, ok := m.clearedFields[cloudsshassignment.FieldExitCode]
+	return ok
+}
+
+// ResetExitCode resets all changes to the "exit_code" field.
+func (m *CloudSSHAssignmentMutation) ResetExitCode() {
+	m.exit_code = nil
+	m.addexit_code = nil
+	delete(m.clearedFields, cloudsshassignment.FieldExitCode)
+}
+
+// SetLogTail sets the "log_tail" field.
+func (m *CloudSSHAssignmentMutation) SetLogTail(s string) {
+	m.log_tail = &s
+}
+
+// LogTail returns the value of the "log_tail" field in the mutation.
+func (m *CloudSSHAssignmentMutation) LogTail() (r string, exists bool) {
+	v := m.log_tail
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLogTail returns the old "log_tail" field's value of the CloudSSHAssignment entity.
+// If the CloudSSHAssignment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHAssignmentMutation) OldLogTail(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLogTail is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLogTail requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLogTail: %w", err)
+	}
+	return oldValue.LogTail, nil
+}
+
+// ClearLogTail clears the value of the "log_tail" field.
+func (m *CloudSSHAssignmentMutation) ClearLogTail() {
+	m.log_tail = nil
+	m.clearedFields[cloudsshassignment.FieldLogTail] = struct{}{}
+}
+
+// LogTailCleared returns if the "log_tail" field was cleared in this mutation.
+func (m *CloudSSHAssignmentMutation) LogTailCleared() bool {
+	_, ok := m.clearedFields[cloudsshassignment.FieldLogTail]
+	return ok
+}
+
+// ResetLogTail resets all changes to the "log_tail" field.
+func (m *CloudSSHAssignmentMutation) ResetLogTail() {
+	m.log_tail = nil
+	delete(m.clearedFields, cloudsshassignment.FieldLogTail)
+}
+
+// SetMetrics sets the "metrics" field.
+func (m *CloudSSHAssignmentMutation) SetMetrics(value map[string]interface{}) {
+	m.metrics = &value
+}
+
+// Metrics returns the value of the "metrics" field in the mutation.
+func (m *CloudSSHAssignmentMutation) Metrics() (r map[string]interface{}, exists bool) {
+	v := m.metrics
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetrics returns the old "metrics" field's value of the CloudSSHAssignment entity.
+// If the CloudSSHAssignment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHAssignmentMutation) OldMetrics(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetrics is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetrics requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetrics: %w", err)
+	}
+	return oldValue.Metrics, nil
+}
+
+// ResetMetrics resets all changes to the "metrics" field.
+func (m *CloudSSHAssignmentMutation) ResetMetrics() {
+	m.metrics = nil
+}
+
+// SetFailureCode sets the "failure_code" field.
+func (m *CloudSSHAssignmentMutation) SetFailureCode(s string) {
+	m.failure_code = &s
+}
+
+// FailureCode returns the value of the "failure_code" field in the mutation.
+func (m *CloudSSHAssignmentMutation) FailureCode() (r string, exists bool) {
+	v := m.failure_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFailureCode returns the old "failure_code" field's value of the CloudSSHAssignment entity.
+// If the CloudSSHAssignment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHAssignmentMutation) OldFailureCode(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFailureCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFailureCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFailureCode: %w", err)
+	}
+	return oldValue.FailureCode, nil
+}
+
+// ClearFailureCode clears the value of the "failure_code" field.
+func (m *CloudSSHAssignmentMutation) ClearFailureCode() {
+	m.failure_code = nil
+	m.clearedFields[cloudsshassignment.FieldFailureCode] = struct{}{}
+}
+
+// FailureCodeCleared returns if the "failure_code" field was cleared in this mutation.
+func (m *CloudSSHAssignmentMutation) FailureCodeCleared() bool {
+	_, ok := m.clearedFields[cloudsshassignment.FieldFailureCode]
+	return ok
+}
+
+// ResetFailureCode resets all changes to the "failure_code" field.
+func (m *CloudSSHAssignmentMutation) ResetFailureCode() {
+	m.failure_code = nil
+	delete(m.clearedFields, cloudsshassignment.FieldFailureCode)
+}
+
+// SetFailureReason sets the "failure_reason" field.
+func (m *CloudSSHAssignmentMutation) SetFailureReason(s string) {
+	m.failure_reason = &s
+}
+
+// FailureReason returns the value of the "failure_reason" field in the mutation.
+func (m *CloudSSHAssignmentMutation) FailureReason() (r string, exists bool) {
+	v := m.failure_reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFailureReason returns the old "failure_reason" field's value of the CloudSSHAssignment entity.
+// If the CloudSSHAssignment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHAssignmentMutation) OldFailureReason(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFailureReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFailureReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFailureReason: %w", err)
+	}
+	return oldValue.FailureReason, nil
+}
+
+// ClearFailureReason clears the value of the "failure_reason" field.
+func (m *CloudSSHAssignmentMutation) ClearFailureReason() {
+	m.failure_reason = nil
+	m.clearedFields[cloudsshassignment.FieldFailureReason] = struct{}{}
+}
+
+// FailureReasonCleared returns if the "failure_reason" field was cleared in this mutation.
+func (m *CloudSSHAssignmentMutation) FailureReasonCleared() bool {
+	_, ok := m.clearedFields[cloudsshassignment.FieldFailureReason]
+	return ok
+}
+
+// ResetFailureReason resets all changes to the "failure_reason" field.
+func (m *CloudSSHAssignmentMutation) ResetFailureReason() {
+	m.failure_reason = nil
+	delete(m.clearedFields, cloudsshassignment.FieldFailureReason)
+}
+
+// SetLastError sets the "last_error" field.
+func (m *CloudSSHAssignmentMutation) SetLastError(s string) {
+	m.last_error = &s
+}
+
+// LastError returns the value of the "last_error" field in the mutation.
+func (m *CloudSSHAssignmentMutation) LastError() (r string, exists bool) {
+	v := m.last_error
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastError returns the old "last_error" field's value of the CloudSSHAssignment entity.
+// If the CloudSSHAssignment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHAssignmentMutation) OldLastError(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastError is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastError requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastError: %w", err)
+	}
+	return oldValue.LastError, nil
+}
+
+// ClearLastError clears the value of the "last_error" field.
+func (m *CloudSSHAssignmentMutation) ClearLastError() {
+	m.last_error = nil
+	m.clearedFields[cloudsshassignment.FieldLastError] = struct{}{}
+}
+
+// LastErrorCleared returns if the "last_error" field was cleared in this mutation.
+func (m *CloudSSHAssignmentMutation) LastErrorCleared() bool {
+	_, ok := m.clearedFields[cloudsshassignment.FieldLastError]
+	return ok
+}
+
+// ResetLastError resets all changes to the "last_error" field.
+func (m *CloudSSHAssignmentMutation) ResetLastError() {
+	m.last_error = nil
+	delete(m.clearedFields, cloudsshassignment.FieldLastError)
+}
+
+// ClearTenant clears the "tenant" edge to the Tenant entity.
+func (m *CloudSSHAssignmentMutation) ClearTenant() {
+	m.clearedtenant = true
+	m.clearedFields[cloudsshassignment.FieldTenantID] = struct{}{}
+}
+
+// TenantCleared reports if the "tenant" edge to the Tenant entity was cleared.
+func (m *CloudSSHAssignmentMutation) TenantCleared() bool {
+	return m.clearedtenant
+}
+
+// TenantIDs returns the "tenant" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// TenantID instead. It exists only for internal usage by the builders.
+func (m *CloudSSHAssignmentMutation) TenantIDs() (ids []int) {
+	if id := m.tenant; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetTenant resets all changes to the "tenant" edge.
+func (m *CloudSSHAssignmentMutation) ResetTenant() {
+	m.tenant = nil
+	m.clearedtenant = false
+}
+
+// ClearProject clears the "project" edge to the Project entity.
+func (m *CloudSSHAssignmentMutation) ClearProject() {
+	m.clearedproject = true
+	m.clearedFields[cloudsshassignment.FieldProjectID] = struct{}{}
+}
+
+// ProjectCleared reports if the "project" edge to the Project entity was cleared.
+func (m *CloudSSHAssignmentMutation) ProjectCleared() bool {
+	return m.clearedproject
+}
+
+// ProjectIDs returns the "project" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ProjectID instead. It exists only for internal usage by the builders.
+func (m *CloudSSHAssignmentMutation) ProjectIDs() (ids []int) {
+	if id := m.project; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetProject resets all changes to the "project" edge.
+func (m *CloudSSHAssignmentMutation) ResetProject() {
+	m.project = nil
+	m.clearedproject = false
+}
+
+// ClearExperiment clears the "experiment" edge to the Experiment entity.
+func (m *CloudSSHAssignmentMutation) ClearExperiment() {
+	m.clearedexperiment = true
+	m.clearedFields[cloudsshassignment.FieldExperimentID] = struct{}{}
+}
+
+// ExperimentCleared reports if the "experiment" edge to the Experiment entity was cleared.
+func (m *CloudSSHAssignmentMutation) ExperimentCleared() bool {
+	return m.clearedexperiment
+}
+
+// ExperimentIDs returns the "experiment" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ExperimentID instead. It exists only for internal usage by the builders.
+func (m *CloudSSHAssignmentMutation) ExperimentIDs() (ids []int) {
+	if id := m.experiment; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetExperiment resets all changes to the "experiment" edge.
+func (m *CloudSSHAssignmentMutation) ResetExperiment() {
+	m.experiment = nil
+	m.clearedexperiment = false
+}
+
+// ClearAttempt clears the "attempt" edge to the Attempt entity.
+func (m *CloudSSHAssignmentMutation) ClearAttempt() {
+	m.clearedattempt = true
+	m.clearedFields[cloudsshassignment.FieldAttemptID] = struct{}{}
+}
+
+// AttemptCleared reports if the "attempt" edge to the Attempt entity was cleared.
+func (m *CloudSSHAssignmentMutation) AttemptCleared() bool {
+	return m.clearedattempt
+}
+
+// AttemptIDs returns the "attempt" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// AttemptID instead. It exists only for internal usage by the builders.
+func (m *CloudSSHAssignmentMutation) AttemptIDs() (ids []int) {
+	if id := m.attempt; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetAttempt resets all changes to the "attempt" edge.
+func (m *CloudSSHAssignmentMutation) ResetAttempt() {
+	m.attempt = nil
+	m.clearedattempt = false
+}
+
+// ClearNode clears the "node" edge to the CloudSSHNode entity.
+func (m *CloudSSHAssignmentMutation) ClearNode() {
+	m.clearednode = true
+	m.clearedFields[cloudsshassignment.FieldNodeID] = struct{}{}
+}
+
+// NodeCleared reports if the "node" edge to the CloudSSHNode entity was cleared.
+func (m *CloudSSHAssignmentMutation) NodeCleared() bool {
+	return m.clearednode
+}
+
+// NodeIDs returns the "node" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// NodeID instead. It exists only for internal usage by the builders.
+func (m *CloudSSHAssignmentMutation) NodeIDs() (ids []int) {
+	if id := m.node; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetNode resets all changes to the "node" edge.
+func (m *CloudSSHAssignmentMutation) ResetNode() {
+	m.node = nil
+	m.clearednode = false
+}
+
+// Where appends a list predicates to the CloudSSHAssignmentMutation builder.
+func (m *CloudSSHAssignmentMutation) Where(ps ...predicate.CloudSSHAssignment) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the CloudSSHAssignmentMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *CloudSSHAssignmentMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.CloudSSHAssignment, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *CloudSSHAssignmentMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *CloudSSHAssignmentMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (CloudSSHAssignment).
+func (m *CloudSSHAssignmentMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *CloudSSHAssignmentMutation) Fields() []string {
+	fields := make([]string, 0, 25)
+	if m.public_id != nil {
+		fields = append(fields, cloudsshassignment.FieldPublicID)
+	}
+	if m.created_at != nil {
+		fields = append(fields, cloudsshassignment.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, cloudsshassignment.FieldUpdatedAt)
+	}
+	if m.tenant != nil {
+		fields = append(fields, cloudsshassignment.FieldTenantID)
+	}
+	if m.project != nil {
+		fields = append(fields, cloudsshassignment.FieldProjectID)
+	}
+	if m.experiment != nil {
+		fields = append(fields, cloudsshassignment.FieldExperimentID)
+	}
+	if m.attempt != nil {
+		fields = append(fields, cloudsshassignment.FieldAttemptID)
+	}
+	if m.node != nil {
+		fields = append(fields, cloudsshassignment.FieldNodeID)
+	}
+	if m.state != nil {
+		fields = append(fields, cloudsshassignment.FieldState)
+	}
+	if m.remote_dir != nil {
+		fields = append(fields, cloudsshassignment.FieldRemoteDir)
+	}
+	if m.container_id != nil {
+		fields = append(fields, cloudsshassignment.FieldContainerID)
+	}
+	if m.output_ref != nil {
+		fields = append(fields, cloudsshassignment.FieldOutputRef)
+	}
+	if m.started_at != nil {
+		fields = append(fields, cloudsshassignment.FieldStartedAt)
+	}
+	if m.last_heartbeat_at != nil {
+		fields = append(fields, cloudsshassignment.FieldLastHeartbeatAt)
+	}
+	if m.deadline_at != nil {
+		fields = append(fields, cloudsshassignment.FieldDeadlineAt)
+	}
+	if m.hard_deadline_at != nil {
+		fields = append(fields, cloudsshassignment.FieldHardDeadlineAt)
+	}
+	if m.stop_requested_at != nil {
+		fields = append(fields, cloudsshassignment.FieldStopRequestedAt)
+	}
+	if m.stop_reason != nil {
+		fields = append(fields, cloudsshassignment.FieldStopReason)
+	}
+	if m.finished_at != nil {
+		fields = append(fields, cloudsshassignment.FieldFinishedAt)
+	}
+	if m.exit_code != nil {
+		fields = append(fields, cloudsshassignment.FieldExitCode)
+	}
+	if m.log_tail != nil {
+		fields = append(fields, cloudsshassignment.FieldLogTail)
+	}
+	if m.metrics != nil {
+		fields = append(fields, cloudsshassignment.FieldMetrics)
+	}
+	if m.failure_code != nil {
+		fields = append(fields, cloudsshassignment.FieldFailureCode)
+	}
+	if m.failure_reason != nil {
+		fields = append(fields, cloudsshassignment.FieldFailureReason)
+	}
+	if m.last_error != nil {
+		fields = append(fields, cloudsshassignment.FieldLastError)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *CloudSSHAssignmentMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case cloudsshassignment.FieldPublicID:
+		return m.PublicID()
+	case cloudsshassignment.FieldCreatedAt:
+		return m.CreatedAt()
+	case cloudsshassignment.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case cloudsshassignment.FieldTenantID:
+		return m.TenantID()
+	case cloudsshassignment.FieldProjectID:
+		return m.ProjectID()
+	case cloudsshassignment.FieldExperimentID:
+		return m.ExperimentID()
+	case cloudsshassignment.FieldAttemptID:
+		return m.AttemptID()
+	case cloudsshassignment.FieldNodeID:
+		return m.NodeID()
+	case cloudsshassignment.FieldState:
+		return m.State()
+	case cloudsshassignment.FieldRemoteDir:
+		return m.RemoteDir()
+	case cloudsshassignment.FieldContainerID:
+		return m.ContainerID()
+	case cloudsshassignment.FieldOutputRef:
+		return m.OutputRef()
+	case cloudsshassignment.FieldStartedAt:
+		return m.StartedAt()
+	case cloudsshassignment.FieldLastHeartbeatAt:
+		return m.LastHeartbeatAt()
+	case cloudsshassignment.FieldDeadlineAt:
+		return m.DeadlineAt()
+	case cloudsshassignment.FieldHardDeadlineAt:
+		return m.HardDeadlineAt()
+	case cloudsshassignment.FieldStopRequestedAt:
+		return m.StopRequestedAt()
+	case cloudsshassignment.FieldStopReason:
+		return m.StopReason()
+	case cloudsshassignment.FieldFinishedAt:
+		return m.FinishedAt()
+	case cloudsshassignment.FieldExitCode:
+		return m.ExitCode()
+	case cloudsshassignment.FieldLogTail:
+		return m.LogTail()
+	case cloudsshassignment.FieldMetrics:
+		return m.Metrics()
+	case cloudsshassignment.FieldFailureCode:
+		return m.FailureCode()
+	case cloudsshassignment.FieldFailureReason:
+		return m.FailureReason()
+	case cloudsshassignment.FieldLastError:
+		return m.LastError()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *CloudSSHAssignmentMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case cloudsshassignment.FieldPublicID:
+		return m.OldPublicID(ctx)
+	case cloudsshassignment.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case cloudsshassignment.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case cloudsshassignment.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case cloudsshassignment.FieldProjectID:
+		return m.OldProjectID(ctx)
+	case cloudsshassignment.FieldExperimentID:
+		return m.OldExperimentID(ctx)
+	case cloudsshassignment.FieldAttemptID:
+		return m.OldAttemptID(ctx)
+	case cloudsshassignment.FieldNodeID:
+		return m.OldNodeID(ctx)
+	case cloudsshassignment.FieldState:
+		return m.OldState(ctx)
+	case cloudsshassignment.FieldRemoteDir:
+		return m.OldRemoteDir(ctx)
+	case cloudsshassignment.FieldContainerID:
+		return m.OldContainerID(ctx)
+	case cloudsshassignment.FieldOutputRef:
+		return m.OldOutputRef(ctx)
+	case cloudsshassignment.FieldStartedAt:
+		return m.OldStartedAt(ctx)
+	case cloudsshassignment.FieldLastHeartbeatAt:
+		return m.OldLastHeartbeatAt(ctx)
+	case cloudsshassignment.FieldDeadlineAt:
+		return m.OldDeadlineAt(ctx)
+	case cloudsshassignment.FieldHardDeadlineAt:
+		return m.OldHardDeadlineAt(ctx)
+	case cloudsshassignment.FieldStopRequestedAt:
+		return m.OldStopRequestedAt(ctx)
+	case cloudsshassignment.FieldStopReason:
+		return m.OldStopReason(ctx)
+	case cloudsshassignment.FieldFinishedAt:
+		return m.OldFinishedAt(ctx)
+	case cloudsshassignment.FieldExitCode:
+		return m.OldExitCode(ctx)
+	case cloudsshassignment.FieldLogTail:
+		return m.OldLogTail(ctx)
+	case cloudsshassignment.FieldMetrics:
+		return m.OldMetrics(ctx)
+	case cloudsshassignment.FieldFailureCode:
+		return m.OldFailureCode(ctx)
+	case cloudsshassignment.FieldFailureReason:
+		return m.OldFailureReason(ctx)
+	case cloudsshassignment.FieldLastError:
+		return m.OldLastError(ctx)
+	}
+	return nil, fmt.Errorf("unknown CloudSSHAssignment field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CloudSSHAssignmentMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case cloudsshassignment.FieldPublicID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPublicID(v)
+		return nil
+	case cloudsshassignment.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case cloudsshassignment.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case cloudsshassignment.FieldTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case cloudsshassignment.FieldProjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProjectID(v)
+		return nil
+	case cloudsshassignment.FieldExperimentID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExperimentID(v)
+		return nil
+	case cloudsshassignment.FieldAttemptID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAttemptID(v)
+		return nil
+	case cloudsshassignment.FieldNodeID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNodeID(v)
+		return nil
+	case cloudsshassignment.FieldState:
+		v, ok := value.(cloudsshassignment.State)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetState(v)
+		return nil
+	case cloudsshassignment.FieldRemoteDir:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRemoteDir(v)
+		return nil
+	case cloudsshassignment.FieldContainerID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetContainerID(v)
+		return nil
+	case cloudsshassignment.FieldOutputRef:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOutputRef(v)
+		return nil
+	case cloudsshassignment.FieldStartedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStartedAt(v)
+		return nil
+	case cloudsshassignment.FieldLastHeartbeatAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastHeartbeatAt(v)
+		return nil
+	case cloudsshassignment.FieldDeadlineAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeadlineAt(v)
+		return nil
+	case cloudsshassignment.FieldHardDeadlineAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHardDeadlineAt(v)
+		return nil
+	case cloudsshassignment.FieldStopRequestedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStopRequestedAt(v)
+		return nil
+	case cloudsshassignment.FieldStopReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStopReason(v)
+		return nil
+	case cloudsshassignment.FieldFinishedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFinishedAt(v)
+		return nil
+	case cloudsshassignment.FieldExitCode:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExitCode(v)
+		return nil
+	case cloudsshassignment.FieldLogTail:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLogTail(v)
+		return nil
+	case cloudsshassignment.FieldMetrics:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetrics(v)
+		return nil
+	case cloudsshassignment.FieldFailureCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFailureCode(v)
+		return nil
+	case cloudsshassignment.FieldFailureReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFailureReason(v)
+		return nil
+	case cloudsshassignment.FieldLastError:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastError(v)
+		return nil
+	}
+	return fmt.Errorf("unknown CloudSSHAssignment field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *CloudSSHAssignmentMutation) AddedFields() []string {
+	var fields []string
+	if m.addexit_code != nil {
+		fields = append(fields, cloudsshassignment.FieldExitCode)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *CloudSSHAssignmentMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case cloudsshassignment.FieldExitCode:
+		return m.AddedExitCode()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CloudSSHAssignmentMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case cloudsshassignment.FieldExitCode:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddExitCode(v)
+		return nil
+	}
+	return fmt.Errorf("unknown CloudSSHAssignment numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *CloudSSHAssignmentMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(cloudsshassignment.FieldContainerID) {
+		fields = append(fields, cloudsshassignment.FieldContainerID)
+	}
+	if m.FieldCleared(cloudsshassignment.FieldStartedAt) {
+		fields = append(fields, cloudsshassignment.FieldStartedAt)
+	}
+	if m.FieldCleared(cloudsshassignment.FieldLastHeartbeatAt) {
+		fields = append(fields, cloudsshassignment.FieldLastHeartbeatAt)
+	}
+	if m.FieldCleared(cloudsshassignment.FieldDeadlineAt) {
+		fields = append(fields, cloudsshassignment.FieldDeadlineAt)
+	}
+	if m.FieldCleared(cloudsshassignment.FieldHardDeadlineAt) {
+		fields = append(fields, cloudsshassignment.FieldHardDeadlineAt)
+	}
+	if m.FieldCleared(cloudsshassignment.FieldStopRequestedAt) {
+		fields = append(fields, cloudsshassignment.FieldStopRequestedAt)
+	}
+	if m.FieldCleared(cloudsshassignment.FieldStopReason) {
+		fields = append(fields, cloudsshassignment.FieldStopReason)
+	}
+	if m.FieldCleared(cloudsshassignment.FieldFinishedAt) {
+		fields = append(fields, cloudsshassignment.FieldFinishedAt)
+	}
+	if m.FieldCleared(cloudsshassignment.FieldExitCode) {
+		fields = append(fields, cloudsshassignment.FieldExitCode)
+	}
+	if m.FieldCleared(cloudsshassignment.FieldLogTail) {
+		fields = append(fields, cloudsshassignment.FieldLogTail)
+	}
+	if m.FieldCleared(cloudsshassignment.FieldFailureCode) {
+		fields = append(fields, cloudsshassignment.FieldFailureCode)
+	}
+	if m.FieldCleared(cloudsshassignment.FieldFailureReason) {
+		fields = append(fields, cloudsshassignment.FieldFailureReason)
+	}
+	if m.FieldCleared(cloudsshassignment.FieldLastError) {
+		fields = append(fields, cloudsshassignment.FieldLastError)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *CloudSSHAssignmentMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *CloudSSHAssignmentMutation) ClearField(name string) error {
+	switch name {
+	case cloudsshassignment.FieldContainerID:
+		m.ClearContainerID()
+		return nil
+	case cloudsshassignment.FieldStartedAt:
+		m.ClearStartedAt()
+		return nil
+	case cloudsshassignment.FieldLastHeartbeatAt:
+		m.ClearLastHeartbeatAt()
+		return nil
+	case cloudsshassignment.FieldDeadlineAt:
+		m.ClearDeadlineAt()
+		return nil
+	case cloudsshassignment.FieldHardDeadlineAt:
+		m.ClearHardDeadlineAt()
+		return nil
+	case cloudsshassignment.FieldStopRequestedAt:
+		m.ClearStopRequestedAt()
+		return nil
+	case cloudsshassignment.FieldStopReason:
+		m.ClearStopReason()
+		return nil
+	case cloudsshassignment.FieldFinishedAt:
+		m.ClearFinishedAt()
+		return nil
+	case cloudsshassignment.FieldExitCode:
+		m.ClearExitCode()
+		return nil
+	case cloudsshassignment.FieldLogTail:
+		m.ClearLogTail()
+		return nil
+	case cloudsshassignment.FieldFailureCode:
+		m.ClearFailureCode()
+		return nil
+	case cloudsshassignment.FieldFailureReason:
+		m.ClearFailureReason()
+		return nil
+	case cloudsshassignment.FieldLastError:
+		m.ClearLastError()
+		return nil
+	}
+	return fmt.Errorf("unknown CloudSSHAssignment nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *CloudSSHAssignmentMutation) ResetField(name string) error {
+	switch name {
+	case cloudsshassignment.FieldPublicID:
+		m.ResetPublicID()
+		return nil
+	case cloudsshassignment.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case cloudsshassignment.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case cloudsshassignment.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case cloudsshassignment.FieldProjectID:
+		m.ResetProjectID()
+		return nil
+	case cloudsshassignment.FieldExperimentID:
+		m.ResetExperimentID()
+		return nil
+	case cloudsshassignment.FieldAttemptID:
+		m.ResetAttemptID()
+		return nil
+	case cloudsshassignment.FieldNodeID:
+		m.ResetNodeID()
+		return nil
+	case cloudsshassignment.FieldState:
+		m.ResetState()
+		return nil
+	case cloudsshassignment.FieldRemoteDir:
+		m.ResetRemoteDir()
+		return nil
+	case cloudsshassignment.FieldContainerID:
+		m.ResetContainerID()
+		return nil
+	case cloudsshassignment.FieldOutputRef:
+		m.ResetOutputRef()
+		return nil
+	case cloudsshassignment.FieldStartedAt:
+		m.ResetStartedAt()
+		return nil
+	case cloudsshassignment.FieldLastHeartbeatAt:
+		m.ResetLastHeartbeatAt()
+		return nil
+	case cloudsshassignment.FieldDeadlineAt:
+		m.ResetDeadlineAt()
+		return nil
+	case cloudsshassignment.FieldHardDeadlineAt:
+		m.ResetHardDeadlineAt()
+		return nil
+	case cloudsshassignment.FieldStopRequestedAt:
+		m.ResetStopRequestedAt()
+		return nil
+	case cloudsshassignment.FieldStopReason:
+		m.ResetStopReason()
+		return nil
+	case cloudsshassignment.FieldFinishedAt:
+		m.ResetFinishedAt()
+		return nil
+	case cloudsshassignment.FieldExitCode:
+		m.ResetExitCode()
+		return nil
+	case cloudsshassignment.FieldLogTail:
+		m.ResetLogTail()
+		return nil
+	case cloudsshassignment.FieldMetrics:
+		m.ResetMetrics()
+		return nil
+	case cloudsshassignment.FieldFailureCode:
+		m.ResetFailureCode()
+		return nil
+	case cloudsshassignment.FieldFailureReason:
+		m.ResetFailureReason()
+		return nil
+	case cloudsshassignment.FieldLastError:
+		m.ResetLastError()
+		return nil
+	}
+	return fmt.Errorf("unknown CloudSSHAssignment field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *CloudSSHAssignmentMutation) AddedEdges() []string {
+	edges := make([]string, 0, 5)
+	if m.tenant != nil {
+		edges = append(edges, cloudsshassignment.EdgeTenant)
+	}
+	if m.project != nil {
+		edges = append(edges, cloudsshassignment.EdgeProject)
+	}
+	if m.experiment != nil {
+		edges = append(edges, cloudsshassignment.EdgeExperiment)
+	}
+	if m.attempt != nil {
+		edges = append(edges, cloudsshassignment.EdgeAttempt)
+	}
+	if m.node != nil {
+		edges = append(edges, cloudsshassignment.EdgeNode)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *CloudSSHAssignmentMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case cloudsshassignment.EdgeTenant:
+		if id := m.tenant; id != nil {
+			return []ent.Value{*id}
+		}
+	case cloudsshassignment.EdgeProject:
+		if id := m.project; id != nil {
+			return []ent.Value{*id}
+		}
+	case cloudsshassignment.EdgeExperiment:
+		if id := m.experiment; id != nil {
+			return []ent.Value{*id}
+		}
+	case cloudsshassignment.EdgeAttempt:
+		if id := m.attempt; id != nil {
+			return []ent.Value{*id}
+		}
+	case cloudsshassignment.EdgeNode:
+		if id := m.node; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *CloudSSHAssignmentMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 5)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *CloudSSHAssignmentMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *CloudSSHAssignmentMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 5)
+	if m.clearedtenant {
+		edges = append(edges, cloudsshassignment.EdgeTenant)
+	}
+	if m.clearedproject {
+		edges = append(edges, cloudsshassignment.EdgeProject)
+	}
+	if m.clearedexperiment {
+		edges = append(edges, cloudsshassignment.EdgeExperiment)
+	}
+	if m.clearedattempt {
+		edges = append(edges, cloudsshassignment.EdgeAttempt)
+	}
+	if m.clearednode {
+		edges = append(edges, cloudsshassignment.EdgeNode)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *CloudSSHAssignmentMutation) EdgeCleared(name string) bool {
+	switch name {
+	case cloudsshassignment.EdgeTenant:
+		return m.clearedtenant
+	case cloudsshassignment.EdgeProject:
+		return m.clearedproject
+	case cloudsshassignment.EdgeExperiment:
+		return m.clearedexperiment
+	case cloudsshassignment.EdgeAttempt:
+		return m.clearedattempt
+	case cloudsshassignment.EdgeNode:
+		return m.clearednode
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *CloudSSHAssignmentMutation) ClearEdge(name string) error {
+	switch name {
+	case cloudsshassignment.EdgeTenant:
+		m.ClearTenant()
+		return nil
+	case cloudsshassignment.EdgeProject:
+		m.ClearProject()
+		return nil
+	case cloudsshassignment.EdgeExperiment:
+		m.ClearExperiment()
+		return nil
+	case cloudsshassignment.EdgeAttempt:
+		m.ClearAttempt()
+		return nil
+	case cloudsshassignment.EdgeNode:
+		m.ClearNode()
+		return nil
+	}
+	return fmt.Errorf("unknown CloudSSHAssignment unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *CloudSSHAssignmentMutation) ResetEdge(name string) error {
+	switch name {
+	case cloudsshassignment.EdgeTenant:
+		m.ResetTenant()
+		return nil
+	case cloudsshassignment.EdgeProject:
+		m.ResetProject()
+		return nil
+	case cloudsshassignment.EdgeExperiment:
+		m.ResetExperiment()
+		return nil
+	case cloudsshassignment.EdgeAttempt:
+		m.ResetAttempt()
+		return nil
+	case cloudsshassignment.EdgeNode:
+		m.ResetNode()
+		return nil
+	}
+	return fmt.Errorf("unknown CloudSSHAssignment edge %s", name)
+}
+
+// CloudSSHNodeMutation represents an operation that mutates the CloudSSHNode nodes in the graph.
+type CloudSSHNodeMutation struct {
+	config
+	op                    Op
+	typ                   string
+	id                    *int
+	public_id             *uuid.UUID
+	created_at            *time.Time
+	updated_at            *time.Time
+	label                 *string
+	status                *cloudsshnode.Status
+	ssh_host              *string
+	ssh_port              *int
+	addssh_port           *int
+	ssh_user              *string
+	auth_method           *cloudsshnode.AuthMethod
+	credential_ciphertext *string
+	host_key_fingerprint  *string
+	inventory             *map[string]interface{}
+	created_actor_type    *string
+	created_actor_id      *string
+	last_probed_at        *time.Time
+	revoked_at            *time.Time
+	clearedFields         map[string]struct{}
+	tenant                *int
+	clearedtenant         bool
+	project_access        map[int]struct{}
+	removedproject_access map[int]struct{}
+	clearedproject_access bool
+	assignments           map[int]struct{}
+	removedassignments    map[int]struct{}
+	clearedassignments    bool
+	done                  bool
+	oldValue              func(context.Context) (*CloudSSHNode, error)
+	predicates            []predicate.CloudSSHNode
+}
+
+var _ ent.Mutation = (*CloudSSHNodeMutation)(nil)
+
+// cloudsshnodeOption allows management of the mutation configuration using functional options.
+type cloudsshnodeOption func(*CloudSSHNodeMutation)
+
+// newCloudSSHNodeMutation creates new mutation for the CloudSSHNode entity.
+func newCloudSSHNodeMutation(c config, op Op, opts ...cloudsshnodeOption) *CloudSSHNodeMutation {
+	m := &CloudSSHNodeMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeCloudSSHNode,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withCloudSSHNodeID sets the ID field of the mutation.
+func withCloudSSHNodeID(id int) cloudsshnodeOption {
+	return func(m *CloudSSHNodeMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *CloudSSHNode
+		)
+		m.oldValue = func(ctx context.Context) (*CloudSSHNode, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().CloudSSHNode.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withCloudSSHNode sets the old CloudSSHNode of the mutation.
+func withCloudSSHNode(node *CloudSSHNode) cloudsshnodeOption {
+	return func(m *CloudSSHNodeMutation) {
+		m.oldValue = func(context.Context) (*CloudSSHNode, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m CloudSSHNodeMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m CloudSSHNodeMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *CloudSSHNodeMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *CloudSSHNodeMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().CloudSSHNode.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetPublicID sets the "public_id" field.
+func (m *CloudSSHNodeMutation) SetPublicID(u uuid.UUID) {
+	m.public_id = &u
+}
+
+// PublicID returns the value of the "public_id" field in the mutation.
+func (m *CloudSSHNodeMutation) PublicID() (r uuid.UUID, exists bool) {
+	v := m.public_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPublicID returns the old "public_id" field's value of the CloudSSHNode entity.
+// If the CloudSSHNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHNodeMutation) OldPublicID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPublicID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPublicID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPublicID: %w", err)
+	}
+	return oldValue.PublicID, nil
+}
+
+// ResetPublicID resets all changes to the "public_id" field.
+func (m *CloudSSHNodeMutation) ResetPublicID() {
+	m.public_id = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *CloudSSHNodeMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *CloudSSHNodeMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the CloudSSHNode entity.
+// If the CloudSSHNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHNodeMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *CloudSSHNodeMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *CloudSSHNodeMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *CloudSSHNodeMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the CloudSSHNode entity.
+// If the CloudSSHNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHNodeMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *CloudSSHNodeMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *CloudSSHNodeMutation) SetTenantID(i int) {
+	m.tenant = &i
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *CloudSSHNodeMutation) TenantID() (r int, exists bool) {
+	v := m.tenant
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the CloudSSHNode entity.
+// If the CloudSSHNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHNodeMutation) OldTenantID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *CloudSSHNodeMutation) ResetTenantID() {
+	m.tenant = nil
+}
+
+// SetLabel sets the "label" field.
+func (m *CloudSSHNodeMutation) SetLabel(s string) {
+	m.label = &s
+}
+
+// Label returns the value of the "label" field in the mutation.
+func (m *CloudSSHNodeMutation) Label() (r string, exists bool) {
+	v := m.label
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLabel returns the old "label" field's value of the CloudSSHNode entity.
+// If the CloudSSHNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHNodeMutation) OldLabel(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLabel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLabel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLabel: %w", err)
+	}
+	return oldValue.Label, nil
+}
+
+// ResetLabel resets all changes to the "label" field.
+func (m *CloudSSHNodeMutation) ResetLabel() {
+	m.label = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *CloudSSHNodeMutation) SetStatus(c cloudsshnode.Status) {
+	m.status = &c
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *CloudSSHNodeMutation) Status() (r cloudsshnode.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the CloudSSHNode entity.
+// If the CloudSSHNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHNodeMutation) OldStatus(ctx context.Context) (v cloudsshnode.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *CloudSSHNodeMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetSSHHost sets the "ssh_host" field.
+func (m *CloudSSHNodeMutation) SetSSHHost(s string) {
+	m.ssh_host = &s
+}
+
+// SSHHost returns the value of the "ssh_host" field in the mutation.
+func (m *CloudSSHNodeMutation) SSHHost() (r string, exists bool) {
+	v := m.ssh_host
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSSHHost returns the old "ssh_host" field's value of the CloudSSHNode entity.
+// If the CloudSSHNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHNodeMutation) OldSSHHost(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSSHHost is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSSHHost requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSSHHost: %w", err)
+	}
+	return oldValue.SSHHost, nil
+}
+
+// ResetSSHHost resets all changes to the "ssh_host" field.
+func (m *CloudSSHNodeMutation) ResetSSHHost() {
+	m.ssh_host = nil
+}
+
+// SetSSHPort sets the "ssh_port" field.
+func (m *CloudSSHNodeMutation) SetSSHPort(i int) {
+	m.ssh_port = &i
+	m.addssh_port = nil
+}
+
+// SSHPort returns the value of the "ssh_port" field in the mutation.
+func (m *CloudSSHNodeMutation) SSHPort() (r int, exists bool) {
+	v := m.ssh_port
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSSHPort returns the old "ssh_port" field's value of the CloudSSHNode entity.
+// If the CloudSSHNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHNodeMutation) OldSSHPort(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSSHPort is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSSHPort requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSSHPort: %w", err)
+	}
+	return oldValue.SSHPort, nil
+}
+
+// AddSSHPort adds i to the "ssh_port" field.
+func (m *CloudSSHNodeMutation) AddSSHPort(i int) {
+	if m.addssh_port != nil {
+		*m.addssh_port += i
+	} else {
+		m.addssh_port = &i
+	}
+}
+
+// AddedSSHPort returns the value that was added to the "ssh_port" field in this mutation.
+func (m *CloudSSHNodeMutation) AddedSSHPort() (r int, exists bool) {
+	v := m.addssh_port
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSSHPort resets all changes to the "ssh_port" field.
+func (m *CloudSSHNodeMutation) ResetSSHPort() {
+	m.ssh_port = nil
+	m.addssh_port = nil
+}
+
+// SetSSHUser sets the "ssh_user" field.
+func (m *CloudSSHNodeMutation) SetSSHUser(s string) {
+	m.ssh_user = &s
+}
+
+// SSHUser returns the value of the "ssh_user" field in the mutation.
+func (m *CloudSSHNodeMutation) SSHUser() (r string, exists bool) {
+	v := m.ssh_user
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSSHUser returns the old "ssh_user" field's value of the CloudSSHNode entity.
+// If the CloudSSHNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHNodeMutation) OldSSHUser(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSSHUser is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSSHUser requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSSHUser: %w", err)
+	}
+	return oldValue.SSHUser, nil
+}
+
+// ResetSSHUser resets all changes to the "ssh_user" field.
+func (m *CloudSSHNodeMutation) ResetSSHUser() {
+	m.ssh_user = nil
+}
+
+// SetAuthMethod sets the "auth_method" field.
+func (m *CloudSSHNodeMutation) SetAuthMethod(cm cloudsshnode.AuthMethod) {
+	m.auth_method = &cm
+}
+
+// AuthMethod returns the value of the "auth_method" field in the mutation.
+func (m *CloudSSHNodeMutation) AuthMethod() (r cloudsshnode.AuthMethod, exists bool) {
+	v := m.auth_method
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAuthMethod returns the old "auth_method" field's value of the CloudSSHNode entity.
+// If the CloudSSHNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHNodeMutation) OldAuthMethod(ctx context.Context) (v cloudsshnode.AuthMethod, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAuthMethod is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAuthMethod requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAuthMethod: %w", err)
+	}
+	return oldValue.AuthMethod, nil
+}
+
+// ResetAuthMethod resets all changes to the "auth_method" field.
+func (m *CloudSSHNodeMutation) ResetAuthMethod() {
+	m.auth_method = nil
+}
+
+// SetCredentialCiphertext sets the "credential_ciphertext" field.
+func (m *CloudSSHNodeMutation) SetCredentialCiphertext(s string) {
+	m.credential_ciphertext = &s
+}
+
+// CredentialCiphertext returns the value of the "credential_ciphertext" field in the mutation.
+func (m *CloudSSHNodeMutation) CredentialCiphertext() (r string, exists bool) {
+	v := m.credential_ciphertext
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCredentialCiphertext returns the old "credential_ciphertext" field's value of the CloudSSHNode entity.
+// If the CloudSSHNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHNodeMutation) OldCredentialCiphertext(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCredentialCiphertext is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCredentialCiphertext requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCredentialCiphertext: %w", err)
+	}
+	return oldValue.CredentialCiphertext, nil
+}
+
+// ResetCredentialCiphertext resets all changes to the "credential_ciphertext" field.
+func (m *CloudSSHNodeMutation) ResetCredentialCiphertext() {
+	m.credential_ciphertext = nil
+}
+
+// SetHostKeyFingerprint sets the "host_key_fingerprint" field.
+func (m *CloudSSHNodeMutation) SetHostKeyFingerprint(s string) {
+	m.host_key_fingerprint = &s
+}
+
+// HostKeyFingerprint returns the value of the "host_key_fingerprint" field in the mutation.
+func (m *CloudSSHNodeMutation) HostKeyFingerprint() (r string, exists bool) {
+	v := m.host_key_fingerprint
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHostKeyFingerprint returns the old "host_key_fingerprint" field's value of the CloudSSHNode entity.
+// If the CloudSSHNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHNodeMutation) OldHostKeyFingerprint(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHostKeyFingerprint is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHostKeyFingerprint requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHostKeyFingerprint: %w", err)
+	}
+	return oldValue.HostKeyFingerprint, nil
+}
+
+// ClearHostKeyFingerprint clears the value of the "host_key_fingerprint" field.
+func (m *CloudSSHNodeMutation) ClearHostKeyFingerprint() {
+	m.host_key_fingerprint = nil
+	m.clearedFields[cloudsshnode.FieldHostKeyFingerprint] = struct{}{}
+}
+
+// HostKeyFingerprintCleared returns if the "host_key_fingerprint" field was cleared in this mutation.
+func (m *CloudSSHNodeMutation) HostKeyFingerprintCleared() bool {
+	_, ok := m.clearedFields[cloudsshnode.FieldHostKeyFingerprint]
+	return ok
+}
+
+// ResetHostKeyFingerprint resets all changes to the "host_key_fingerprint" field.
+func (m *CloudSSHNodeMutation) ResetHostKeyFingerprint() {
+	m.host_key_fingerprint = nil
+	delete(m.clearedFields, cloudsshnode.FieldHostKeyFingerprint)
+}
+
+// SetInventory sets the "inventory" field.
+func (m *CloudSSHNodeMutation) SetInventory(value map[string]interface{}) {
+	m.inventory = &value
+}
+
+// Inventory returns the value of the "inventory" field in the mutation.
+func (m *CloudSSHNodeMutation) Inventory() (r map[string]interface{}, exists bool) {
+	v := m.inventory
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInventory returns the old "inventory" field's value of the CloudSSHNode entity.
+// If the CloudSSHNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHNodeMutation) OldInventory(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInventory is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInventory requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInventory: %w", err)
+	}
+	return oldValue.Inventory, nil
+}
+
+// ClearInventory clears the value of the "inventory" field.
+func (m *CloudSSHNodeMutation) ClearInventory() {
+	m.inventory = nil
+	m.clearedFields[cloudsshnode.FieldInventory] = struct{}{}
+}
+
+// InventoryCleared returns if the "inventory" field was cleared in this mutation.
+func (m *CloudSSHNodeMutation) InventoryCleared() bool {
+	_, ok := m.clearedFields[cloudsshnode.FieldInventory]
+	return ok
+}
+
+// ResetInventory resets all changes to the "inventory" field.
+func (m *CloudSSHNodeMutation) ResetInventory() {
+	m.inventory = nil
+	delete(m.clearedFields, cloudsshnode.FieldInventory)
+}
+
+// SetCreatedActorType sets the "created_actor_type" field.
+func (m *CloudSSHNodeMutation) SetCreatedActorType(s string) {
+	m.created_actor_type = &s
+}
+
+// CreatedActorType returns the value of the "created_actor_type" field in the mutation.
+func (m *CloudSSHNodeMutation) CreatedActorType() (r string, exists bool) {
+	v := m.created_actor_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedActorType returns the old "created_actor_type" field's value of the CloudSSHNode entity.
+// If the CloudSSHNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHNodeMutation) OldCreatedActorType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedActorType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedActorType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedActorType: %w", err)
+	}
+	return oldValue.CreatedActorType, nil
+}
+
+// ClearCreatedActorType clears the value of the "created_actor_type" field.
+func (m *CloudSSHNodeMutation) ClearCreatedActorType() {
+	m.created_actor_type = nil
+	m.clearedFields[cloudsshnode.FieldCreatedActorType] = struct{}{}
+}
+
+// CreatedActorTypeCleared returns if the "created_actor_type" field was cleared in this mutation.
+func (m *CloudSSHNodeMutation) CreatedActorTypeCleared() bool {
+	_, ok := m.clearedFields[cloudsshnode.FieldCreatedActorType]
+	return ok
+}
+
+// ResetCreatedActorType resets all changes to the "created_actor_type" field.
+func (m *CloudSSHNodeMutation) ResetCreatedActorType() {
+	m.created_actor_type = nil
+	delete(m.clearedFields, cloudsshnode.FieldCreatedActorType)
+}
+
+// SetCreatedActorID sets the "created_actor_id" field.
+func (m *CloudSSHNodeMutation) SetCreatedActorID(s string) {
+	m.created_actor_id = &s
+}
+
+// CreatedActorID returns the value of the "created_actor_id" field in the mutation.
+func (m *CloudSSHNodeMutation) CreatedActorID() (r string, exists bool) {
+	v := m.created_actor_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedActorID returns the old "created_actor_id" field's value of the CloudSSHNode entity.
+// If the CloudSSHNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHNodeMutation) OldCreatedActorID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedActorID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedActorID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedActorID: %w", err)
+	}
+	return oldValue.CreatedActorID, nil
+}
+
+// ClearCreatedActorID clears the value of the "created_actor_id" field.
+func (m *CloudSSHNodeMutation) ClearCreatedActorID() {
+	m.created_actor_id = nil
+	m.clearedFields[cloudsshnode.FieldCreatedActorID] = struct{}{}
+}
+
+// CreatedActorIDCleared returns if the "created_actor_id" field was cleared in this mutation.
+func (m *CloudSSHNodeMutation) CreatedActorIDCleared() bool {
+	_, ok := m.clearedFields[cloudsshnode.FieldCreatedActorID]
+	return ok
+}
+
+// ResetCreatedActorID resets all changes to the "created_actor_id" field.
+func (m *CloudSSHNodeMutation) ResetCreatedActorID() {
+	m.created_actor_id = nil
+	delete(m.clearedFields, cloudsshnode.FieldCreatedActorID)
+}
+
+// SetLastProbedAt sets the "last_probed_at" field.
+func (m *CloudSSHNodeMutation) SetLastProbedAt(t time.Time) {
+	m.last_probed_at = &t
+}
+
+// LastProbedAt returns the value of the "last_probed_at" field in the mutation.
+func (m *CloudSSHNodeMutation) LastProbedAt() (r time.Time, exists bool) {
+	v := m.last_probed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastProbedAt returns the old "last_probed_at" field's value of the CloudSSHNode entity.
+// If the CloudSSHNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHNodeMutation) OldLastProbedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastProbedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastProbedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastProbedAt: %w", err)
+	}
+	return oldValue.LastProbedAt, nil
+}
+
+// ClearLastProbedAt clears the value of the "last_probed_at" field.
+func (m *CloudSSHNodeMutation) ClearLastProbedAt() {
+	m.last_probed_at = nil
+	m.clearedFields[cloudsshnode.FieldLastProbedAt] = struct{}{}
+}
+
+// LastProbedAtCleared returns if the "last_probed_at" field was cleared in this mutation.
+func (m *CloudSSHNodeMutation) LastProbedAtCleared() bool {
+	_, ok := m.clearedFields[cloudsshnode.FieldLastProbedAt]
+	return ok
+}
+
+// ResetLastProbedAt resets all changes to the "last_probed_at" field.
+func (m *CloudSSHNodeMutation) ResetLastProbedAt() {
+	m.last_probed_at = nil
+	delete(m.clearedFields, cloudsshnode.FieldLastProbedAt)
+}
+
+// SetRevokedAt sets the "revoked_at" field.
+func (m *CloudSSHNodeMutation) SetRevokedAt(t time.Time) {
+	m.revoked_at = &t
+}
+
+// RevokedAt returns the value of the "revoked_at" field in the mutation.
+func (m *CloudSSHNodeMutation) RevokedAt() (r time.Time, exists bool) {
+	v := m.revoked_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRevokedAt returns the old "revoked_at" field's value of the CloudSSHNode entity.
+// If the CloudSSHNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHNodeMutation) OldRevokedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRevokedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRevokedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRevokedAt: %w", err)
+	}
+	return oldValue.RevokedAt, nil
+}
+
+// ClearRevokedAt clears the value of the "revoked_at" field.
+func (m *CloudSSHNodeMutation) ClearRevokedAt() {
+	m.revoked_at = nil
+	m.clearedFields[cloudsshnode.FieldRevokedAt] = struct{}{}
+}
+
+// RevokedAtCleared returns if the "revoked_at" field was cleared in this mutation.
+func (m *CloudSSHNodeMutation) RevokedAtCleared() bool {
+	_, ok := m.clearedFields[cloudsshnode.FieldRevokedAt]
+	return ok
+}
+
+// ResetRevokedAt resets all changes to the "revoked_at" field.
+func (m *CloudSSHNodeMutation) ResetRevokedAt() {
+	m.revoked_at = nil
+	delete(m.clearedFields, cloudsshnode.FieldRevokedAt)
+}
+
+// ClearTenant clears the "tenant" edge to the Tenant entity.
+func (m *CloudSSHNodeMutation) ClearTenant() {
+	m.clearedtenant = true
+	m.clearedFields[cloudsshnode.FieldTenantID] = struct{}{}
+}
+
+// TenantCleared reports if the "tenant" edge to the Tenant entity was cleared.
+func (m *CloudSSHNodeMutation) TenantCleared() bool {
+	return m.clearedtenant
+}
+
+// TenantIDs returns the "tenant" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// TenantID instead. It exists only for internal usage by the builders.
+func (m *CloudSSHNodeMutation) TenantIDs() (ids []int) {
+	if id := m.tenant; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetTenant resets all changes to the "tenant" edge.
+func (m *CloudSSHNodeMutation) ResetTenant() {
+	m.tenant = nil
+	m.clearedtenant = false
+}
+
+// AddProjectAccesIDs adds the "project_access" edge to the CloudSSHProjectAccess entity by ids.
+func (m *CloudSSHNodeMutation) AddProjectAccesIDs(ids ...int) {
+	if m.project_access == nil {
+		m.project_access = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.project_access[ids[i]] = struct{}{}
+	}
+}
+
+// ClearProjectAccess clears the "project_access" edge to the CloudSSHProjectAccess entity.
+func (m *CloudSSHNodeMutation) ClearProjectAccess() {
+	m.clearedproject_access = true
+}
+
+// ProjectAccessCleared reports if the "project_access" edge to the CloudSSHProjectAccess entity was cleared.
+func (m *CloudSSHNodeMutation) ProjectAccessCleared() bool {
+	return m.clearedproject_access
+}
+
+// RemoveProjectAccesIDs removes the "project_access" edge to the CloudSSHProjectAccess entity by IDs.
+func (m *CloudSSHNodeMutation) RemoveProjectAccesIDs(ids ...int) {
+	if m.removedproject_access == nil {
+		m.removedproject_access = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.project_access, ids[i])
+		m.removedproject_access[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedProjectAccess returns the removed IDs of the "project_access" edge to the CloudSSHProjectAccess entity.
+func (m *CloudSSHNodeMutation) RemovedProjectAccessIDs() (ids []int) {
+	for id := range m.removedproject_access {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ProjectAccessIDs returns the "project_access" edge IDs in the mutation.
+func (m *CloudSSHNodeMutation) ProjectAccessIDs() (ids []int) {
+	for id := range m.project_access {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetProjectAccess resets all changes to the "project_access" edge.
+func (m *CloudSSHNodeMutation) ResetProjectAccess() {
+	m.project_access = nil
+	m.clearedproject_access = false
+	m.removedproject_access = nil
+}
+
+// AddAssignmentIDs adds the "assignments" edge to the CloudSSHAssignment entity by ids.
+func (m *CloudSSHNodeMutation) AddAssignmentIDs(ids ...int) {
+	if m.assignments == nil {
+		m.assignments = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.assignments[ids[i]] = struct{}{}
+	}
+}
+
+// ClearAssignments clears the "assignments" edge to the CloudSSHAssignment entity.
+func (m *CloudSSHNodeMutation) ClearAssignments() {
+	m.clearedassignments = true
+}
+
+// AssignmentsCleared reports if the "assignments" edge to the CloudSSHAssignment entity was cleared.
+func (m *CloudSSHNodeMutation) AssignmentsCleared() bool {
+	return m.clearedassignments
+}
+
+// RemoveAssignmentIDs removes the "assignments" edge to the CloudSSHAssignment entity by IDs.
+func (m *CloudSSHNodeMutation) RemoveAssignmentIDs(ids ...int) {
+	if m.removedassignments == nil {
+		m.removedassignments = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.assignments, ids[i])
+		m.removedassignments[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedAssignments returns the removed IDs of the "assignments" edge to the CloudSSHAssignment entity.
+func (m *CloudSSHNodeMutation) RemovedAssignmentsIDs() (ids []int) {
+	for id := range m.removedassignments {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// AssignmentsIDs returns the "assignments" edge IDs in the mutation.
+func (m *CloudSSHNodeMutation) AssignmentsIDs() (ids []int) {
+	for id := range m.assignments {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetAssignments resets all changes to the "assignments" edge.
+func (m *CloudSSHNodeMutation) ResetAssignments() {
+	m.assignments = nil
+	m.clearedassignments = false
+	m.removedassignments = nil
+}
+
+// Where appends a list predicates to the CloudSSHNodeMutation builder.
+func (m *CloudSSHNodeMutation) Where(ps ...predicate.CloudSSHNode) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the CloudSSHNodeMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *CloudSSHNodeMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.CloudSSHNode, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *CloudSSHNodeMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *CloudSSHNodeMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (CloudSSHNode).
+func (m *CloudSSHNodeMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *CloudSSHNodeMutation) Fields() []string {
+	fields := make([]string, 0, 17)
+	if m.public_id != nil {
+		fields = append(fields, cloudsshnode.FieldPublicID)
+	}
+	if m.created_at != nil {
+		fields = append(fields, cloudsshnode.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, cloudsshnode.FieldUpdatedAt)
+	}
+	if m.tenant != nil {
+		fields = append(fields, cloudsshnode.FieldTenantID)
+	}
+	if m.label != nil {
+		fields = append(fields, cloudsshnode.FieldLabel)
+	}
+	if m.status != nil {
+		fields = append(fields, cloudsshnode.FieldStatus)
+	}
+	if m.ssh_host != nil {
+		fields = append(fields, cloudsshnode.FieldSSHHost)
+	}
+	if m.ssh_port != nil {
+		fields = append(fields, cloudsshnode.FieldSSHPort)
+	}
+	if m.ssh_user != nil {
+		fields = append(fields, cloudsshnode.FieldSSHUser)
+	}
+	if m.auth_method != nil {
+		fields = append(fields, cloudsshnode.FieldAuthMethod)
+	}
+	if m.credential_ciphertext != nil {
+		fields = append(fields, cloudsshnode.FieldCredentialCiphertext)
+	}
+	if m.host_key_fingerprint != nil {
+		fields = append(fields, cloudsshnode.FieldHostKeyFingerprint)
+	}
+	if m.inventory != nil {
+		fields = append(fields, cloudsshnode.FieldInventory)
+	}
+	if m.created_actor_type != nil {
+		fields = append(fields, cloudsshnode.FieldCreatedActorType)
+	}
+	if m.created_actor_id != nil {
+		fields = append(fields, cloudsshnode.FieldCreatedActorID)
+	}
+	if m.last_probed_at != nil {
+		fields = append(fields, cloudsshnode.FieldLastProbedAt)
+	}
+	if m.revoked_at != nil {
+		fields = append(fields, cloudsshnode.FieldRevokedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *CloudSSHNodeMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case cloudsshnode.FieldPublicID:
+		return m.PublicID()
+	case cloudsshnode.FieldCreatedAt:
+		return m.CreatedAt()
+	case cloudsshnode.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case cloudsshnode.FieldTenantID:
+		return m.TenantID()
+	case cloudsshnode.FieldLabel:
+		return m.Label()
+	case cloudsshnode.FieldStatus:
+		return m.Status()
+	case cloudsshnode.FieldSSHHost:
+		return m.SSHHost()
+	case cloudsshnode.FieldSSHPort:
+		return m.SSHPort()
+	case cloudsshnode.FieldSSHUser:
+		return m.SSHUser()
+	case cloudsshnode.FieldAuthMethod:
+		return m.AuthMethod()
+	case cloudsshnode.FieldCredentialCiphertext:
+		return m.CredentialCiphertext()
+	case cloudsshnode.FieldHostKeyFingerprint:
+		return m.HostKeyFingerprint()
+	case cloudsshnode.FieldInventory:
+		return m.Inventory()
+	case cloudsshnode.FieldCreatedActorType:
+		return m.CreatedActorType()
+	case cloudsshnode.FieldCreatedActorID:
+		return m.CreatedActorID()
+	case cloudsshnode.FieldLastProbedAt:
+		return m.LastProbedAt()
+	case cloudsshnode.FieldRevokedAt:
+		return m.RevokedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *CloudSSHNodeMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case cloudsshnode.FieldPublicID:
+		return m.OldPublicID(ctx)
+	case cloudsshnode.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case cloudsshnode.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case cloudsshnode.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case cloudsshnode.FieldLabel:
+		return m.OldLabel(ctx)
+	case cloudsshnode.FieldStatus:
+		return m.OldStatus(ctx)
+	case cloudsshnode.FieldSSHHost:
+		return m.OldSSHHost(ctx)
+	case cloudsshnode.FieldSSHPort:
+		return m.OldSSHPort(ctx)
+	case cloudsshnode.FieldSSHUser:
+		return m.OldSSHUser(ctx)
+	case cloudsshnode.FieldAuthMethod:
+		return m.OldAuthMethod(ctx)
+	case cloudsshnode.FieldCredentialCiphertext:
+		return m.OldCredentialCiphertext(ctx)
+	case cloudsshnode.FieldHostKeyFingerprint:
+		return m.OldHostKeyFingerprint(ctx)
+	case cloudsshnode.FieldInventory:
+		return m.OldInventory(ctx)
+	case cloudsshnode.FieldCreatedActorType:
+		return m.OldCreatedActorType(ctx)
+	case cloudsshnode.FieldCreatedActorID:
+		return m.OldCreatedActorID(ctx)
+	case cloudsshnode.FieldLastProbedAt:
+		return m.OldLastProbedAt(ctx)
+	case cloudsshnode.FieldRevokedAt:
+		return m.OldRevokedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown CloudSSHNode field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CloudSSHNodeMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case cloudsshnode.FieldPublicID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPublicID(v)
+		return nil
+	case cloudsshnode.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case cloudsshnode.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case cloudsshnode.FieldTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case cloudsshnode.FieldLabel:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLabel(v)
+		return nil
+	case cloudsshnode.FieldStatus:
+		v, ok := value.(cloudsshnode.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case cloudsshnode.FieldSSHHost:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSSHHost(v)
+		return nil
+	case cloudsshnode.FieldSSHPort:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSSHPort(v)
+		return nil
+	case cloudsshnode.FieldSSHUser:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSSHUser(v)
+		return nil
+	case cloudsshnode.FieldAuthMethod:
+		v, ok := value.(cloudsshnode.AuthMethod)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAuthMethod(v)
+		return nil
+	case cloudsshnode.FieldCredentialCiphertext:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCredentialCiphertext(v)
+		return nil
+	case cloudsshnode.FieldHostKeyFingerprint:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHostKeyFingerprint(v)
+		return nil
+	case cloudsshnode.FieldInventory:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInventory(v)
+		return nil
+	case cloudsshnode.FieldCreatedActorType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedActorType(v)
+		return nil
+	case cloudsshnode.FieldCreatedActorID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedActorID(v)
+		return nil
+	case cloudsshnode.FieldLastProbedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastProbedAt(v)
+		return nil
+	case cloudsshnode.FieldRevokedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRevokedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown CloudSSHNode field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *CloudSSHNodeMutation) AddedFields() []string {
+	var fields []string
+	if m.addssh_port != nil {
+		fields = append(fields, cloudsshnode.FieldSSHPort)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *CloudSSHNodeMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case cloudsshnode.FieldSSHPort:
+		return m.AddedSSHPort()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CloudSSHNodeMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case cloudsshnode.FieldSSHPort:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSSHPort(v)
+		return nil
+	}
+	return fmt.Errorf("unknown CloudSSHNode numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *CloudSSHNodeMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(cloudsshnode.FieldHostKeyFingerprint) {
+		fields = append(fields, cloudsshnode.FieldHostKeyFingerprint)
+	}
+	if m.FieldCleared(cloudsshnode.FieldInventory) {
+		fields = append(fields, cloudsshnode.FieldInventory)
+	}
+	if m.FieldCleared(cloudsshnode.FieldCreatedActorType) {
+		fields = append(fields, cloudsshnode.FieldCreatedActorType)
+	}
+	if m.FieldCleared(cloudsshnode.FieldCreatedActorID) {
+		fields = append(fields, cloudsshnode.FieldCreatedActorID)
+	}
+	if m.FieldCleared(cloudsshnode.FieldLastProbedAt) {
+		fields = append(fields, cloudsshnode.FieldLastProbedAt)
+	}
+	if m.FieldCleared(cloudsshnode.FieldRevokedAt) {
+		fields = append(fields, cloudsshnode.FieldRevokedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *CloudSSHNodeMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *CloudSSHNodeMutation) ClearField(name string) error {
+	switch name {
+	case cloudsshnode.FieldHostKeyFingerprint:
+		m.ClearHostKeyFingerprint()
+		return nil
+	case cloudsshnode.FieldInventory:
+		m.ClearInventory()
+		return nil
+	case cloudsshnode.FieldCreatedActorType:
+		m.ClearCreatedActorType()
+		return nil
+	case cloudsshnode.FieldCreatedActorID:
+		m.ClearCreatedActorID()
+		return nil
+	case cloudsshnode.FieldLastProbedAt:
+		m.ClearLastProbedAt()
+		return nil
+	case cloudsshnode.FieldRevokedAt:
+		m.ClearRevokedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown CloudSSHNode nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *CloudSSHNodeMutation) ResetField(name string) error {
+	switch name {
+	case cloudsshnode.FieldPublicID:
+		m.ResetPublicID()
+		return nil
+	case cloudsshnode.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case cloudsshnode.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case cloudsshnode.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case cloudsshnode.FieldLabel:
+		m.ResetLabel()
+		return nil
+	case cloudsshnode.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case cloudsshnode.FieldSSHHost:
+		m.ResetSSHHost()
+		return nil
+	case cloudsshnode.FieldSSHPort:
+		m.ResetSSHPort()
+		return nil
+	case cloudsshnode.FieldSSHUser:
+		m.ResetSSHUser()
+		return nil
+	case cloudsshnode.FieldAuthMethod:
+		m.ResetAuthMethod()
+		return nil
+	case cloudsshnode.FieldCredentialCiphertext:
+		m.ResetCredentialCiphertext()
+		return nil
+	case cloudsshnode.FieldHostKeyFingerprint:
+		m.ResetHostKeyFingerprint()
+		return nil
+	case cloudsshnode.FieldInventory:
+		m.ResetInventory()
+		return nil
+	case cloudsshnode.FieldCreatedActorType:
+		m.ResetCreatedActorType()
+		return nil
+	case cloudsshnode.FieldCreatedActorID:
+		m.ResetCreatedActorID()
+		return nil
+	case cloudsshnode.FieldLastProbedAt:
+		m.ResetLastProbedAt()
+		return nil
+	case cloudsshnode.FieldRevokedAt:
+		m.ResetRevokedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown CloudSSHNode field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *CloudSSHNodeMutation) AddedEdges() []string {
+	edges := make([]string, 0, 3)
+	if m.tenant != nil {
+		edges = append(edges, cloudsshnode.EdgeTenant)
+	}
+	if m.project_access != nil {
+		edges = append(edges, cloudsshnode.EdgeProjectAccess)
+	}
+	if m.assignments != nil {
+		edges = append(edges, cloudsshnode.EdgeAssignments)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *CloudSSHNodeMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case cloudsshnode.EdgeTenant:
+		if id := m.tenant; id != nil {
+			return []ent.Value{*id}
+		}
+	case cloudsshnode.EdgeProjectAccess:
+		ids := make([]ent.Value, 0, len(m.project_access))
+		for id := range m.project_access {
+			ids = append(ids, id)
+		}
+		return ids
+	case cloudsshnode.EdgeAssignments:
+		ids := make([]ent.Value, 0, len(m.assignments))
+		for id := range m.assignments {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *CloudSSHNodeMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 3)
+	if m.removedproject_access != nil {
+		edges = append(edges, cloudsshnode.EdgeProjectAccess)
+	}
+	if m.removedassignments != nil {
+		edges = append(edges, cloudsshnode.EdgeAssignments)
+	}
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *CloudSSHNodeMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case cloudsshnode.EdgeProjectAccess:
+		ids := make([]ent.Value, 0, len(m.removedproject_access))
+		for id := range m.removedproject_access {
+			ids = append(ids, id)
+		}
+		return ids
+	case cloudsshnode.EdgeAssignments:
+		ids := make([]ent.Value, 0, len(m.removedassignments))
+		for id := range m.removedassignments {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *CloudSSHNodeMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 3)
+	if m.clearedtenant {
+		edges = append(edges, cloudsshnode.EdgeTenant)
+	}
+	if m.clearedproject_access {
+		edges = append(edges, cloudsshnode.EdgeProjectAccess)
+	}
+	if m.clearedassignments {
+		edges = append(edges, cloudsshnode.EdgeAssignments)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *CloudSSHNodeMutation) EdgeCleared(name string) bool {
+	switch name {
+	case cloudsshnode.EdgeTenant:
+		return m.clearedtenant
+	case cloudsshnode.EdgeProjectAccess:
+		return m.clearedproject_access
+	case cloudsshnode.EdgeAssignments:
+		return m.clearedassignments
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *CloudSSHNodeMutation) ClearEdge(name string) error {
+	switch name {
+	case cloudsshnode.EdgeTenant:
+		m.ClearTenant()
+		return nil
+	}
+	return fmt.Errorf("unknown CloudSSHNode unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *CloudSSHNodeMutation) ResetEdge(name string) error {
+	switch name {
+	case cloudsshnode.EdgeTenant:
+		m.ResetTenant()
+		return nil
+	case cloudsshnode.EdgeProjectAccess:
+		m.ResetProjectAccess()
+		return nil
+	case cloudsshnode.EdgeAssignments:
+		m.ResetAssignments()
+		return nil
+	}
+	return fmt.Errorf("unknown CloudSSHNode edge %s", name)
+}
+
+// CloudSSHProjectAccessMutation represents an operation that mutates the CloudSSHProjectAccess nodes in the graph.
+type CloudSSHProjectAccessMutation struct {
+	config
+	op             Op
+	typ            string
+	id             *int
+	public_id      *uuid.UUID
+	created_at     *time.Time
+	updated_at     *time.Time
+	status         *cloudsshprojectaccess.Status
+	clearedFields  map[string]struct{}
+	tenant         *int
+	clearedtenant  bool
+	node           *int
+	clearednode    bool
+	project        *int
+	clearedproject bool
+	done           bool
+	oldValue       func(context.Context) (*CloudSSHProjectAccess, error)
+	predicates     []predicate.CloudSSHProjectAccess
+}
+
+var _ ent.Mutation = (*CloudSSHProjectAccessMutation)(nil)
+
+// cloudsshprojectaccessOption allows management of the mutation configuration using functional options.
+type cloudsshprojectaccessOption func(*CloudSSHProjectAccessMutation)
+
+// newCloudSSHProjectAccessMutation creates new mutation for the CloudSSHProjectAccess entity.
+func newCloudSSHProjectAccessMutation(c config, op Op, opts ...cloudsshprojectaccessOption) *CloudSSHProjectAccessMutation {
+	m := &CloudSSHProjectAccessMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeCloudSSHProjectAccess,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withCloudSSHProjectAccessID sets the ID field of the mutation.
+func withCloudSSHProjectAccessID(id int) cloudsshprojectaccessOption {
+	return func(m *CloudSSHProjectAccessMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *CloudSSHProjectAccess
+		)
+		m.oldValue = func(ctx context.Context) (*CloudSSHProjectAccess, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().CloudSSHProjectAccess.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withCloudSSHProjectAccess sets the old CloudSSHProjectAccess of the mutation.
+func withCloudSSHProjectAccess(node *CloudSSHProjectAccess) cloudsshprojectaccessOption {
+	return func(m *CloudSSHProjectAccessMutation) {
+		m.oldValue = func(context.Context) (*CloudSSHProjectAccess, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m CloudSSHProjectAccessMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m CloudSSHProjectAccessMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *CloudSSHProjectAccessMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *CloudSSHProjectAccessMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().CloudSSHProjectAccess.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetPublicID sets the "public_id" field.
+func (m *CloudSSHProjectAccessMutation) SetPublicID(u uuid.UUID) {
+	m.public_id = &u
+}
+
+// PublicID returns the value of the "public_id" field in the mutation.
+func (m *CloudSSHProjectAccessMutation) PublicID() (r uuid.UUID, exists bool) {
+	v := m.public_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPublicID returns the old "public_id" field's value of the CloudSSHProjectAccess entity.
+// If the CloudSSHProjectAccess object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHProjectAccessMutation) OldPublicID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPublicID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPublicID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPublicID: %w", err)
+	}
+	return oldValue.PublicID, nil
+}
+
+// ResetPublicID resets all changes to the "public_id" field.
+func (m *CloudSSHProjectAccessMutation) ResetPublicID() {
+	m.public_id = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *CloudSSHProjectAccessMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *CloudSSHProjectAccessMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the CloudSSHProjectAccess entity.
+// If the CloudSSHProjectAccess object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHProjectAccessMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *CloudSSHProjectAccessMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *CloudSSHProjectAccessMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *CloudSSHProjectAccessMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the CloudSSHProjectAccess entity.
+// If the CloudSSHProjectAccess object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHProjectAccessMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *CloudSSHProjectAccessMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *CloudSSHProjectAccessMutation) SetTenantID(i int) {
+	m.tenant = &i
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *CloudSSHProjectAccessMutation) TenantID() (r int, exists bool) {
+	v := m.tenant
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the CloudSSHProjectAccess entity.
+// If the CloudSSHProjectAccess object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHProjectAccessMutation) OldTenantID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *CloudSSHProjectAccessMutation) ResetTenantID() {
+	m.tenant = nil
+}
+
+// SetNodeID sets the "node_id" field.
+func (m *CloudSSHProjectAccessMutation) SetNodeID(i int) {
+	m.node = &i
+}
+
+// NodeID returns the value of the "node_id" field in the mutation.
+func (m *CloudSSHProjectAccessMutation) NodeID() (r int, exists bool) {
+	v := m.node
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNodeID returns the old "node_id" field's value of the CloudSSHProjectAccess entity.
+// If the CloudSSHProjectAccess object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHProjectAccessMutation) OldNodeID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNodeID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNodeID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNodeID: %w", err)
+	}
+	return oldValue.NodeID, nil
+}
+
+// ResetNodeID resets all changes to the "node_id" field.
+func (m *CloudSSHProjectAccessMutation) ResetNodeID() {
+	m.node = nil
+}
+
+// SetProjectID sets the "project_id" field.
+func (m *CloudSSHProjectAccessMutation) SetProjectID(i int) {
+	m.project = &i
+}
+
+// ProjectID returns the value of the "project_id" field in the mutation.
+func (m *CloudSSHProjectAccessMutation) ProjectID() (r int, exists bool) {
+	v := m.project
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProjectID returns the old "project_id" field's value of the CloudSSHProjectAccess entity.
+// If the CloudSSHProjectAccess object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHProjectAccessMutation) OldProjectID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProjectID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProjectID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProjectID: %w", err)
+	}
+	return oldValue.ProjectID, nil
+}
+
+// ResetProjectID resets all changes to the "project_id" field.
+func (m *CloudSSHProjectAccessMutation) ResetProjectID() {
+	m.project = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *CloudSSHProjectAccessMutation) SetStatus(c cloudsshprojectaccess.Status) {
+	m.status = &c
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *CloudSSHProjectAccessMutation) Status() (r cloudsshprojectaccess.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the CloudSSHProjectAccess entity.
+// If the CloudSSHProjectAccess object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CloudSSHProjectAccessMutation) OldStatus(ctx context.Context) (v cloudsshprojectaccess.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *CloudSSHProjectAccessMutation) ResetStatus() {
+	m.status = nil
+}
+
+// ClearTenant clears the "tenant" edge to the Tenant entity.
+func (m *CloudSSHProjectAccessMutation) ClearTenant() {
+	m.clearedtenant = true
+	m.clearedFields[cloudsshprojectaccess.FieldTenantID] = struct{}{}
+}
+
+// TenantCleared reports if the "tenant" edge to the Tenant entity was cleared.
+func (m *CloudSSHProjectAccessMutation) TenantCleared() bool {
+	return m.clearedtenant
+}
+
+// TenantIDs returns the "tenant" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// TenantID instead. It exists only for internal usage by the builders.
+func (m *CloudSSHProjectAccessMutation) TenantIDs() (ids []int) {
+	if id := m.tenant; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetTenant resets all changes to the "tenant" edge.
+func (m *CloudSSHProjectAccessMutation) ResetTenant() {
+	m.tenant = nil
+	m.clearedtenant = false
+}
+
+// ClearNode clears the "node" edge to the CloudSSHNode entity.
+func (m *CloudSSHProjectAccessMutation) ClearNode() {
+	m.clearednode = true
+	m.clearedFields[cloudsshprojectaccess.FieldNodeID] = struct{}{}
+}
+
+// NodeCleared reports if the "node" edge to the CloudSSHNode entity was cleared.
+func (m *CloudSSHProjectAccessMutation) NodeCleared() bool {
+	return m.clearednode
+}
+
+// NodeIDs returns the "node" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// NodeID instead. It exists only for internal usage by the builders.
+func (m *CloudSSHProjectAccessMutation) NodeIDs() (ids []int) {
+	if id := m.node; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetNode resets all changes to the "node" edge.
+func (m *CloudSSHProjectAccessMutation) ResetNode() {
+	m.node = nil
+	m.clearednode = false
+}
+
+// ClearProject clears the "project" edge to the Project entity.
+func (m *CloudSSHProjectAccessMutation) ClearProject() {
+	m.clearedproject = true
+	m.clearedFields[cloudsshprojectaccess.FieldProjectID] = struct{}{}
+}
+
+// ProjectCleared reports if the "project" edge to the Project entity was cleared.
+func (m *CloudSSHProjectAccessMutation) ProjectCleared() bool {
+	return m.clearedproject
+}
+
+// ProjectIDs returns the "project" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ProjectID instead. It exists only for internal usage by the builders.
+func (m *CloudSSHProjectAccessMutation) ProjectIDs() (ids []int) {
+	if id := m.project; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetProject resets all changes to the "project" edge.
+func (m *CloudSSHProjectAccessMutation) ResetProject() {
+	m.project = nil
+	m.clearedproject = false
+}
+
+// Where appends a list predicates to the CloudSSHProjectAccessMutation builder.
+func (m *CloudSSHProjectAccessMutation) Where(ps ...predicate.CloudSSHProjectAccess) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the CloudSSHProjectAccessMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *CloudSSHProjectAccessMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.CloudSSHProjectAccess, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *CloudSSHProjectAccessMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *CloudSSHProjectAccessMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (CloudSSHProjectAccess).
+func (m *CloudSSHProjectAccessMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *CloudSSHProjectAccessMutation) Fields() []string {
+	fields := make([]string, 0, 7)
+	if m.public_id != nil {
+		fields = append(fields, cloudsshprojectaccess.FieldPublicID)
+	}
+	if m.created_at != nil {
+		fields = append(fields, cloudsshprojectaccess.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, cloudsshprojectaccess.FieldUpdatedAt)
+	}
+	if m.tenant != nil {
+		fields = append(fields, cloudsshprojectaccess.FieldTenantID)
+	}
+	if m.node != nil {
+		fields = append(fields, cloudsshprojectaccess.FieldNodeID)
+	}
+	if m.project != nil {
+		fields = append(fields, cloudsshprojectaccess.FieldProjectID)
+	}
+	if m.status != nil {
+		fields = append(fields, cloudsshprojectaccess.FieldStatus)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *CloudSSHProjectAccessMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case cloudsshprojectaccess.FieldPublicID:
+		return m.PublicID()
+	case cloudsshprojectaccess.FieldCreatedAt:
+		return m.CreatedAt()
+	case cloudsshprojectaccess.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case cloudsshprojectaccess.FieldTenantID:
+		return m.TenantID()
+	case cloudsshprojectaccess.FieldNodeID:
+		return m.NodeID()
+	case cloudsshprojectaccess.FieldProjectID:
+		return m.ProjectID()
+	case cloudsshprojectaccess.FieldStatus:
+		return m.Status()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *CloudSSHProjectAccessMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case cloudsshprojectaccess.FieldPublicID:
+		return m.OldPublicID(ctx)
+	case cloudsshprojectaccess.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case cloudsshprojectaccess.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case cloudsshprojectaccess.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case cloudsshprojectaccess.FieldNodeID:
+		return m.OldNodeID(ctx)
+	case cloudsshprojectaccess.FieldProjectID:
+		return m.OldProjectID(ctx)
+	case cloudsshprojectaccess.FieldStatus:
+		return m.OldStatus(ctx)
+	}
+	return nil, fmt.Errorf("unknown CloudSSHProjectAccess field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CloudSSHProjectAccessMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case cloudsshprojectaccess.FieldPublicID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPublicID(v)
+		return nil
+	case cloudsshprojectaccess.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case cloudsshprojectaccess.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case cloudsshprojectaccess.FieldTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case cloudsshprojectaccess.FieldNodeID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNodeID(v)
+		return nil
+	case cloudsshprojectaccess.FieldProjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProjectID(v)
+		return nil
+	case cloudsshprojectaccess.FieldStatus:
+		v, ok := value.(cloudsshprojectaccess.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	}
+	return fmt.Errorf("unknown CloudSSHProjectAccess field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *CloudSSHProjectAccessMutation) AddedFields() []string {
+	var fields []string
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *CloudSSHProjectAccessMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CloudSSHProjectAccessMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown CloudSSHProjectAccess numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *CloudSSHProjectAccessMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *CloudSSHProjectAccessMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *CloudSSHProjectAccessMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown CloudSSHProjectAccess nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *CloudSSHProjectAccessMutation) ResetField(name string) error {
+	switch name {
+	case cloudsshprojectaccess.FieldPublicID:
+		m.ResetPublicID()
+		return nil
+	case cloudsshprojectaccess.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case cloudsshprojectaccess.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case cloudsshprojectaccess.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case cloudsshprojectaccess.FieldNodeID:
+		m.ResetNodeID()
+		return nil
+	case cloudsshprojectaccess.FieldProjectID:
+		m.ResetProjectID()
+		return nil
+	case cloudsshprojectaccess.FieldStatus:
+		m.ResetStatus()
+		return nil
+	}
+	return fmt.Errorf("unknown CloudSSHProjectAccess field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *CloudSSHProjectAccessMutation) AddedEdges() []string {
+	edges := make([]string, 0, 3)
+	if m.tenant != nil {
+		edges = append(edges, cloudsshprojectaccess.EdgeTenant)
+	}
+	if m.node != nil {
+		edges = append(edges, cloudsshprojectaccess.EdgeNode)
+	}
+	if m.project != nil {
+		edges = append(edges, cloudsshprojectaccess.EdgeProject)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *CloudSSHProjectAccessMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case cloudsshprojectaccess.EdgeTenant:
+		if id := m.tenant; id != nil {
+			return []ent.Value{*id}
+		}
+	case cloudsshprojectaccess.EdgeNode:
+		if id := m.node; id != nil {
+			return []ent.Value{*id}
+		}
+	case cloudsshprojectaccess.EdgeProject:
+		if id := m.project; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *CloudSSHProjectAccessMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 3)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *CloudSSHProjectAccessMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *CloudSSHProjectAccessMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 3)
+	if m.clearedtenant {
+		edges = append(edges, cloudsshprojectaccess.EdgeTenant)
+	}
+	if m.clearednode {
+		edges = append(edges, cloudsshprojectaccess.EdgeNode)
+	}
+	if m.clearedproject {
+		edges = append(edges, cloudsshprojectaccess.EdgeProject)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *CloudSSHProjectAccessMutation) EdgeCleared(name string) bool {
+	switch name {
+	case cloudsshprojectaccess.EdgeTenant:
+		return m.clearedtenant
+	case cloudsshprojectaccess.EdgeNode:
+		return m.clearednode
+	case cloudsshprojectaccess.EdgeProject:
+		return m.clearedproject
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *CloudSSHProjectAccessMutation) ClearEdge(name string) error {
+	switch name {
+	case cloudsshprojectaccess.EdgeTenant:
+		m.ClearTenant()
+		return nil
+	case cloudsshprojectaccess.EdgeNode:
+		m.ClearNode()
+		return nil
+	case cloudsshprojectaccess.EdgeProject:
+		m.ClearProject()
+		return nil
+	}
+	return fmt.Errorf("unknown CloudSSHProjectAccess unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *CloudSSHProjectAccessMutation) ResetEdge(name string) error {
+	switch name {
+	case cloudsshprojectaccess.EdgeTenant:
+		m.ResetTenant()
+		return nil
+	case cloudsshprojectaccess.EdgeNode:
+		m.ResetNode()
+		return nil
+	case cloudsshprojectaccess.EdgeProject:
+		m.ResetProject()
+		return nil
+	}
+	return fmt.Errorf("unknown CloudSSHProjectAccess edge %s", name)
+}
+
+// DatasetBindingMutation represents an operation that mutates the DatasetBinding nodes in the graph.
+type DatasetBindingMutation struct {
+	config
+	op                     Op
+	typ                    string
+	id                     *int
+	public_id              *uuid.UUID
+	created_at             *time.Time
+	updated_at             *time.Time
+	name                   *string
+	backend                *datasetbinding.Backend
+	canonical_root         *string
+	environment_variable   *string
+	required_markers       *[]string
+	appendrequired_markers []string
+	status                 *datasetbinding.Status
+	clearedFields          map[string]struct{}
+	tenant                 *int
+	clearedtenant          bool
+	project                *int
+	clearedproject         bool
+	agent_token            *int
+	clearedagent_token     bool
+	done                   bool
+	oldValue               func(context.Context) (*DatasetBinding, error)
+	predicates             []predicate.DatasetBinding
+}
+
+var _ ent.Mutation = (*DatasetBindingMutation)(nil)
+
+// datasetbindingOption allows management of the mutation configuration using functional options.
+type datasetbindingOption func(*DatasetBindingMutation)
+
+// newDatasetBindingMutation creates new mutation for the DatasetBinding entity.
+func newDatasetBindingMutation(c config, op Op, opts ...datasetbindingOption) *DatasetBindingMutation {
+	m := &DatasetBindingMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeDatasetBinding,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withDatasetBindingID sets the ID field of the mutation.
+func withDatasetBindingID(id int) datasetbindingOption {
+	return func(m *DatasetBindingMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *DatasetBinding
+		)
+		m.oldValue = func(ctx context.Context) (*DatasetBinding, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().DatasetBinding.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withDatasetBinding sets the old DatasetBinding of the mutation.
+func withDatasetBinding(node *DatasetBinding) datasetbindingOption {
+	return func(m *DatasetBindingMutation) {
+		m.oldValue = func(context.Context) (*DatasetBinding, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m DatasetBindingMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m DatasetBindingMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *DatasetBindingMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *DatasetBindingMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().DatasetBinding.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetPublicID sets the "public_id" field.
+func (m *DatasetBindingMutation) SetPublicID(u uuid.UUID) {
+	m.public_id = &u
+}
+
+// PublicID returns the value of the "public_id" field in the mutation.
+func (m *DatasetBindingMutation) PublicID() (r uuid.UUID, exists bool) {
+	v := m.public_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPublicID returns the old "public_id" field's value of the DatasetBinding entity.
+// If the DatasetBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DatasetBindingMutation) OldPublicID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPublicID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPublicID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPublicID: %w", err)
+	}
+	return oldValue.PublicID, nil
+}
+
+// ResetPublicID resets all changes to the "public_id" field.
+func (m *DatasetBindingMutation) ResetPublicID() {
+	m.public_id = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *DatasetBindingMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *DatasetBindingMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the DatasetBinding entity.
+// If the DatasetBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DatasetBindingMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *DatasetBindingMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *DatasetBindingMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *DatasetBindingMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the DatasetBinding entity.
+// If the DatasetBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DatasetBindingMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *DatasetBindingMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *DatasetBindingMutation) SetTenantID(i int) {
+	m.tenant = &i
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *DatasetBindingMutation) TenantID() (r int, exists bool) {
+	v := m.tenant
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the DatasetBinding entity.
+// If the DatasetBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DatasetBindingMutation) OldTenantID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *DatasetBindingMutation) ResetTenantID() {
+	m.tenant = nil
+}
+
+// SetProjectID sets the "project_id" field.
+func (m *DatasetBindingMutation) SetProjectID(i int) {
+	m.project = &i
+}
+
+// ProjectID returns the value of the "project_id" field in the mutation.
+func (m *DatasetBindingMutation) ProjectID() (r int, exists bool) {
+	v := m.project
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProjectID returns the old "project_id" field's value of the DatasetBinding entity.
+// If the DatasetBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DatasetBindingMutation) OldProjectID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProjectID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProjectID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProjectID: %w", err)
+	}
+	return oldValue.ProjectID, nil
+}
+
+// ResetProjectID resets all changes to the "project_id" field.
+func (m *DatasetBindingMutation) ResetProjectID() {
+	m.project = nil
+}
+
+// SetAgentTokenID sets the "agent_token_id" field.
+func (m *DatasetBindingMutation) SetAgentTokenID(i int) {
+	m.agent_token = &i
+}
+
+// AgentTokenID returns the value of the "agent_token_id" field in the mutation.
+func (m *DatasetBindingMutation) AgentTokenID() (r int, exists bool) {
+	v := m.agent_token
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAgentTokenID returns the old "agent_token_id" field's value of the DatasetBinding entity.
+// If the DatasetBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DatasetBindingMutation) OldAgentTokenID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAgentTokenID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAgentTokenID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAgentTokenID: %w", err)
+	}
+	return oldValue.AgentTokenID, nil
+}
+
+// ClearAgentTokenID clears the value of the "agent_token_id" field.
+func (m *DatasetBindingMutation) ClearAgentTokenID() {
+	m.agent_token = nil
+	m.clearedFields[datasetbinding.FieldAgentTokenID] = struct{}{}
+}
+
+// AgentTokenIDCleared returns if the "agent_token_id" field was cleared in this mutation.
+func (m *DatasetBindingMutation) AgentTokenIDCleared() bool {
+	_, ok := m.clearedFields[datasetbinding.FieldAgentTokenID]
+	return ok
+}
+
+// ResetAgentTokenID resets all changes to the "agent_token_id" field.
+func (m *DatasetBindingMutation) ResetAgentTokenID() {
+	m.agent_token = nil
+	delete(m.clearedFields, datasetbinding.FieldAgentTokenID)
+}
+
+// SetName sets the "name" field.
+func (m *DatasetBindingMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *DatasetBindingMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the DatasetBinding entity.
+// If the DatasetBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DatasetBindingMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *DatasetBindingMutation) ResetName() {
+	m.name = nil
+}
+
+// SetBackend sets the "backend" field.
+func (m *DatasetBindingMutation) SetBackend(d datasetbinding.Backend) {
+	m.backend = &d
+}
+
+// Backend returns the value of the "backend" field in the mutation.
+func (m *DatasetBindingMutation) Backend() (r datasetbinding.Backend, exists bool) {
+	v := m.backend
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBackend returns the old "backend" field's value of the DatasetBinding entity.
+// If the DatasetBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DatasetBindingMutation) OldBackend(ctx context.Context) (v datasetbinding.Backend, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBackend is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBackend requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBackend: %w", err)
+	}
+	return oldValue.Backend, nil
+}
+
+// ResetBackend resets all changes to the "backend" field.
+func (m *DatasetBindingMutation) ResetBackend() {
+	m.backend = nil
+}
+
+// SetCanonicalRoot sets the "canonical_root" field.
+func (m *DatasetBindingMutation) SetCanonicalRoot(s string) {
+	m.canonical_root = &s
+}
+
+// CanonicalRoot returns the value of the "canonical_root" field in the mutation.
+func (m *DatasetBindingMutation) CanonicalRoot() (r string, exists bool) {
+	v := m.canonical_root
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCanonicalRoot returns the old "canonical_root" field's value of the DatasetBinding entity.
+// If the DatasetBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DatasetBindingMutation) OldCanonicalRoot(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCanonicalRoot is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCanonicalRoot requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCanonicalRoot: %w", err)
+	}
+	return oldValue.CanonicalRoot, nil
+}
+
+// ResetCanonicalRoot resets all changes to the "canonical_root" field.
+func (m *DatasetBindingMutation) ResetCanonicalRoot() {
+	m.canonical_root = nil
+}
+
+// SetEnvironmentVariable sets the "environment_variable" field.
+func (m *DatasetBindingMutation) SetEnvironmentVariable(s string) {
+	m.environment_variable = &s
+}
+
+// EnvironmentVariable returns the value of the "environment_variable" field in the mutation.
+func (m *DatasetBindingMutation) EnvironmentVariable() (r string, exists bool) {
+	v := m.environment_variable
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEnvironmentVariable returns the old "environment_variable" field's value of the DatasetBinding entity.
+// If the DatasetBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DatasetBindingMutation) OldEnvironmentVariable(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEnvironmentVariable is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEnvironmentVariable requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEnvironmentVariable: %w", err)
+	}
+	return oldValue.EnvironmentVariable, nil
+}
+
+// ResetEnvironmentVariable resets all changes to the "environment_variable" field.
+func (m *DatasetBindingMutation) ResetEnvironmentVariable() {
+	m.environment_variable = nil
+}
+
+// SetRequiredMarkers sets the "required_markers" field.
+func (m *DatasetBindingMutation) SetRequiredMarkers(s []string) {
+	m.required_markers = &s
+	m.appendrequired_markers = nil
+}
+
+// RequiredMarkers returns the value of the "required_markers" field in the mutation.
+func (m *DatasetBindingMutation) RequiredMarkers() (r []string, exists bool) {
+	v := m.required_markers
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequiredMarkers returns the old "required_markers" field's value of the DatasetBinding entity.
+// If the DatasetBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DatasetBindingMutation) OldRequiredMarkers(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequiredMarkers is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequiredMarkers requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequiredMarkers: %w", err)
+	}
+	return oldValue.RequiredMarkers, nil
+}
+
+// AppendRequiredMarkers adds s to the "required_markers" field.
+func (m *DatasetBindingMutation) AppendRequiredMarkers(s []string) {
+	m.appendrequired_markers = append(m.appendrequired_markers, s...)
+}
+
+// AppendedRequiredMarkers returns the list of values that were appended to the "required_markers" field in this mutation.
+func (m *DatasetBindingMutation) AppendedRequiredMarkers() ([]string, bool) {
+	if len(m.appendrequired_markers) == 0 {
+		return nil, false
+	}
+	return m.appendrequired_markers, true
+}
+
+// ResetRequiredMarkers resets all changes to the "required_markers" field.
+func (m *DatasetBindingMutation) ResetRequiredMarkers() {
+	m.required_markers = nil
+	m.appendrequired_markers = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *DatasetBindingMutation) SetStatus(d datasetbinding.Status) {
+	m.status = &d
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *DatasetBindingMutation) Status() (r datasetbinding.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the DatasetBinding entity.
+// If the DatasetBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DatasetBindingMutation) OldStatus(ctx context.Context) (v datasetbinding.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *DatasetBindingMutation) ResetStatus() {
+	m.status = nil
+}
+
+// ClearTenant clears the "tenant" edge to the Tenant entity.
+func (m *DatasetBindingMutation) ClearTenant() {
+	m.clearedtenant = true
+	m.clearedFields[datasetbinding.FieldTenantID] = struct{}{}
+}
+
+// TenantCleared reports if the "tenant" edge to the Tenant entity was cleared.
+func (m *DatasetBindingMutation) TenantCleared() bool {
+	return m.clearedtenant
+}
+
+// TenantIDs returns the "tenant" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// TenantID instead. It exists only for internal usage by the builders.
+func (m *DatasetBindingMutation) TenantIDs() (ids []int) {
+	if id := m.tenant; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetTenant resets all changes to the "tenant" edge.
+func (m *DatasetBindingMutation) ResetTenant() {
+	m.tenant = nil
+	m.clearedtenant = false
+}
+
+// ClearProject clears the "project" edge to the Project entity.
+func (m *DatasetBindingMutation) ClearProject() {
+	m.clearedproject = true
+	m.clearedFields[datasetbinding.FieldProjectID] = struct{}{}
+}
+
+// ProjectCleared reports if the "project" edge to the Project entity was cleared.
+func (m *DatasetBindingMutation) ProjectCleared() bool {
+	return m.clearedproject
+}
+
+// ProjectIDs returns the "project" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ProjectID instead. It exists only for internal usage by the builders.
+func (m *DatasetBindingMutation) ProjectIDs() (ids []int) {
+	if id := m.project; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetProject resets all changes to the "project" edge.
+func (m *DatasetBindingMutation) ResetProject() {
+	m.project = nil
+	m.clearedproject = false
+}
+
+// ClearAgentToken clears the "agent_token" edge to the AgentToken entity.
+func (m *DatasetBindingMutation) ClearAgentToken() {
+	m.clearedagent_token = true
+	m.clearedFields[datasetbinding.FieldAgentTokenID] = struct{}{}
+}
+
+// AgentTokenCleared reports if the "agent_token" edge to the AgentToken entity was cleared.
+func (m *DatasetBindingMutation) AgentTokenCleared() bool {
+	return m.AgentTokenIDCleared() || m.clearedagent_token
+}
+
+// AgentTokenIDs returns the "agent_token" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// AgentTokenID instead. It exists only for internal usage by the builders.
+func (m *DatasetBindingMutation) AgentTokenIDs() (ids []int) {
+	if id := m.agent_token; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetAgentToken resets all changes to the "agent_token" edge.
+func (m *DatasetBindingMutation) ResetAgentToken() {
+	m.agent_token = nil
+	m.clearedagent_token = false
+}
+
+// Where appends a list predicates to the DatasetBindingMutation builder.
+func (m *DatasetBindingMutation) Where(ps ...predicate.DatasetBinding) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the DatasetBindingMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *DatasetBindingMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.DatasetBinding, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *DatasetBindingMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *DatasetBindingMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (DatasetBinding).
+func (m *DatasetBindingMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *DatasetBindingMutation) Fields() []string {
+	fields := make([]string, 0, 12)
+	if m.public_id != nil {
+		fields = append(fields, datasetbinding.FieldPublicID)
+	}
+	if m.created_at != nil {
+		fields = append(fields, datasetbinding.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, datasetbinding.FieldUpdatedAt)
+	}
+	if m.tenant != nil {
+		fields = append(fields, datasetbinding.FieldTenantID)
+	}
+	if m.project != nil {
+		fields = append(fields, datasetbinding.FieldProjectID)
+	}
+	if m.agent_token != nil {
+		fields = append(fields, datasetbinding.FieldAgentTokenID)
+	}
+	if m.name != nil {
+		fields = append(fields, datasetbinding.FieldName)
+	}
+	if m.backend != nil {
+		fields = append(fields, datasetbinding.FieldBackend)
+	}
+	if m.canonical_root != nil {
+		fields = append(fields, datasetbinding.FieldCanonicalRoot)
+	}
+	if m.environment_variable != nil {
+		fields = append(fields, datasetbinding.FieldEnvironmentVariable)
+	}
+	if m.required_markers != nil {
+		fields = append(fields, datasetbinding.FieldRequiredMarkers)
+	}
+	if m.status != nil {
+		fields = append(fields, datasetbinding.FieldStatus)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *DatasetBindingMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case datasetbinding.FieldPublicID:
+		return m.PublicID()
+	case datasetbinding.FieldCreatedAt:
+		return m.CreatedAt()
+	case datasetbinding.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case datasetbinding.FieldTenantID:
+		return m.TenantID()
+	case datasetbinding.FieldProjectID:
+		return m.ProjectID()
+	case datasetbinding.FieldAgentTokenID:
+		return m.AgentTokenID()
+	case datasetbinding.FieldName:
+		return m.Name()
+	case datasetbinding.FieldBackend:
+		return m.Backend()
+	case datasetbinding.FieldCanonicalRoot:
+		return m.CanonicalRoot()
+	case datasetbinding.FieldEnvironmentVariable:
+		return m.EnvironmentVariable()
+	case datasetbinding.FieldRequiredMarkers:
+		return m.RequiredMarkers()
+	case datasetbinding.FieldStatus:
+		return m.Status()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *DatasetBindingMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case datasetbinding.FieldPublicID:
+		return m.OldPublicID(ctx)
+	case datasetbinding.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case datasetbinding.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case datasetbinding.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case datasetbinding.FieldProjectID:
+		return m.OldProjectID(ctx)
+	case datasetbinding.FieldAgentTokenID:
+		return m.OldAgentTokenID(ctx)
+	case datasetbinding.FieldName:
+		return m.OldName(ctx)
+	case datasetbinding.FieldBackend:
+		return m.OldBackend(ctx)
+	case datasetbinding.FieldCanonicalRoot:
+		return m.OldCanonicalRoot(ctx)
+	case datasetbinding.FieldEnvironmentVariable:
+		return m.OldEnvironmentVariable(ctx)
+	case datasetbinding.FieldRequiredMarkers:
+		return m.OldRequiredMarkers(ctx)
+	case datasetbinding.FieldStatus:
+		return m.OldStatus(ctx)
+	}
+	return nil, fmt.Errorf("unknown DatasetBinding field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *DatasetBindingMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case datasetbinding.FieldPublicID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPublicID(v)
+		return nil
+	case datasetbinding.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case datasetbinding.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case datasetbinding.FieldTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case datasetbinding.FieldProjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProjectID(v)
+		return nil
+	case datasetbinding.FieldAgentTokenID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAgentTokenID(v)
+		return nil
+	case datasetbinding.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case datasetbinding.FieldBackend:
+		v, ok := value.(datasetbinding.Backend)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBackend(v)
+		return nil
+	case datasetbinding.FieldCanonicalRoot:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCanonicalRoot(v)
+		return nil
+	case datasetbinding.FieldEnvironmentVariable:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEnvironmentVariable(v)
+		return nil
+	case datasetbinding.FieldRequiredMarkers:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequiredMarkers(v)
+		return nil
+	case datasetbinding.FieldStatus:
+		v, ok := value.(datasetbinding.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	}
+	return fmt.Errorf("unknown DatasetBinding field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *DatasetBindingMutation) AddedFields() []string {
+	var fields []string
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *DatasetBindingMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *DatasetBindingMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown DatasetBinding numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *DatasetBindingMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(datasetbinding.FieldAgentTokenID) {
+		fields = append(fields, datasetbinding.FieldAgentTokenID)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *DatasetBindingMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *DatasetBindingMutation) ClearField(name string) error {
+	switch name {
+	case datasetbinding.FieldAgentTokenID:
+		m.ClearAgentTokenID()
+		return nil
+	}
+	return fmt.Errorf("unknown DatasetBinding nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *DatasetBindingMutation) ResetField(name string) error {
+	switch name {
+	case datasetbinding.FieldPublicID:
+		m.ResetPublicID()
+		return nil
+	case datasetbinding.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case datasetbinding.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case datasetbinding.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case datasetbinding.FieldProjectID:
+		m.ResetProjectID()
+		return nil
+	case datasetbinding.FieldAgentTokenID:
+		m.ResetAgentTokenID()
+		return nil
+	case datasetbinding.FieldName:
+		m.ResetName()
+		return nil
+	case datasetbinding.FieldBackend:
+		m.ResetBackend()
+		return nil
+	case datasetbinding.FieldCanonicalRoot:
+		m.ResetCanonicalRoot()
+		return nil
+	case datasetbinding.FieldEnvironmentVariable:
+		m.ResetEnvironmentVariable()
+		return nil
+	case datasetbinding.FieldRequiredMarkers:
+		m.ResetRequiredMarkers()
+		return nil
+	case datasetbinding.FieldStatus:
+		m.ResetStatus()
+		return nil
+	}
+	return fmt.Errorf("unknown DatasetBinding field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *DatasetBindingMutation) AddedEdges() []string {
+	edges := make([]string, 0, 3)
+	if m.tenant != nil {
+		edges = append(edges, datasetbinding.EdgeTenant)
+	}
+	if m.project != nil {
+		edges = append(edges, datasetbinding.EdgeProject)
+	}
+	if m.agent_token != nil {
+		edges = append(edges, datasetbinding.EdgeAgentToken)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *DatasetBindingMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case datasetbinding.EdgeTenant:
+		if id := m.tenant; id != nil {
+			return []ent.Value{*id}
+		}
+	case datasetbinding.EdgeProject:
+		if id := m.project; id != nil {
+			return []ent.Value{*id}
+		}
+	case datasetbinding.EdgeAgentToken:
+		if id := m.agent_token; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *DatasetBindingMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 3)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *DatasetBindingMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *DatasetBindingMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 3)
+	if m.clearedtenant {
+		edges = append(edges, datasetbinding.EdgeTenant)
+	}
+	if m.clearedproject {
+		edges = append(edges, datasetbinding.EdgeProject)
+	}
+	if m.clearedagent_token {
+		edges = append(edges, datasetbinding.EdgeAgentToken)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *DatasetBindingMutation) EdgeCleared(name string) bool {
+	switch name {
+	case datasetbinding.EdgeTenant:
+		return m.clearedtenant
+	case datasetbinding.EdgeProject:
+		return m.clearedproject
+	case datasetbinding.EdgeAgentToken:
+		return m.clearedagent_token
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *DatasetBindingMutation) ClearEdge(name string) error {
+	switch name {
+	case datasetbinding.EdgeTenant:
+		m.ClearTenant()
+		return nil
+	case datasetbinding.EdgeProject:
+		m.ClearProject()
+		return nil
+	case datasetbinding.EdgeAgentToken:
+		m.ClearAgentToken()
+		return nil
+	}
+	return fmt.Errorf("unknown DatasetBinding unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *DatasetBindingMutation) ResetEdge(name string) error {
+	switch name {
+	case datasetbinding.EdgeTenant:
+		m.ResetTenant()
+		return nil
+	case datasetbinding.EdgeProject:
+		m.ResetProject()
+		return nil
+	case datasetbinding.EdgeAgentToken:
+		m.ResetAgentToken()
+		return nil
+	}
+	return fmt.Errorf("unknown DatasetBinding edge %s", name)
 }
 
 // DiagnosticRunMutation represents an operation that mutates the DiagnosticRun nodes in the graph.
@@ -9515,6 +15283,9 @@ type ExperimentMutation struct {
 	node_assignments             map[int]struct{}
 	removednode_assignments      map[int]struct{}
 	clearednode_assignments      bool
+	cloud_ssh_assignments        map[int]struct{}
+	removedcloud_ssh_assignments map[int]struct{}
+	clearedcloud_ssh_assignments bool
 	budget_entries               map[int]struct{}
 	removedbudget_entries        map[int]struct{}
 	clearedbudget_entries        bool
@@ -9877,7 +15648,7 @@ func (m *ExperimentMutation) RepositoryID() (r int, exists bool) {
 // OldRepositoryID returns the old "repository_id" field's value of the Experiment entity.
 // If the Experiment object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *ExperimentMutation) OldRepositoryID(ctx context.Context) (v int, err error) {
+func (m *ExperimentMutation) OldRepositoryID(ctx context.Context) (v *int, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldRepositoryID is only allowed on UpdateOne operations")
 	}
@@ -9891,9 +15662,22 @@ func (m *ExperimentMutation) OldRepositoryID(ctx context.Context) (v int, err er
 	return oldValue.RepositoryID, nil
 }
 
+// ClearRepositoryID clears the value of the "repository_id" field.
+func (m *ExperimentMutation) ClearRepositoryID() {
+	m.repository = nil
+	m.clearedFields[experiment.FieldRepositoryID] = struct{}{}
+}
+
+// RepositoryIDCleared returns if the "repository_id" field was cleared in this mutation.
+func (m *ExperimentMutation) RepositoryIDCleared() bool {
+	_, ok := m.clearedFields[experiment.FieldRepositoryID]
+	return ok
+}
+
 // ResetRepositoryID resets all changes to the "repository_id" field.
 func (m *ExperimentMutation) ResetRepositoryID() {
 	m.repository = nil
+	delete(m.clearedFields, experiment.FieldRepositoryID)
 }
 
 // SetEnvironmentID sets the "environment_id" field.
@@ -11556,7 +17340,7 @@ func (m *ExperimentMutation) ClearRepository() {
 
 // RepositoryCleared reports if the "repository" edge to the Repository entity was cleared.
 func (m *ExperimentMutation) RepositoryCleared() bool {
-	return m.clearedrepository
+	return m.RepositoryIDCleared() || m.clearedrepository
 }
 
 // RepositoryIDs returns the "repository" edge IDs in the mutation.
@@ -11789,6 +17573,60 @@ func (m *ExperimentMutation) ResetNodeAssignments() {
 	m.node_assignments = nil
 	m.clearednode_assignments = false
 	m.removednode_assignments = nil
+}
+
+// AddCloudSSHAssignmentIDs adds the "cloud_ssh_assignments" edge to the CloudSSHAssignment entity by ids.
+func (m *ExperimentMutation) AddCloudSSHAssignmentIDs(ids ...int) {
+	if m.cloud_ssh_assignments == nil {
+		m.cloud_ssh_assignments = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.cloud_ssh_assignments[ids[i]] = struct{}{}
+	}
+}
+
+// ClearCloudSSHAssignments clears the "cloud_ssh_assignments" edge to the CloudSSHAssignment entity.
+func (m *ExperimentMutation) ClearCloudSSHAssignments() {
+	m.clearedcloud_ssh_assignments = true
+}
+
+// CloudSSHAssignmentsCleared reports if the "cloud_ssh_assignments" edge to the CloudSSHAssignment entity was cleared.
+func (m *ExperimentMutation) CloudSSHAssignmentsCleared() bool {
+	return m.clearedcloud_ssh_assignments
+}
+
+// RemoveCloudSSHAssignmentIDs removes the "cloud_ssh_assignments" edge to the CloudSSHAssignment entity by IDs.
+func (m *ExperimentMutation) RemoveCloudSSHAssignmentIDs(ids ...int) {
+	if m.removedcloud_ssh_assignments == nil {
+		m.removedcloud_ssh_assignments = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.cloud_ssh_assignments, ids[i])
+		m.removedcloud_ssh_assignments[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedCloudSSHAssignments returns the removed IDs of the "cloud_ssh_assignments" edge to the CloudSSHAssignment entity.
+func (m *ExperimentMutation) RemovedCloudSSHAssignmentsIDs() (ids []int) {
+	for id := range m.removedcloud_ssh_assignments {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// CloudSSHAssignmentsIDs returns the "cloud_ssh_assignments" edge IDs in the mutation.
+func (m *ExperimentMutation) CloudSSHAssignmentsIDs() (ids []int) {
+	for id := range m.cloud_ssh_assignments {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetCloudSSHAssignments resets all changes to the "cloud_ssh_assignments" edge.
+func (m *ExperimentMutation) ResetCloudSSHAssignments() {
+	m.cloud_ssh_assignments = nil
+	m.clearedcloud_ssh_assignments = false
+	m.removedcloud_ssh_assignments = nil
 }
 
 // AddBudgetEntryIDs adds the "budget_entries" edge to the BudgetEntry entity by ids.
@@ -12774,6 +18612,9 @@ func (m *ExperimentMutation) ClearedFields() []string {
 	if m.FieldCleared(experiment.FieldAgentTokenID) {
 		fields = append(fields, experiment.FieldAgentTokenID)
 	}
+	if m.FieldCleared(experiment.FieldRepositoryID) {
+		fields = append(fields, experiment.FieldRepositoryID)
+	}
 	if m.FieldCleared(experiment.FieldArgv) {
 		fields = append(fields, experiment.FieldArgv)
 	}
@@ -12835,6 +18676,9 @@ func (m *ExperimentMutation) ClearField(name string) error {
 	switch name {
 	case experiment.FieldAgentTokenID:
 		m.ClearAgentTokenID()
+		return nil
+	case experiment.FieldRepositoryID:
+		m.ClearRepositoryID()
 		return nil
 	case experiment.FieldArgv:
 		m.ClearArgv()
@@ -13018,7 +18862,7 @@ func (m *ExperimentMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *ExperimentMutation) AddedEdges() []string {
-	edges := make([]string, 0, 14)
+	edges := make([]string, 0, 15)
 	if m.tenant != nil {
 		edges = append(edges, experiment.EdgeTenant)
 	}
@@ -13045,6 +18889,9 @@ func (m *ExperimentMutation) AddedEdges() []string {
 	}
 	if m.node_assignments != nil {
 		edges = append(edges, experiment.EdgeNodeAssignments)
+	}
+	if m.cloud_ssh_assignments != nil {
+		edges = append(edges, experiment.EdgeCloudSSHAssignments)
 	}
 	if m.budget_entries != nil {
 		edges = append(edges, experiment.EdgeBudgetEntries)
@@ -13110,6 +18957,12 @@ func (m *ExperimentMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case experiment.EdgeCloudSSHAssignments:
+		ids := make([]ent.Value, 0, len(m.cloud_ssh_assignments))
+		for id := range m.cloud_ssh_assignments {
+			ids = append(ids, id)
+		}
+		return ids
 	case experiment.EdgeBudgetEntries:
 		ids := make([]ent.Value, 0, len(m.budget_entries))
 		for id := range m.budget_entries {
@@ -13142,7 +18995,7 @@ func (m *ExperimentMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *ExperimentMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 14)
+	edges := make([]string, 0, 15)
 	if m.removedattempts != nil {
 		edges = append(edges, experiment.EdgeAttempts)
 	}
@@ -13151,6 +19004,9 @@ func (m *ExperimentMutation) RemovedEdges() []string {
 	}
 	if m.removednode_assignments != nil {
 		edges = append(edges, experiment.EdgeNodeAssignments)
+	}
+	if m.removedcloud_ssh_assignments != nil {
+		edges = append(edges, experiment.EdgeCloudSSHAssignments)
 	}
 	if m.removedbudget_entries != nil {
 		edges = append(edges, experiment.EdgeBudgetEntries)
@@ -13186,6 +19042,12 @@ func (m *ExperimentMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case experiment.EdgeCloudSSHAssignments:
+		ids := make([]ent.Value, 0, len(m.removedcloud_ssh_assignments))
+		for id := range m.removedcloud_ssh_assignments {
+			ids = append(ids, id)
+		}
+		return ids
 	case experiment.EdgeBudgetEntries:
 		ids := make([]ent.Value, 0, len(m.removedbudget_entries))
 		for id := range m.removedbudget_entries {
@@ -13210,7 +19072,7 @@ func (m *ExperimentMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *ExperimentMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 14)
+	edges := make([]string, 0, 15)
 	if m.clearedtenant {
 		edges = append(edges, experiment.EdgeTenant)
 	}
@@ -13237,6 +19099,9 @@ func (m *ExperimentMutation) ClearedEdges() []string {
 	}
 	if m.clearednode_assignments {
 		edges = append(edges, experiment.EdgeNodeAssignments)
+	}
+	if m.clearedcloud_ssh_assignments {
+		edges = append(edges, experiment.EdgeCloudSSHAssignments)
 	}
 	if m.clearedbudget_entries {
 		edges = append(edges, experiment.EdgeBudgetEntries)
@@ -13278,6 +19143,8 @@ func (m *ExperimentMutation) EdgeCleared(name string) bool {
 		return m.clearedprovider_resources
 	case experiment.EdgeNodeAssignments:
 		return m.clearednode_assignments
+	case experiment.EdgeCloudSSHAssignments:
+		return m.clearedcloud_ssh_assignments
 	case experiment.EdgeBudgetEntries:
 		return m.clearedbudget_entries
 	case experiment.EdgeIdempotencyRecords:
@@ -13354,6 +19221,9 @@ func (m *ExperimentMutation) ResetEdge(name string) error {
 		return nil
 	case experiment.EdgeNodeAssignments:
 		m.ResetNodeAssignments()
+		return nil
+	case experiment.EdgeCloudSSHAssignments:
+		m.ResetCloudSSHAssignments()
 		return nil
 	case experiment.EdgeBudgetEntries:
 		m.ResetBudgetEntries()
@@ -13759,7 +19629,7 @@ func (m *ExperimentProposalMutation) RepositoryID() (r int, exists bool) {
 // OldRepositoryID returns the old "repository_id" field's value of the ExperimentProposal entity.
 // If the ExperimentProposal object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *ExperimentProposalMutation) OldRepositoryID(ctx context.Context) (v int, err error) {
+func (m *ExperimentProposalMutation) OldRepositoryID(ctx context.Context) (v *int, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldRepositoryID is only allowed on UpdateOne operations")
 	}
@@ -13773,9 +19643,22 @@ func (m *ExperimentProposalMutation) OldRepositoryID(ctx context.Context) (v int
 	return oldValue.RepositoryID, nil
 }
 
+// ClearRepositoryID clears the value of the "repository_id" field.
+func (m *ExperimentProposalMutation) ClearRepositoryID() {
+	m.repository = nil
+	m.clearedFields[experimentproposal.FieldRepositoryID] = struct{}{}
+}
+
+// RepositoryIDCleared returns if the "repository_id" field was cleared in this mutation.
+func (m *ExperimentProposalMutation) RepositoryIDCleared() bool {
+	_, ok := m.clearedFields[experimentproposal.FieldRepositoryID]
+	return ok
+}
+
 // ResetRepositoryID resets all changes to the "repository_id" field.
 func (m *ExperimentProposalMutation) ResetRepositoryID() {
 	m.repository = nil
+	delete(m.clearedFields, experimentproposal.FieldRepositoryID)
 }
 
 // SetEnvironmentID sets the "environment_id" field.
@@ -14795,7 +20678,7 @@ func (m *ExperimentProposalMutation) ClearRepository() {
 
 // RepositoryCleared reports if the "repository" edge to the Repository entity was cleared.
 func (m *ExperimentProposalMutation) RepositoryCleared() bool {
-	return m.clearedrepository
+	return m.RepositoryIDCleared() || m.clearedrepository
 }
 
 // RepositoryIDs returns the "repository" edge IDs in the mutation.
@@ -15443,6 +21326,9 @@ func (m *ExperimentProposalMutation) AddField(name string, value ent.Value) erro
 // mutation.
 func (m *ExperimentProposalMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(experimentproposal.FieldRepositoryID) {
+		fields = append(fields, experimentproposal.FieldRepositoryID)
+	}
 	if m.FieldCleared(experimentproposal.FieldExperimentID) {
 		fields = append(fields, experimentproposal.FieldExperimentID)
 	}
@@ -15463,6 +21349,9 @@ func (m *ExperimentProposalMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *ExperimentProposalMutation) ClearField(name string) error {
 	switch name {
+	case experimentproposal.FieldRepositoryID:
+		m.ClearRepositoryID()
+		return nil
 	case experimentproposal.FieldExperimentID:
 		m.ClearExperimentID()
 		return nil
@@ -27531,6 +33420,12 @@ type ProjectMutation struct {
 	node_assignments             map[int]struct{}
 	removednode_assignments      map[int]struct{}
 	clearednode_assignments      bool
+	cloud_ssh_access             map[int]struct{}
+	removedcloud_ssh_access      map[int]struct{}
+	clearedcloud_ssh_access      bool
+	cloud_ssh_assignments        map[int]struct{}
+	removedcloud_ssh_assignments map[int]struct{}
+	clearedcloud_ssh_assignments bool
 	diagnostic_runs              map[int]struct{}
 	removeddiagnostic_runs       map[int]struct{}
 	cleareddiagnostic_runs       bool
@@ -27540,6 +33435,9 @@ type ProjectMutation struct {
 	workspace_datasets           map[int]struct{}
 	removedworkspace_datasets    map[int]struct{}
 	clearedworkspace_datasets    bool
+	dataset_bindings             map[int]struct{}
+	removeddataset_bindings      map[int]struct{}
+	cleareddataset_bindings      bool
 	studies                      map[int]struct{}
 	removedstudies               map[int]struct{}
 	clearedstudies               bool
@@ -28900,6 +34798,114 @@ func (m *ProjectMutation) ResetNodeAssignments() {
 	m.removednode_assignments = nil
 }
 
+// AddCloudSSHAccesIDs adds the "cloud_ssh_access" edge to the CloudSSHProjectAccess entity by ids.
+func (m *ProjectMutation) AddCloudSSHAccesIDs(ids ...int) {
+	if m.cloud_ssh_access == nil {
+		m.cloud_ssh_access = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.cloud_ssh_access[ids[i]] = struct{}{}
+	}
+}
+
+// ClearCloudSSHAccess clears the "cloud_ssh_access" edge to the CloudSSHProjectAccess entity.
+func (m *ProjectMutation) ClearCloudSSHAccess() {
+	m.clearedcloud_ssh_access = true
+}
+
+// CloudSSHAccessCleared reports if the "cloud_ssh_access" edge to the CloudSSHProjectAccess entity was cleared.
+func (m *ProjectMutation) CloudSSHAccessCleared() bool {
+	return m.clearedcloud_ssh_access
+}
+
+// RemoveCloudSSHAccesIDs removes the "cloud_ssh_access" edge to the CloudSSHProjectAccess entity by IDs.
+func (m *ProjectMutation) RemoveCloudSSHAccesIDs(ids ...int) {
+	if m.removedcloud_ssh_access == nil {
+		m.removedcloud_ssh_access = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.cloud_ssh_access, ids[i])
+		m.removedcloud_ssh_access[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedCloudSSHAccess returns the removed IDs of the "cloud_ssh_access" edge to the CloudSSHProjectAccess entity.
+func (m *ProjectMutation) RemovedCloudSSHAccessIDs() (ids []int) {
+	for id := range m.removedcloud_ssh_access {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// CloudSSHAccessIDs returns the "cloud_ssh_access" edge IDs in the mutation.
+func (m *ProjectMutation) CloudSSHAccessIDs() (ids []int) {
+	for id := range m.cloud_ssh_access {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetCloudSSHAccess resets all changes to the "cloud_ssh_access" edge.
+func (m *ProjectMutation) ResetCloudSSHAccess() {
+	m.cloud_ssh_access = nil
+	m.clearedcloud_ssh_access = false
+	m.removedcloud_ssh_access = nil
+}
+
+// AddCloudSSHAssignmentIDs adds the "cloud_ssh_assignments" edge to the CloudSSHAssignment entity by ids.
+func (m *ProjectMutation) AddCloudSSHAssignmentIDs(ids ...int) {
+	if m.cloud_ssh_assignments == nil {
+		m.cloud_ssh_assignments = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.cloud_ssh_assignments[ids[i]] = struct{}{}
+	}
+}
+
+// ClearCloudSSHAssignments clears the "cloud_ssh_assignments" edge to the CloudSSHAssignment entity.
+func (m *ProjectMutation) ClearCloudSSHAssignments() {
+	m.clearedcloud_ssh_assignments = true
+}
+
+// CloudSSHAssignmentsCleared reports if the "cloud_ssh_assignments" edge to the CloudSSHAssignment entity was cleared.
+func (m *ProjectMutation) CloudSSHAssignmentsCleared() bool {
+	return m.clearedcloud_ssh_assignments
+}
+
+// RemoveCloudSSHAssignmentIDs removes the "cloud_ssh_assignments" edge to the CloudSSHAssignment entity by IDs.
+func (m *ProjectMutation) RemoveCloudSSHAssignmentIDs(ids ...int) {
+	if m.removedcloud_ssh_assignments == nil {
+		m.removedcloud_ssh_assignments = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.cloud_ssh_assignments, ids[i])
+		m.removedcloud_ssh_assignments[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedCloudSSHAssignments returns the removed IDs of the "cloud_ssh_assignments" edge to the CloudSSHAssignment entity.
+func (m *ProjectMutation) RemovedCloudSSHAssignmentsIDs() (ids []int) {
+	for id := range m.removedcloud_ssh_assignments {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// CloudSSHAssignmentsIDs returns the "cloud_ssh_assignments" edge IDs in the mutation.
+func (m *ProjectMutation) CloudSSHAssignmentsIDs() (ids []int) {
+	for id := range m.cloud_ssh_assignments {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetCloudSSHAssignments resets all changes to the "cloud_ssh_assignments" edge.
+func (m *ProjectMutation) ResetCloudSSHAssignments() {
+	m.cloud_ssh_assignments = nil
+	m.clearedcloud_ssh_assignments = false
+	m.removedcloud_ssh_assignments = nil
+}
+
 // AddDiagnosticRunIDs adds the "diagnostic_runs" edge to the DiagnosticRun entity by ids.
 func (m *ProjectMutation) AddDiagnosticRunIDs(ids ...int) {
 	if m.diagnostic_runs == nil {
@@ -29060,6 +35066,60 @@ func (m *ProjectMutation) ResetWorkspaceDatasets() {
 	m.workspace_datasets = nil
 	m.clearedworkspace_datasets = false
 	m.removedworkspace_datasets = nil
+}
+
+// AddDatasetBindingIDs adds the "dataset_bindings" edge to the DatasetBinding entity by ids.
+func (m *ProjectMutation) AddDatasetBindingIDs(ids ...int) {
+	if m.dataset_bindings == nil {
+		m.dataset_bindings = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.dataset_bindings[ids[i]] = struct{}{}
+	}
+}
+
+// ClearDatasetBindings clears the "dataset_bindings" edge to the DatasetBinding entity.
+func (m *ProjectMutation) ClearDatasetBindings() {
+	m.cleareddataset_bindings = true
+}
+
+// DatasetBindingsCleared reports if the "dataset_bindings" edge to the DatasetBinding entity was cleared.
+func (m *ProjectMutation) DatasetBindingsCleared() bool {
+	return m.cleareddataset_bindings
+}
+
+// RemoveDatasetBindingIDs removes the "dataset_bindings" edge to the DatasetBinding entity by IDs.
+func (m *ProjectMutation) RemoveDatasetBindingIDs(ids ...int) {
+	if m.removeddataset_bindings == nil {
+		m.removeddataset_bindings = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.dataset_bindings, ids[i])
+		m.removeddataset_bindings[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedDatasetBindings returns the removed IDs of the "dataset_bindings" edge to the DatasetBinding entity.
+func (m *ProjectMutation) RemovedDatasetBindingsIDs() (ids []int) {
+	for id := range m.removeddataset_bindings {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// DatasetBindingsIDs returns the "dataset_bindings" edge IDs in the mutation.
+func (m *ProjectMutation) DatasetBindingsIDs() (ids []int) {
+	for id := range m.dataset_bindings {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetDatasetBindings resets all changes to the "dataset_bindings" edge.
+func (m *ProjectMutation) ResetDatasetBindings() {
+	m.dataset_bindings = nil
+	m.cleareddataset_bindings = false
+	m.removeddataset_bindings = nil
 }
 
 // AddStudyIDs adds the "studies" edge to the Study entity by ids.
@@ -29707,7 +35767,7 @@ func (m *ProjectMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *ProjectMutation) AddedEdges() []string {
-	edges := make([]string, 0, 19)
+	edges := make([]string, 0, 22)
 	if m.tenant != nil {
 		edges = append(edges, project.EdgeTenant)
 	}
@@ -29744,6 +35804,12 @@ func (m *ProjectMutation) AddedEdges() []string {
 	if m.node_assignments != nil {
 		edges = append(edges, project.EdgeNodeAssignments)
 	}
+	if m.cloud_ssh_access != nil {
+		edges = append(edges, project.EdgeCloudSSHAccess)
+	}
+	if m.cloud_ssh_assignments != nil {
+		edges = append(edges, project.EdgeCloudSSHAssignments)
+	}
 	if m.diagnostic_runs != nil {
 		edges = append(edges, project.EdgeDiagnosticRuns)
 	}
@@ -29752,6 +35818,9 @@ func (m *ProjectMutation) AddedEdges() []string {
 	}
 	if m.workspace_datasets != nil {
 		edges = append(edges, project.EdgeWorkspaceDatasets)
+	}
+	if m.dataset_bindings != nil {
+		edges = append(edges, project.EdgeDatasetBindings)
 	}
 	if m.studies != nil {
 		edges = append(edges, project.EdgeStudies)
@@ -29842,6 +35911,18 @@ func (m *ProjectMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case project.EdgeCloudSSHAccess:
+		ids := make([]ent.Value, 0, len(m.cloud_ssh_access))
+		for id := range m.cloud_ssh_access {
+			ids = append(ids, id)
+		}
+		return ids
+	case project.EdgeCloudSSHAssignments:
+		ids := make([]ent.Value, 0, len(m.cloud_ssh_assignments))
+		for id := range m.cloud_ssh_assignments {
+			ids = append(ids, id)
+		}
+		return ids
 	case project.EdgeDiagnosticRuns:
 		ids := make([]ent.Value, 0, len(m.diagnostic_runs))
 		for id := range m.diagnostic_runs {
@@ -29857,6 +35938,12 @@ func (m *ProjectMutation) AddedIDs(name string) []ent.Value {
 	case project.EdgeWorkspaceDatasets:
 		ids := make([]ent.Value, 0, len(m.workspace_datasets))
 		for id := range m.workspace_datasets {
+			ids = append(ids, id)
+		}
+		return ids
+	case project.EdgeDatasetBindings:
+		ids := make([]ent.Value, 0, len(m.dataset_bindings))
+		for id := range m.dataset_bindings {
 			ids = append(ids, id)
 		}
 		return ids
@@ -29890,7 +35977,7 @@ func (m *ProjectMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *ProjectMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 19)
+	edges := make([]string, 0, 22)
 	if m.removedenvironments != nil {
 		edges = append(edges, project.EdgeEnvironments)
 	}
@@ -29924,6 +36011,12 @@ func (m *ProjectMutation) RemovedEdges() []string {
 	if m.removednode_assignments != nil {
 		edges = append(edges, project.EdgeNodeAssignments)
 	}
+	if m.removedcloud_ssh_access != nil {
+		edges = append(edges, project.EdgeCloudSSHAccess)
+	}
+	if m.removedcloud_ssh_assignments != nil {
+		edges = append(edges, project.EdgeCloudSSHAssignments)
+	}
 	if m.removeddiagnostic_runs != nil {
 		edges = append(edges, project.EdgeDiagnosticRuns)
 	}
@@ -29932,6 +36025,9 @@ func (m *ProjectMutation) RemovedEdges() []string {
 	}
 	if m.removedworkspace_datasets != nil {
 		edges = append(edges, project.EdgeWorkspaceDatasets)
+	}
+	if m.removeddataset_bindings != nil {
+		edges = append(edges, project.EdgeDatasetBindings)
 	}
 	if m.removedstudies != nil {
 		edges = append(edges, project.EdgeStudies)
@@ -30018,6 +36114,18 @@ func (m *ProjectMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case project.EdgeCloudSSHAccess:
+		ids := make([]ent.Value, 0, len(m.removedcloud_ssh_access))
+		for id := range m.removedcloud_ssh_access {
+			ids = append(ids, id)
+		}
+		return ids
+	case project.EdgeCloudSSHAssignments:
+		ids := make([]ent.Value, 0, len(m.removedcloud_ssh_assignments))
+		for id := range m.removedcloud_ssh_assignments {
+			ids = append(ids, id)
+		}
+		return ids
 	case project.EdgeDiagnosticRuns:
 		ids := make([]ent.Value, 0, len(m.removeddiagnostic_runs))
 		for id := range m.removeddiagnostic_runs {
@@ -30033,6 +36141,12 @@ func (m *ProjectMutation) RemovedIDs(name string) []ent.Value {
 	case project.EdgeWorkspaceDatasets:
 		ids := make([]ent.Value, 0, len(m.removedworkspace_datasets))
 		for id := range m.removedworkspace_datasets {
+			ids = append(ids, id)
+		}
+		return ids
+	case project.EdgeDatasetBindings:
+		ids := make([]ent.Value, 0, len(m.removeddataset_bindings))
+		for id := range m.removeddataset_bindings {
 			ids = append(ids, id)
 		}
 		return ids
@@ -30066,7 +36180,7 @@ func (m *ProjectMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *ProjectMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 19)
+	edges := make([]string, 0, 22)
 	if m.clearedtenant {
 		edges = append(edges, project.EdgeTenant)
 	}
@@ -30103,6 +36217,12 @@ func (m *ProjectMutation) ClearedEdges() []string {
 	if m.clearednode_assignments {
 		edges = append(edges, project.EdgeNodeAssignments)
 	}
+	if m.clearedcloud_ssh_access {
+		edges = append(edges, project.EdgeCloudSSHAccess)
+	}
+	if m.clearedcloud_ssh_assignments {
+		edges = append(edges, project.EdgeCloudSSHAssignments)
+	}
 	if m.cleareddiagnostic_runs {
 		edges = append(edges, project.EdgeDiagnosticRuns)
 	}
@@ -30111,6 +36231,9 @@ func (m *ProjectMutation) ClearedEdges() []string {
 	}
 	if m.clearedworkspace_datasets {
 		edges = append(edges, project.EdgeWorkspaceDatasets)
+	}
+	if m.cleareddataset_bindings {
+		edges = append(edges, project.EdgeDatasetBindings)
 	}
 	if m.clearedstudies {
 		edges = append(edges, project.EdgeStudies)
@@ -30155,12 +36278,18 @@ func (m *ProjectMutation) EdgeCleared(name string) bool {
 		return m.clearednode_access
 	case project.EdgeNodeAssignments:
 		return m.clearednode_assignments
+	case project.EdgeCloudSSHAccess:
+		return m.clearedcloud_ssh_access
+	case project.EdgeCloudSSHAssignments:
+		return m.clearedcloud_ssh_assignments
 	case project.EdgeDiagnosticRuns:
 		return m.cleareddiagnostic_runs
 	case project.EdgeExperimentProposals:
 		return m.clearedexperiment_proposals
 	case project.EdgeWorkspaceDatasets:
 		return m.clearedworkspace_datasets
+	case project.EdgeDatasetBindings:
+		return m.cleareddataset_bindings
 	case project.EdgeStudies:
 		return m.clearedstudies
 	case project.EdgeIterationPlans:
@@ -30224,6 +36353,12 @@ func (m *ProjectMutation) ResetEdge(name string) error {
 	case project.EdgeNodeAssignments:
 		m.ResetNodeAssignments()
 		return nil
+	case project.EdgeCloudSSHAccess:
+		m.ResetCloudSSHAccess()
+		return nil
+	case project.EdgeCloudSSHAssignments:
+		m.ResetCloudSSHAssignments()
+		return nil
 	case project.EdgeDiagnosticRuns:
 		m.ResetDiagnosticRuns()
 		return nil
@@ -30232,6 +36367,9 @@ func (m *ProjectMutation) ResetEdge(name string) error {
 		return nil
 	case project.EdgeWorkspaceDatasets:
 		m.ResetWorkspaceDatasets()
+		return nil
+	case project.EdgeDatasetBindings:
+		m.ResetDatasetBindings()
 		return nil
 	case project.EdgeStudies:
 		m.ResetStudies()
@@ -36522,6 +42660,8 @@ type ResearchNodeMutation struct {
 	metric_name           *string
 	metric_value          *float64
 	addmetric_value       *float64
+	occurred_at           *time.Time
+	commit_sha            *string
 	clearedFields         map[string]struct{}
 	tenant                *int
 	clearedtenant         bool
@@ -37232,6 +43372,104 @@ func (m *ResearchNodeMutation) ResetMetricValue() {
 	delete(m.clearedFields, researchnode.FieldMetricValue)
 }
 
+// SetOccurredAt sets the "occurred_at" field.
+func (m *ResearchNodeMutation) SetOccurredAt(t time.Time) {
+	m.occurred_at = &t
+}
+
+// OccurredAt returns the value of the "occurred_at" field in the mutation.
+func (m *ResearchNodeMutation) OccurredAt() (r time.Time, exists bool) {
+	v := m.occurred_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOccurredAt returns the old "occurred_at" field's value of the ResearchNode entity.
+// If the ResearchNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchNodeMutation) OldOccurredAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOccurredAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOccurredAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOccurredAt: %w", err)
+	}
+	return oldValue.OccurredAt, nil
+}
+
+// ClearOccurredAt clears the value of the "occurred_at" field.
+func (m *ResearchNodeMutation) ClearOccurredAt() {
+	m.occurred_at = nil
+	m.clearedFields[researchnode.FieldOccurredAt] = struct{}{}
+}
+
+// OccurredAtCleared returns if the "occurred_at" field was cleared in this mutation.
+func (m *ResearchNodeMutation) OccurredAtCleared() bool {
+	_, ok := m.clearedFields[researchnode.FieldOccurredAt]
+	return ok
+}
+
+// ResetOccurredAt resets all changes to the "occurred_at" field.
+func (m *ResearchNodeMutation) ResetOccurredAt() {
+	m.occurred_at = nil
+	delete(m.clearedFields, researchnode.FieldOccurredAt)
+}
+
+// SetCommitSha sets the "commit_sha" field.
+func (m *ResearchNodeMutation) SetCommitSha(s string) {
+	m.commit_sha = &s
+}
+
+// CommitSha returns the value of the "commit_sha" field in the mutation.
+func (m *ResearchNodeMutation) CommitSha() (r string, exists bool) {
+	v := m.commit_sha
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCommitSha returns the old "commit_sha" field's value of the ResearchNode entity.
+// If the ResearchNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchNodeMutation) OldCommitSha(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCommitSha is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCommitSha requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCommitSha: %w", err)
+	}
+	return oldValue.CommitSha, nil
+}
+
+// ClearCommitSha clears the value of the "commit_sha" field.
+func (m *ResearchNodeMutation) ClearCommitSha() {
+	m.commit_sha = nil
+	m.clearedFields[researchnode.FieldCommitSha] = struct{}{}
+}
+
+// CommitShaCleared returns if the "commit_sha" field was cleared in this mutation.
+func (m *ResearchNodeMutation) CommitShaCleared() bool {
+	_, ok := m.clearedFields[researchnode.FieldCommitSha]
+	return ok
+}
+
+// ResetCommitSha resets all changes to the "commit_sha" field.
+func (m *ResearchNodeMutation) ResetCommitSha() {
+	m.commit_sha = nil
+	delete(m.clearedFields, researchnode.FieldCommitSha)
+}
+
 // ClearTenant clears the "tenant" edge to the Tenant entity.
 func (m *ResearchNodeMutation) ClearTenant() {
 	m.clearedtenant = true
@@ -37509,7 +43747,7 @@ func (m *ResearchNodeMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ResearchNodeMutation) Fields() []string {
-	fields := make([]string, 0, 14)
+	fields := make([]string, 0, 16)
 	if m.public_id != nil {
 		fields = append(fields, researchnode.FieldPublicID)
 	}
@@ -37552,6 +43790,12 @@ func (m *ResearchNodeMutation) Fields() []string {
 	if m.metric_value != nil {
 		fields = append(fields, researchnode.FieldMetricValue)
 	}
+	if m.occurred_at != nil {
+		fields = append(fields, researchnode.FieldOccurredAt)
+	}
+	if m.commit_sha != nil {
+		fields = append(fields, researchnode.FieldCommitSha)
+	}
 	return fields
 }
 
@@ -37588,6 +43832,10 @@ func (m *ResearchNodeMutation) Field(name string) (ent.Value, bool) {
 		return m.MetricName()
 	case researchnode.FieldMetricValue:
 		return m.MetricValue()
+	case researchnode.FieldOccurredAt:
+		return m.OccurredAt()
+	case researchnode.FieldCommitSha:
+		return m.CommitSha()
 	}
 	return nil, false
 }
@@ -37625,6 +43873,10 @@ func (m *ResearchNodeMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldMetricName(ctx)
 	case researchnode.FieldMetricValue:
 		return m.OldMetricValue(ctx)
+	case researchnode.FieldOccurredAt:
+		return m.OldOccurredAt(ctx)
+	case researchnode.FieldCommitSha:
+		return m.OldCommitSha(ctx)
 	}
 	return nil, fmt.Errorf("unknown ResearchNode field %s", name)
 }
@@ -37732,6 +43984,20 @@ func (m *ResearchNodeMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetMetricValue(v)
 		return nil
+	case researchnode.FieldOccurredAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOccurredAt(v)
+		return nil
+	case researchnode.FieldCommitSha:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCommitSha(v)
+		return nil
 	}
 	return fmt.Errorf("unknown ResearchNode field %s", name)
 }
@@ -37792,6 +44058,12 @@ func (m *ResearchNodeMutation) ClearedFields() []string {
 	if m.FieldCleared(researchnode.FieldMetricValue) {
 		fields = append(fields, researchnode.FieldMetricValue)
 	}
+	if m.FieldCleared(researchnode.FieldOccurredAt) {
+		fields = append(fields, researchnode.FieldOccurredAt)
+	}
+	if m.FieldCleared(researchnode.FieldCommitSha) {
+		fields = append(fields, researchnode.FieldCommitSha)
+	}
 	return fields
 }
 
@@ -37820,6 +44092,12 @@ func (m *ResearchNodeMutation) ClearField(name string) error {
 		return nil
 	case researchnode.FieldMetricValue:
 		m.ClearMetricValue()
+		return nil
+	case researchnode.FieldOccurredAt:
+		m.ClearOccurredAt()
+		return nil
+	case researchnode.FieldCommitSha:
+		m.ClearCommitSha()
 		return nil
 	}
 	return fmt.Errorf("unknown ResearchNode nullable field %s", name)
@@ -37870,6 +44148,12 @@ func (m *ResearchNodeMutation) ResetField(name string) error {
 		return nil
 	case researchnode.FieldMetricValue:
 		m.ResetMetricValue()
+		return nil
+	case researchnode.FieldOccurredAt:
+		m.ResetOccurredAt()
+		return nil
+	case researchnode.FieldCommitSha:
+		m.ResetCommitSha()
 		return nil
 	}
 	return fmt.Errorf("unknown ResearchNode field %s", name)
@@ -44859,90 +51143,102 @@ func (m *StudyMutation) ResetEdge(name string) error {
 // TenantMutation represents an operation that mutates the Tenant nodes in the graph.
 type TenantMutation struct {
 	config
-	op                           Op
-	typ                          string
-	id                           *int
-	public_id                    *uuid.UUID
-	created_at                   *time.Time
-	updated_at                   *time.Time
-	name                         *string
-	status                       *string
-	clearedFields                map[string]struct{}
-	users                        map[int]struct{}
-	removedusers                 map[int]struct{}
-	clearedusers                 bool
-	provider_accounts            map[int]struct{}
-	removedprovider_accounts     map[int]struct{}
-	clearedprovider_accounts     bool
-	projects                     map[int]struct{}
-	removedprojects              map[int]struct{}
-	clearedprojects              bool
-	experiments                  map[int]struct{}
-	removedexperiments           map[int]struct{}
-	clearedexperiments           bool
-	attempts                     map[int]struct{}
-	removedattempts              map[int]struct{}
-	clearedattempts              bool
-	provider_resources           map[int]struct{}
-	removedprovider_resources    map[int]struct{}
-	clearedprovider_resources    bool
-	budget_entries               map[int]struct{}
-	removedbudget_entries        map[int]struct{}
-	clearedbudget_entries        bool
-	idempotency_records          map[int]struct{}
-	removedidempotency_records   map[int]struct{}
-	clearedidempotency_records   bool
-	audit_events                 map[int]struct{}
-	removedaudit_events          map[int]struct{}
-	clearedaudit_events          bool
-	notification_settings        map[int]struct{}
-	removednotification_settings map[int]struct{}
-	clearednotification_settings bool
-	notifications                map[int]struct{}
-	removednotifications         map[int]struct{}
-	clearednotifications         bool
-	self_hosted_nodes            map[int]struct{}
-	removedself_hosted_nodes     map[int]struct{}
-	clearedself_hosted_nodes     bool
-	node_enrollments             map[int]struct{}
-	removednode_enrollments      map[int]struct{}
-	clearednode_enrollments      bool
-	node_project_access          map[int]struct{}
-	removednode_project_access   map[int]struct{}
-	clearednode_project_access   bool
-	node_commands                map[int]struct{}
-	removednode_commands         map[int]struct{}
-	clearednode_commands         bool
-	node_events                  map[int]struct{}
-	removednode_events           map[int]struct{}
-	clearednode_events           bool
-	node_assignments             map[int]struct{}
-	removednode_assignments      map[int]struct{}
-	clearednode_assignments      bool
-	diagnostic_runs              map[int]struct{}
-	removeddiagnostic_runs       map[int]struct{}
-	cleareddiagnostic_runs       bool
-	experiment_proposals         map[int]struct{}
-	removedexperiment_proposals  map[int]struct{}
-	clearedexperiment_proposals  bool
-	workspace_datasets           map[int]struct{}
-	removedworkspace_datasets    map[int]struct{}
-	clearedworkspace_datasets    bool
-	studies                      map[int]struct{}
-	removedstudies               map[int]struct{}
-	clearedstudies               bool
-	iteration_plans              map[int]struct{}
-	removediteration_plans       map[int]struct{}
-	clearediteration_plans       bool
-	research_nodes               map[int]struct{}
-	removedresearch_nodes        map[int]struct{}
-	clearedresearch_nodes        bool
-	research_edges               map[int]struct{}
-	removedresearch_edges        map[int]struct{}
-	clearedresearch_edges        bool
-	done                         bool
-	oldValue                     func(context.Context) (*Tenant, error)
-	predicates                   []predicate.Tenant
+	op                              Op
+	typ                             string
+	id                              *int
+	public_id                       *uuid.UUID
+	created_at                      *time.Time
+	updated_at                      *time.Time
+	name                            *string
+	status                          *string
+	clearedFields                   map[string]struct{}
+	users                           map[int]struct{}
+	removedusers                    map[int]struct{}
+	clearedusers                    bool
+	provider_accounts               map[int]struct{}
+	removedprovider_accounts        map[int]struct{}
+	clearedprovider_accounts        bool
+	projects                        map[int]struct{}
+	removedprojects                 map[int]struct{}
+	clearedprojects                 bool
+	experiments                     map[int]struct{}
+	removedexperiments              map[int]struct{}
+	clearedexperiments              bool
+	attempts                        map[int]struct{}
+	removedattempts                 map[int]struct{}
+	clearedattempts                 bool
+	provider_resources              map[int]struct{}
+	removedprovider_resources       map[int]struct{}
+	clearedprovider_resources       bool
+	budget_entries                  map[int]struct{}
+	removedbudget_entries           map[int]struct{}
+	clearedbudget_entries           bool
+	idempotency_records             map[int]struct{}
+	removedidempotency_records      map[int]struct{}
+	clearedidempotency_records      bool
+	audit_events                    map[int]struct{}
+	removedaudit_events             map[int]struct{}
+	clearedaudit_events             bool
+	notification_settings           map[int]struct{}
+	removednotification_settings    map[int]struct{}
+	clearednotification_settings    bool
+	notifications                   map[int]struct{}
+	removednotifications            map[int]struct{}
+	clearednotifications            bool
+	self_hosted_nodes               map[int]struct{}
+	removedself_hosted_nodes        map[int]struct{}
+	clearedself_hosted_nodes        bool
+	node_enrollments                map[int]struct{}
+	removednode_enrollments         map[int]struct{}
+	clearednode_enrollments         bool
+	node_project_access             map[int]struct{}
+	removednode_project_access      map[int]struct{}
+	clearednode_project_access      bool
+	node_commands                   map[int]struct{}
+	removednode_commands            map[int]struct{}
+	clearednode_commands            bool
+	node_events                     map[int]struct{}
+	removednode_events              map[int]struct{}
+	clearednode_events              bool
+	node_assignments                map[int]struct{}
+	removednode_assignments         map[int]struct{}
+	clearednode_assignments         bool
+	cloud_ssh_nodes                 map[int]struct{}
+	removedcloud_ssh_nodes          map[int]struct{}
+	clearedcloud_ssh_nodes          bool
+	cloud_ssh_project_access        map[int]struct{}
+	removedcloud_ssh_project_access map[int]struct{}
+	clearedcloud_ssh_project_access bool
+	cloud_ssh_assignments           map[int]struct{}
+	removedcloud_ssh_assignments    map[int]struct{}
+	clearedcloud_ssh_assignments    bool
+	diagnostic_runs                 map[int]struct{}
+	removeddiagnostic_runs          map[int]struct{}
+	cleareddiagnostic_runs          bool
+	experiment_proposals            map[int]struct{}
+	removedexperiment_proposals     map[int]struct{}
+	clearedexperiment_proposals     bool
+	workspace_datasets              map[int]struct{}
+	removedworkspace_datasets       map[int]struct{}
+	clearedworkspace_datasets       bool
+	dataset_bindings                map[int]struct{}
+	removeddataset_bindings         map[int]struct{}
+	cleareddataset_bindings         bool
+	studies                         map[int]struct{}
+	removedstudies                  map[int]struct{}
+	clearedstudies                  bool
+	iteration_plans                 map[int]struct{}
+	removediteration_plans          map[int]struct{}
+	clearediteration_plans          bool
+	research_nodes                  map[int]struct{}
+	removedresearch_nodes           map[int]struct{}
+	clearedresearch_nodes           bool
+	research_edges                  map[int]struct{}
+	removedresearch_edges           map[int]struct{}
+	clearedresearch_edges           bool
+	done                            bool
+	oldValue                        func(context.Context) (*Tenant, error)
+	predicates                      []predicate.Tenant
 }
 
 var _ ent.Mutation = (*TenantMutation)(nil)
@@ -46141,6 +52437,168 @@ func (m *TenantMutation) ResetNodeAssignments() {
 	m.removednode_assignments = nil
 }
 
+// AddCloudSSHNodeIDs adds the "cloud_ssh_nodes" edge to the CloudSSHNode entity by ids.
+func (m *TenantMutation) AddCloudSSHNodeIDs(ids ...int) {
+	if m.cloud_ssh_nodes == nil {
+		m.cloud_ssh_nodes = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.cloud_ssh_nodes[ids[i]] = struct{}{}
+	}
+}
+
+// ClearCloudSSHNodes clears the "cloud_ssh_nodes" edge to the CloudSSHNode entity.
+func (m *TenantMutation) ClearCloudSSHNodes() {
+	m.clearedcloud_ssh_nodes = true
+}
+
+// CloudSSHNodesCleared reports if the "cloud_ssh_nodes" edge to the CloudSSHNode entity was cleared.
+func (m *TenantMutation) CloudSSHNodesCleared() bool {
+	return m.clearedcloud_ssh_nodes
+}
+
+// RemoveCloudSSHNodeIDs removes the "cloud_ssh_nodes" edge to the CloudSSHNode entity by IDs.
+func (m *TenantMutation) RemoveCloudSSHNodeIDs(ids ...int) {
+	if m.removedcloud_ssh_nodes == nil {
+		m.removedcloud_ssh_nodes = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.cloud_ssh_nodes, ids[i])
+		m.removedcloud_ssh_nodes[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedCloudSSHNodes returns the removed IDs of the "cloud_ssh_nodes" edge to the CloudSSHNode entity.
+func (m *TenantMutation) RemovedCloudSSHNodesIDs() (ids []int) {
+	for id := range m.removedcloud_ssh_nodes {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// CloudSSHNodesIDs returns the "cloud_ssh_nodes" edge IDs in the mutation.
+func (m *TenantMutation) CloudSSHNodesIDs() (ids []int) {
+	for id := range m.cloud_ssh_nodes {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetCloudSSHNodes resets all changes to the "cloud_ssh_nodes" edge.
+func (m *TenantMutation) ResetCloudSSHNodes() {
+	m.cloud_ssh_nodes = nil
+	m.clearedcloud_ssh_nodes = false
+	m.removedcloud_ssh_nodes = nil
+}
+
+// AddCloudSSHProjectAccesIDs adds the "cloud_ssh_project_access" edge to the CloudSSHProjectAccess entity by ids.
+func (m *TenantMutation) AddCloudSSHProjectAccesIDs(ids ...int) {
+	if m.cloud_ssh_project_access == nil {
+		m.cloud_ssh_project_access = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.cloud_ssh_project_access[ids[i]] = struct{}{}
+	}
+}
+
+// ClearCloudSSHProjectAccess clears the "cloud_ssh_project_access" edge to the CloudSSHProjectAccess entity.
+func (m *TenantMutation) ClearCloudSSHProjectAccess() {
+	m.clearedcloud_ssh_project_access = true
+}
+
+// CloudSSHProjectAccessCleared reports if the "cloud_ssh_project_access" edge to the CloudSSHProjectAccess entity was cleared.
+func (m *TenantMutation) CloudSSHProjectAccessCleared() bool {
+	return m.clearedcloud_ssh_project_access
+}
+
+// RemoveCloudSSHProjectAccesIDs removes the "cloud_ssh_project_access" edge to the CloudSSHProjectAccess entity by IDs.
+func (m *TenantMutation) RemoveCloudSSHProjectAccesIDs(ids ...int) {
+	if m.removedcloud_ssh_project_access == nil {
+		m.removedcloud_ssh_project_access = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.cloud_ssh_project_access, ids[i])
+		m.removedcloud_ssh_project_access[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedCloudSSHProjectAccess returns the removed IDs of the "cloud_ssh_project_access" edge to the CloudSSHProjectAccess entity.
+func (m *TenantMutation) RemovedCloudSSHProjectAccessIDs() (ids []int) {
+	for id := range m.removedcloud_ssh_project_access {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// CloudSSHProjectAccessIDs returns the "cloud_ssh_project_access" edge IDs in the mutation.
+func (m *TenantMutation) CloudSSHProjectAccessIDs() (ids []int) {
+	for id := range m.cloud_ssh_project_access {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetCloudSSHProjectAccess resets all changes to the "cloud_ssh_project_access" edge.
+func (m *TenantMutation) ResetCloudSSHProjectAccess() {
+	m.cloud_ssh_project_access = nil
+	m.clearedcloud_ssh_project_access = false
+	m.removedcloud_ssh_project_access = nil
+}
+
+// AddCloudSSHAssignmentIDs adds the "cloud_ssh_assignments" edge to the CloudSSHAssignment entity by ids.
+func (m *TenantMutation) AddCloudSSHAssignmentIDs(ids ...int) {
+	if m.cloud_ssh_assignments == nil {
+		m.cloud_ssh_assignments = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.cloud_ssh_assignments[ids[i]] = struct{}{}
+	}
+}
+
+// ClearCloudSSHAssignments clears the "cloud_ssh_assignments" edge to the CloudSSHAssignment entity.
+func (m *TenantMutation) ClearCloudSSHAssignments() {
+	m.clearedcloud_ssh_assignments = true
+}
+
+// CloudSSHAssignmentsCleared reports if the "cloud_ssh_assignments" edge to the CloudSSHAssignment entity was cleared.
+func (m *TenantMutation) CloudSSHAssignmentsCleared() bool {
+	return m.clearedcloud_ssh_assignments
+}
+
+// RemoveCloudSSHAssignmentIDs removes the "cloud_ssh_assignments" edge to the CloudSSHAssignment entity by IDs.
+func (m *TenantMutation) RemoveCloudSSHAssignmentIDs(ids ...int) {
+	if m.removedcloud_ssh_assignments == nil {
+		m.removedcloud_ssh_assignments = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.cloud_ssh_assignments, ids[i])
+		m.removedcloud_ssh_assignments[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedCloudSSHAssignments returns the removed IDs of the "cloud_ssh_assignments" edge to the CloudSSHAssignment entity.
+func (m *TenantMutation) RemovedCloudSSHAssignmentsIDs() (ids []int) {
+	for id := range m.removedcloud_ssh_assignments {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// CloudSSHAssignmentsIDs returns the "cloud_ssh_assignments" edge IDs in the mutation.
+func (m *TenantMutation) CloudSSHAssignmentsIDs() (ids []int) {
+	for id := range m.cloud_ssh_assignments {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetCloudSSHAssignments resets all changes to the "cloud_ssh_assignments" edge.
+func (m *TenantMutation) ResetCloudSSHAssignments() {
+	m.cloud_ssh_assignments = nil
+	m.clearedcloud_ssh_assignments = false
+	m.removedcloud_ssh_assignments = nil
+}
+
 // AddDiagnosticRunIDs adds the "diagnostic_runs" edge to the DiagnosticRun entity by ids.
 func (m *TenantMutation) AddDiagnosticRunIDs(ids ...int) {
 	if m.diagnostic_runs == nil {
@@ -46301,6 +52759,60 @@ func (m *TenantMutation) ResetWorkspaceDatasets() {
 	m.workspace_datasets = nil
 	m.clearedworkspace_datasets = false
 	m.removedworkspace_datasets = nil
+}
+
+// AddDatasetBindingIDs adds the "dataset_bindings" edge to the DatasetBinding entity by ids.
+func (m *TenantMutation) AddDatasetBindingIDs(ids ...int) {
+	if m.dataset_bindings == nil {
+		m.dataset_bindings = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.dataset_bindings[ids[i]] = struct{}{}
+	}
+}
+
+// ClearDatasetBindings clears the "dataset_bindings" edge to the DatasetBinding entity.
+func (m *TenantMutation) ClearDatasetBindings() {
+	m.cleareddataset_bindings = true
+}
+
+// DatasetBindingsCleared reports if the "dataset_bindings" edge to the DatasetBinding entity was cleared.
+func (m *TenantMutation) DatasetBindingsCleared() bool {
+	return m.cleareddataset_bindings
+}
+
+// RemoveDatasetBindingIDs removes the "dataset_bindings" edge to the DatasetBinding entity by IDs.
+func (m *TenantMutation) RemoveDatasetBindingIDs(ids ...int) {
+	if m.removeddataset_bindings == nil {
+		m.removeddataset_bindings = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.dataset_bindings, ids[i])
+		m.removeddataset_bindings[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedDatasetBindings returns the removed IDs of the "dataset_bindings" edge to the DatasetBinding entity.
+func (m *TenantMutation) RemovedDatasetBindingsIDs() (ids []int) {
+	for id := range m.removeddataset_bindings {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// DatasetBindingsIDs returns the "dataset_bindings" edge IDs in the mutation.
+func (m *TenantMutation) DatasetBindingsIDs() (ids []int) {
+	for id := range m.dataset_bindings {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetDatasetBindings resets all changes to the "dataset_bindings" edge.
+func (m *TenantMutation) ResetDatasetBindings() {
+	m.dataset_bindings = nil
+	m.cleareddataset_bindings = false
+	m.removeddataset_bindings = nil
 }
 
 // AddStudyIDs adds the "studies" edge to the Study entity by ids.
@@ -46720,7 +53232,7 @@ func (m *TenantMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *TenantMutation) AddedEdges() []string {
-	edges := make([]string, 0, 24)
+	edges := make([]string, 0, 28)
 	if m.users != nil {
 		edges = append(edges, tenant.EdgeUsers)
 	}
@@ -46772,6 +53284,15 @@ func (m *TenantMutation) AddedEdges() []string {
 	if m.node_assignments != nil {
 		edges = append(edges, tenant.EdgeNodeAssignments)
 	}
+	if m.cloud_ssh_nodes != nil {
+		edges = append(edges, tenant.EdgeCloudSSHNodes)
+	}
+	if m.cloud_ssh_project_access != nil {
+		edges = append(edges, tenant.EdgeCloudSSHProjectAccess)
+	}
+	if m.cloud_ssh_assignments != nil {
+		edges = append(edges, tenant.EdgeCloudSSHAssignments)
+	}
 	if m.diagnostic_runs != nil {
 		edges = append(edges, tenant.EdgeDiagnosticRuns)
 	}
@@ -46780,6 +53301,9 @@ func (m *TenantMutation) AddedEdges() []string {
 	}
 	if m.workspace_datasets != nil {
 		edges = append(edges, tenant.EdgeWorkspaceDatasets)
+	}
+	if m.dataset_bindings != nil {
+		edges = append(edges, tenant.EdgeDatasetBindings)
 	}
 	if m.studies != nil {
 		edges = append(edges, tenant.EdgeStudies)
@@ -46902,6 +53426,24 @@ func (m *TenantMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case tenant.EdgeCloudSSHNodes:
+		ids := make([]ent.Value, 0, len(m.cloud_ssh_nodes))
+		for id := range m.cloud_ssh_nodes {
+			ids = append(ids, id)
+		}
+		return ids
+	case tenant.EdgeCloudSSHProjectAccess:
+		ids := make([]ent.Value, 0, len(m.cloud_ssh_project_access))
+		for id := range m.cloud_ssh_project_access {
+			ids = append(ids, id)
+		}
+		return ids
+	case tenant.EdgeCloudSSHAssignments:
+		ids := make([]ent.Value, 0, len(m.cloud_ssh_assignments))
+		for id := range m.cloud_ssh_assignments {
+			ids = append(ids, id)
+		}
+		return ids
 	case tenant.EdgeDiagnosticRuns:
 		ids := make([]ent.Value, 0, len(m.diagnostic_runs))
 		for id := range m.diagnostic_runs {
@@ -46917,6 +53459,12 @@ func (m *TenantMutation) AddedIDs(name string) []ent.Value {
 	case tenant.EdgeWorkspaceDatasets:
 		ids := make([]ent.Value, 0, len(m.workspace_datasets))
 		for id := range m.workspace_datasets {
+			ids = append(ids, id)
+		}
+		return ids
+	case tenant.EdgeDatasetBindings:
+		ids := make([]ent.Value, 0, len(m.dataset_bindings))
+		for id := range m.dataset_bindings {
 			ids = append(ids, id)
 		}
 		return ids
@@ -46950,7 +53498,7 @@ func (m *TenantMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *TenantMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 24)
+	edges := make([]string, 0, 28)
 	if m.removedusers != nil {
 		edges = append(edges, tenant.EdgeUsers)
 	}
@@ -47002,6 +53550,15 @@ func (m *TenantMutation) RemovedEdges() []string {
 	if m.removednode_assignments != nil {
 		edges = append(edges, tenant.EdgeNodeAssignments)
 	}
+	if m.removedcloud_ssh_nodes != nil {
+		edges = append(edges, tenant.EdgeCloudSSHNodes)
+	}
+	if m.removedcloud_ssh_project_access != nil {
+		edges = append(edges, tenant.EdgeCloudSSHProjectAccess)
+	}
+	if m.removedcloud_ssh_assignments != nil {
+		edges = append(edges, tenant.EdgeCloudSSHAssignments)
+	}
 	if m.removeddiagnostic_runs != nil {
 		edges = append(edges, tenant.EdgeDiagnosticRuns)
 	}
@@ -47010,6 +53567,9 @@ func (m *TenantMutation) RemovedEdges() []string {
 	}
 	if m.removedworkspace_datasets != nil {
 		edges = append(edges, tenant.EdgeWorkspaceDatasets)
+	}
+	if m.removeddataset_bindings != nil {
+		edges = append(edges, tenant.EdgeDatasetBindings)
 	}
 	if m.removedstudies != nil {
 		edges = append(edges, tenant.EdgeStudies)
@@ -47132,6 +53692,24 @@ func (m *TenantMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case tenant.EdgeCloudSSHNodes:
+		ids := make([]ent.Value, 0, len(m.removedcloud_ssh_nodes))
+		for id := range m.removedcloud_ssh_nodes {
+			ids = append(ids, id)
+		}
+		return ids
+	case tenant.EdgeCloudSSHProjectAccess:
+		ids := make([]ent.Value, 0, len(m.removedcloud_ssh_project_access))
+		for id := range m.removedcloud_ssh_project_access {
+			ids = append(ids, id)
+		}
+		return ids
+	case tenant.EdgeCloudSSHAssignments:
+		ids := make([]ent.Value, 0, len(m.removedcloud_ssh_assignments))
+		for id := range m.removedcloud_ssh_assignments {
+			ids = append(ids, id)
+		}
+		return ids
 	case tenant.EdgeDiagnosticRuns:
 		ids := make([]ent.Value, 0, len(m.removeddiagnostic_runs))
 		for id := range m.removeddiagnostic_runs {
@@ -47147,6 +53725,12 @@ func (m *TenantMutation) RemovedIDs(name string) []ent.Value {
 	case tenant.EdgeWorkspaceDatasets:
 		ids := make([]ent.Value, 0, len(m.removedworkspace_datasets))
 		for id := range m.removedworkspace_datasets {
+			ids = append(ids, id)
+		}
+		return ids
+	case tenant.EdgeDatasetBindings:
+		ids := make([]ent.Value, 0, len(m.removeddataset_bindings))
+		for id := range m.removeddataset_bindings {
 			ids = append(ids, id)
 		}
 		return ids
@@ -47180,7 +53764,7 @@ func (m *TenantMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *TenantMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 24)
+	edges := make([]string, 0, 28)
 	if m.clearedusers {
 		edges = append(edges, tenant.EdgeUsers)
 	}
@@ -47232,6 +53816,15 @@ func (m *TenantMutation) ClearedEdges() []string {
 	if m.clearednode_assignments {
 		edges = append(edges, tenant.EdgeNodeAssignments)
 	}
+	if m.clearedcloud_ssh_nodes {
+		edges = append(edges, tenant.EdgeCloudSSHNodes)
+	}
+	if m.clearedcloud_ssh_project_access {
+		edges = append(edges, tenant.EdgeCloudSSHProjectAccess)
+	}
+	if m.clearedcloud_ssh_assignments {
+		edges = append(edges, tenant.EdgeCloudSSHAssignments)
+	}
 	if m.cleareddiagnostic_runs {
 		edges = append(edges, tenant.EdgeDiagnosticRuns)
 	}
@@ -47240,6 +53833,9 @@ func (m *TenantMutation) ClearedEdges() []string {
 	}
 	if m.clearedworkspace_datasets {
 		edges = append(edges, tenant.EdgeWorkspaceDatasets)
+	}
+	if m.cleareddataset_bindings {
+		edges = append(edges, tenant.EdgeDatasetBindings)
 	}
 	if m.clearedstudies {
 		edges = append(edges, tenant.EdgeStudies)
@@ -47294,12 +53890,20 @@ func (m *TenantMutation) EdgeCleared(name string) bool {
 		return m.clearednode_events
 	case tenant.EdgeNodeAssignments:
 		return m.clearednode_assignments
+	case tenant.EdgeCloudSSHNodes:
+		return m.clearedcloud_ssh_nodes
+	case tenant.EdgeCloudSSHProjectAccess:
+		return m.clearedcloud_ssh_project_access
+	case tenant.EdgeCloudSSHAssignments:
+		return m.clearedcloud_ssh_assignments
 	case tenant.EdgeDiagnosticRuns:
 		return m.cleareddiagnostic_runs
 	case tenant.EdgeExperimentProposals:
 		return m.clearedexperiment_proposals
 	case tenant.EdgeWorkspaceDatasets:
 		return m.clearedworkspace_datasets
+	case tenant.EdgeDatasetBindings:
+		return m.cleareddataset_bindings
 	case tenant.EdgeStudies:
 		return m.clearedstudies
 	case tenant.EdgeIterationPlans:
@@ -47375,6 +53979,15 @@ func (m *TenantMutation) ResetEdge(name string) error {
 	case tenant.EdgeNodeAssignments:
 		m.ResetNodeAssignments()
 		return nil
+	case tenant.EdgeCloudSSHNodes:
+		m.ResetCloudSSHNodes()
+		return nil
+	case tenant.EdgeCloudSSHProjectAccess:
+		m.ResetCloudSSHProjectAccess()
+		return nil
+	case tenant.EdgeCloudSSHAssignments:
+		m.ResetCloudSSHAssignments()
+		return nil
 	case tenant.EdgeDiagnosticRuns:
 		m.ResetDiagnosticRuns()
 		return nil
@@ -47383,6 +53996,9 @@ func (m *TenantMutation) ResetEdge(name string) error {
 		return nil
 	case tenant.EdgeWorkspaceDatasets:
 		m.ResetWorkspaceDatasets()
+		return nil
+	case tenant.EdgeDatasetBindings:
+		m.ResetDatasetBindings()
 		return nil
 	case tenant.EdgeStudies:
 		m.ResetStudies()

@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"github.com/XR-Lee/Gemcp/ent/agenttoken"
+	"github.com/XR-Lee/Gemcp/ent/datasetbinding"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
@@ -216,6 +217,21 @@ func (_u *AgentTokenUpdate) AddWorkspaceDatasets(v ...*WorkspaceDataset) *AgentT
 	return _u.AddWorkspaceDatasetIDs(ids...)
 }
 
+// AddDatasetBindingIDs adds the "dataset_bindings" edge to the DatasetBinding entity by IDs.
+func (_u *AgentTokenUpdate) AddDatasetBindingIDs(ids ...int) *AgentTokenUpdate {
+	_u.mutation.AddDatasetBindingIDs(ids...)
+	return _u
+}
+
+// AddDatasetBindings adds the "dataset_bindings" edges to the DatasetBinding entity.
+func (_u *AgentTokenUpdate) AddDatasetBindings(v ...*DatasetBinding) *AgentTokenUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddDatasetBindingIDs(ids...)
+}
+
 // AddStudyIDs adds the "studies" edge to the Study entity by IDs.
 func (_u *AgentTokenUpdate) AddStudyIDs(ids ...int) *AgentTokenUpdate {
 	_u.mutation.AddStudyIDs(ids...)
@@ -348,6 +364,27 @@ func (_u *AgentTokenUpdate) RemoveWorkspaceDatasets(v ...*WorkspaceDataset) *Age
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveWorkspaceDatasetIDs(ids...)
+}
+
+// ClearDatasetBindings clears all "dataset_bindings" edges to the DatasetBinding entity.
+func (_u *AgentTokenUpdate) ClearDatasetBindings() *AgentTokenUpdate {
+	_u.mutation.ClearDatasetBindings()
+	return _u
+}
+
+// RemoveDatasetBindingIDs removes the "dataset_bindings" edge to DatasetBinding entities by IDs.
+func (_u *AgentTokenUpdate) RemoveDatasetBindingIDs(ids ...int) *AgentTokenUpdate {
+	_u.mutation.RemoveDatasetBindingIDs(ids...)
+	return _u
+}
+
+// RemoveDatasetBindings removes "dataset_bindings" edges to DatasetBinding entities.
+func (_u *AgentTokenUpdate) RemoveDatasetBindings(v ...*DatasetBinding) *AgentTokenUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveDatasetBindingIDs(ids...)
 }
 
 // ClearStudies clears all "studies" edges to the Study entity.
@@ -707,6 +744,51 @@ func (_u *AgentTokenUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.DatasetBindingsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.DatasetBindingsTable,
+			Columns: []string{agenttoken.DatasetBindingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(datasetbinding.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedDatasetBindingsIDs(); len(nodes) > 0 && !_u.mutation.DatasetBindingsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.DatasetBindingsTable,
+			Columns: []string{agenttoken.DatasetBindingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(datasetbinding.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.DatasetBindingsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.DatasetBindingsTable,
+			Columns: []string{agenttoken.DatasetBindingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(datasetbinding.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _u.mutation.StudiesCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -1042,6 +1124,21 @@ func (_u *AgentTokenUpdateOne) AddWorkspaceDatasets(v ...*WorkspaceDataset) *Age
 	return _u.AddWorkspaceDatasetIDs(ids...)
 }
 
+// AddDatasetBindingIDs adds the "dataset_bindings" edge to the DatasetBinding entity by IDs.
+func (_u *AgentTokenUpdateOne) AddDatasetBindingIDs(ids ...int) *AgentTokenUpdateOne {
+	_u.mutation.AddDatasetBindingIDs(ids...)
+	return _u
+}
+
+// AddDatasetBindings adds the "dataset_bindings" edges to the DatasetBinding entity.
+func (_u *AgentTokenUpdateOne) AddDatasetBindings(v ...*DatasetBinding) *AgentTokenUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddDatasetBindingIDs(ids...)
+}
+
 // AddStudyIDs adds the "studies" edge to the Study entity by IDs.
 func (_u *AgentTokenUpdateOne) AddStudyIDs(ids ...int) *AgentTokenUpdateOne {
 	_u.mutation.AddStudyIDs(ids...)
@@ -1174,6 +1271,27 @@ func (_u *AgentTokenUpdateOne) RemoveWorkspaceDatasets(v ...*WorkspaceDataset) *
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveWorkspaceDatasetIDs(ids...)
+}
+
+// ClearDatasetBindings clears all "dataset_bindings" edges to the DatasetBinding entity.
+func (_u *AgentTokenUpdateOne) ClearDatasetBindings() *AgentTokenUpdateOne {
+	_u.mutation.ClearDatasetBindings()
+	return _u
+}
+
+// RemoveDatasetBindingIDs removes the "dataset_bindings" edge to DatasetBinding entities by IDs.
+func (_u *AgentTokenUpdateOne) RemoveDatasetBindingIDs(ids ...int) *AgentTokenUpdateOne {
+	_u.mutation.RemoveDatasetBindingIDs(ids...)
+	return _u
+}
+
+// RemoveDatasetBindings removes "dataset_bindings" edges to DatasetBinding entities.
+func (_u *AgentTokenUpdateOne) RemoveDatasetBindings(v ...*DatasetBinding) *AgentTokenUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveDatasetBindingIDs(ids...)
 }
 
 // ClearStudies clears all "studies" edges to the Study entity.
@@ -1556,6 +1674,51 @@ func (_u *AgentTokenUpdateOne) sqlSave(ctx context.Context) (_node *AgentToken, 
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(workspacedataset.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.DatasetBindingsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.DatasetBindingsTable,
+			Columns: []string{agenttoken.DatasetBindingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(datasetbinding.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedDatasetBindingsIDs(); len(nodes) > 0 && !_u.mutation.DatasetBindingsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.DatasetBindingsTable,
+			Columns: []string{agenttoken.DatasetBindingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(datasetbinding.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.DatasetBindingsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.DatasetBindingsTable,
+			Columns: []string{agenttoken.DatasetBindingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(datasetbinding.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

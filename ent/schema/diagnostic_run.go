@@ -16,7 +16,7 @@ func (DiagnosticRun) Fields() []ent.Field {
 		field.Int("tenant_id").Immutable(),
 		field.Int("project_id").Immutable(),
 		field.Int("experiment_id").Immutable(),
-		field.Enum("backend").Values("autodl_private", "self_hosted").Immutable(),
+		field.Enum("backend").Values("autodl_private", "autodl_elastic", "self_hosted", "ssh_cloud").Immutable(),
 		field.Enum("suite").Values("gpu_connectivity", "pytorch_cuda").Immutable(),
 		field.String("requested_by").NotEmpty().MaxLen(120).Immutable(),
 		field.Bytes("idempotency_key_hash").Sensitive().Immutable(),

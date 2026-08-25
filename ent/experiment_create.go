@@ -13,6 +13,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/agenttoken"
 	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
+	"github.com/XR-Lee/Gemcp/ent/cloudsshassignment"
 	"github.com/XR-Lee/Gemcp/ent/diagnosticrun"
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
@@ -106,6 +107,14 @@ func (_c *ExperimentCreate) SetNillableAgentTokenID(v *int) *ExperimentCreate {
 // SetRepositoryID sets the "repository_id" field.
 func (_c *ExperimentCreate) SetRepositoryID(v int) *ExperimentCreate {
 	_c.mutation.SetRepositoryID(v)
+	return _c
+}
+
+// SetNillableRepositoryID sets the "repository_id" field if the given value is not nil.
+func (_c *ExperimentCreate) SetNillableRepositoryID(v *int) *ExperimentCreate {
+	if v != nil {
+		_c.SetRepositoryID(*v)
+	}
 	return _c
 }
 
@@ -540,6 +549,21 @@ func (_c *ExperimentCreate) AddNodeAssignments(v ...*NodeAssignment) *Experiment
 	return _c.AddNodeAssignmentIDs(ids...)
 }
 
+// AddCloudSSHAssignmentIDs adds the "cloud_ssh_assignments" edge to the CloudSSHAssignment entity by IDs.
+func (_c *ExperimentCreate) AddCloudSSHAssignmentIDs(ids ...int) *ExperimentCreate {
+	_c.mutation.AddCloudSSHAssignmentIDs(ids...)
+	return _c
+}
+
+// AddCloudSSHAssignments adds the "cloud_ssh_assignments" edges to the CloudSSHAssignment entity.
+func (_c *ExperimentCreate) AddCloudSSHAssignments(v ...*CloudSSHAssignment) *ExperimentCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddCloudSSHAssignmentIDs(ids...)
+}
+
 // AddBudgetEntryIDs adds the "budget_entries" edge to the BudgetEntry entity by IDs.
 func (_c *ExperimentCreate) AddBudgetEntryIDs(ids ...int) *ExperimentCreate {
 	_c.mutation.AddBudgetEntryIDs(ids...)
@@ -717,9 +741,6 @@ func (_c *ExperimentCreate) check() error {
 	if _, ok := _c.mutation.ProjectID(); !ok {
 		return &ValidationError{Name: "project_id", err: errors.New(`ent: missing required field "Experiment.project_id"`)}
 	}
-	if _, ok := _c.mutation.RepositoryID(); !ok {
-		return &ValidationError{Name: "repository_id", err: errors.New(`ent: missing required field "Experiment.repository_id"`)}
-	}
 	if _, ok := _c.mutation.EnvironmentID(); !ok {
 		return &ValidationError{Name: "environment_id", err: errors.New(`ent: missing required field "Experiment.environment_id"`)}
 	}
@@ -852,9 +873,6 @@ func (_c *ExperimentCreate) check() error {
 	}
 	if len(_c.mutation.ProjectIDs()) == 0 {
 		return &ValidationError{Name: "project", err: errors.New(`ent: missing required edge "Experiment.project"`)}
-	}
-	if len(_c.mutation.RepositoryIDs()) == 0 {
-		return &ValidationError{Name: "repository", err: errors.New(`ent: missing required edge "Experiment.repository"`)}
 	}
 	if len(_c.mutation.EnvironmentIDs()) == 0 {
 		return &ValidationError{Name: "environment", err: errors.New(`ent: missing required edge "Experiment.environment"`)}
@@ -1093,7 +1111,7 @@ func (_c *ExperimentCreate) createSpec() (*Experiment, *sqlgraph.CreateSpec) {
 		for _, k := range nodes {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.RepositoryID = nodes[0]
+		_node.RepositoryID = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	if nodes := _c.mutation.EnvironmentIDs(); len(nodes) > 0 {
@@ -1171,6 +1189,22 @@ func (_c *ExperimentCreate) createSpec() (*Experiment, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(nodeassignment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.CloudSSHAssignmentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   experiment.CloudSSHAssignmentsTable,
+			Columns: []string{experiment.CloudSSHAssignmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(cloudsshassignment.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

@@ -44,6 +44,10 @@ const (
 	FieldMetricName = "metric_name"
 	// FieldMetricValue holds the string denoting the metric_value field in the database.
 	FieldMetricValue = "metric_value"
+	// FieldOccurredAt holds the string denoting the occurred_at field in the database.
+	FieldOccurredAt = "occurred_at"
+	// FieldCommitSha holds the string denoting the commit_sha field in the database.
+	FieldCommitSha = "commit_sha"
 	// EdgeTenant holds the string denoting the tenant edge name in mutations.
 	EdgeTenant = "tenant"
 	// EdgeProject holds the string denoting the project edge name in mutations.
@@ -128,6 +132,8 @@ var Columns = []string{
 	FieldStatus,
 	FieldMetricName,
 	FieldMetricValue,
+	FieldOccurredAt,
+	FieldCommitSha,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -153,6 +159,8 @@ var (
 	TitleValidator func(string) error
 	// MetricNameValidator is a validator for the "metric_name" field. It is called by the builders before save.
 	MetricNameValidator func(string) error
+	// CommitShaValidator is a validator for the "commit_sha" field. It is called by the builders before save.
+	CommitShaValidator func(string) error
 )
 
 // Kind defines the type for the "kind" enum field.
@@ -288,6 +296,16 @@ func ByMetricName(opts ...sql.OrderTermOption) OrderOption {
 // ByMetricValue orders the results by the metric_value field.
 func ByMetricValue(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldMetricValue, opts...).ToFunc()
+}
+
+// ByOccurredAt orders the results by the occurred_at field.
+func ByOccurredAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOccurredAt, opts...).ToFunc()
+}
+
+// ByCommitSha orders the results by the commit_sha field.
+func ByCommitSha(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCommitSha, opts...).ToFunc()
 }
 
 // ByTenantField orders the results by tenant field.

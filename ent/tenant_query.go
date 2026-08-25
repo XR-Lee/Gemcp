@@ -15,6 +15,10 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/auditevent"
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
+	"github.com/XR-Lee/Gemcp/ent/cloudsshassignment"
+	"github.com/XR-Lee/Gemcp/ent/cloudsshnode"
+	"github.com/XR-Lee/Gemcp/ent/cloudsshprojectaccess"
+	"github.com/XR-Lee/Gemcp/ent/datasetbinding"
 	"github.com/XR-Lee/Gemcp/ent/diagnosticrun"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
@@ -43,34 +47,38 @@ import (
 // TenantQuery is the builder for querying Tenant entities.
 type TenantQuery struct {
 	config
-	ctx                      *QueryContext
-	order                    []tenant.OrderOption
-	inters                   []Interceptor
-	predicates               []predicate.Tenant
-	withUsers                *UserQuery
-	withProviderAccounts     *ProviderAccountQuery
-	withProjects             *ProjectQuery
-	withExperiments          *ExperimentQuery
-	withAttempts             *AttemptQuery
-	withProviderResources    *ProviderResourceQuery
-	withBudgetEntries        *BudgetEntryQuery
-	withIdempotencyRecords   *IdempotencyRecordQuery
-	withAuditEvents          *AuditEventQuery
-	withNotificationSettings *NotificationSettingQuery
-	withNotifications        *NotificationQuery
-	withSelfHostedNodes      *SelfHostedNodeQuery
-	withNodeEnrollments      *NodeEnrollmentQuery
-	withNodeProjectAccess    *NodeProjectAccessQuery
-	withNodeCommands         *NodeCommandQuery
-	withNodeEvents           *NodeEventQuery
-	withNodeAssignments      *NodeAssignmentQuery
-	withDiagnosticRuns       *DiagnosticRunQuery
-	withExperimentProposals  *ExperimentProposalQuery
-	withWorkspaceDatasets    *WorkspaceDatasetQuery
-	withStudies              *StudyQuery
-	withIterationPlans       *IterationPlanQuery
-	withResearchNodes        *ResearchNodeQuery
-	withResearchEdges        *ResearchEdgeQuery
+	ctx                       *QueryContext
+	order                     []tenant.OrderOption
+	inters                    []Interceptor
+	predicates                []predicate.Tenant
+	withUsers                 *UserQuery
+	withProviderAccounts      *ProviderAccountQuery
+	withProjects              *ProjectQuery
+	withExperiments           *ExperimentQuery
+	withAttempts              *AttemptQuery
+	withProviderResources     *ProviderResourceQuery
+	withBudgetEntries         *BudgetEntryQuery
+	withIdempotencyRecords    *IdempotencyRecordQuery
+	withAuditEvents           *AuditEventQuery
+	withNotificationSettings  *NotificationSettingQuery
+	withNotifications         *NotificationQuery
+	withSelfHostedNodes       *SelfHostedNodeQuery
+	withNodeEnrollments       *NodeEnrollmentQuery
+	withNodeProjectAccess     *NodeProjectAccessQuery
+	withNodeCommands          *NodeCommandQuery
+	withNodeEvents            *NodeEventQuery
+	withNodeAssignments       *NodeAssignmentQuery
+	withCloudSSHNodes         *CloudSSHNodeQuery
+	withCloudSSHProjectAccess *CloudSSHProjectAccessQuery
+	withCloudSSHAssignments   *CloudSSHAssignmentQuery
+	withDiagnosticRuns        *DiagnosticRunQuery
+	withExperimentProposals   *ExperimentProposalQuery
+	withWorkspaceDatasets     *WorkspaceDatasetQuery
+	withDatasetBindings       *DatasetBindingQuery
+	withStudies               *StudyQuery
+	withIterationPlans        *IterationPlanQuery
+	withResearchNodes         *ResearchNodeQuery
+	withResearchEdges         *ResearchEdgeQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -481,6 +489,72 @@ func (_q *TenantQuery) QueryNodeAssignments() *NodeAssignmentQuery {
 	return query
 }
 
+// QueryCloudSSHNodes chains the current query on the "cloud_ssh_nodes" edge.
+func (_q *TenantQuery) QueryCloudSSHNodes() *CloudSSHNodeQuery {
+	query := (&CloudSSHNodeClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(cloudsshnode.Table, cloudsshnode.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.CloudSSHNodesTable, tenant.CloudSSHNodesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryCloudSSHProjectAccess chains the current query on the "cloud_ssh_project_access" edge.
+func (_q *TenantQuery) QueryCloudSSHProjectAccess() *CloudSSHProjectAccessQuery {
+	query := (&CloudSSHProjectAccessClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(cloudsshprojectaccess.Table, cloudsshprojectaccess.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.CloudSSHProjectAccessTable, tenant.CloudSSHProjectAccessColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryCloudSSHAssignments chains the current query on the "cloud_ssh_assignments" edge.
+func (_q *TenantQuery) QueryCloudSSHAssignments() *CloudSSHAssignmentQuery {
+	query := (&CloudSSHAssignmentClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(cloudsshassignment.Table, cloudsshassignment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.CloudSSHAssignmentsTable, tenant.CloudSSHAssignmentsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
 // QueryDiagnosticRuns chains the current query on the "diagnostic_runs" edge.
 func (_q *TenantQuery) QueryDiagnosticRuns() *DiagnosticRunQuery {
 	query := (&DiagnosticRunClient{config: _q.config}).Query()
@@ -540,6 +614,28 @@ func (_q *TenantQuery) QueryWorkspaceDatasets() *WorkspaceDatasetQuery {
 			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
 			sqlgraph.To(workspacedataset.Table, workspacedataset.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, tenant.WorkspaceDatasetsTable, tenant.WorkspaceDatasetsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryDatasetBindings chains the current query on the "dataset_bindings" edge.
+func (_q *TenantQuery) QueryDatasetBindings() *DatasetBindingQuery {
+	query := (&DatasetBindingClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(datasetbinding.Table, datasetbinding.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.DatasetBindingsTable, tenant.DatasetBindingsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -822,35 +918,39 @@ func (_q *TenantQuery) Clone() *TenantQuery {
 		return nil
 	}
 	return &TenantQuery{
-		config:                   _q.config,
-		ctx:                      _q.ctx.Clone(),
-		order:                    append([]tenant.OrderOption{}, _q.order...),
-		inters:                   append([]Interceptor{}, _q.inters...),
-		predicates:               append([]predicate.Tenant{}, _q.predicates...),
-		withUsers:                _q.withUsers.Clone(),
-		withProviderAccounts:     _q.withProviderAccounts.Clone(),
-		withProjects:             _q.withProjects.Clone(),
-		withExperiments:          _q.withExperiments.Clone(),
-		withAttempts:             _q.withAttempts.Clone(),
-		withProviderResources:    _q.withProviderResources.Clone(),
-		withBudgetEntries:        _q.withBudgetEntries.Clone(),
-		withIdempotencyRecords:   _q.withIdempotencyRecords.Clone(),
-		withAuditEvents:          _q.withAuditEvents.Clone(),
-		withNotificationSettings: _q.withNotificationSettings.Clone(),
-		withNotifications:        _q.withNotifications.Clone(),
-		withSelfHostedNodes:      _q.withSelfHostedNodes.Clone(),
-		withNodeEnrollments:      _q.withNodeEnrollments.Clone(),
-		withNodeProjectAccess:    _q.withNodeProjectAccess.Clone(),
-		withNodeCommands:         _q.withNodeCommands.Clone(),
-		withNodeEvents:           _q.withNodeEvents.Clone(),
-		withNodeAssignments:      _q.withNodeAssignments.Clone(),
-		withDiagnosticRuns:       _q.withDiagnosticRuns.Clone(),
-		withExperimentProposals:  _q.withExperimentProposals.Clone(),
-		withWorkspaceDatasets:    _q.withWorkspaceDatasets.Clone(),
-		withStudies:              _q.withStudies.Clone(),
-		withIterationPlans:       _q.withIterationPlans.Clone(),
-		withResearchNodes:        _q.withResearchNodes.Clone(),
-		withResearchEdges:        _q.withResearchEdges.Clone(),
+		config:                    _q.config,
+		ctx:                       _q.ctx.Clone(),
+		order:                     append([]tenant.OrderOption{}, _q.order...),
+		inters:                    append([]Interceptor{}, _q.inters...),
+		predicates:                append([]predicate.Tenant{}, _q.predicates...),
+		withUsers:                 _q.withUsers.Clone(),
+		withProviderAccounts:      _q.withProviderAccounts.Clone(),
+		withProjects:              _q.withProjects.Clone(),
+		withExperiments:           _q.withExperiments.Clone(),
+		withAttempts:              _q.withAttempts.Clone(),
+		withProviderResources:     _q.withProviderResources.Clone(),
+		withBudgetEntries:         _q.withBudgetEntries.Clone(),
+		withIdempotencyRecords:    _q.withIdempotencyRecords.Clone(),
+		withAuditEvents:           _q.withAuditEvents.Clone(),
+		withNotificationSettings:  _q.withNotificationSettings.Clone(),
+		withNotifications:         _q.withNotifications.Clone(),
+		withSelfHostedNodes:       _q.withSelfHostedNodes.Clone(),
+		withNodeEnrollments:       _q.withNodeEnrollments.Clone(),
+		withNodeProjectAccess:     _q.withNodeProjectAccess.Clone(),
+		withNodeCommands:          _q.withNodeCommands.Clone(),
+		withNodeEvents:            _q.withNodeEvents.Clone(),
+		withNodeAssignments:       _q.withNodeAssignments.Clone(),
+		withCloudSSHNodes:         _q.withCloudSSHNodes.Clone(),
+		withCloudSSHProjectAccess: _q.withCloudSSHProjectAccess.Clone(),
+		withCloudSSHAssignments:   _q.withCloudSSHAssignments.Clone(),
+		withDiagnosticRuns:        _q.withDiagnosticRuns.Clone(),
+		withExperimentProposals:   _q.withExperimentProposals.Clone(),
+		withWorkspaceDatasets:     _q.withWorkspaceDatasets.Clone(),
+		withDatasetBindings:       _q.withDatasetBindings.Clone(),
+		withStudies:               _q.withStudies.Clone(),
+		withIterationPlans:        _q.withIterationPlans.Clone(),
+		withResearchNodes:         _q.withResearchNodes.Clone(),
+		withResearchEdges:         _q.withResearchEdges.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -1044,6 +1144,39 @@ func (_q *TenantQuery) WithNodeAssignments(opts ...func(*NodeAssignmentQuery)) *
 	return _q
 }
 
+// WithCloudSSHNodes tells the query-builder to eager-load the nodes that are connected to
+// the "cloud_ssh_nodes" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithCloudSSHNodes(opts ...func(*CloudSSHNodeQuery)) *TenantQuery {
+	query := (&CloudSSHNodeClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withCloudSSHNodes = query
+	return _q
+}
+
+// WithCloudSSHProjectAccess tells the query-builder to eager-load the nodes that are connected to
+// the "cloud_ssh_project_access" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithCloudSSHProjectAccess(opts ...func(*CloudSSHProjectAccessQuery)) *TenantQuery {
+	query := (&CloudSSHProjectAccessClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withCloudSSHProjectAccess = query
+	return _q
+}
+
+// WithCloudSSHAssignments tells the query-builder to eager-load the nodes that are connected to
+// the "cloud_ssh_assignments" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithCloudSSHAssignments(opts ...func(*CloudSSHAssignmentQuery)) *TenantQuery {
+	query := (&CloudSSHAssignmentClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withCloudSSHAssignments = query
+	return _q
+}
+
 // WithDiagnosticRuns tells the query-builder to eager-load the nodes that are connected to
 // the "diagnostic_runs" edge. The optional arguments are used to configure the query builder of the edge.
 func (_q *TenantQuery) WithDiagnosticRuns(opts ...func(*DiagnosticRunQuery)) *TenantQuery {
@@ -1074,6 +1207,17 @@ func (_q *TenantQuery) WithWorkspaceDatasets(opts ...func(*WorkspaceDatasetQuery
 		opt(query)
 	}
 	_q.withWorkspaceDatasets = query
+	return _q
+}
+
+// WithDatasetBindings tells the query-builder to eager-load the nodes that are connected to
+// the "dataset_bindings" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithDatasetBindings(opts ...func(*DatasetBindingQuery)) *TenantQuery {
+	query := (&DatasetBindingClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withDatasetBindings = query
 	return _q
 }
 
@@ -1199,7 +1343,7 @@ func (_q *TenantQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Tenan
 	var (
 		nodes       = []*Tenant{}
 		_spec       = _q.querySpec()
-		loadedTypes = [24]bool{
+		loadedTypes = [28]bool{
 			_q.withUsers != nil,
 			_q.withProviderAccounts != nil,
 			_q.withProjects != nil,
@@ -1217,9 +1361,13 @@ func (_q *TenantQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Tenan
 			_q.withNodeCommands != nil,
 			_q.withNodeEvents != nil,
 			_q.withNodeAssignments != nil,
+			_q.withCloudSSHNodes != nil,
+			_q.withCloudSSHProjectAccess != nil,
+			_q.withCloudSSHAssignments != nil,
 			_q.withDiagnosticRuns != nil,
 			_q.withExperimentProposals != nil,
 			_q.withWorkspaceDatasets != nil,
+			_q.withDatasetBindings != nil,
 			_q.withStudies != nil,
 			_q.withIterationPlans != nil,
 			_q.withResearchNodes != nil,
@@ -1369,6 +1517,31 @@ func (_q *TenantQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Tenan
 			return nil, err
 		}
 	}
+	if query := _q.withCloudSSHNodes; query != nil {
+		if err := _q.loadCloudSSHNodes(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.CloudSSHNodes = []*CloudSSHNode{} },
+			func(n *Tenant, e *CloudSSHNode) { n.Edges.CloudSSHNodes = append(n.Edges.CloudSSHNodes, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withCloudSSHProjectAccess; query != nil {
+		if err := _q.loadCloudSSHProjectAccess(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.CloudSSHProjectAccess = []*CloudSSHProjectAccess{} },
+			func(n *Tenant, e *CloudSSHProjectAccess) {
+				n.Edges.CloudSSHProjectAccess = append(n.Edges.CloudSSHProjectAccess, e)
+			}); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withCloudSSHAssignments; query != nil {
+		if err := _q.loadCloudSSHAssignments(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.CloudSSHAssignments = []*CloudSSHAssignment{} },
+			func(n *Tenant, e *CloudSSHAssignment) {
+				n.Edges.CloudSSHAssignments = append(n.Edges.CloudSSHAssignments, e)
+			}); err != nil {
+			return nil, err
+		}
+	}
 	if query := _q.withDiagnosticRuns; query != nil {
 		if err := _q.loadDiagnosticRuns(ctx, query, nodes,
 			func(n *Tenant) { n.Edges.DiagnosticRuns = []*DiagnosticRun{} },
@@ -1389,6 +1562,13 @@ func (_q *TenantQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Tenan
 		if err := _q.loadWorkspaceDatasets(ctx, query, nodes,
 			func(n *Tenant) { n.Edges.WorkspaceDatasets = []*WorkspaceDataset{} },
 			func(n *Tenant, e *WorkspaceDataset) { n.Edges.WorkspaceDatasets = append(n.Edges.WorkspaceDatasets, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withDatasetBindings; query != nil {
+		if err := _q.loadDatasetBindings(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.DatasetBindings = []*DatasetBinding{} },
+			func(n *Tenant, e *DatasetBinding) { n.Edges.DatasetBindings = append(n.Edges.DatasetBindings, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -1933,6 +2113,96 @@ func (_q *TenantQuery) loadNodeAssignments(ctx context.Context, query *NodeAssig
 	}
 	return nil
 }
+func (_q *TenantQuery) loadCloudSSHNodes(ctx context.Context, query *CloudSSHNodeQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *CloudSSHNode)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(cloudsshnode.FieldTenantID)
+	}
+	query.Where(predicate.CloudSSHNode(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.CloudSSHNodesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TenantQuery) loadCloudSSHProjectAccess(ctx context.Context, query *CloudSSHProjectAccessQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *CloudSSHProjectAccess)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(cloudsshprojectaccess.FieldTenantID)
+	}
+	query.Where(predicate.CloudSSHProjectAccess(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.CloudSSHProjectAccessColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TenantQuery) loadCloudSSHAssignments(ctx context.Context, query *CloudSSHAssignmentQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *CloudSSHAssignment)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(cloudsshassignment.FieldTenantID)
+	}
+	query.Where(predicate.CloudSSHAssignment(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.CloudSSHAssignmentsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
 func (_q *TenantQuery) loadDiagnosticRuns(ctx context.Context, query *DiagnosticRunQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *DiagnosticRun)) error {
 	fks := make([]driver.Value, 0, len(nodes))
 	nodeids := make(map[int]*Tenant)
@@ -2008,6 +2278,36 @@ func (_q *TenantQuery) loadWorkspaceDatasets(ctx context.Context, query *Workspa
 	}
 	query.Where(predicate.WorkspaceDataset(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(tenant.WorkspaceDatasetsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TenantQuery) loadDatasetBindings(ctx context.Context, query *DatasetBindingQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *DatasetBinding)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(datasetbinding.FieldTenantID)
+	}
+	query.Where(predicate.DatasetBinding(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.DatasetBindingsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

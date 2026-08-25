@@ -14,7 +14,7 @@ func (Environment) Mixin() []ent.Mixin { return []ent.Mixin{RecordMixin{}} }
 func (Environment) Fields() []ent.Field {
 	return []ent.Field{
 		field.Int("project_id").Immutable(),
-		field.Enum("backend").Values("autodl_private", "self_hosted").Default("autodl_private").Immutable(),
+		field.Enum("backend").Values("autodl_private", "autodl_elastic", "self_hosted", "ssh_cloud").Default("autodl_private").Immutable(),
 		field.String("name").NotEmpty().MaxLen(120),
 		field.String("image_uuid").NotEmpty().MaxLen(512),
 		field.String("recipe_ref").Optional().MaxLen(512),

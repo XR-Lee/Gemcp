@@ -170,7 +170,9 @@ const DefaultBackend = BackendAutodlPrivate
 // Backend values.
 const (
 	BackendAutodlPrivate Backend = "autodl_private"
+	BackendAutodlElastic Backend = "autodl_elastic"
 	BackendSelfHosted    Backend = "self_hosted"
+	BackendSSHCloud      Backend = "ssh_cloud"
 )
 
 func (b Backend) String() string {
@@ -180,7 +182,7 @@ func (b Backend) String() string {
 // BackendValidator is a validator for the "backend" field enum values. It is called by the builders before save.
 func BackendValidator(b Backend) error {
 	switch b {
-	case BackendAutodlPrivate, BackendSelfHosted:
+	case BackendAutodlPrivate, BackendAutodlElastic, BackendSelfHosted, BackendSSHCloud:
 		return nil
 	default:
 		return fmt.Errorf("resourceprofile: invalid enum value for backend field: %q", b)

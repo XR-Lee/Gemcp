@@ -10,6 +10,10 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/auditevent"
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
+	"github.com/XR-Lee/Gemcp/ent/cloudsshassignment"
+	"github.com/XR-Lee/Gemcp/ent/cloudsshnode"
+	"github.com/XR-Lee/Gemcp/ent/cloudsshprojectaccess"
+	"github.com/XR-Lee/Gemcp/ent/datasetbinding"
 	"github.com/XR-Lee/Gemcp/ent/diagnosticrun"
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
@@ -337,6 +341,264 @@ func init() {
 			return nil
 		}
 	}()
+	cloudsshassignmentMixin := schema.CloudSSHAssignment{}.Mixin()
+	cloudsshassignmentMixinFields0 := cloudsshassignmentMixin[0].Fields()
+	_ = cloudsshassignmentMixinFields0
+	cloudsshassignmentFields := schema.CloudSSHAssignment{}.Fields()
+	_ = cloudsshassignmentFields
+	// cloudsshassignmentDescPublicID is the schema descriptor for public_id field.
+	cloudsshassignmentDescPublicID := cloudsshassignmentMixinFields0[0].Descriptor()
+	// cloudsshassignment.DefaultPublicID holds the default value on creation for the public_id field.
+	cloudsshassignment.DefaultPublicID = cloudsshassignmentDescPublicID.Default.(func() uuid.UUID)
+	// cloudsshassignmentDescCreatedAt is the schema descriptor for created_at field.
+	cloudsshassignmentDescCreatedAt := cloudsshassignmentMixinFields0[1].Descriptor()
+	// cloudsshassignment.DefaultCreatedAt holds the default value on creation for the created_at field.
+	cloudsshassignment.DefaultCreatedAt = cloudsshassignmentDescCreatedAt.Default.(func() time.Time)
+	// cloudsshassignmentDescUpdatedAt is the schema descriptor for updated_at field.
+	cloudsshassignmentDescUpdatedAt := cloudsshassignmentMixinFields0[2].Descriptor()
+	// cloudsshassignment.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	cloudsshassignment.DefaultUpdatedAt = cloudsshassignmentDescUpdatedAt.Default.(func() time.Time)
+	// cloudsshassignment.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	cloudsshassignment.UpdateDefaultUpdatedAt = cloudsshassignmentDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// cloudsshassignmentDescRemoteDir is the schema descriptor for remote_dir field.
+	cloudsshassignmentDescRemoteDir := cloudsshassignmentFields[6].Descriptor()
+	// cloudsshassignment.RemoteDirValidator is a validator for the "remote_dir" field. It is called by the builders before save.
+	cloudsshassignment.RemoteDirValidator = func() func(string) error {
+		validators := cloudsshassignmentDescRemoteDir.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(remote_dir string) error {
+			for _, fn := range fns {
+				if err := fn(remote_dir); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// cloudsshassignmentDescContainerID is the schema descriptor for container_id field.
+	cloudsshassignmentDescContainerID := cloudsshassignmentFields[7].Descriptor()
+	// cloudsshassignment.ContainerIDValidator is a validator for the "container_id" field. It is called by the builders before save.
+	cloudsshassignment.ContainerIDValidator = cloudsshassignmentDescContainerID.Validators[0].(func(string) error)
+	// cloudsshassignmentDescOutputRef is the schema descriptor for output_ref field.
+	cloudsshassignmentDescOutputRef := cloudsshassignmentFields[8].Descriptor()
+	// cloudsshassignment.OutputRefValidator is a validator for the "output_ref" field. It is called by the builders before save.
+	cloudsshassignment.OutputRefValidator = func() func(string) error {
+		validators := cloudsshassignmentDescOutputRef.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(output_ref string) error {
+			for _, fn := range fns {
+				if err := fn(output_ref); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// cloudsshassignmentDescStopReason is the schema descriptor for stop_reason field.
+	cloudsshassignmentDescStopReason := cloudsshassignmentFields[14].Descriptor()
+	// cloudsshassignment.StopReasonValidator is a validator for the "stop_reason" field. It is called by the builders before save.
+	cloudsshassignment.StopReasonValidator = cloudsshassignmentDescStopReason.Validators[0].(func(string) error)
+	// cloudsshassignmentDescMetrics is the schema descriptor for metrics field.
+	cloudsshassignmentDescMetrics := cloudsshassignmentFields[18].Descriptor()
+	// cloudsshassignment.DefaultMetrics holds the default value on creation for the metrics field.
+	cloudsshassignment.DefaultMetrics = cloudsshassignmentDescMetrics.Default.(map[string]interface{})
+	// cloudsshassignmentDescFailureCode is the schema descriptor for failure_code field.
+	cloudsshassignmentDescFailureCode := cloudsshassignmentFields[19].Descriptor()
+	// cloudsshassignment.FailureCodeValidator is a validator for the "failure_code" field. It is called by the builders before save.
+	cloudsshassignment.FailureCodeValidator = cloudsshassignmentDescFailureCode.Validators[0].(func(string) error)
+	cloudsshnodeMixin := schema.CloudSSHNode{}.Mixin()
+	cloudsshnodeMixinFields0 := cloudsshnodeMixin[0].Fields()
+	_ = cloudsshnodeMixinFields0
+	cloudsshnodeFields := schema.CloudSSHNode{}.Fields()
+	_ = cloudsshnodeFields
+	// cloudsshnodeDescPublicID is the schema descriptor for public_id field.
+	cloudsshnodeDescPublicID := cloudsshnodeMixinFields0[0].Descriptor()
+	// cloudsshnode.DefaultPublicID holds the default value on creation for the public_id field.
+	cloudsshnode.DefaultPublicID = cloudsshnodeDescPublicID.Default.(func() uuid.UUID)
+	// cloudsshnodeDescCreatedAt is the schema descriptor for created_at field.
+	cloudsshnodeDescCreatedAt := cloudsshnodeMixinFields0[1].Descriptor()
+	// cloudsshnode.DefaultCreatedAt holds the default value on creation for the created_at field.
+	cloudsshnode.DefaultCreatedAt = cloudsshnodeDescCreatedAt.Default.(func() time.Time)
+	// cloudsshnodeDescUpdatedAt is the schema descriptor for updated_at field.
+	cloudsshnodeDescUpdatedAt := cloudsshnodeMixinFields0[2].Descriptor()
+	// cloudsshnode.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	cloudsshnode.DefaultUpdatedAt = cloudsshnodeDescUpdatedAt.Default.(func() time.Time)
+	// cloudsshnode.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	cloudsshnode.UpdateDefaultUpdatedAt = cloudsshnodeDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// cloudsshnodeDescLabel is the schema descriptor for label field.
+	cloudsshnodeDescLabel := cloudsshnodeFields[1].Descriptor()
+	// cloudsshnode.LabelValidator is a validator for the "label" field. It is called by the builders before save.
+	cloudsshnode.LabelValidator = func() func(string) error {
+		validators := cloudsshnodeDescLabel.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(label string) error {
+			for _, fn := range fns {
+				if err := fn(label); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// cloudsshnodeDescSSHHost is the schema descriptor for ssh_host field.
+	cloudsshnodeDescSSHHost := cloudsshnodeFields[3].Descriptor()
+	// cloudsshnode.SSHHostValidator is a validator for the "ssh_host" field. It is called by the builders before save.
+	cloudsshnode.SSHHostValidator = func() func(string) error {
+		validators := cloudsshnodeDescSSHHost.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(ssh_host string) error {
+			for _, fn := range fns {
+				if err := fn(ssh_host); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// cloudsshnodeDescSSHPort is the schema descriptor for ssh_port field.
+	cloudsshnodeDescSSHPort := cloudsshnodeFields[4].Descriptor()
+	// cloudsshnode.DefaultSSHPort holds the default value on creation for the ssh_port field.
+	cloudsshnode.DefaultSSHPort = cloudsshnodeDescSSHPort.Default.(int)
+	// cloudsshnode.SSHPortValidator is a validator for the "ssh_port" field. It is called by the builders before save.
+	cloudsshnode.SSHPortValidator = cloudsshnodeDescSSHPort.Validators[0].(func(int) error)
+	// cloudsshnodeDescSSHUser is the schema descriptor for ssh_user field.
+	cloudsshnodeDescSSHUser := cloudsshnodeFields[5].Descriptor()
+	// cloudsshnode.SSHUserValidator is a validator for the "ssh_user" field. It is called by the builders before save.
+	cloudsshnode.SSHUserValidator = func() func(string) error {
+		validators := cloudsshnodeDescSSHUser.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(ssh_user string) error {
+			for _, fn := range fns {
+				if err := fn(ssh_user); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// cloudsshnodeDescHostKeyFingerprint is the schema descriptor for host_key_fingerprint field.
+	cloudsshnodeDescHostKeyFingerprint := cloudsshnodeFields[8].Descriptor()
+	// cloudsshnode.HostKeyFingerprintValidator is a validator for the "host_key_fingerprint" field. It is called by the builders before save.
+	cloudsshnode.HostKeyFingerprintValidator = cloudsshnodeDescHostKeyFingerprint.Validators[0].(func(string) error)
+	// cloudsshnodeDescCreatedActorType is the schema descriptor for created_actor_type field.
+	cloudsshnodeDescCreatedActorType := cloudsshnodeFields[10].Descriptor()
+	// cloudsshnode.CreatedActorTypeValidator is a validator for the "created_actor_type" field. It is called by the builders before save.
+	cloudsshnode.CreatedActorTypeValidator = cloudsshnodeDescCreatedActorType.Validators[0].(func(string) error)
+	// cloudsshnodeDescCreatedActorID is the schema descriptor for created_actor_id field.
+	cloudsshnodeDescCreatedActorID := cloudsshnodeFields[11].Descriptor()
+	// cloudsshnode.CreatedActorIDValidator is a validator for the "created_actor_id" field. It is called by the builders before save.
+	cloudsshnode.CreatedActorIDValidator = cloudsshnodeDescCreatedActorID.Validators[0].(func(string) error)
+	cloudsshprojectaccessMixin := schema.CloudSSHProjectAccess{}.Mixin()
+	cloudsshprojectaccessMixinFields0 := cloudsshprojectaccessMixin[0].Fields()
+	_ = cloudsshprojectaccessMixinFields0
+	cloudsshprojectaccessFields := schema.CloudSSHProjectAccess{}.Fields()
+	_ = cloudsshprojectaccessFields
+	// cloudsshprojectaccessDescPublicID is the schema descriptor for public_id field.
+	cloudsshprojectaccessDescPublicID := cloudsshprojectaccessMixinFields0[0].Descriptor()
+	// cloudsshprojectaccess.DefaultPublicID holds the default value on creation for the public_id field.
+	cloudsshprojectaccess.DefaultPublicID = cloudsshprojectaccessDescPublicID.Default.(func() uuid.UUID)
+	// cloudsshprojectaccessDescCreatedAt is the schema descriptor for created_at field.
+	cloudsshprojectaccessDescCreatedAt := cloudsshprojectaccessMixinFields0[1].Descriptor()
+	// cloudsshprojectaccess.DefaultCreatedAt holds the default value on creation for the created_at field.
+	cloudsshprojectaccess.DefaultCreatedAt = cloudsshprojectaccessDescCreatedAt.Default.(func() time.Time)
+	// cloudsshprojectaccessDescUpdatedAt is the schema descriptor for updated_at field.
+	cloudsshprojectaccessDescUpdatedAt := cloudsshprojectaccessMixinFields0[2].Descriptor()
+	// cloudsshprojectaccess.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	cloudsshprojectaccess.DefaultUpdatedAt = cloudsshprojectaccessDescUpdatedAt.Default.(func() time.Time)
+	// cloudsshprojectaccess.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	cloudsshprojectaccess.UpdateDefaultUpdatedAt = cloudsshprojectaccessDescUpdatedAt.UpdateDefault.(func() time.Time)
+	datasetbindingMixin := schema.DatasetBinding{}.Mixin()
+	datasetbindingMixinFields0 := datasetbindingMixin[0].Fields()
+	_ = datasetbindingMixinFields0
+	datasetbindingFields := schema.DatasetBinding{}.Fields()
+	_ = datasetbindingFields
+	// datasetbindingDescPublicID is the schema descriptor for public_id field.
+	datasetbindingDescPublicID := datasetbindingMixinFields0[0].Descriptor()
+	// datasetbinding.DefaultPublicID holds the default value on creation for the public_id field.
+	datasetbinding.DefaultPublicID = datasetbindingDescPublicID.Default.(func() uuid.UUID)
+	// datasetbindingDescCreatedAt is the schema descriptor for created_at field.
+	datasetbindingDescCreatedAt := datasetbindingMixinFields0[1].Descriptor()
+	// datasetbinding.DefaultCreatedAt holds the default value on creation for the created_at field.
+	datasetbinding.DefaultCreatedAt = datasetbindingDescCreatedAt.Default.(func() time.Time)
+	// datasetbindingDescUpdatedAt is the schema descriptor for updated_at field.
+	datasetbindingDescUpdatedAt := datasetbindingMixinFields0[2].Descriptor()
+	// datasetbinding.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	datasetbinding.DefaultUpdatedAt = datasetbindingDescUpdatedAt.Default.(func() time.Time)
+	// datasetbinding.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	datasetbinding.UpdateDefaultUpdatedAt = datasetbindingDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// datasetbindingDescName is the schema descriptor for name field.
+	datasetbindingDescName := datasetbindingFields[3].Descriptor()
+	// datasetbinding.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	datasetbinding.NameValidator = func() func(string) error {
+		validators := datasetbindingDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// datasetbindingDescCanonicalRoot is the schema descriptor for canonical_root field.
+	datasetbindingDescCanonicalRoot := datasetbindingFields[5].Descriptor()
+	// datasetbinding.CanonicalRootValidator is a validator for the "canonical_root" field. It is called by the builders before save.
+	datasetbinding.CanonicalRootValidator = func() func(string) error {
+		validators := datasetbindingDescCanonicalRoot.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(canonical_root string) error {
+			for _, fn := range fns {
+				if err := fn(canonical_root); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// datasetbindingDescEnvironmentVariable is the schema descriptor for environment_variable field.
+	datasetbindingDescEnvironmentVariable := datasetbindingFields[6].Descriptor()
+	// datasetbinding.EnvironmentVariableValidator is a validator for the "environment_variable" field. It is called by the builders before save.
+	datasetbinding.EnvironmentVariableValidator = func() func(string) error {
+		validators := datasetbindingDescEnvironmentVariable.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(environment_variable string) error {
+			for _, fn := range fns {
+				if err := fn(environment_variable); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// datasetbindingDescRequiredMarkers is the schema descriptor for required_markers field.
+	datasetbindingDescRequiredMarkers := datasetbindingFields[7].Descriptor()
+	// datasetbinding.DefaultRequiredMarkers holds the default value on creation for the required_markers field.
+	datasetbinding.DefaultRequiredMarkers = datasetbindingDescRequiredMarkers.Default.([]string)
 	diagnosticrunMixin := schema.DiagnosticRun{}.Mixin()
 	diagnosticrunMixinFields0 := diagnosticrunMixin[0].Fields()
 	_ = diagnosticrunMixinFields0
@@ -1474,6 +1736,10 @@ func init() {
 	researchnodeDescMetricName := researchnodeFields[9].Descriptor()
 	// researchnode.MetricNameValidator is a validator for the "metric_name" field. It is called by the builders before save.
 	researchnode.MetricNameValidator = researchnodeDescMetricName.Validators[0].(func(string) error)
+	// researchnodeDescCommitSha is the schema descriptor for commit_sha field.
+	researchnodeDescCommitSha := researchnodeFields[12].Descriptor()
+	// researchnode.CommitShaValidator is a validator for the "commit_sha" field. It is called by the builders before save.
+	researchnode.CommitShaValidator = researchnodeDescCommitSha.Validators[0].(func(string) error)
 	resourceprofileMixin := schema.ResourceProfile{}.Mixin()
 	resourceprofileMixinFields0 := resourceprofileMixin[0].Fields()
 	_ = resourceprofileMixinFields0

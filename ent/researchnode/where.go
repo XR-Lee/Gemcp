@@ -116,6 +116,16 @@ func MetricValue(v float64) predicate.ResearchNode {
 	return predicate.ResearchNode(sql.FieldEQ(FieldMetricValue, v))
 }
 
+// OccurredAt applies equality check predicate on the "occurred_at" field. It's identical to OccurredAtEQ.
+func OccurredAt(v time.Time) predicate.ResearchNode {
+	return predicate.ResearchNode(sql.FieldEQ(FieldOccurredAt, v))
+}
+
+// CommitSha applies equality check predicate on the "commit_sha" field. It's identical to CommitShaEQ.
+func CommitSha(v string) predicate.ResearchNode {
+	return predicate.ResearchNode(sql.FieldEQ(FieldCommitSha, v))
+}
+
 // PublicIDEQ applies the EQ predicate on the "public_id" field.
 func PublicIDEQ(v uuid.UUID) predicate.ResearchNode {
 	return predicate.ResearchNode(sql.FieldEQ(FieldPublicID, v))
@@ -659,6 +669,131 @@ func MetricValueIsNil() predicate.ResearchNode {
 // MetricValueNotNil applies the NotNil predicate on the "metric_value" field.
 func MetricValueNotNil() predicate.ResearchNode {
 	return predicate.ResearchNode(sql.FieldNotNull(FieldMetricValue))
+}
+
+// OccurredAtEQ applies the EQ predicate on the "occurred_at" field.
+func OccurredAtEQ(v time.Time) predicate.ResearchNode {
+	return predicate.ResearchNode(sql.FieldEQ(FieldOccurredAt, v))
+}
+
+// OccurredAtNEQ applies the NEQ predicate on the "occurred_at" field.
+func OccurredAtNEQ(v time.Time) predicate.ResearchNode {
+	return predicate.ResearchNode(sql.FieldNEQ(FieldOccurredAt, v))
+}
+
+// OccurredAtIn applies the In predicate on the "occurred_at" field.
+func OccurredAtIn(vs ...time.Time) predicate.ResearchNode {
+	return predicate.ResearchNode(sql.FieldIn(FieldOccurredAt, vs...))
+}
+
+// OccurredAtNotIn applies the NotIn predicate on the "occurred_at" field.
+func OccurredAtNotIn(vs ...time.Time) predicate.ResearchNode {
+	return predicate.ResearchNode(sql.FieldNotIn(FieldOccurredAt, vs...))
+}
+
+// OccurredAtGT applies the GT predicate on the "occurred_at" field.
+func OccurredAtGT(v time.Time) predicate.ResearchNode {
+	return predicate.ResearchNode(sql.FieldGT(FieldOccurredAt, v))
+}
+
+// OccurredAtGTE applies the GTE predicate on the "occurred_at" field.
+func OccurredAtGTE(v time.Time) predicate.ResearchNode {
+	return predicate.ResearchNode(sql.FieldGTE(FieldOccurredAt, v))
+}
+
+// OccurredAtLT applies the LT predicate on the "occurred_at" field.
+func OccurredAtLT(v time.Time) predicate.ResearchNode {
+	return predicate.ResearchNode(sql.FieldLT(FieldOccurredAt, v))
+}
+
+// OccurredAtLTE applies the LTE predicate on the "occurred_at" field.
+func OccurredAtLTE(v time.Time) predicate.ResearchNode {
+	return predicate.ResearchNode(sql.FieldLTE(FieldOccurredAt, v))
+}
+
+// OccurredAtIsNil applies the IsNil predicate on the "occurred_at" field.
+func OccurredAtIsNil() predicate.ResearchNode {
+	return predicate.ResearchNode(sql.FieldIsNull(FieldOccurredAt))
+}
+
+// OccurredAtNotNil applies the NotNil predicate on the "occurred_at" field.
+func OccurredAtNotNil() predicate.ResearchNode {
+	return predicate.ResearchNode(sql.FieldNotNull(FieldOccurredAt))
+}
+
+// CommitShaEQ applies the EQ predicate on the "commit_sha" field.
+func CommitShaEQ(v string) predicate.ResearchNode {
+	return predicate.ResearchNode(sql.FieldEQ(FieldCommitSha, v))
+}
+
+// CommitShaNEQ applies the NEQ predicate on the "commit_sha" field.
+func CommitShaNEQ(v string) predicate.ResearchNode {
+	return predicate.ResearchNode(sql.FieldNEQ(FieldCommitSha, v))
+}
+
+// CommitShaIn applies the In predicate on the "commit_sha" field.
+func CommitShaIn(vs ...string) predicate.ResearchNode {
+	return predicate.ResearchNode(sql.FieldIn(FieldCommitSha, vs...))
+}
+
+// CommitShaNotIn applies the NotIn predicate on the "commit_sha" field.
+func CommitShaNotIn(vs ...string) predicate.ResearchNode {
+	return predicate.ResearchNode(sql.FieldNotIn(FieldCommitSha, vs...))
+}
+
+// CommitShaGT applies the GT predicate on the "commit_sha" field.
+func CommitShaGT(v string) predicate.ResearchNode {
+	return predicate.ResearchNode(sql.FieldGT(FieldCommitSha, v))
+}
+
+// CommitShaGTE applies the GTE predicate on the "commit_sha" field.
+func CommitShaGTE(v string) predicate.ResearchNode {
+	return predicate.ResearchNode(sql.FieldGTE(FieldCommitSha, v))
+}
+
+// CommitShaLT applies the LT predicate on the "commit_sha" field.
+func CommitShaLT(v string) predicate.ResearchNode {
+	return predicate.ResearchNode(sql.FieldLT(FieldCommitSha, v))
+}
+
+// CommitShaLTE applies the LTE predicate on the "commit_sha" field.
+func CommitShaLTE(v string) predicate.ResearchNode {
+	return predicate.ResearchNode(sql.FieldLTE(FieldCommitSha, v))
+}
+
+// CommitShaContains applies the Contains predicate on the "commit_sha" field.
+func CommitShaContains(v string) predicate.ResearchNode {
+	return predicate.ResearchNode(sql.FieldContains(FieldCommitSha, v))
+}
+
+// CommitShaHasPrefix applies the HasPrefix predicate on the "commit_sha" field.
+func CommitShaHasPrefix(v string) predicate.ResearchNode {
+	return predicate.ResearchNode(sql.FieldHasPrefix(FieldCommitSha, v))
+}
+
+// CommitShaHasSuffix applies the HasSuffix predicate on the "commit_sha" field.
+func CommitShaHasSuffix(v string) predicate.ResearchNode {
+	return predicate.ResearchNode(sql.FieldHasSuffix(FieldCommitSha, v))
+}
+
+// CommitShaIsNil applies the IsNil predicate on the "commit_sha" field.
+func CommitShaIsNil() predicate.ResearchNode {
+	return predicate.ResearchNode(sql.FieldIsNull(FieldCommitSha))
+}
+
+// CommitShaNotNil applies the NotNil predicate on the "commit_sha" field.
+func CommitShaNotNil() predicate.ResearchNode {
+	return predicate.ResearchNode(sql.FieldNotNull(FieldCommitSha))
+}
+
+// CommitShaEqualFold applies the EqualFold predicate on the "commit_sha" field.
+func CommitShaEqualFold(v string) predicate.ResearchNode {
+	return predicate.ResearchNode(sql.FieldEqualFold(FieldCommitSha, v))
+}
+
+// CommitShaContainsFold applies the ContainsFold predicate on the "commit_sha" field.
+func CommitShaContainsFold(v string) predicate.ResearchNode {
+	return predicate.ResearchNode(sql.FieldContainsFold(FieldCommitSha, v))
 }
 
 // HasTenant applies the HasEdge predicate on the "tenant" edge.

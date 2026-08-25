@@ -21,6 +21,18 @@ type AuditEvent func(*sql.Selector)
 // BudgetEntry is the predicate function for budgetentry builders.
 type BudgetEntry func(*sql.Selector)
 
+// CloudSSHAssignment is the predicate function for cloudsshassignment builders.
+type CloudSSHAssignment func(*sql.Selector)
+
+// CloudSSHNode is the predicate function for cloudsshnode builders.
+type CloudSSHNode func(*sql.Selector)
+
+// CloudSSHProjectAccess is the predicate function for cloudsshprojectaccess builders.
+type CloudSSHProjectAccess func(*sql.Selector)
+
+// DatasetBinding is the predicate function for datasetbinding builders.
+type DatasetBinding func(*sql.Selector)
+
 // DiagnosticRun is the predicate function for diagnosticrun builders.
 type DiagnosticRun func(*sql.Selector)
 

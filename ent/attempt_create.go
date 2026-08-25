@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/XR-Lee/Gemcp/ent/attempt"
+	"github.com/XR-Lee/Gemcp/ent/cloudsshassignment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/project"
@@ -359,6 +360,25 @@ func (_c *AttemptCreate) SetNodeAssignment(v *NodeAssignment) *AttemptCreate {
 	return _c.SetNodeAssignmentID(v.ID)
 }
 
+// SetCloudSSHAssignmentID sets the "cloud_ssh_assignment" edge to the CloudSSHAssignment entity by ID.
+func (_c *AttemptCreate) SetCloudSSHAssignmentID(id int) *AttemptCreate {
+	_c.mutation.SetCloudSSHAssignmentID(id)
+	return _c
+}
+
+// SetNillableCloudSSHAssignmentID sets the "cloud_ssh_assignment" edge to the CloudSSHAssignment entity by ID if the given value is not nil.
+func (_c *AttemptCreate) SetNillableCloudSSHAssignmentID(id *int) *AttemptCreate {
+	if id != nil {
+		_c = _c.SetCloudSSHAssignmentID(*id)
+	}
+	return _c
+}
+
+// SetCloudSSHAssignment sets the "cloud_ssh_assignment" edge to the CloudSSHAssignment entity.
+func (_c *AttemptCreate) SetCloudSSHAssignment(v *CloudSSHAssignment) *AttemptCreate {
+	return _c.SetCloudSSHAssignmentID(v.ID)
+}
+
 // Mutation returns the AttemptMutation object of the builder.
 func (_c *AttemptCreate) Mutation() *AttemptMutation {
 	return _c.mutation
@@ -690,6 +710,22 @@ func (_c *AttemptCreate) createSpec() (*Attempt, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(nodeassignment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.CloudSSHAssignmentIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   attempt.CloudSSHAssignmentTable,
+			Columns: []string{attempt.CloudSSHAssignmentColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(cloudsshassignment.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

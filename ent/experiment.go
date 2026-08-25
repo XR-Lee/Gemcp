@@ -40,7 +40,7 @@ type Experiment struct {
 	// AgentTokenID holds the value of the "agent_token_id" field.
 	AgentTokenID *int `json:"agent_token_id,omitempty"`
 	// RepositoryID holds the value of the "repository_id" field.
-	RepositoryID int `json:"repository_id,omitempty"`
+	RepositoryID *int `json:"repository_id,omitempty"`
 	// EnvironmentID holds the value of the "environment_id" field.
 	EnvironmentID int `json:"environment_id,omitempty"`
 	// ResourceProfileID holds the value of the "resource_profile_id" field.
@@ -135,6 +135,8 @@ type ExperimentEdges struct {
 	ProviderResources []*ProviderResource `json:"provider_resources,omitempty"`
 	// NodeAssignments holds the value of the node_assignments edge.
 	NodeAssignments []*NodeAssignment `json:"node_assignments,omitempty"`
+	// CloudSSHAssignments holds the value of the cloud_ssh_assignments edge.
+	CloudSSHAssignments []*CloudSSHAssignment `json:"cloud_ssh_assignments,omitempty"`
 	// BudgetEntries holds the value of the budget_entries edge.
 	BudgetEntries []*BudgetEntry `json:"budget_entries,omitempty"`
 	// IdempotencyRecords holds the value of the idempotency_records edge.
@@ -147,7 +149,7 @@ type ExperimentEdges struct {
 	ResearchNodes []*ResearchNode `json:"research_nodes,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [14]bool
+	loadedTypes [15]bool
 }
 
 // TenantOrErr returns the Tenant value or an error if the edge
@@ -243,10 +245,19 @@ func (e ExperimentEdges) NodeAssignmentsOrErr() ([]*NodeAssignment, error) {
 	return nil, &NotLoadedError{edge: "node_assignments"}
 }
 
+// CloudSSHAssignmentsOrErr returns the CloudSSHAssignments value or an error if the edge
+// was not loaded in eager-loading.
+func (e ExperimentEdges) CloudSSHAssignmentsOrErr() ([]*CloudSSHAssignment, error) {
+	if e.loadedTypes[9] {
+		return e.CloudSSHAssignments, nil
+	}
+	return nil, &NotLoadedError{edge: "cloud_ssh_assignments"}
+}
+
 // BudgetEntriesOrErr returns the BudgetEntries value or an error if the edge
 // was not loaded in eager-loading.
 func (e ExperimentEdges) BudgetEntriesOrErr() ([]*BudgetEntry, error) {
-	if e.loadedTypes[9] {
+	if e.loadedTypes[10] {
 		return e.BudgetEntries, nil
 	}
 	return nil, &NotLoadedError{edge: "budget_entries"}
@@ -255,7 +266,7 @@ func (e ExperimentEdges) BudgetEntriesOrErr() ([]*BudgetEntry, error) {
 // IdempotencyRecordsOrErr returns the IdempotencyRecords value or an error if the edge
 // was not loaded in eager-loading.
 func (e ExperimentEdges) IdempotencyRecordsOrErr() ([]*IdempotencyRecord, error) {
-	if e.loadedTypes[10] {
+	if e.loadedTypes[11] {
 		return e.IdempotencyRecords, nil
 	}
 	return nil, &NotLoadedError{edge: "idempotency_records"}
@@ -266,7 +277,7 @@ func (e ExperimentEdges) IdempotencyRecordsOrErr() ([]*IdempotencyRecord, error)
 func (e ExperimentEdges) DiagnosticRunOrErr() (*DiagnosticRun, error) {
 	if e.DiagnosticRun != nil {
 		return e.DiagnosticRun, nil
-	} else if e.loadedTypes[11] {
+	} else if e.loadedTypes[12] {
 		return nil, &NotFoundError{label: diagnosticrun.Label}
 	}
 	return nil, &NotLoadedError{edge: "diagnostic_run"}
@@ -277,7 +288,7 @@ func (e ExperimentEdges) DiagnosticRunOrErr() (*DiagnosticRun, error) {
 func (e ExperimentEdges) ProposalOrErr() (*ExperimentProposal, error) {
 	if e.Proposal != nil {
 		return e.Proposal, nil
-	} else if e.loadedTypes[12] {
+	} else if e.loadedTypes[13] {
 		return nil, &NotFoundError{label: experimentproposal.Label}
 	}
 	return nil, &NotLoadedError{edge: "proposal"}
@@ -286,7 +297,7 @@ func (e ExperimentEdges) ProposalOrErr() (*ExperimentProposal, error) {
 // ResearchNodesOrErr returns the ResearchNodes value or an error if the edge
 // was not loaded in eager-loading.
 func (e ExperimentEdges) ResearchNodesOrErr() ([]*ResearchNode, error) {
-	if e.loadedTypes[13] {
+	if e.loadedTypes[14] {
 		return e.ResearchNodes, nil
 	}
 	return nil, &NotLoadedError{edge: "research_nodes"}
@@ -369,7 +380,8 @@ func (_m *Experiment) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field repository_id", values[i])
 			} else if value.Valid {
-				_m.RepositoryID = int(value.Int64)
+				_m.RepositoryID = new(int)
+				*_m.RepositoryID = int(value.Int64)
 			}
 		case experiment.FieldEnvironmentID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -659,6 +671,11 @@ func (_m *Experiment) QueryNodeAssignments() *NodeAssignmentQuery {
 	return NewExperimentClient(_m.config).QueryNodeAssignments(_m)
 }
 
+// QueryCloudSSHAssignments queries the "cloud_ssh_assignments" edge of the Experiment entity.
+func (_m *Experiment) QueryCloudSSHAssignments() *CloudSSHAssignmentQuery {
+	return NewExperimentClient(_m.config).QueryCloudSSHAssignments(_m)
+}
+
 // QueryBudgetEntries queries the "budget_entries" edge of the Experiment entity.
 func (_m *Experiment) QueryBudgetEntries() *BudgetEntryQuery {
 	return NewExperimentClient(_m.config).QueryBudgetEntries(_m)
@@ -727,8 +744,10 @@ func (_m *Experiment) String() string {
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")
-	builder.WriteString("repository_id=")
-	builder.WriteString(fmt.Sprintf("%v", _m.RepositoryID))
+	if v := _m.RepositoryID; v != nil {
+		builder.WriteString("repository_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("environment_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.EnvironmentID))

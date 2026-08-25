@@ -70,12 +70,20 @@ type TenantEdges struct {
 	NodeEvents []*NodeEvent `json:"node_events,omitempty"`
 	// NodeAssignments holds the value of the node_assignments edge.
 	NodeAssignments []*NodeAssignment `json:"node_assignments,omitempty"`
+	// CloudSSHNodes holds the value of the cloud_ssh_nodes edge.
+	CloudSSHNodes []*CloudSSHNode `json:"cloud_ssh_nodes,omitempty"`
+	// CloudSSHProjectAccess holds the value of the cloud_ssh_project_access edge.
+	CloudSSHProjectAccess []*CloudSSHProjectAccess `json:"cloud_ssh_project_access,omitempty"`
+	// CloudSSHAssignments holds the value of the cloud_ssh_assignments edge.
+	CloudSSHAssignments []*CloudSSHAssignment `json:"cloud_ssh_assignments,omitempty"`
 	// DiagnosticRuns holds the value of the diagnostic_runs edge.
 	DiagnosticRuns []*DiagnosticRun `json:"diagnostic_runs,omitempty"`
 	// ExperimentProposals holds the value of the experiment_proposals edge.
 	ExperimentProposals []*ExperimentProposal `json:"experiment_proposals,omitempty"`
 	// WorkspaceDatasets holds the value of the workspace_datasets edge.
 	WorkspaceDatasets []*WorkspaceDataset `json:"workspace_datasets,omitempty"`
+	// DatasetBindings holds the value of the dataset_bindings edge.
+	DatasetBindings []*DatasetBinding `json:"dataset_bindings,omitempty"`
 	// Studies holds the value of the studies edge.
 	Studies []*Study `json:"studies,omitempty"`
 	// IterationPlans holds the value of the iteration_plans edge.
@@ -86,7 +94,7 @@ type TenantEdges struct {
 	ResearchEdges []*ResearchEdge `json:"research_edges,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [24]bool
+	loadedTypes [28]bool
 }
 
 // UsersOrErr returns the Users value or an error if the edge
@@ -242,10 +250,37 @@ func (e TenantEdges) NodeAssignmentsOrErr() ([]*NodeAssignment, error) {
 	return nil, &NotLoadedError{edge: "node_assignments"}
 }
 
+// CloudSSHNodesOrErr returns the CloudSSHNodes value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) CloudSSHNodesOrErr() ([]*CloudSSHNode, error) {
+	if e.loadedTypes[17] {
+		return e.CloudSSHNodes, nil
+	}
+	return nil, &NotLoadedError{edge: "cloud_ssh_nodes"}
+}
+
+// CloudSSHProjectAccessOrErr returns the CloudSSHProjectAccess value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) CloudSSHProjectAccessOrErr() ([]*CloudSSHProjectAccess, error) {
+	if e.loadedTypes[18] {
+		return e.CloudSSHProjectAccess, nil
+	}
+	return nil, &NotLoadedError{edge: "cloud_ssh_project_access"}
+}
+
+// CloudSSHAssignmentsOrErr returns the CloudSSHAssignments value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) CloudSSHAssignmentsOrErr() ([]*CloudSSHAssignment, error) {
+	if e.loadedTypes[19] {
+		return e.CloudSSHAssignments, nil
+	}
+	return nil, &NotLoadedError{edge: "cloud_ssh_assignments"}
+}
+
 // DiagnosticRunsOrErr returns the DiagnosticRuns value or an error if the edge
 // was not loaded in eager-loading.
 func (e TenantEdges) DiagnosticRunsOrErr() ([]*DiagnosticRun, error) {
-	if e.loadedTypes[17] {
+	if e.loadedTypes[20] {
 		return e.DiagnosticRuns, nil
 	}
 	return nil, &NotLoadedError{edge: "diagnostic_runs"}
@@ -254,7 +289,7 @@ func (e TenantEdges) DiagnosticRunsOrErr() ([]*DiagnosticRun, error) {
 // ExperimentProposalsOrErr returns the ExperimentProposals value or an error if the edge
 // was not loaded in eager-loading.
 func (e TenantEdges) ExperimentProposalsOrErr() ([]*ExperimentProposal, error) {
-	if e.loadedTypes[18] {
+	if e.loadedTypes[21] {
 		return e.ExperimentProposals, nil
 	}
 	return nil, &NotLoadedError{edge: "experiment_proposals"}
@@ -263,16 +298,25 @@ func (e TenantEdges) ExperimentProposalsOrErr() ([]*ExperimentProposal, error) {
 // WorkspaceDatasetsOrErr returns the WorkspaceDatasets value or an error if the edge
 // was not loaded in eager-loading.
 func (e TenantEdges) WorkspaceDatasetsOrErr() ([]*WorkspaceDataset, error) {
-	if e.loadedTypes[19] {
+	if e.loadedTypes[22] {
 		return e.WorkspaceDatasets, nil
 	}
 	return nil, &NotLoadedError{edge: "workspace_datasets"}
 }
 
+// DatasetBindingsOrErr returns the DatasetBindings value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) DatasetBindingsOrErr() ([]*DatasetBinding, error) {
+	if e.loadedTypes[23] {
+		return e.DatasetBindings, nil
+	}
+	return nil, &NotLoadedError{edge: "dataset_bindings"}
+}
+
 // StudiesOrErr returns the Studies value or an error if the edge
 // was not loaded in eager-loading.
 func (e TenantEdges) StudiesOrErr() ([]*Study, error) {
-	if e.loadedTypes[20] {
+	if e.loadedTypes[24] {
 		return e.Studies, nil
 	}
 	return nil, &NotLoadedError{edge: "studies"}
@@ -281,7 +325,7 @@ func (e TenantEdges) StudiesOrErr() ([]*Study, error) {
 // IterationPlansOrErr returns the IterationPlans value or an error if the edge
 // was not loaded in eager-loading.
 func (e TenantEdges) IterationPlansOrErr() ([]*IterationPlan, error) {
-	if e.loadedTypes[21] {
+	if e.loadedTypes[25] {
 		return e.IterationPlans, nil
 	}
 	return nil, &NotLoadedError{edge: "iteration_plans"}
@@ -290,7 +334,7 @@ func (e TenantEdges) IterationPlansOrErr() ([]*IterationPlan, error) {
 // ResearchNodesOrErr returns the ResearchNodes value or an error if the edge
 // was not loaded in eager-loading.
 func (e TenantEdges) ResearchNodesOrErr() ([]*ResearchNode, error) {
-	if e.loadedTypes[22] {
+	if e.loadedTypes[26] {
 		return e.ResearchNodes, nil
 	}
 	return nil, &NotLoadedError{edge: "research_nodes"}
@@ -299,7 +343,7 @@ func (e TenantEdges) ResearchNodesOrErr() ([]*ResearchNode, error) {
 // ResearchEdgesOrErr returns the ResearchEdges value or an error if the edge
 // was not loaded in eager-loading.
 func (e TenantEdges) ResearchEdgesOrErr() ([]*ResearchEdge, error) {
-	if e.loadedTypes[23] {
+	if e.loadedTypes[27] {
 		return e.ResearchEdges, nil
 	}
 	return nil, &NotLoadedError{edge: "research_edges"}
@@ -467,6 +511,21 @@ func (_m *Tenant) QueryNodeAssignments() *NodeAssignmentQuery {
 	return NewTenantClient(_m.config).QueryNodeAssignments(_m)
 }
 
+// QueryCloudSSHNodes queries the "cloud_ssh_nodes" edge of the Tenant entity.
+func (_m *Tenant) QueryCloudSSHNodes() *CloudSSHNodeQuery {
+	return NewTenantClient(_m.config).QueryCloudSSHNodes(_m)
+}
+
+// QueryCloudSSHProjectAccess queries the "cloud_ssh_project_access" edge of the Tenant entity.
+func (_m *Tenant) QueryCloudSSHProjectAccess() *CloudSSHProjectAccessQuery {
+	return NewTenantClient(_m.config).QueryCloudSSHProjectAccess(_m)
+}
+
+// QueryCloudSSHAssignments queries the "cloud_ssh_assignments" edge of the Tenant entity.
+func (_m *Tenant) QueryCloudSSHAssignments() *CloudSSHAssignmentQuery {
+	return NewTenantClient(_m.config).QueryCloudSSHAssignments(_m)
+}
+
 // QueryDiagnosticRuns queries the "diagnostic_runs" edge of the Tenant entity.
 func (_m *Tenant) QueryDiagnosticRuns() *DiagnosticRunQuery {
 	return NewTenantClient(_m.config).QueryDiagnosticRuns(_m)
@@ -480,6 +539,11 @@ func (_m *Tenant) QueryExperimentProposals() *ExperimentProposalQuery {
 // QueryWorkspaceDatasets queries the "workspace_datasets" edge of the Tenant entity.
 func (_m *Tenant) QueryWorkspaceDatasets() *WorkspaceDatasetQuery {
 	return NewTenantClient(_m.config).QueryWorkspaceDatasets(_m)
+}
+
+// QueryDatasetBindings queries the "dataset_bindings" edge of the Tenant entity.
+func (_m *Tenant) QueryDatasetBindings() *DatasetBindingQuery {
+	return NewTenantClient(_m.config).QueryDatasetBindings(_m)
 }
 
 // QueryStudies queries the "studies" edge of the Tenant entity.

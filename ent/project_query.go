@@ -16,6 +16,9 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/agenttoken"
 	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
+	"github.com/XR-Lee/Gemcp/ent/cloudsshassignment"
+	"github.com/XR-Lee/Gemcp/ent/cloudsshprojectaccess"
+	"github.com/XR-Lee/Gemcp/ent/datasetbinding"
 	"github.com/XR-Lee/Gemcp/ent/diagnosticrun"
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
@@ -54,9 +57,12 @@ type ProjectQuery struct {
 	withBudgetEntries       *BudgetEntryQuery
 	withNodeAccess          *NodeProjectAccessQuery
 	withNodeAssignments     *NodeAssignmentQuery
+	withCloudSSHAccess      *CloudSSHProjectAccessQuery
+	withCloudSSHAssignments *CloudSSHAssignmentQuery
 	withDiagnosticRuns      *DiagnosticRunQuery
 	withExperimentProposals *ExperimentProposalQuery
 	withWorkspaceDatasets   *WorkspaceDatasetQuery
+	withDatasetBindings     *DatasetBindingQuery
 	withStudies             *StudyQuery
 	withIterationPlans      *IterationPlanQuery
 	withResearchNodes       *ResearchNodeQuery
@@ -361,6 +367,50 @@ func (_q *ProjectQuery) QueryNodeAssignments() *NodeAssignmentQuery {
 	return query
 }
 
+// QueryCloudSSHAccess chains the current query on the "cloud_ssh_access" edge.
+func (_q *ProjectQuery) QueryCloudSSHAccess() *CloudSSHProjectAccessQuery {
+	query := (&CloudSSHProjectAccessClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, selector),
+			sqlgraph.To(cloudsshprojectaccess.Table, cloudsshprojectaccess.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.CloudSSHAccessTable, project.CloudSSHAccessColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryCloudSSHAssignments chains the current query on the "cloud_ssh_assignments" edge.
+func (_q *ProjectQuery) QueryCloudSSHAssignments() *CloudSSHAssignmentQuery {
+	query := (&CloudSSHAssignmentClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, selector),
+			sqlgraph.To(cloudsshassignment.Table, cloudsshassignment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.CloudSSHAssignmentsTable, project.CloudSSHAssignmentsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
 // QueryDiagnosticRuns chains the current query on the "diagnostic_runs" edge.
 func (_q *ProjectQuery) QueryDiagnosticRuns() *DiagnosticRunQuery {
 	query := (&DiagnosticRunClient{config: _q.config}).Query()
@@ -420,6 +470,28 @@ func (_q *ProjectQuery) QueryWorkspaceDatasets() *WorkspaceDatasetQuery {
 			sqlgraph.From(project.Table, project.FieldID, selector),
 			sqlgraph.To(workspacedataset.Table, workspacedataset.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, project.WorkspaceDatasetsTable, project.WorkspaceDatasetsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryDatasetBindings chains the current query on the "dataset_bindings" edge.
+func (_q *ProjectQuery) QueryDatasetBindings() *DatasetBindingQuery {
+	query := (&DatasetBindingClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, selector),
+			sqlgraph.To(datasetbinding.Table, datasetbinding.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.DatasetBindingsTable, project.DatasetBindingsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -719,9 +791,12 @@ func (_q *ProjectQuery) Clone() *ProjectQuery {
 		withBudgetEntries:       _q.withBudgetEntries.Clone(),
 		withNodeAccess:          _q.withNodeAccess.Clone(),
 		withNodeAssignments:     _q.withNodeAssignments.Clone(),
+		withCloudSSHAccess:      _q.withCloudSSHAccess.Clone(),
+		withCloudSSHAssignments: _q.withCloudSSHAssignments.Clone(),
 		withDiagnosticRuns:      _q.withDiagnosticRuns.Clone(),
 		withExperimentProposals: _q.withExperimentProposals.Clone(),
 		withWorkspaceDatasets:   _q.withWorkspaceDatasets.Clone(),
+		withDatasetBindings:     _q.withDatasetBindings.Clone(),
 		withStudies:             _q.withStudies.Clone(),
 		withIterationPlans:      _q.withIterationPlans.Clone(),
 		withResearchNodes:       _q.withResearchNodes.Clone(),
@@ -864,6 +939,28 @@ func (_q *ProjectQuery) WithNodeAssignments(opts ...func(*NodeAssignmentQuery)) 
 	return _q
 }
 
+// WithCloudSSHAccess tells the query-builder to eager-load the nodes that are connected to
+// the "cloud_ssh_access" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ProjectQuery) WithCloudSSHAccess(opts ...func(*CloudSSHProjectAccessQuery)) *ProjectQuery {
+	query := (&CloudSSHProjectAccessClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withCloudSSHAccess = query
+	return _q
+}
+
+// WithCloudSSHAssignments tells the query-builder to eager-load the nodes that are connected to
+// the "cloud_ssh_assignments" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ProjectQuery) WithCloudSSHAssignments(opts ...func(*CloudSSHAssignmentQuery)) *ProjectQuery {
+	query := (&CloudSSHAssignmentClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withCloudSSHAssignments = query
+	return _q
+}
+
 // WithDiagnosticRuns tells the query-builder to eager-load the nodes that are connected to
 // the "diagnostic_runs" edge. The optional arguments are used to configure the query builder of the edge.
 func (_q *ProjectQuery) WithDiagnosticRuns(opts ...func(*DiagnosticRunQuery)) *ProjectQuery {
@@ -894,6 +991,17 @@ func (_q *ProjectQuery) WithWorkspaceDatasets(opts ...func(*WorkspaceDatasetQuer
 		opt(query)
 	}
 	_q.withWorkspaceDatasets = query
+	return _q
+}
+
+// WithDatasetBindings tells the query-builder to eager-load the nodes that are connected to
+// the "dataset_bindings" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ProjectQuery) WithDatasetBindings(opts ...func(*DatasetBindingQuery)) *ProjectQuery {
+	query := (&DatasetBindingClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withDatasetBindings = query
 	return _q
 }
 
@@ -1019,7 +1127,7 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 	var (
 		nodes       = []*Project{}
 		_spec       = _q.querySpec()
-		loadedTypes = [19]bool{
+		loadedTypes = [22]bool{
 			_q.withTenant != nil,
 			_q.withEnvironments != nil,
 			_q.withResourceProfiles != nil,
@@ -1032,9 +1140,12 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 			_q.withBudgetEntries != nil,
 			_q.withNodeAccess != nil,
 			_q.withNodeAssignments != nil,
+			_q.withCloudSSHAccess != nil,
+			_q.withCloudSSHAssignments != nil,
 			_q.withDiagnosticRuns != nil,
 			_q.withExperimentProposals != nil,
 			_q.withWorkspaceDatasets != nil,
+			_q.withDatasetBindings != nil,
 			_q.withStudies != nil,
 			_q.withIterationPlans != nil,
 			_q.withResearchNodes != nil,
@@ -1144,6 +1255,22 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 			return nil, err
 		}
 	}
+	if query := _q.withCloudSSHAccess; query != nil {
+		if err := _q.loadCloudSSHAccess(ctx, query, nodes,
+			func(n *Project) { n.Edges.CloudSSHAccess = []*CloudSSHProjectAccess{} },
+			func(n *Project, e *CloudSSHProjectAccess) { n.Edges.CloudSSHAccess = append(n.Edges.CloudSSHAccess, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withCloudSSHAssignments; query != nil {
+		if err := _q.loadCloudSSHAssignments(ctx, query, nodes,
+			func(n *Project) { n.Edges.CloudSSHAssignments = []*CloudSSHAssignment{} },
+			func(n *Project, e *CloudSSHAssignment) {
+				n.Edges.CloudSSHAssignments = append(n.Edges.CloudSSHAssignments, e)
+			}); err != nil {
+			return nil, err
+		}
+	}
 	if query := _q.withDiagnosticRuns; query != nil {
 		if err := _q.loadDiagnosticRuns(ctx, query, nodes,
 			func(n *Project) { n.Edges.DiagnosticRuns = []*DiagnosticRun{} },
@@ -1166,6 +1293,13 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 			func(n *Project, e *WorkspaceDataset) {
 				n.Edges.WorkspaceDatasets = append(n.Edges.WorkspaceDatasets, e)
 			}); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withDatasetBindings; query != nil {
+		if err := _q.loadDatasetBindings(ctx, query, nodes,
+			func(n *Project) { n.Edges.DatasetBindings = []*DatasetBinding{} },
+			func(n *Project, e *DatasetBinding) { n.Edges.DatasetBindings = append(n.Edges.DatasetBindings, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -1559,6 +1693,66 @@ func (_q *ProjectQuery) loadNodeAssignments(ctx context.Context, query *NodeAssi
 	}
 	return nil
 }
+func (_q *ProjectQuery) loadCloudSSHAccess(ctx context.Context, query *CloudSSHProjectAccessQuery, nodes []*Project, init func(*Project), assign func(*Project, *CloudSSHProjectAccess)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Project)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(cloudsshprojectaccess.FieldProjectID)
+	}
+	query.Where(predicate.CloudSSHProjectAccess(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(project.CloudSSHAccessColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ProjectID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "project_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *ProjectQuery) loadCloudSSHAssignments(ctx context.Context, query *CloudSSHAssignmentQuery, nodes []*Project, init func(*Project), assign func(*Project, *CloudSSHAssignment)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Project)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(cloudsshassignment.FieldProjectID)
+	}
+	query.Where(predicate.CloudSSHAssignment(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(project.CloudSSHAssignmentsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ProjectID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "project_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
 func (_q *ProjectQuery) loadDiagnosticRuns(ctx context.Context, query *DiagnosticRunQuery, nodes []*Project, init func(*Project), assign func(*Project, *DiagnosticRun)) error {
 	fks := make([]driver.Value, 0, len(nodes))
 	nodeids := make(map[int]*Project)
@@ -1634,6 +1828,36 @@ func (_q *ProjectQuery) loadWorkspaceDatasets(ctx context.Context, query *Worksp
 	}
 	query.Where(predicate.WorkspaceDataset(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(project.WorkspaceDatasetsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ProjectID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "project_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *ProjectQuery) loadDatasetBindings(ctx context.Context, query *DatasetBindingQuery, nodes []*Project, init func(*Project), assign func(*Project, *DatasetBinding)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Project)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(datasetbinding.FieldProjectID)
+	}
+	query.Where(predicate.DatasetBinding(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(project.DatasetBindingsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

@@ -1416,6 +1416,29 @@ func HasNodeAssignmentWith(preds ...predicate.NodeAssignment) predicate.Attempt 
 	})
 }
 
+// HasCloudSSHAssignment applies the HasEdge predicate on the "cloud_ssh_assignment" edge.
+func HasCloudSSHAssignment() predicate.Attempt {
+	return predicate.Attempt(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, CloudSSHAssignmentTable, CloudSSHAssignmentColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasCloudSSHAssignmentWith applies the HasEdge predicate on the "cloud_ssh_assignment" edge with a given conditions (other predicates).
+func HasCloudSSHAssignmentWith(preds ...predicate.CloudSSHAssignment) predicate.Attempt {
+	return predicate.Attempt(func(s *sql.Selector) {
+		step := newCloudSSHAssignmentStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.Attempt) predicate.Attempt {
 	return predicate.Attempt(sql.AndPredicates(predicates...))

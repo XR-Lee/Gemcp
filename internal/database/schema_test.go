@@ -77,6 +77,34 @@ func TestNodeCredentialSchemasStoreOnlyDigests(t *testing.T) {
 	check("self_hosted_nodes", entmigrate.SelfHostedNodesColumns)
 }
 
+func TestCloudSSHSchemasKeepCiphertextOnTheNodeAndAssignmentsCredentialFree(t *testing.T) {
+	ciphertextFound := false
+	for _, column := range entmigrate.CloudSSHNodesColumns {
+		if column.Name == "credential_ciphertext" {
+			ciphertextFound = true
+		}
+		name := strings.ToLower(column.Name)
+		if name == "password" || name == "private_key" || name == "passphrase" {
+			t.Fatalf("cloud_ssh_nodes stores recoverable plaintext column %q", column.Name)
+		}
+	}
+	if !ciphertextFound {
+		t.Fatal("cloud_ssh_nodes.credential_ciphertext is missing")
+	}
+	for _, column := range entmigrate.CloudSSHAssignmentsColumns {
+		name := strings.ToLower(column.Name)
+		if strings.Contains(name, "token") || strings.Contains(name, "credential") || strings.Contains(name, "ciphertext") || strings.Contains(name, "secret") || strings.Contains(name, "password") || strings.Contains(name, "private_key") {
+			t.Fatalf("cloud_ssh_assignments contains credential-like column %q", column.Name)
+		}
+	}
+	for _, column := range entmigrate.CloudSSHProjectAccessesColumns {
+		name := strings.ToLower(column.Name)
+		if strings.Contains(name, "token") || strings.Contains(name, "credential") || strings.Contains(name, "ciphertext") || strings.Contains(name, "secret") {
+			t.Fatalf("cloud_ssh_project_accesses contains credential-like column %q", column.Name)
+		}
+	}
+}
+
 func TestNodeAssignmentSchemaContainsNoCredentialMaterial(t *testing.T) {
 	outputRefFound := false
 	for _, column := range entmigrate.NodeAssignmentsColumns {

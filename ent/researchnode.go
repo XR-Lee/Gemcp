@@ -51,6 +51,10 @@ type ResearchNode struct {
 	MetricName *string `json:"metric_name,omitempty"`
 	// MetricValue holds the value of the "metric_value" field.
 	MetricValue *float64 `json:"metric_value,omitempty"`
+	// scientific time: git committer date or Experiment time, not MCP write time
+	OccurredAt *time.Time `json:"occurred_at,omitempty"`
+	// optional evidence commit; Graph stays claim-based
+	CommitSha *string `json:"commit_sha,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the ResearchNodeQuery when eager-loading is set.
 	Edges        ResearchNodeEdges `json:"edges"`
@@ -160,9 +164,9 @@ func (*ResearchNode) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case researchnode.FieldID, researchnode.FieldTenantID, researchnode.FieldProjectID, researchnode.FieldStudyID, researchnode.FieldExperimentID, researchnode.FieldAgentTokenID:
 			values[i] = new(sql.NullInt64)
-		case researchnode.FieldKind, researchnode.FieldTitle, researchnode.FieldSummary, researchnode.FieldStatus, researchnode.FieldMetricName:
+		case researchnode.FieldKind, researchnode.FieldTitle, researchnode.FieldSummary, researchnode.FieldStatus, researchnode.FieldMetricName, researchnode.FieldCommitSha:
 			values[i] = new(sql.NullString)
-		case researchnode.FieldCreatedAt, researchnode.FieldUpdatedAt:
+		case researchnode.FieldCreatedAt, researchnode.FieldUpdatedAt, researchnode.FieldOccurredAt:
 			values[i] = new(sql.NullTime)
 		case researchnode.FieldPublicID:
 			values[i] = new(uuid.UUID)
@@ -274,6 +278,20 @@ func (_m *ResearchNode) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.MetricValue = new(float64)
 				*_m.MetricValue = value.Float64
+			}
+		case researchnode.FieldOccurredAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field occurred_at", values[i])
+			} else if value.Valid {
+				_m.OccurredAt = new(time.Time)
+				*_m.OccurredAt = value.Time
+			}
+		case researchnode.FieldCommitSha:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field commit_sha", values[i])
+			} else if value.Valid {
+				_m.CommitSha = new(string)
+				*_m.CommitSha = value.String
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -394,6 +412,16 @@ func (_m *ResearchNode) String() string {
 	if v := _m.MetricValue; v != nil {
 		builder.WriteString("metric_value=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.OccurredAt; v != nil {
+		builder.WriteString("occurred_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.CommitSha; v != nil {
+		builder.WriteString("commit_sha=")
+		builder.WriteString(*v)
 	}
 	builder.WriteByte(')')
 	return builder.String()

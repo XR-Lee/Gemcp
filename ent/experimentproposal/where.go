@@ -361,6 +361,16 @@ func RepositoryIDNotIn(vs ...int) predicate.ExperimentProposal {
 	return predicate.ExperimentProposal(sql.FieldNotIn(FieldRepositoryID, vs...))
 }
 
+// RepositoryIDIsNil applies the IsNil predicate on the "repository_id" field.
+func RepositoryIDIsNil() predicate.ExperimentProposal {
+	return predicate.ExperimentProposal(sql.FieldIsNull(FieldRepositoryID))
+}
+
+// RepositoryIDNotNil applies the NotNil predicate on the "repository_id" field.
+func RepositoryIDNotNil() predicate.ExperimentProposal {
+	return predicate.ExperimentProposal(sql.FieldNotNull(FieldRepositoryID))
+}
+
 // EnvironmentIDEQ applies the EQ predicate on the "environment_id" field.
 func EnvironmentIDEQ(v int) predicate.ExperimentProposal {
 	return predicate.ExperimentProposal(sql.FieldEQ(FieldEnvironmentID, v))

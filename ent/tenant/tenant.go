@@ -59,12 +59,20 @@ const (
 	EdgeNodeEvents = "node_events"
 	// EdgeNodeAssignments holds the string denoting the node_assignments edge name in mutations.
 	EdgeNodeAssignments = "node_assignments"
+	// EdgeCloudSSHNodes holds the string denoting the cloud_ssh_nodes edge name in mutations.
+	EdgeCloudSSHNodes = "cloud_ssh_nodes"
+	// EdgeCloudSSHProjectAccess holds the string denoting the cloud_ssh_project_access edge name in mutations.
+	EdgeCloudSSHProjectAccess = "cloud_ssh_project_access"
+	// EdgeCloudSSHAssignments holds the string denoting the cloud_ssh_assignments edge name in mutations.
+	EdgeCloudSSHAssignments = "cloud_ssh_assignments"
 	// EdgeDiagnosticRuns holds the string denoting the diagnostic_runs edge name in mutations.
 	EdgeDiagnosticRuns = "diagnostic_runs"
 	// EdgeExperimentProposals holds the string denoting the experiment_proposals edge name in mutations.
 	EdgeExperimentProposals = "experiment_proposals"
 	// EdgeWorkspaceDatasets holds the string denoting the workspace_datasets edge name in mutations.
 	EdgeWorkspaceDatasets = "workspace_datasets"
+	// EdgeDatasetBindings holds the string denoting the dataset_bindings edge name in mutations.
+	EdgeDatasetBindings = "dataset_bindings"
 	// EdgeStudies holds the string denoting the studies edge name in mutations.
 	EdgeStudies = "studies"
 	// EdgeIterationPlans holds the string denoting the iteration_plans edge name in mutations.
@@ -194,6 +202,27 @@ const (
 	NodeAssignmentsInverseTable = "node_assignments"
 	// NodeAssignmentsColumn is the table column denoting the node_assignments relation/edge.
 	NodeAssignmentsColumn = "tenant_id"
+	// CloudSSHNodesTable is the table that holds the cloud_ssh_nodes relation/edge.
+	CloudSSHNodesTable = "cloud_ssh_nodes"
+	// CloudSSHNodesInverseTable is the table name for the CloudSSHNode entity.
+	// It exists in this package in order to avoid circular dependency with the "cloudsshnode" package.
+	CloudSSHNodesInverseTable = "cloud_ssh_nodes"
+	// CloudSSHNodesColumn is the table column denoting the cloud_ssh_nodes relation/edge.
+	CloudSSHNodesColumn = "tenant_id"
+	// CloudSSHProjectAccessTable is the table that holds the cloud_ssh_project_access relation/edge.
+	CloudSSHProjectAccessTable = "cloud_ssh_project_accesses"
+	// CloudSSHProjectAccessInverseTable is the table name for the CloudSSHProjectAccess entity.
+	// It exists in this package in order to avoid circular dependency with the "cloudsshprojectaccess" package.
+	CloudSSHProjectAccessInverseTable = "cloud_ssh_project_accesses"
+	// CloudSSHProjectAccessColumn is the table column denoting the cloud_ssh_project_access relation/edge.
+	CloudSSHProjectAccessColumn = "tenant_id"
+	// CloudSSHAssignmentsTable is the table that holds the cloud_ssh_assignments relation/edge.
+	CloudSSHAssignmentsTable = "cloud_ssh_assignments"
+	// CloudSSHAssignmentsInverseTable is the table name for the CloudSSHAssignment entity.
+	// It exists in this package in order to avoid circular dependency with the "cloudsshassignment" package.
+	CloudSSHAssignmentsInverseTable = "cloud_ssh_assignments"
+	// CloudSSHAssignmentsColumn is the table column denoting the cloud_ssh_assignments relation/edge.
+	CloudSSHAssignmentsColumn = "tenant_id"
 	// DiagnosticRunsTable is the table that holds the diagnostic_runs relation/edge.
 	DiagnosticRunsTable = "diagnostic_runs"
 	// DiagnosticRunsInverseTable is the table name for the DiagnosticRun entity.
@@ -215,6 +244,13 @@ const (
 	WorkspaceDatasetsInverseTable = "workspace_datasets"
 	// WorkspaceDatasetsColumn is the table column denoting the workspace_datasets relation/edge.
 	WorkspaceDatasetsColumn = "tenant_id"
+	// DatasetBindingsTable is the table that holds the dataset_bindings relation/edge.
+	DatasetBindingsTable = "dataset_bindings"
+	// DatasetBindingsInverseTable is the table name for the DatasetBinding entity.
+	// It exists in this package in order to avoid circular dependency with the "datasetbinding" package.
+	DatasetBindingsInverseTable = "dataset_bindings"
+	// DatasetBindingsColumn is the table column denoting the dataset_bindings relation/edge.
+	DatasetBindingsColumn = "tenant_id"
 	// StudiesTable is the table that holds the studies relation/edge.
 	StudiesTable = "studies"
 	// StudiesInverseTable is the table name for the Study entity.
@@ -553,6 +589,48 @@ func ByNodeAssignments(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// ByCloudSSHNodesCount orders the results by cloud_ssh_nodes count.
+func ByCloudSSHNodesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newCloudSSHNodesStep(), opts...)
+	}
+}
+
+// ByCloudSSHNodes orders the results by cloud_ssh_nodes terms.
+func ByCloudSSHNodes(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newCloudSSHNodesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByCloudSSHProjectAccessCount orders the results by cloud_ssh_project_access count.
+func ByCloudSSHProjectAccessCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newCloudSSHProjectAccessStep(), opts...)
+	}
+}
+
+// ByCloudSSHProjectAccess orders the results by cloud_ssh_project_access terms.
+func ByCloudSSHProjectAccess(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newCloudSSHProjectAccessStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByCloudSSHAssignmentsCount orders the results by cloud_ssh_assignments count.
+func ByCloudSSHAssignmentsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newCloudSSHAssignmentsStep(), opts...)
+	}
+}
+
+// ByCloudSSHAssignments orders the results by cloud_ssh_assignments terms.
+func ByCloudSSHAssignments(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newCloudSSHAssignmentsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByDiagnosticRunsCount orders the results by diagnostic_runs count.
 func ByDiagnosticRunsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -592,6 +670,20 @@ func ByWorkspaceDatasetsCount(opts ...sql.OrderTermOption) OrderOption {
 func ByWorkspaceDatasets(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	return func(s *sql.Selector) {
 		sqlgraph.OrderByNeighborTerms(s, newWorkspaceDatasetsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByDatasetBindingsCount orders the results by dataset_bindings count.
+func ByDatasetBindingsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newDatasetBindingsStep(), opts...)
+	}
+}
+
+// ByDatasetBindings orders the results by dataset_bindings terms.
+func ByDatasetBindings(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newDatasetBindingsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
 
@@ -769,6 +861,27 @@ func newNodeAssignmentsStep() *sqlgraph.Step {
 		sqlgraph.Edge(sqlgraph.O2M, false, NodeAssignmentsTable, NodeAssignmentsColumn),
 	)
 }
+func newCloudSSHNodesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(CloudSSHNodesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, CloudSSHNodesTable, CloudSSHNodesColumn),
+	)
+}
+func newCloudSSHProjectAccessStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(CloudSSHProjectAccessInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, CloudSSHProjectAccessTable, CloudSSHProjectAccessColumn),
+	)
+}
+func newCloudSSHAssignmentsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(CloudSSHAssignmentsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, CloudSSHAssignmentsTable, CloudSSHAssignmentsColumn),
+	)
+}
 func newDiagnosticRunsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -788,6 +901,13 @@ func newWorkspaceDatasetsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(WorkspaceDatasetsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, WorkspaceDatasetsTable, WorkspaceDatasetsColumn),
+	)
+}
+func newDatasetBindingsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(DatasetBindingsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, DatasetBindingsTable, DatasetBindingsColumn),
 	)
 }
 func newStudiesStep() *sqlgraph.Step {

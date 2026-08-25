@@ -20,6 +20,10 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/auditevent"
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
+	"github.com/XR-Lee/Gemcp/ent/cloudsshassignment"
+	"github.com/XR-Lee/Gemcp/ent/cloudsshnode"
+	"github.com/XR-Lee/Gemcp/ent/cloudsshprojectaccess"
+	"github.com/XR-Lee/Gemcp/ent/datasetbinding"
 	"github.com/XR-Lee/Gemcp/ent/diagnosticrun"
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
@@ -65,6 +69,14 @@ type Client struct {
 	AuditEvent *AuditEventClient
 	// BudgetEntry is the client for interacting with the BudgetEntry builders.
 	BudgetEntry *BudgetEntryClient
+	// CloudSSHAssignment is the client for interacting with the CloudSSHAssignment builders.
+	CloudSSHAssignment *CloudSSHAssignmentClient
+	// CloudSSHNode is the client for interacting with the CloudSSHNode builders.
+	CloudSSHNode *CloudSSHNodeClient
+	// CloudSSHProjectAccess is the client for interacting with the CloudSSHProjectAccess builders.
+	CloudSSHProjectAccess *CloudSSHProjectAccessClient
+	// DatasetBinding is the client for interacting with the DatasetBinding builders.
+	DatasetBinding *DatasetBindingClient
 	// DiagnosticRun is the client for interacting with the DiagnosticRun builders.
 	DiagnosticRun *DiagnosticRunClient
 	// Environment is the client for interacting with the Environment builders.
@@ -137,6 +149,10 @@ func (c *Client) init() {
 	c.Attempt = NewAttemptClient(c.config)
 	c.AuditEvent = NewAuditEventClient(c.config)
 	c.BudgetEntry = NewBudgetEntryClient(c.config)
+	c.CloudSSHAssignment = NewCloudSSHAssignmentClient(c.config)
+	c.CloudSSHNode = NewCloudSSHNodeClient(c.config)
+	c.CloudSSHProjectAccess = NewCloudSSHProjectAccessClient(c.config)
+	c.DatasetBinding = NewDatasetBindingClient(c.config)
 	c.DiagnosticRun = NewDiagnosticRunClient(c.config)
 	c.Environment = NewEnvironmentClient(c.config)
 	c.Experiment = NewExperimentClient(c.config)
@@ -255,41 +271,45 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:                 ctx,
-		config:              cfg,
-		AgentEnrollment:     NewAgentEnrollmentClient(cfg),
-		AgentToken:          NewAgentTokenClient(cfg),
-		Attempt:             NewAttemptClient(cfg),
-		AuditEvent:          NewAuditEventClient(cfg),
-		BudgetEntry:         NewBudgetEntryClient(cfg),
-		DiagnosticRun:       NewDiagnosticRunClient(cfg),
-		Environment:         NewEnvironmentClient(cfg),
-		Experiment:          NewExperimentClient(cfg),
-		ExperimentProposal:  NewExperimentProposalClient(cfg),
-		IdempotencyRecord:   NewIdempotencyRecordClient(cfg),
-		IterationPlan:       NewIterationPlanClient(cfg),
-		NodeAssignment:      NewNodeAssignmentClient(cfg),
-		NodeCommand:         NewNodeCommandClient(cfg),
-		NodeEnrollment:      NewNodeEnrollmentClient(cfg),
-		NodeEvent:           NewNodeEventClient(cfg),
-		NodeProjectAccess:   NewNodeProjectAccessClient(cfg),
-		Notification:        NewNotificationClient(cfg),
-		NotificationSetting: NewNotificationSettingClient(cfg),
-		Project:             NewProjectClient(cfg),
-		ProviderAccount:     NewProviderAccountClient(cfg),
-		ProviderResource:    NewProviderResourceClient(cfg),
-		RecordMixin:         NewRecordMixinClient(cfg),
-		Repository:          NewRepositoryClient(cfg),
-		ResearchEdge:        NewResearchEdgeClient(cfg),
-		ResearchNode:        NewResearchNodeClient(cfg),
-		ResourceProfile:     NewResourceProfileClient(cfg),
-		SelfHostedNode:      NewSelfHostedNodeClient(cfg),
-		ServiceHeartbeat:    NewServiceHeartbeatClient(cfg),
-		Session:             NewSessionClient(cfg),
-		Study:               NewStudyClient(cfg),
-		Tenant:              NewTenantClient(cfg),
-		User:                NewUserClient(cfg),
-		WorkspaceDataset:    NewWorkspaceDatasetClient(cfg),
+		ctx:                   ctx,
+		config:                cfg,
+		AgentEnrollment:       NewAgentEnrollmentClient(cfg),
+		AgentToken:            NewAgentTokenClient(cfg),
+		Attempt:               NewAttemptClient(cfg),
+		AuditEvent:            NewAuditEventClient(cfg),
+		BudgetEntry:           NewBudgetEntryClient(cfg),
+		CloudSSHAssignment:    NewCloudSSHAssignmentClient(cfg),
+		CloudSSHNode:          NewCloudSSHNodeClient(cfg),
+		CloudSSHProjectAccess: NewCloudSSHProjectAccessClient(cfg),
+		DatasetBinding:        NewDatasetBindingClient(cfg),
+		DiagnosticRun:         NewDiagnosticRunClient(cfg),
+		Environment:           NewEnvironmentClient(cfg),
+		Experiment:            NewExperimentClient(cfg),
+		ExperimentProposal:    NewExperimentProposalClient(cfg),
+		IdempotencyRecord:     NewIdempotencyRecordClient(cfg),
+		IterationPlan:         NewIterationPlanClient(cfg),
+		NodeAssignment:        NewNodeAssignmentClient(cfg),
+		NodeCommand:           NewNodeCommandClient(cfg),
+		NodeEnrollment:        NewNodeEnrollmentClient(cfg),
+		NodeEvent:             NewNodeEventClient(cfg),
+		NodeProjectAccess:     NewNodeProjectAccessClient(cfg),
+		Notification:          NewNotificationClient(cfg),
+		NotificationSetting:   NewNotificationSettingClient(cfg),
+		Project:               NewProjectClient(cfg),
+		ProviderAccount:       NewProviderAccountClient(cfg),
+		ProviderResource:      NewProviderResourceClient(cfg),
+		RecordMixin:           NewRecordMixinClient(cfg),
+		Repository:            NewRepositoryClient(cfg),
+		ResearchEdge:          NewResearchEdgeClient(cfg),
+		ResearchNode:          NewResearchNodeClient(cfg),
+		ResourceProfile:       NewResourceProfileClient(cfg),
+		SelfHostedNode:        NewSelfHostedNodeClient(cfg),
+		ServiceHeartbeat:      NewServiceHeartbeatClient(cfg),
+		Session:               NewSessionClient(cfg),
+		Study:                 NewStudyClient(cfg),
+		Tenant:                NewTenantClient(cfg),
+		User:                  NewUserClient(cfg),
+		WorkspaceDataset:      NewWorkspaceDatasetClient(cfg),
 	}, nil
 }
 
@@ -307,41 +327,45 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:                 ctx,
-		config:              cfg,
-		AgentEnrollment:     NewAgentEnrollmentClient(cfg),
-		AgentToken:          NewAgentTokenClient(cfg),
-		Attempt:             NewAttemptClient(cfg),
-		AuditEvent:          NewAuditEventClient(cfg),
-		BudgetEntry:         NewBudgetEntryClient(cfg),
-		DiagnosticRun:       NewDiagnosticRunClient(cfg),
-		Environment:         NewEnvironmentClient(cfg),
-		Experiment:          NewExperimentClient(cfg),
-		ExperimentProposal:  NewExperimentProposalClient(cfg),
-		IdempotencyRecord:   NewIdempotencyRecordClient(cfg),
-		IterationPlan:       NewIterationPlanClient(cfg),
-		NodeAssignment:      NewNodeAssignmentClient(cfg),
-		NodeCommand:         NewNodeCommandClient(cfg),
-		NodeEnrollment:      NewNodeEnrollmentClient(cfg),
-		NodeEvent:           NewNodeEventClient(cfg),
-		NodeProjectAccess:   NewNodeProjectAccessClient(cfg),
-		Notification:        NewNotificationClient(cfg),
-		NotificationSetting: NewNotificationSettingClient(cfg),
-		Project:             NewProjectClient(cfg),
-		ProviderAccount:     NewProviderAccountClient(cfg),
-		ProviderResource:    NewProviderResourceClient(cfg),
-		RecordMixin:         NewRecordMixinClient(cfg),
-		Repository:          NewRepositoryClient(cfg),
-		ResearchEdge:        NewResearchEdgeClient(cfg),
-		ResearchNode:        NewResearchNodeClient(cfg),
-		ResourceProfile:     NewResourceProfileClient(cfg),
-		SelfHostedNode:      NewSelfHostedNodeClient(cfg),
-		ServiceHeartbeat:    NewServiceHeartbeatClient(cfg),
-		Session:             NewSessionClient(cfg),
-		Study:               NewStudyClient(cfg),
-		Tenant:              NewTenantClient(cfg),
-		User:                NewUserClient(cfg),
-		WorkspaceDataset:    NewWorkspaceDatasetClient(cfg),
+		ctx:                   ctx,
+		config:                cfg,
+		AgentEnrollment:       NewAgentEnrollmentClient(cfg),
+		AgentToken:            NewAgentTokenClient(cfg),
+		Attempt:               NewAttemptClient(cfg),
+		AuditEvent:            NewAuditEventClient(cfg),
+		BudgetEntry:           NewBudgetEntryClient(cfg),
+		CloudSSHAssignment:    NewCloudSSHAssignmentClient(cfg),
+		CloudSSHNode:          NewCloudSSHNodeClient(cfg),
+		CloudSSHProjectAccess: NewCloudSSHProjectAccessClient(cfg),
+		DatasetBinding:        NewDatasetBindingClient(cfg),
+		DiagnosticRun:         NewDiagnosticRunClient(cfg),
+		Environment:           NewEnvironmentClient(cfg),
+		Experiment:            NewExperimentClient(cfg),
+		ExperimentProposal:    NewExperimentProposalClient(cfg),
+		IdempotencyRecord:     NewIdempotencyRecordClient(cfg),
+		IterationPlan:         NewIterationPlanClient(cfg),
+		NodeAssignment:        NewNodeAssignmentClient(cfg),
+		NodeCommand:           NewNodeCommandClient(cfg),
+		NodeEnrollment:        NewNodeEnrollmentClient(cfg),
+		NodeEvent:             NewNodeEventClient(cfg),
+		NodeProjectAccess:     NewNodeProjectAccessClient(cfg),
+		Notification:          NewNotificationClient(cfg),
+		NotificationSetting:   NewNotificationSettingClient(cfg),
+		Project:               NewProjectClient(cfg),
+		ProviderAccount:       NewProviderAccountClient(cfg),
+		ProviderResource:      NewProviderResourceClient(cfg),
+		RecordMixin:           NewRecordMixinClient(cfg),
+		Repository:            NewRepositoryClient(cfg),
+		ResearchEdge:          NewResearchEdgeClient(cfg),
+		ResearchNode:          NewResearchNodeClient(cfg),
+		ResourceProfile:       NewResourceProfileClient(cfg),
+		SelfHostedNode:        NewSelfHostedNodeClient(cfg),
+		ServiceHeartbeat:      NewServiceHeartbeatClient(cfg),
+		Session:               NewSessionClient(cfg),
+		Study:                 NewStudyClient(cfg),
+		Tenant:                NewTenantClient(cfg),
+		User:                  NewUserClient(cfg),
+		WorkspaceDataset:      NewWorkspaceDatasetClient(cfg),
 	}, nil
 }
 
@@ -372,13 +396,14 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.AgentEnrollment, c.AgentToken, c.Attempt, c.AuditEvent, c.BudgetEntry,
-		c.DiagnosticRun, c.Environment, c.Experiment, c.ExperimentProposal,
-		c.IdempotencyRecord, c.IterationPlan, c.NodeAssignment, c.NodeCommand,
-		c.NodeEnrollment, c.NodeEvent, c.NodeProjectAccess, c.Notification,
-		c.NotificationSetting, c.Project, c.ProviderAccount, c.ProviderResource,
-		c.RecordMixin, c.Repository, c.ResearchEdge, c.ResearchNode, c.ResourceProfile,
-		c.SelfHostedNode, c.ServiceHeartbeat, c.Session, c.Study, c.Tenant, c.User,
-		c.WorkspaceDataset,
+		c.CloudSSHAssignment, c.CloudSSHNode, c.CloudSSHProjectAccess,
+		c.DatasetBinding, c.DiagnosticRun, c.Environment, c.Experiment,
+		c.ExperimentProposal, c.IdempotencyRecord, c.IterationPlan, c.NodeAssignment,
+		c.NodeCommand, c.NodeEnrollment, c.NodeEvent, c.NodeProjectAccess,
+		c.Notification, c.NotificationSetting, c.Project, c.ProviderAccount,
+		c.ProviderResource, c.RecordMixin, c.Repository, c.ResearchEdge,
+		c.ResearchNode, c.ResourceProfile, c.SelfHostedNode, c.ServiceHeartbeat,
+		c.Session, c.Study, c.Tenant, c.User, c.WorkspaceDataset,
 	} {
 		n.Use(hooks...)
 	}
@@ -389,13 +414,14 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.AgentEnrollment, c.AgentToken, c.Attempt, c.AuditEvent, c.BudgetEntry,
-		c.DiagnosticRun, c.Environment, c.Experiment, c.ExperimentProposal,
-		c.IdempotencyRecord, c.IterationPlan, c.NodeAssignment, c.NodeCommand,
-		c.NodeEnrollment, c.NodeEvent, c.NodeProjectAccess, c.Notification,
-		c.NotificationSetting, c.Project, c.ProviderAccount, c.ProviderResource,
-		c.RecordMixin, c.Repository, c.ResearchEdge, c.ResearchNode, c.ResourceProfile,
-		c.SelfHostedNode, c.ServiceHeartbeat, c.Session, c.Study, c.Tenant, c.User,
-		c.WorkspaceDataset,
+		c.CloudSSHAssignment, c.CloudSSHNode, c.CloudSSHProjectAccess,
+		c.DatasetBinding, c.DiagnosticRun, c.Environment, c.Experiment,
+		c.ExperimentProposal, c.IdempotencyRecord, c.IterationPlan, c.NodeAssignment,
+		c.NodeCommand, c.NodeEnrollment, c.NodeEvent, c.NodeProjectAccess,
+		c.Notification, c.NotificationSetting, c.Project, c.ProviderAccount,
+		c.ProviderResource, c.RecordMixin, c.Repository, c.ResearchEdge,
+		c.ResearchNode, c.ResourceProfile, c.SelfHostedNode, c.ServiceHeartbeat,
+		c.Session, c.Study, c.Tenant, c.User, c.WorkspaceDataset,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -414,6 +440,14 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.AuditEvent.mutate(ctx, m)
 	case *BudgetEntryMutation:
 		return c.BudgetEntry.mutate(ctx, m)
+	case *CloudSSHAssignmentMutation:
+		return c.CloudSSHAssignment.mutate(ctx, m)
+	case *CloudSSHNodeMutation:
+		return c.CloudSSHNode.mutate(ctx, m)
+	case *CloudSSHProjectAccessMutation:
+		return c.CloudSSHProjectAccess.mutate(ctx, m)
+	case *DatasetBindingMutation:
+		return c.DatasetBinding.mutate(ctx, m)
 	case *DiagnosticRunMutation:
 		return c.DiagnosticRun.mutate(ctx, m)
 	case *EnvironmentMutation:
@@ -828,6 +862,22 @@ func (c *AgentTokenClient) QueryWorkspaceDatasets(_m *AgentToken) *WorkspaceData
 	return query
 }
 
+// QueryDatasetBindings queries the dataset_bindings edge of a AgentToken.
+func (c *AgentTokenClient) QueryDatasetBindings(_m *AgentToken) *DatasetBindingQuery {
+	query := (&DatasetBindingClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(agenttoken.Table, agenttoken.FieldID, id),
+			sqlgraph.To(datasetbinding.Table, datasetbinding.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, agenttoken.DatasetBindingsTable, agenttoken.DatasetBindingsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryStudies queries the studies edge of a AgentToken.
 func (c *AgentTokenClient) QueryStudies(_m *AgentToken) *StudyQuery {
 	query := (&StudyClient{config: c.config}).Query()
@@ -1082,6 +1132,22 @@ func (c *AttemptClient) QueryNodeAssignment(_m *Attempt) *NodeAssignmentQuery {
 			sqlgraph.From(attempt.Table, attempt.FieldID, id),
 			sqlgraph.To(nodeassignment.Table, nodeassignment.FieldID),
 			sqlgraph.Edge(sqlgraph.O2O, false, attempt.NodeAssignmentTable, attempt.NodeAssignmentColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryCloudSSHAssignment queries the cloud_ssh_assignment edge of a Attempt.
+func (c *AttemptClient) QueryCloudSSHAssignment(_m *Attempt) *CloudSSHAssignmentQuery {
+	query := (&CloudSSHAssignmentClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(attempt.Table, attempt.FieldID, id),
+			sqlgraph.To(cloudsshassignment.Table, cloudsshassignment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, attempt.CloudSSHAssignmentTable, attempt.CloudSSHAssignmentColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -1441,6 +1507,762 @@ func (c *BudgetEntryClient) mutate(ctx context.Context, m *BudgetEntryMutation) 
 		return (&BudgetEntryDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown BudgetEntry mutation op: %q", m.Op())
+	}
+}
+
+// CloudSSHAssignmentClient is a client for the CloudSSHAssignment schema.
+type CloudSSHAssignmentClient struct {
+	config
+}
+
+// NewCloudSSHAssignmentClient returns a client for the CloudSSHAssignment from the given config.
+func NewCloudSSHAssignmentClient(c config) *CloudSSHAssignmentClient {
+	return &CloudSSHAssignmentClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `cloudsshassignment.Hooks(f(g(h())))`.
+func (c *CloudSSHAssignmentClient) Use(hooks ...Hook) {
+	c.hooks.CloudSSHAssignment = append(c.hooks.CloudSSHAssignment, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `cloudsshassignment.Intercept(f(g(h())))`.
+func (c *CloudSSHAssignmentClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CloudSSHAssignment = append(c.inters.CloudSSHAssignment, interceptors...)
+}
+
+// Create returns a builder for creating a CloudSSHAssignment entity.
+func (c *CloudSSHAssignmentClient) Create() *CloudSSHAssignmentCreate {
+	mutation := newCloudSSHAssignmentMutation(c.config, OpCreate)
+	return &CloudSSHAssignmentCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CloudSSHAssignment entities.
+func (c *CloudSSHAssignmentClient) CreateBulk(builders ...*CloudSSHAssignmentCreate) *CloudSSHAssignmentCreateBulk {
+	return &CloudSSHAssignmentCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CloudSSHAssignmentClient) MapCreateBulk(slice any, setFunc func(*CloudSSHAssignmentCreate, int)) *CloudSSHAssignmentCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CloudSSHAssignmentCreateBulk{err: fmt.Errorf("calling to CloudSSHAssignmentClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CloudSSHAssignmentCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CloudSSHAssignmentCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CloudSSHAssignment.
+func (c *CloudSSHAssignmentClient) Update() *CloudSSHAssignmentUpdate {
+	mutation := newCloudSSHAssignmentMutation(c.config, OpUpdate)
+	return &CloudSSHAssignmentUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CloudSSHAssignmentClient) UpdateOne(_m *CloudSSHAssignment) *CloudSSHAssignmentUpdateOne {
+	mutation := newCloudSSHAssignmentMutation(c.config, OpUpdateOne, withCloudSSHAssignment(_m))
+	return &CloudSSHAssignmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CloudSSHAssignmentClient) UpdateOneID(id int) *CloudSSHAssignmentUpdateOne {
+	mutation := newCloudSSHAssignmentMutation(c.config, OpUpdateOne, withCloudSSHAssignmentID(id))
+	return &CloudSSHAssignmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CloudSSHAssignment.
+func (c *CloudSSHAssignmentClient) Delete() *CloudSSHAssignmentDelete {
+	mutation := newCloudSSHAssignmentMutation(c.config, OpDelete)
+	return &CloudSSHAssignmentDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CloudSSHAssignmentClient) DeleteOne(_m *CloudSSHAssignment) *CloudSSHAssignmentDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CloudSSHAssignmentClient) DeleteOneID(id int) *CloudSSHAssignmentDeleteOne {
+	builder := c.Delete().Where(cloudsshassignment.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CloudSSHAssignmentDeleteOne{builder}
+}
+
+// Query returns a query builder for CloudSSHAssignment.
+func (c *CloudSSHAssignmentClient) Query() *CloudSSHAssignmentQuery {
+	return &CloudSSHAssignmentQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCloudSSHAssignment},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CloudSSHAssignment entity by its id.
+func (c *CloudSSHAssignmentClient) Get(ctx context.Context, id int) (*CloudSSHAssignment, error) {
+	return c.Query().Where(cloudsshassignment.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CloudSSHAssignmentClient) GetX(ctx context.Context, id int) *CloudSSHAssignment {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTenant queries the tenant edge of a CloudSSHAssignment.
+func (c *CloudSSHAssignmentClient) QueryTenant(_m *CloudSSHAssignment) *TenantQuery {
+	query := (&TenantClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(cloudsshassignment.Table, cloudsshassignment.FieldID, id),
+			sqlgraph.To(tenant.Table, tenant.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, cloudsshassignment.TenantTable, cloudsshassignment.TenantColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryProject queries the project edge of a CloudSSHAssignment.
+func (c *CloudSSHAssignmentClient) QueryProject(_m *CloudSSHAssignment) *ProjectQuery {
+	query := (&ProjectClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(cloudsshassignment.Table, cloudsshassignment.FieldID, id),
+			sqlgraph.To(project.Table, project.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, cloudsshassignment.ProjectTable, cloudsshassignment.ProjectColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryExperiment queries the experiment edge of a CloudSSHAssignment.
+func (c *CloudSSHAssignmentClient) QueryExperiment(_m *CloudSSHAssignment) *ExperimentQuery {
+	query := (&ExperimentClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(cloudsshassignment.Table, cloudsshassignment.FieldID, id),
+			sqlgraph.To(experiment.Table, experiment.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, cloudsshassignment.ExperimentTable, cloudsshassignment.ExperimentColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryAttempt queries the attempt edge of a CloudSSHAssignment.
+func (c *CloudSSHAssignmentClient) QueryAttempt(_m *CloudSSHAssignment) *AttemptQuery {
+	query := (&AttemptClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(cloudsshassignment.Table, cloudsshassignment.FieldID, id),
+			sqlgraph.To(attempt.Table, attempt.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, true, cloudsshassignment.AttemptTable, cloudsshassignment.AttemptColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryNode queries the node edge of a CloudSSHAssignment.
+func (c *CloudSSHAssignmentClient) QueryNode(_m *CloudSSHAssignment) *CloudSSHNodeQuery {
+	query := (&CloudSSHNodeClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(cloudsshassignment.Table, cloudsshassignment.FieldID, id),
+			sqlgraph.To(cloudsshnode.Table, cloudsshnode.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, cloudsshassignment.NodeTable, cloudsshassignment.NodeColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *CloudSSHAssignmentClient) Hooks() []Hook {
+	return c.hooks.CloudSSHAssignment
+}
+
+// Interceptors returns the client interceptors.
+func (c *CloudSSHAssignmentClient) Interceptors() []Interceptor {
+	return c.inters.CloudSSHAssignment
+}
+
+func (c *CloudSSHAssignmentClient) mutate(ctx context.Context, m *CloudSSHAssignmentMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CloudSSHAssignmentCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CloudSSHAssignmentUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CloudSSHAssignmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CloudSSHAssignmentDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown CloudSSHAssignment mutation op: %q", m.Op())
+	}
+}
+
+// CloudSSHNodeClient is a client for the CloudSSHNode schema.
+type CloudSSHNodeClient struct {
+	config
+}
+
+// NewCloudSSHNodeClient returns a client for the CloudSSHNode from the given config.
+func NewCloudSSHNodeClient(c config) *CloudSSHNodeClient {
+	return &CloudSSHNodeClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `cloudsshnode.Hooks(f(g(h())))`.
+func (c *CloudSSHNodeClient) Use(hooks ...Hook) {
+	c.hooks.CloudSSHNode = append(c.hooks.CloudSSHNode, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `cloudsshnode.Intercept(f(g(h())))`.
+func (c *CloudSSHNodeClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CloudSSHNode = append(c.inters.CloudSSHNode, interceptors...)
+}
+
+// Create returns a builder for creating a CloudSSHNode entity.
+func (c *CloudSSHNodeClient) Create() *CloudSSHNodeCreate {
+	mutation := newCloudSSHNodeMutation(c.config, OpCreate)
+	return &CloudSSHNodeCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CloudSSHNode entities.
+func (c *CloudSSHNodeClient) CreateBulk(builders ...*CloudSSHNodeCreate) *CloudSSHNodeCreateBulk {
+	return &CloudSSHNodeCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CloudSSHNodeClient) MapCreateBulk(slice any, setFunc func(*CloudSSHNodeCreate, int)) *CloudSSHNodeCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CloudSSHNodeCreateBulk{err: fmt.Errorf("calling to CloudSSHNodeClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CloudSSHNodeCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CloudSSHNodeCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CloudSSHNode.
+func (c *CloudSSHNodeClient) Update() *CloudSSHNodeUpdate {
+	mutation := newCloudSSHNodeMutation(c.config, OpUpdate)
+	return &CloudSSHNodeUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CloudSSHNodeClient) UpdateOne(_m *CloudSSHNode) *CloudSSHNodeUpdateOne {
+	mutation := newCloudSSHNodeMutation(c.config, OpUpdateOne, withCloudSSHNode(_m))
+	return &CloudSSHNodeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CloudSSHNodeClient) UpdateOneID(id int) *CloudSSHNodeUpdateOne {
+	mutation := newCloudSSHNodeMutation(c.config, OpUpdateOne, withCloudSSHNodeID(id))
+	return &CloudSSHNodeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CloudSSHNode.
+func (c *CloudSSHNodeClient) Delete() *CloudSSHNodeDelete {
+	mutation := newCloudSSHNodeMutation(c.config, OpDelete)
+	return &CloudSSHNodeDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CloudSSHNodeClient) DeleteOne(_m *CloudSSHNode) *CloudSSHNodeDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CloudSSHNodeClient) DeleteOneID(id int) *CloudSSHNodeDeleteOne {
+	builder := c.Delete().Where(cloudsshnode.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CloudSSHNodeDeleteOne{builder}
+}
+
+// Query returns a query builder for CloudSSHNode.
+func (c *CloudSSHNodeClient) Query() *CloudSSHNodeQuery {
+	return &CloudSSHNodeQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCloudSSHNode},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CloudSSHNode entity by its id.
+func (c *CloudSSHNodeClient) Get(ctx context.Context, id int) (*CloudSSHNode, error) {
+	return c.Query().Where(cloudsshnode.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CloudSSHNodeClient) GetX(ctx context.Context, id int) *CloudSSHNode {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTenant queries the tenant edge of a CloudSSHNode.
+func (c *CloudSSHNodeClient) QueryTenant(_m *CloudSSHNode) *TenantQuery {
+	query := (&TenantClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(cloudsshnode.Table, cloudsshnode.FieldID, id),
+			sqlgraph.To(tenant.Table, tenant.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, cloudsshnode.TenantTable, cloudsshnode.TenantColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryProjectAccess queries the project_access edge of a CloudSSHNode.
+func (c *CloudSSHNodeClient) QueryProjectAccess(_m *CloudSSHNode) *CloudSSHProjectAccessQuery {
+	query := (&CloudSSHProjectAccessClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(cloudsshnode.Table, cloudsshnode.FieldID, id),
+			sqlgraph.To(cloudsshprojectaccess.Table, cloudsshprojectaccess.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, cloudsshnode.ProjectAccessTable, cloudsshnode.ProjectAccessColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryAssignments queries the assignments edge of a CloudSSHNode.
+func (c *CloudSSHNodeClient) QueryAssignments(_m *CloudSSHNode) *CloudSSHAssignmentQuery {
+	query := (&CloudSSHAssignmentClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(cloudsshnode.Table, cloudsshnode.FieldID, id),
+			sqlgraph.To(cloudsshassignment.Table, cloudsshassignment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, cloudsshnode.AssignmentsTable, cloudsshnode.AssignmentsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *CloudSSHNodeClient) Hooks() []Hook {
+	return c.hooks.CloudSSHNode
+}
+
+// Interceptors returns the client interceptors.
+func (c *CloudSSHNodeClient) Interceptors() []Interceptor {
+	return c.inters.CloudSSHNode
+}
+
+func (c *CloudSSHNodeClient) mutate(ctx context.Context, m *CloudSSHNodeMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CloudSSHNodeCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CloudSSHNodeUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CloudSSHNodeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CloudSSHNodeDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown CloudSSHNode mutation op: %q", m.Op())
+	}
+}
+
+// CloudSSHProjectAccessClient is a client for the CloudSSHProjectAccess schema.
+type CloudSSHProjectAccessClient struct {
+	config
+}
+
+// NewCloudSSHProjectAccessClient returns a client for the CloudSSHProjectAccess from the given config.
+func NewCloudSSHProjectAccessClient(c config) *CloudSSHProjectAccessClient {
+	return &CloudSSHProjectAccessClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `cloudsshprojectaccess.Hooks(f(g(h())))`.
+func (c *CloudSSHProjectAccessClient) Use(hooks ...Hook) {
+	c.hooks.CloudSSHProjectAccess = append(c.hooks.CloudSSHProjectAccess, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `cloudsshprojectaccess.Intercept(f(g(h())))`.
+func (c *CloudSSHProjectAccessClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CloudSSHProjectAccess = append(c.inters.CloudSSHProjectAccess, interceptors...)
+}
+
+// Create returns a builder for creating a CloudSSHProjectAccess entity.
+func (c *CloudSSHProjectAccessClient) Create() *CloudSSHProjectAccessCreate {
+	mutation := newCloudSSHProjectAccessMutation(c.config, OpCreate)
+	return &CloudSSHProjectAccessCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CloudSSHProjectAccess entities.
+func (c *CloudSSHProjectAccessClient) CreateBulk(builders ...*CloudSSHProjectAccessCreate) *CloudSSHProjectAccessCreateBulk {
+	return &CloudSSHProjectAccessCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CloudSSHProjectAccessClient) MapCreateBulk(slice any, setFunc func(*CloudSSHProjectAccessCreate, int)) *CloudSSHProjectAccessCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CloudSSHProjectAccessCreateBulk{err: fmt.Errorf("calling to CloudSSHProjectAccessClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CloudSSHProjectAccessCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CloudSSHProjectAccessCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CloudSSHProjectAccess.
+func (c *CloudSSHProjectAccessClient) Update() *CloudSSHProjectAccessUpdate {
+	mutation := newCloudSSHProjectAccessMutation(c.config, OpUpdate)
+	return &CloudSSHProjectAccessUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CloudSSHProjectAccessClient) UpdateOne(_m *CloudSSHProjectAccess) *CloudSSHProjectAccessUpdateOne {
+	mutation := newCloudSSHProjectAccessMutation(c.config, OpUpdateOne, withCloudSSHProjectAccess(_m))
+	return &CloudSSHProjectAccessUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CloudSSHProjectAccessClient) UpdateOneID(id int) *CloudSSHProjectAccessUpdateOne {
+	mutation := newCloudSSHProjectAccessMutation(c.config, OpUpdateOne, withCloudSSHProjectAccessID(id))
+	return &CloudSSHProjectAccessUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CloudSSHProjectAccess.
+func (c *CloudSSHProjectAccessClient) Delete() *CloudSSHProjectAccessDelete {
+	mutation := newCloudSSHProjectAccessMutation(c.config, OpDelete)
+	return &CloudSSHProjectAccessDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CloudSSHProjectAccessClient) DeleteOne(_m *CloudSSHProjectAccess) *CloudSSHProjectAccessDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CloudSSHProjectAccessClient) DeleteOneID(id int) *CloudSSHProjectAccessDeleteOne {
+	builder := c.Delete().Where(cloudsshprojectaccess.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CloudSSHProjectAccessDeleteOne{builder}
+}
+
+// Query returns a query builder for CloudSSHProjectAccess.
+func (c *CloudSSHProjectAccessClient) Query() *CloudSSHProjectAccessQuery {
+	return &CloudSSHProjectAccessQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCloudSSHProjectAccess},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CloudSSHProjectAccess entity by its id.
+func (c *CloudSSHProjectAccessClient) Get(ctx context.Context, id int) (*CloudSSHProjectAccess, error) {
+	return c.Query().Where(cloudsshprojectaccess.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CloudSSHProjectAccessClient) GetX(ctx context.Context, id int) *CloudSSHProjectAccess {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTenant queries the tenant edge of a CloudSSHProjectAccess.
+func (c *CloudSSHProjectAccessClient) QueryTenant(_m *CloudSSHProjectAccess) *TenantQuery {
+	query := (&TenantClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(cloudsshprojectaccess.Table, cloudsshprojectaccess.FieldID, id),
+			sqlgraph.To(tenant.Table, tenant.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, cloudsshprojectaccess.TenantTable, cloudsshprojectaccess.TenantColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryNode queries the node edge of a CloudSSHProjectAccess.
+func (c *CloudSSHProjectAccessClient) QueryNode(_m *CloudSSHProjectAccess) *CloudSSHNodeQuery {
+	query := (&CloudSSHNodeClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(cloudsshprojectaccess.Table, cloudsshprojectaccess.FieldID, id),
+			sqlgraph.To(cloudsshnode.Table, cloudsshnode.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, cloudsshprojectaccess.NodeTable, cloudsshprojectaccess.NodeColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryProject queries the project edge of a CloudSSHProjectAccess.
+func (c *CloudSSHProjectAccessClient) QueryProject(_m *CloudSSHProjectAccess) *ProjectQuery {
+	query := (&ProjectClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(cloudsshprojectaccess.Table, cloudsshprojectaccess.FieldID, id),
+			sqlgraph.To(project.Table, project.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, cloudsshprojectaccess.ProjectTable, cloudsshprojectaccess.ProjectColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *CloudSSHProjectAccessClient) Hooks() []Hook {
+	return c.hooks.CloudSSHProjectAccess
+}
+
+// Interceptors returns the client interceptors.
+func (c *CloudSSHProjectAccessClient) Interceptors() []Interceptor {
+	return c.inters.CloudSSHProjectAccess
+}
+
+func (c *CloudSSHProjectAccessClient) mutate(ctx context.Context, m *CloudSSHProjectAccessMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CloudSSHProjectAccessCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CloudSSHProjectAccessUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CloudSSHProjectAccessUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CloudSSHProjectAccessDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown CloudSSHProjectAccess mutation op: %q", m.Op())
+	}
+}
+
+// DatasetBindingClient is a client for the DatasetBinding schema.
+type DatasetBindingClient struct {
+	config
+}
+
+// NewDatasetBindingClient returns a client for the DatasetBinding from the given config.
+func NewDatasetBindingClient(c config) *DatasetBindingClient {
+	return &DatasetBindingClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `datasetbinding.Hooks(f(g(h())))`.
+func (c *DatasetBindingClient) Use(hooks ...Hook) {
+	c.hooks.DatasetBinding = append(c.hooks.DatasetBinding, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `datasetbinding.Intercept(f(g(h())))`.
+func (c *DatasetBindingClient) Intercept(interceptors ...Interceptor) {
+	c.inters.DatasetBinding = append(c.inters.DatasetBinding, interceptors...)
+}
+
+// Create returns a builder for creating a DatasetBinding entity.
+func (c *DatasetBindingClient) Create() *DatasetBindingCreate {
+	mutation := newDatasetBindingMutation(c.config, OpCreate)
+	return &DatasetBindingCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of DatasetBinding entities.
+func (c *DatasetBindingClient) CreateBulk(builders ...*DatasetBindingCreate) *DatasetBindingCreateBulk {
+	return &DatasetBindingCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *DatasetBindingClient) MapCreateBulk(slice any, setFunc func(*DatasetBindingCreate, int)) *DatasetBindingCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &DatasetBindingCreateBulk{err: fmt.Errorf("calling to DatasetBindingClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*DatasetBindingCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &DatasetBindingCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for DatasetBinding.
+func (c *DatasetBindingClient) Update() *DatasetBindingUpdate {
+	mutation := newDatasetBindingMutation(c.config, OpUpdate)
+	return &DatasetBindingUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *DatasetBindingClient) UpdateOne(_m *DatasetBinding) *DatasetBindingUpdateOne {
+	mutation := newDatasetBindingMutation(c.config, OpUpdateOne, withDatasetBinding(_m))
+	return &DatasetBindingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *DatasetBindingClient) UpdateOneID(id int) *DatasetBindingUpdateOne {
+	mutation := newDatasetBindingMutation(c.config, OpUpdateOne, withDatasetBindingID(id))
+	return &DatasetBindingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for DatasetBinding.
+func (c *DatasetBindingClient) Delete() *DatasetBindingDelete {
+	mutation := newDatasetBindingMutation(c.config, OpDelete)
+	return &DatasetBindingDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *DatasetBindingClient) DeleteOne(_m *DatasetBinding) *DatasetBindingDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *DatasetBindingClient) DeleteOneID(id int) *DatasetBindingDeleteOne {
+	builder := c.Delete().Where(datasetbinding.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &DatasetBindingDeleteOne{builder}
+}
+
+// Query returns a query builder for DatasetBinding.
+func (c *DatasetBindingClient) Query() *DatasetBindingQuery {
+	return &DatasetBindingQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeDatasetBinding},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a DatasetBinding entity by its id.
+func (c *DatasetBindingClient) Get(ctx context.Context, id int) (*DatasetBinding, error) {
+	return c.Query().Where(datasetbinding.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *DatasetBindingClient) GetX(ctx context.Context, id int) *DatasetBinding {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTenant queries the tenant edge of a DatasetBinding.
+func (c *DatasetBindingClient) QueryTenant(_m *DatasetBinding) *TenantQuery {
+	query := (&TenantClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(datasetbinding.Table, datasetbinding.FieldID, id),
+			sqlgraph.To(tenant.Table, tenant.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, datasetbinding.TenantTable, datasetbinding.TenantColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryProject queries the project edge of a DatasetBinding.
+func (c *DatasetBindingClient) QueryProject(_m *DatasetBinding) *ProjectQuery {
+	query := (&ProjectClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(datasetbinding.Table, datasetbinding.FieldID, id),
+			sqlgraph.To(project.Table, project.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, datasetbinding.ProjectTable, datasetbinding.ProjectColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryAgentToken queries the agent_token edge of a DatasetBinding.
+func (c *DatasetBindingClient) QueryAgentToken(_m *DatasetBinding) *AgentTokenQuery {
+	query := (&AgentTokenClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(datasetbinding.Table, datasetbinding.FieldID, id),
+			sqlgraph.To(agenttoken.Table, agenttoken.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, datasetbinding.AgentTokenTable, datasetbinding.AgentTokenColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *DatasetBindingClient) Hooks() []Hook {
+	return c.hooks.DatasetBinding
+}
+
+// Interceptors returns the client interceptors.
+func (c *DatasetBindingClient) Interceptors() []Interceptor {
+	return c.inters.DatasetBinding
+}
+
+func (c *DatasetBindingClient) mutate(ctx context.Context, m *DatasetBindingMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&DatasetBindingCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&DatasetBindingUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&DatasetBindingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&DatasetBindingDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown DatasetBinding mutation op: %q", m.Op())
 	}
 }
 
@@ -2051,6 +2873,22 @@ func (c *ExperimentClient) QueryNodeAssignments(_m *Experiment) *NodeAssignmentQ
 			sqlgraph.From(experiment.Table, experiment.FieldID, id),
 			sqlgraph.To(nodeassignment.Table, nodeassignment.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, experiment.NodeAssignmentsTable, experiment.NodeAssignmentsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryCloudSSHAssignments queries the cloud_ssh_assignments edge of a Experiment.
+func (c *ExperimentClient) QueryCloudSSHAssignments(_m *Experiment) *CloudSSHAssignmentQuery {
+	query := (&CloudSSHAssignmentClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(experiment.Table, experiment.FieldID, id),
+			sqlgraph.To(cloudsshassignment.Table, cloudsshassignment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, experiment.CloudSSHAssignmentsTable, experiment.CloudSSHAssignmentsColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -4305,6 +5143,38 @@ func (c *ProjectClient) QueryNodeAssignments(_m *Project) *NodeAssignmentQuery {
 	return query
 }
 
+// QueryCloudSSHAccess queries the cloud_ssh_access edge of a Project.
+func (c *ProjectClient) QueryCloudSSHAccess(_m *Project) *CloudSSHProjectAccessQuery {
+	query := (&CloudSSHProjectAccessClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, id),
+			sqlgraph.To(cloudsshprojectaccess.Table, cloudsshprojectaccess.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.CloudSSHAccessTable, project.CloudSSHAccessColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryCloudSSHAssignments queries the cloud_ssh_assignments edge of a Project.
+func (c *ProjectClient) QueryCloudSSHAssignments(_m *Project) *CloudSSHAssignmentQuery {
+	query := (&CloudSSHAssignmentClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, id),
+			sqlgraph.To(cloudsshassignment.Table, cloudsshassignment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.CloudSSHAssignmentsTable, project.CloudSSHAssignmentsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryDiagnosticRuns queries the diagnostic_runs edge of a Project.
 func (c *ProjectClient) QueryDiagnosticRuns(_m *Project) *DiagnosticRunQuery {
 	query := (&DiagnosticRunClient{config: c.config}).Query()
@@ -4346,6 +5216,22 @@ func (c *ProjectClient) QueryWorkspaceDatasets(_m *Project) *WorkspaceDatasetQue
 			sqlgraph.From(project.Table, project.FieldID, id),
 			sqlgraph.To(workspacedataset.Table, workspacedataset.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, project.WorkspaceDatasetsTable, project.WorkspaceDatasetsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryDatasetBindings queries the dataset_bindings edge of a Project.
+func (c *ProjectClient) QueryDatasetBindings(_m *Project) *DatasetBindingQuery {
+	query := (&DatasetBindingClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, id),
+			sqlgraph.To(datasetbinding.Table, datasetbinding.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.DatasetBindingsTable, project.DatasetBindingsColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -6925,6 +7811,54 @@ func (c *TenantClient) QueryNodeAssignments(_m *Tenant) *NodeAssignmentQuery {
 	return query
 }
 
+// QueryCloudSSHNodes queries the cloud_ssh_nodes edge of a Tenant.
+func (c *TenantClient) QueryCloudSSHNodes(_m *Tenant) *CloudSSHNodeQuery {
+	query := (&CloudSSHNodeClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, id),
+			sqlgraph.To(cloudsshnode.Table, cloudsshnode.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.CloudSSHNodesTable, tenant.CloudSSHNodesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryCloudSSHProjectAccess queries the cloud_ssh_project_access edge of a Tenant.
+func (c *TenantClient) QueryCloudSSHProjectAccess(_m *Tenant) *CloudSSHProjectAccessQuery {
+	query := (&CloudSSHProjectAccessClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, id),
+			sqlgraph.To(cloudsshprojectaccess.Table, cloudsshprojectaccess.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.CloudSSHProjectAccessTable, tenant.CloudSSHProjectAccessColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryCloudSSHAssignments queries the cloud_ssh_assignments edge of a Tenant.
+func (c *TenantClient) QueryCloudSSHAssignments(_m *Tenant) *CloudSSHAssignmentQuery {
+	query := (&CloudSSHAssignmentClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, id),
+			sqlgraph.To(cloudsshassignment.Table, cloudsshassignment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.CloudSSHAssignmentsTable, tenant.CloudSSHAssignmentsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryDiagnosticRuns queries the diagnostic_runs edge of a Tenant.
 func (c *TenantClient) QueryDiagnosticRuns(_m *Tenant) *DiagnosticRunQuery {
 	query := (&DiagnosticRunClient{config: c.config}).Query()
@@ -6966,6 +7900,22 @@ func (c *TenantClient) QueryWorkspaceDatasets(_m *Tenant) *WorkspaceDatasetQuery
 			sqlgraph.From(tenant.Table, tenant.FieldID, id),
 			sqlgraph.To(workspacedataset.Table, workspacedataset.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, tenant.WorkspaceDatasetsTable, tenant.WorkspaceDatasetsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryDatasetBindings queries the dataset_bindings edge of a Tenant.
+func (c *TenantClient) QueryDatasetBindings(_m *Tenant) *DatasetBindingQuery {
+	query := (&DatasetBindingClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, id),
+			sqlgraph.To(datasetbinding.Table, datasetbinding.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.DatasetBindingsTable, tenant.DatasetBindingsColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -7427,21 +8377,23 @@ func (c *WorkspaceDatasetClient) mutate(ctx context.Context, m *WorkspaceDataset
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		AgentEnrollment, AgentToken, Attempt, AuditEvent, BudgetEntry, DiagnosticRun,
-		Environment, Experiment, ExperimentProposal, IdempotencyRecord, IterationPlan,
-		NodeAssignment, NodeCommand, NodeEnrollment, NodeEvent, NodeProjectAccess,
-		Notification, NotificationSetting, Project, ProviderAccount, ProviderResource,
-		RecordMixin, Repository, ResearchEdge, ResearchNode, ResourceProfile,
-		SelfHostedNode, ServiceHeartbeat, Session, Study, Tenant, User,
-		WorkspaceDataset []ent.Hook
+		AgentEnrollment, AgentToken, Attempt, AuditEvent, BudgetEntry,
+		CloudSSHAssignment, CloudSSHNode, CloudSSHProjectAccess, DatasetBinding,
+		DiagnosticRun, Environment, Experiment, ExperimentProposal, IdempotencyRecord,
+		IterationPlan, NodeAssignment, NodeCommand, NodeEnrollment, NodeEvent,
+		NodeProjectAccess, Notification, NotificationSetting, Project, ProviderAccount,
+		ProviderResource, RecordMixin, Repository, ResearchEdge, ResearchNode,
+		ResourceProfile, SelfHostedNode, ServiceHeartbeat, Session, Study, Tenant,
+		User, WorkspaceDataset []ent.Hook
 	}
 	inters struct {
-		AgentEnrollment, AgentToken, Attempt, AuditEvent, BudgetEntry, DiagnosticRun,
-		Environment, Experiment, ExperimentProposal, IdempotencyRecord, IterationPlan,
-		NodeAssignment, NodeCommand, NodeEnrollment, NodeEvent, NodeProjectAccess,
-		Notification, NotificationSetting, Project, ProviderAccount, ProviderResource,
-		RecordMixin, Repository, ResearchEdge, ResearchNode, ResourceProfile,
-		SelfHostedNode, ServiceHeartbeat, Session, Study, Tenant, User,
-		WorkspaceDataset []ent.Interceptor
+		AgentEnrollment, AgentToken, Attempt, AuditEvent, BudgetEntry,
+		CloudSSHAssignment, CloudSSHNode, CloudSSHProjectAccess, DatasetBinding,
+		DiagnosticRun, Environment, Experiment, ExperimentProposal, IdempotencyRecord,
+		IterationPlan, NodeAssignment, NodeCommand, NodeEnrollment, NodeEvent,
+		NodeProjectAccess, Notification, NotificationSetting, Project, ProviderAccount,
+		ProviderResource, RecordMixin, Repository, ResearchEdge, ResearchNode,
+		ResourceProfile, SelfHostedNode, ServiceHeartbeat, Session, Study, Tenant,
+		User, WorkspaceDataset []ent.Interceptor
 	}
 )

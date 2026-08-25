@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/XR-Lee/Gemcp/ent/agenttoken"
+	"github.com/XR-Lee/Gemcp/ent/datasetbinding"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
@@ -36,6 +37,7 @@ type AgentTokenQuery struct {
 	withIdempotencyRecords  *IdempotencyRecordQuery
 	withExperimentProposals *ExperimentProposalQuery
 	withWorkspaceDatasets   *WorkspaceDatasetQuery
+	withDatasetBindings     *DatasetBindingQuery
 	withStudies             *StudyQuery
 	withIterationPlans      *IterationPlanQuery
 	withResearchNodes       *ResearchNodeQuery
@@ -178,6 +180,28 @@ func (_q *AgentTokenQuery) QueryWorkspaceDatasets() *WorkspaceDatasetQuery {
 			sqlgraph.From(agenttoken.Table, agenttoken.FieldID, selector),
 			sqlgraph.To(workspacedataset.Table, workspacedataset.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, agenttoken.WorkspaceDatasetsTable, agenttoken.WorkspaceDatasetsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryDatasetBindings chains the current query on the "dataset_bindings" edge.
+func (_q *AgentTokenQuery) QueryDatasetBindings() *DatasetBindingQuery {
+	query := (&DatasetBindingClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(agenttoken.Table, agenttoken.FieldID, selector),
+			sqlgraph.To(datasetbinding.Table, datasetbinding.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, agenttoken.DatasetBindingsTable, agenttoken.DatasetBindingsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -448,6 +472,7 @@ func (_q *AgentTokenQuery) Clone() *AgentTokenQuery {
 		withIdempotencyRecords:  _q.withIdempotencyRecords.Clone(),
 		withExperimentProposals: _q.withExperimentProposals.Clone(),
 		withWorkspaceDatasets:   _q.withWorkspaceDatasets.Clone(),
+		withDatasetBindings:     _q.withDatasetBindings.Clone(),
 		withStudies:             _q.withStudies.Clone(),
 		withIterationPlans:      _q.withIterationPlans.Clone(),
 		withResearchNodes:       _q.withResearchNodes.Clone(),
@@ -509,6 +534,17 @@ func (_q *AgentTokenQuery) WithWorkspaceDatasets(opts ...func(*WorkspaceDatasetQ
 		opt(query)
 	}
 	_q.withWorkspaceDatasets = query
+	return _q
+}
+
+// WithDatasetBindings tells the query-builder to eager-load the nodes that are connected to
+// the "dataset_bindings" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *AgentTokenQuery) WithDatasetBindings(opts ...func(*DatasetBindingQuery)) *AgentTokenQuery {
+	query := (&DatasetBindingClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withDatasetBindings = query
 	return _q
 }
 
@@ -623,12 +659,13 @@ func (_q *AgentTokenQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*A
 	var (
 		nodes       = []*AgentToken{}
 		_spec       = _q.querySpec()
-		loadedTypes = [8]bool{
+		loadedTypes = [9]bool{
 			_q.withProject != nil,
 			_q.withExperiments != nil,
 			_q.withIdempotencyRecords != nil,
 			_q.withExperimentProposals != nil,
 			_q.withWorkspaceDatasets != nil,
+			_q.withDatasetBindings != nil,
 			_q.withStudies != nil,
 			_q.withIterationPlans != nil,
 			_q.withResearchNodes != nil,
@@ -689,6 +726,13 @@ func (_q *AgentTokenQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*A
 			func(n *AgentToken, e *WorkspaceDataset) {
 				n.Edges.WorkspaceDatasets = append(n.Edges.WorkspaceDatasets, e)
 			}); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withDatasetBindings; query != nil {
+		if err := _q.loadDatasetBindings(ctx, query, nodes,
+			func(n *AgentToken) { n.Edges.DatasetBindings = []*DatasetBinding{} },
+			func(n *AgentToken, e *DatasetBinding) { n.Edges.DatasetBindings = append(n.Edges.DatasetBindings, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -853,6 +897,39 @@ func (_q *AgentTokenQuery) loadWorkspaceDatasets(ctx context.Context, query *Wor
 	}
 	query.Where(predicate.WorkspaceDataset(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(agenttoken.WorkspaceDatasetsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.AgentTokenID
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "agent_token_id" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "agent_token_id" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *AgentTokenQuery) loadDatasetBindings(ctx context.Context, query *DatasetBindingQuery, nodes []*AgentToken, init func(*AgentToken), assign func(*AgentToken, *DatasetBinding)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*AgentToken)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(datasetbinding.FieldAgentTokenID)
+	}
+	query.Where(predicate.DatasetBinding(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(agenttoken.DatasetBindingsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

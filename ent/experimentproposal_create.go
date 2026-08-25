@@ -94,6 +94,14 @@ func (_c *ExperimentProposalCreate) SetRepositoryID(v int) *ExperimentProposalCr
 	return _c
 }
 
+// SetNillableRepositoryID sets the "repository_id" field if the given value is not nil.
+func (_c *ExperimentProposalCreate) SetNillableRepositoryID(v *int) *ExperimentProposalCreate {
+	if v != nil {
+		_c.SetRepositoryID(*v)
+	}
+	return _c
+}
+
 // SetEnvironmentID sets the "environment_id" field.
 func (_c *ExperimentProposalCreate) SetEnvironmentID(v int) *ExperimentProposalCreate {
 	_c.mutation.SetEnvironmentID(v)
@@ -370,9 +378,6 @@ func (_c *ExperimentProposalCreate) check() error {
 	if _, ok := _c.mutation.AgentTokenID(); !ok {
 		return &ValidationError{Name: "agent_token_id", err: errors.New(`ent: missing required field "ExperimentProposal.agent_token_id"`)}
 	}
-	if _, ok := _c.mutation.RepositoryID(); !ok {
-		return &ValidationError{Name: "repository_id", err: errors.New(`ent: missing required field "ExperimentProposal.repository_id"`)}
-	}
 	if _, ok := _c.mutation.EnvironmentID(); !ok {
 		return &ValidationError{Name: "environment_id", err: errors.New(`ent: missing required field "ExperimentProposal.environment_id"`)}
 	}
@@ -491,9 +496,6 @@ func (_c *ExperimentProposalCreate) check() error {
 	}
 	if len(_c.mutation.AgentTokenIDs()) == 0 {
 		return &ValidationError{Name: "agent_token", err: errors.New(`ent: missing required edge "ExperimentProposal.agent_token"`)}
-	}
-	if len(_c.mutation.RepositoryIDs()) == 0 {
-		return &ValidationError{Name: "repository", err: errors.New(`ent: missing required edge "ExperimentProposal.repository"`)}
 	}
 	if len(_c.mutation.EnvironmentIDs()) == 0 {
 		return &ValidationError{Name: "environment", err: errors.New(`ent: missing required edge "ExperimentProposal.environment"`)}
@@ -680,7 +682,7 @@ func (_c *ExperimentProposalCreate) createSpec() (*ExperimentProposal, *sqlgraph
 		for _, k := range nodes {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.RepositoryID = nodes[0]
+		_node.RepositoryID = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	if nodes := _c.mutation.EnvironmentIDs(); len(nodes) > 0 {

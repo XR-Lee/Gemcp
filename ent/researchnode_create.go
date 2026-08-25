@@ -183,6 +183,34 @@ func (_c *ResearchNodeCreate) SetNillableMetricValue(v *float64) *ResearchNodeCr
 	return _c
 }
 
+// SetOccurredAt sets the "occurred_at" field.
+func (_c *ResearchNodeCreate) SetOccurredAt(v time.Time) *ResearchNodeCreate {
+	_c.mutation.SetOccurredAt(v)
+	return _c
+}
+
+// SetNillableOccurredAt sets the "occurred_at" field if the given value is not nil.
+func (_c *ResearchNodeCreate) SetNillableOccurredAt(v *time.Time) *ResearchNodeCreate {
+	if v != nil {
+		_c.SetOccurredAt(*v)
+	}
+	return _c
+}
+
+// SetCommitSha sets the "commit_sha" field.
+func (_c *ResearchNodeCreate) SetCommitSha(v string) *ResearchNodeCreate {
+	_c.mutation.SetCommitSha(v)
+	return _c
+}
+
+// SetNillableCommitSha sets the "commit_sha" field if the given value is not nil.
+func (_c *ResearchNodeCreate) SetNillableCommitSha(v *string) *ResearchNodeCreate {
+	if v != nil {
+		_c.SetCommitSha(*v)
+	}
+	return _c
+}
+
 // SetTenant sets the "tenant" edge to the Tenant entity.
 func (_c *ResearchNodeCreate) SetTenant(v *Tenant) *ResearchNodeCreate {
 	return _c.SetTenantID(v.ID)
@@ -340,6 +368,11 @@ func (_c *ResearchNodeCreate) check() error {
 			return &ValidationError{Name: "metric_name", err: fmt.Errorf(`ent: validator failed for field "ResearchNode.metric_name": %w`, err)}
 		}
 	}
+	if v, ok := _c.mutation.CommitSha(); ok {
+		if err := researchnode.CommitShaValidator(v); err != nil {
+			return &ValidationError{Name: "commit_sha", err: fmt.Errorf(`ent: validator failed for field "ResearchNode.commit_sha": %w`, err)}
+		}
+	}
 	if len(_c.mutation.TenantIDs()) == 0 {
 		return &ValidationError{Name: "tenant", err: errors.New(`ent: missing required edge "ResearchNode.tenant"`)}
 	}
@@ -410,6 +443,14 @@ func (_c *ResearchNodeCreate) createSpec() (*ResearchNode, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.MetricValue(); ok {
 		_spec.SetField(researchnode.FieldMetricValue, field.TypeFloat64, value)
 		_node.MetricValue = &value
+	}
+	if value, ok := _c.mutation.OccurredAt(); ok {
+		_spec.SetField(researchnode.FieldOccurredAt, field.TypeTime, value)
+		_node.OccurredAt = &value
+	}
+	if value, ok := _c.mutation.CommitSha(); ok {
+		_spec.SetField(researchnode.FieldCommitSha, field.TypeString, value)
+		_node.CommitSha = &value
 	}
 	if nodes := _c.mutation.TenantIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

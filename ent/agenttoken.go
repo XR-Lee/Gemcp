@@ -62,6 +62,8 @@ type AgentTokenEdges struct {
 	ExperimentProposals []*ExperimentProposal `json:"experiment_proposals,omitempty"`
 	// WorkspaceDatasets holds the value of the workspace_datasets edge.
 	WorkspaceDatasets []*WorkspaceDataset `json:"workspace_datasets,omitempty"`
+	// DatasetBindings holds the value of the dataset_bindings edge.
+	DatasetBindings []*DatasetBinding `json:"dataset_bindings,omitempty"`
 	// Studies holds the value of the studies edge.
 	Studies []*Study `json:"studies,omitempty"`
 	// IterationPlans holds the value of the iteration_plans edge.
@@ -70,7 +72,7 @@ type AgentTokenEdges struct {
 	ResearchNodes []*ResearchNode `json:"research_nodes,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [8]bool
+	loadedTypes [9]bool
 }
 
 // ProjectOrErr returns the Project value or an error if the edge
@@ -120,10 +122,19 @@ func (e AgentTokenEdges) WorkspaceDatasetsOrErr() ([]*WorkspaceDataset, error) {
 	return nil, &NotLoadedError{edge: "workspace_datasets"}
 }
 
+// DatasetBindingsOrErr returns the DatasetBindings value or an error if the edge
+// was not loaded in eager-loading.
+func (e AgentTokenEdges) DatasetBindingsOrErr() ([]*DatasetBinding, error) {
+	if e.loadedTypes[5] {
+		return e.DatasetBindings, nil
+	}
+	return nil, &NotLoadedError{edge: "dataset_bindings"}
+}
+
 // StudiesOrErr returns the Studies value or an error if the edge
 // was not loaded in eager-loading.
 func (e AgentTokenEdges) StudiesOrErr() ([]*Study, error) {
-	if e.loadedTypes[5] {
+	if e.loadedTypes[6] {
 		return e.Studies, nil
 	}
 	return nil, &NotLoadedError{edge: "studies"}
@@ -132,7 +143,7 @@ func (e AgentTokenEdges) StudiesOrErr() ([]*Study, error) {
 // IterationPlansOrErr returns the IterationPlans value or an error if the edge
 // was not loaded in eager-loading.
 func (e AgentTokenEdges) IterationPlansOrErr() ([]*IterationPlan, error) {
-	if e.loadedTypes[6] {
+	if e.loadedTypes[7] {
 		return e.IterationPlans, nil
 	}
 	return nil, &NotLoadedError{edge: "iteration_plans"}
@@ -141,7 +152,7 @@ func (e AgentTokenEdges) IterationPlansOrErr() ([]*IterationPlan, error) {
 // ResearchNodesOrErr returns the ResearchNodes value or an error if the edge
 // was not loaded in eager-loading.
 func (e AgentTokenEdges) ResearchNodesOrErr() ([]*ResearchNode, error) {
-	if e.loadedTypes[7] {
+	if e.loadedTypes[8] {
 		return e.ResearchNodes, nil
 	}
 	return nil, &NotLoadedError{edge: "research_nodes"}
@@ -295,6 +306,11 @@ func (_m *AgentToken) QueryExperimentProposals() *ExperimentProposalQuery {
 // QueryWorkspaceDatasets queries the "workspace_datasets" edge of the AgentToken entity.
 func (_m *AgentToken) QueryWorkspaceDatasets() *WorkspaceDatasetQuery {
 	return NewAgentTokenClient(_m.config).QueryWorkspaceDatasets(_m)
+}
+
+// QueryDatasetBindings queries the "dataset_bindings" edge of the AgentToken entity.
+func (_m *AgentToken) QueryDatasetBindings() *DatasetBindingQuery {
+	return NewAgentTokenClient(_m.config).QueryDatasetBindings(_m)
 }
 
 // QueryStudies queries the "studies" edge of the AgentToken entity.

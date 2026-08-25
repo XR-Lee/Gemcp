@@ -73,6 +73,8 @@ const (
 	EdgeOwnedResource = "owned_resource"
 	// EdgeNodeAssignment holds the string denoting the node_assignment edge name in mutations.
 	EdgeNodeAssignment = "node_assignment"
+	// EdgeCloudSSHAssignment holds the string denoting the cloud_ssh_assignment edge name in mutations.
+	EdgeCloudSSHAssignment = "cloud_ssh_assignment"
 	// Table holds the table name of the attempt in the database.
 	Table = "attempts"
 	// TenantTable is the table that holds the tenant relation/edge.
@@ -110,6 +112,13 @@ const (
 	NodeAssignmentInverseTable = "node_assignments"
 	// NodeAssignmentColumn is the table column denoting the node_assignment relation/edge.
 	NodeAssignmentColumn = "attempt_id"
+	// CloudSSHAssignmentTable is the table that holds the cloud_ssh_assignment relation/edge.
+	CloudSSHAssignmentTable = "cloud_ssh_assignments"
+	// CloudSSHAssignmentInverseTable is the table name for the CloudSSHAssignment entity.
+	// It exists in this package in order to avoid circular dependency with the "cloudsshassignment" package.
+	CloudSSHAssignmentInverseTable = "cloud_ssh_assignments"
+	// CloudSSHAssignmentColumn is the table column denoting the cloud_ssh_assignment relation/edge.
+	CloudSSHAssignmentColumn = "attempt_id"
 )
 
 // Columns holds all SQL columns for attempt fields.
@@ -333,6 +342,13 @@ func ByNodeAssignmentField(field string, opts ...sql.OrderTermOption) OrderOptio
 		sqlgraph.OrderByNeighborTerms(s, newNodeAssignmentStep(), sql.OrderByField(field, opts...))
 	}
 }
+
+// ByCloudSSHAssignmentField orders the results by cloud_ssh_assignment field.
+func ByCloudSSHAssignmentField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newCloudSSHAssignmentStep(), sql.OrderByField(field, opts...))
+	}
+}
 func newTenantStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -366,5 +382,12 @@ func newNodeAssignmentStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(NodeAssignmentInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2O, false, NodeAssignmentTable, NodeAssignmentColumn),
+	)
+}
+func newCloudSSHAssignmentStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(CloudSSHAssignmentInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2O, false, CloudSSHAssignmentTable, CloudSSHAssignmentColumn),
 	)
 }

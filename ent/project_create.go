@@ -14,6 +14,9 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/agenttoken"
 	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
+	"github.com/XR-Lee/Gemcp/ent/cloudsshassignment"
+	"github.com/XR-Lee/Gemcp/ent/cloudsshprojectaccess"
+	"github.com/XR-Lee/Gemcp/ent/datasetbinding"
 	"github.com/XR-Lee/Gemcp/ent/diagnosticrun"
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
@@ -366,6 +369,36 @@ func (_c *ProjectCreate) AddNodeAssignments(v ...*NodeAssignment) *ProjectCreate
 	return _c.AddNodeAssignmentIDs(ids...)
 }
 
+// AddCloudSSHAccesIDs adds the "cloud_ssh_access" edge to the CloudSSHProjectAccess entity by IDs.
+func (_c *ProjectCreate) AddCloudSSHAccesIDs(ids ...int) *ProjectCreate {
+	_c.mutation.AddCloudSSHAccesIDs(ids...)
+	return _c
+}
+
+// AddCloudSSHAccess adds the "cloud_ssh_access" edges to the CloudSSHProjectAccess entity.
+func (_c *ProjectCreate) AddCloudSSHAccess(v ...*CloudSSHProjectAccess) *ProjectCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddCloudSSHAccesIDs(ids...)
+}
+
+// AddCloudSSHAssignmentIDs adds the "cloud_ssh_assignments" edge to the CloudSSHAssignment entity by IDs.
+func (_c *ProjectCreate) AddCloudSSHAssignmentIDs(ids ...int) *ProjectCreate {
+	_c.mutation.AddCloudSSHAssignmentIDs(ids...)
+	return _c
+}
+
+// AddCloudSSHAssignments adds the "cloud_ssh_assignments" edges to the CloudSSHAssignment entity.
+func (_c *ProjectCreate) AddCloudSSHAssignments(v ...*CloudSSHAssignment) *ProjectCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddCloudSSHAssignmentIDs(ids...)
+}
+
 // AddDiagnosticRunIDs adds the "diagnostic_runs" edge to the DiagnosticRun entity by IDs.
 func (_c *ProjectCreate) AddDiagnosticRunIDs(ids ...int) *ProjectCreate {
 	_c.mutation.AddDiagnosticRunIDs(ids...)
@@ -409,6 +442,21 @@ func (_c *ProjectCreate) AddWorkspaceDatasets(v ...*WorkspaceDataset) *ProjectCr
 		ids[i] = v[i].ID
 	}
 	return _c.AddWorkspaceDatasetIDs(ids...)
+}
+
+// AddDatasetBindingIDs adds the "dataset_bindings" edge to the DatasetBinding entity by IDs.
+func (_c *ProjectCreate) AddDatasetBindingIDs(ids ...int) *ProjectCreate {
+	_c.mutation.AddDatasetBindingIDs(ids...)
+	return _c
+}
+
+// AddDatasetBindings adds the "dataset_bindings" edges to the DatasetBinding entity.
+func (_c *ProjectCreate) AddDatasetBindings(v ...*DatasetBinding) *ProjectCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddDatasetBindingIDs(ids...)
 }
 
 // AddStudyIDs adds the "studies" edge to the Study entity by IDs.
@@ -912,6 +960,38 @@ func (_c *ProjectCreate) createSpec() (*Project, *sqlgraph.CreateSpec) {
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
+	if nodes := _c.mutation.CloudSSHAccessIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.CloudSSHAccessTable,
+			Columns: []string{project.CloudSSHAccessColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(cloudsshprojectaccess.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.CloudSSHAssignmentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.CloudSSHAssignmentsTable,
+			Columns: []string{project.CloudSSHAssignmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(cloudsshassignment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
 	if nodes := _c.mutation.DiagnosticRunsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -953,6 +1033,22 @@ func (_c *ProjectCreate) createSpec() (*Project, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(workspacedataset.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.DatasetBindingsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.DatasetBindingsTable,
+			Columns: []string{project.DatasetBindingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(datasetbinding.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

@@ -270,13 +270,262 @@ var (
 			},
 		},
 	}
+	// CloudSSHAssignmentsColumns holds the columns for the "cloud_ssh_assignments" table.
+	CloudSSHAssignmentsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "public_id", Type: field.TypeUUID, Unique: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "state", Type: field.TypeEnum, Enums: []string{"starting", "running", "stopping", "collecting", "succeeded", "failed", "cancelled", "timed_out", "lost"}, Default: "starting"},
+		{Name: "remote_dir", Type: field.TypeString, Size: 512},
+		{Name: "container_id", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "output_ref", Type: field.TypeString, Size: 512},
+		{Name: "started_at", Type: field.TypeTime, Nullable: true},
+		{Name: "last_heartbeat_at", Type: field.TypeTime, Nullable: true},
+		{Name: "deadline_at", Type: field.TypeTime, Nullable: true},
+		{Name: "hard_deadline_at", Type: field.TypeTime, Nullable: true},
+		{Name: "stop_requested_at", Type: field.TypeTime, Nullable: true},
+		{Name: "stop_reason", Type: field.TypeString, Nullable: true, Size: 80},
+		{Name: "finished_at", Type: field.TypeTime, Nullable: true},
+		{Name: "exit_code", Type: field.TypeInt, Nullable: true},
+		{Name: "log_tail", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "metrics", Type: field.TypeJSON},
+		{Name: "failure_code", Type: field.TypeString, Nullable: true, Size: 100},
+		{Name: "failure_reason", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "last_error", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "attempt_id", Type: field.TypeInt, Unique: true},
+		{Name: "node_id", Type: field.TypeInt},
+		{Name: "experiment_id", Type: field.TypeInt},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "tenant_id", Type: field.TypeInt},
+	}
+	// CloudSSHAssignmentsTable holds the schema information for the "cloud_ssh_assignments" table.
+	CloudSSHAssignmentsTable = &schema.Table{
+		Name:       "cloud_ssh_assignments",
+		Columns:    CloudSSHAssignmentsColumns,
+		PrimaryKey: []*schema.Column{CloudSSHAssignmentsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "cloud_ssh_assignments_attempts_cloud_ssh_assignment",
+				Columns:    []*schema.Column{CloudSSHAssignmentsColumns[21]},
+				RefColumns: []*schema.Column{AttemptsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "cloud_ssh_assignments_cloud_ssh_nodes_assignments",
+				Columns:    []*schema.Column{CloudSSHAssignmentsColumns[22]},
+				RefColumns: []*schema.Column{CloudSSHNodesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "cloud_ssh_assignments_experiments_cloud_ssh_assignments",
+				Columns:    []*schema.Column{CloudSSHAssignmentsColumns[23]},
+				RefColumns: []*schema.Column{ExperimentsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "cloud_ssh_assignments_projects_cloud_ssh_assignments",
+				Columns:    []*schema.Column{CloudSSHAssignmentsColumns[24]},
+				RefColumns: []*schema.Column{ProjectsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "cloud_ssh_assignments_tenants_cloud_ssh_assignments",
+				Columns:    []*schema.Column{CloudSSHAssignmentsColumns[25]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "cloudsshassignment_attempt_id",
+				Unique:  true,
+				Columns: []*schema.Column{CloudSSHAssignmentsColumns[21]},
+			},
+			{
+				Name:    "cloudsshassignment_experiment_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{CloudSSHAssignmentsColumns[23], CloudSSHAssignmentsColumns[2]},
+			},
+			{
+				Name:    "cloudsshassignment_node_id_state_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{CloudSSHAssignmentsColumns[22], CloudSSHAssignmentsColumns[4], CloudSSHAssignmentsColumns[2]},
+			},
+			{
+				Name:    "cloudsshassignment_state_hard_deadline_at",
+				Unique:  false,
+				Columns: []*schema.Column{CloudSSHAssignmentsColumns[4], CloudSSHAssignmentsColumns[11]},
+			},
+		},
+	}
+	// CloudSSHNodesColumns holds the columns for the "cloud_ssh_nodes" table.
+	CloudSSHNodesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "public_id", Type: field.TypeUUID, Unique: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "label", Type: field.TypeString, Size: 120},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending_probe", "active", "disabled", "revoked", "host_key_changed"}, Default: "pending_probe"},
+		{Name: "ssh_host", Type: field.TypeString, Size: 255},
+		{Name: "ssh_port", Type: field.TypeInt, Default: 22},
+		{Name: "ssh_user", Type: field.TypeString, Size: 64},
+		{Name: "auth_method", Type: field.TypeEnum, Enums: []string{"password", "private_key"}},
+		{Name: "credential_ciphertext", Type: field.TypeString},
+		{Name: "host_key_fingerprint", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "inventory", Type: field.TypeJSON, Nullable: true},
+		{Name: "created_actor_type", Type: field.TypeString, Nullable: true, Size: 32},
+		{Name: "created_actor_id", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "last_probed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "revoked_at", Type: field.TypeTime, Nullable: true},
+		{Name: "tenant_id", Type: field.TypeInt},
+	}
+	// CloudSSHNodesTable holds the schema information for the "cloud_ssh_nodes" table.
+	CloudSSHNodesTable = &schema.Table{
+		Name:       "cloud_ssh_nodes",
+		Columns:    CloudSSHNodesColumns,
+		PrimaryKey: []*schema.Column{CloudSSHNodesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "cloud_ssh_nodes_tenants_cloud_ssh_nodes",
+				Columns:    []*schema.Column{CloudSSHNodesColumns[17]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "cloudsshnode_tenant_id_label",
+				Unique:  false,
+				Columns: []*schema.Column{CloudSSHNodesColumns[17], CloudSSHNodesColumns[4]},
+			},
+			{
+				Name:    "cloudsshnode_tenant_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{CloudSSHNodesColumns[17], CloudSSHNodesColumns[5]},
+			},
+			{
+				Name:    "cloudsshnode_tenant_id_ssh_host_ssh_port_ssh_user",
+				Unique:  false,
+				Columns: []*schema.Column{CloudSSHNodesColumns[17], CloudSSHNodesColumns[6], CloudSSHNodesColumns[7], CloudSSHNodesColumns[8]},
+			},
+		},
+	}
+	// CloudSSHProjectAccessesColumns holds the columns for the "cloud_ssh_project_accesses" table.
+	CloudSSHProjectAccessesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "public_id", Type: field.TypeUUID, Unique: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "revoked"}, Default: "active"},
+		{Name: "node_id", Type: field.TypeInt},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "tenant_id", Type: field.TypeInt},
+	}
+	// CloudSSHProjectAccessesTable holds the schema information for the "cloud_ssh_project_accesses" table.
+	CloudSSHProjectAccessesTable = &schema.Table{
+		Name:       "cloud_ssh_project_accesses",
+		Columns:    CloudSSHProjectAccessesColumns,
+		PrimaryKey: []*schema.Column{CloudSSHProjectAccessesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "cloud_ssh_project_accesses_cloud_ssh_nodes_project_access",
+				Columns:    []*schema.Column{CloudSSHProjectAccessesColumns[5]},
+				RefColumns: []*schema.Column{CloudSSHNodesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "cloud_ssh_project_accesses_projects_cloud_ssh_access",
+				Columns:    []*schema.Column{CloudSSHProjectAccessesColumns[6]},
+				RefColumns: []*schema.Column{ProjectsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "cloud_ssh_project_accesses_tenants_cloud_ssh_project_access",
+				Columns:    []*schema.Column{CloudSSHProjectAccessesColumns[7]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "cloudsshprojectaccess_node_id_project_id",
+				Unique:  true,
+				Columns: []*schema.Column{CloudSSHProjectAccessesColumns[5], CloudSSHProjectAccessesColumns[6]},
+			},
+			{
+				Name:    "cloudsshprojectaccess_project_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{CloudSSHProjectAccessesColumns[6], CloudSSHProjectAccessesColumns[4]},
+			},
+		},
+	}
+	// DatasetBindingsColumns holds the columns for the "dataset_bindings" table.
+	DatasetBindingsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "public_id", Type: field.TypeUUID, Unique: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "name", Type: field.TypeString, Size: 120},
+		{Name: "backend", Type: field.TypeEnum, Enums: []string{"autodl_elastic", "autodl_private"}},
+		{Name: "canonical_root", Type: field.TypeString, Size: 1024},
+		{Name: "environment_variable", Type: field.TypeString, Size: 128},
+		{Name: "required_markers", Type: field.TypeJSON},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "disabled"}, Default: "active"},
+		{Name: "agent_token_id", Type: field.TypeInt, Nullable: true},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "tenant_id", Type: field.TypeInt},
+	}
+	// DatasetBindingsTable holds the schema information for the "dataset_bindings" table.
+	DatasetBindingsTable = &schema.Table{
+		Name:       "dataset_bindings",
+		Columns:    DatasetBindingsColumns,
+		PrimaryKey: []*schema.Column{DatasetBindingsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "dataset_bindings_agent_tokens_dataset_bindings",
+				Columns:    []*schema.Column{DatasetBindingsColumns[10]},
+				RefColumns: []*schema.Column{AgentTokensColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+			{
+				Symbol:     "dataset_bindings_projects_dataset_bindings",
+				Columns:    []*schema.Column{DatasetBindingsColumns[11]},
+				RefColumns: []*schema.Column{ProjectsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "dataset_bindings_tenants_dataset_bindings",
+				Columns:    []*schema.Column{DatasetBindingsColumns[12]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "datasetbinding_project_id_backend_name",
+				Unique:  true,
+				Columns: []*schema.Column{DatasetBindingsColumns[11], DatasetBindingsColumns[5], DatasetBindingsColumns[4]},
+			},
+			{
+				Name:    "datasetbinding_project_id_backend_environment_variable",
+				Unique:  true,
+				Columns: []*schema.Column{DatasetBindingsColumns[11], DatasetBindingsColumns[5], DatasetBindingsColumns[7]},
+			},
+			{
+				Name:    "datasetbinding_project_id_backend_status",
+				Unique:  false,
+				Columns: []*schema.Column{DatasetBindingsColumns[11], DatasetBindingsColumns[5], DatasetBindingsColumns[9]},
+			},
+		},
+	}
 	// DiagnosticRunsColumns holds the columns for the "diagnostic_runs" table.
 	DiagnosticRunsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "public_id", Type: field.TypeUUID, Unique: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
-		{Name: "backend", Type: field.TypeEnum, Enums: []string{"autodl_private", "self_hosted"}},
+		{Name: "backend", Type: field.TypeEnum, Enums: []string{"autodl_private", "autodl_elastic", "self_hosted", "ssh_cloud"}},
 		{Name: "suite", Type: field.TypeEnum, Enums: []string{"gpu_connectivity", "pytorch_cuda"}},
 		{Name: "requested_by", Type: field.TypeString, Size: 120},
 		{Name: "idempotency_key_hash", Type: field.TypeBytes},
@@ -330,7 +579,7 @@ var (
 		{Name: "public_id", Type: field.TypeUUID, Unique: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
-		{Name: "backend", Type: field.TypeEnum, Enums: []string{"autodl_private", "self_hosted"}, Default: "autodl_private"},
+		{Name: "backend", Type: field.TypeEnum, Enums: []string{"autodl_private", "autodl_elastic", "self_hosted", "ssh_cloud"}, Default: "autodl_private"},
 		{Name: "name", Type: field.TypeString, Size: 120},
 		{Name: "image_uuid", Type: field.TypeString, Size: 512},
 		{Name: "recipe_ref", Type: field.TypeString, Nullable: true, Size: 512},
@@ -405,7 +654,7 @@ var (
 		{Name: "agent_token_id", Type: field.TypeInt, Nullable: true},
 		{Name: "environment_id", Type: field.TypeInt},
 		{Name: "project_id", Type: field.TypeInt},
-		{Name: "repository_id", Type: field.TypeInt},
+		{Name: "repository_id", Type: field.TypeInt, Nullable: true},
 		{Name: "resource_profile_id", Type: field.TypeInt},
 		{Name: "tenant_id", Type: field.TypeInt},
 	}
@@ -437,7 +686,7 @@ var (
 				Symbol:     "experiments_repositories_experiments",
 				Columns:    []*schema.Column{ExperimentsColumns[39]},
 				RefColumns: []*schema.Column{RepositoriesColumns[0]},
-				OnDelete:   schema.NoAction,
+				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "experiments_resource_profiles_experiments",
@@ -499,7 +748,7 @@ var (
 		{Name: "environment_id", Type: field.TypeInt},
 		{Name: "experiment_id", Type: field.TypeInt, Unique: true, Nullable: true},
 		{Name: "project_id", Type: field.TypeInt},
-		{Name: "repository_id", Type: field.TypeInt},
+		{Name: "repository_id", Type: field.TypeInt, Nullable: true},
 		{Name: "resource_profile_id", Type: field.TypeInt},
 		{Name: "tenant_id", Type: field.TypeInt},
 	}
@@ -537,7 +786,7 @@ var (
 				Symbol:     "experiment_proposals_repositories_experiment_proposals",
 				Columns:    []*schema.Column{ExperimentProposalsColumns[27]},
 				RefColumns: []*schema.Column{RepositoriesColumns[0]},
-				OnDelete:   schema.NoAction,
+				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "experiment_proposals_resource_profiles_experiment_proposals",
@@ -1368,6 +1617,8 @@ var (
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"open", "running", "succeeded", "failed", "superseded"}, Default: "open"},
 		{Name: "metric_name", Type: field.TypeString, Nullable: true, Size: 80},
 		{Name: "metric_value", Type: field.TypeFloat64, Nullable: true},
+		{Name: "occurred_at", Type: field.TypeTime, Nullable: true},
+		{Name: "commit_sha", Type: field.TypeString, Nullable: true, Size: 64},
 		{Name: "agent_token_id", Type: field.TypeInt, Nullable: true},
 		{Name: "experiment_id", Type: field.TypeInt, Nullable: true},
 		{Name: "project_id", Type: field.TypeInt},
@@ -1382,31 +1633,31 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "research_nodes_agent_tokens_research_nodes",
-				Columns:    []*schema.Column{ResearchNodesColumns[10]},
+				Columns:    []*schema.Column{ResearchNodesColumns[12]},
 				RefColumns: []*schema.Column{AgentTokensColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "research_nodes_experiments_research_nodes",
-				Columns:    []*schema.Column{ResearchNodesColumns[11]},
+				Columns:    []*schema.Column{ResearchNodesColumns[13]},
 				RefColumns: []*schema.Column{ExperimentsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "research_nodes_projects_research_nodes",
-				Columns:    []*schema.Column{ResearchNodesColumns[12]},
+				Columns:    []*schema.Column{ResearchNodesColumns[14]},
 				RefColumns: []*schema.Column{ProjectsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "research_nodes_studies_research_nodes",
-				Columns:    []*schema.Column{ResearchNodesColumns[13]},
+				Columns:    []*schema.Column{ResearchNodesColumns[15]},
 				RefColumns: []*schema.Column{StudiesColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "research_nodes_tenants_research_nodes",
-				Columns:    []*schema.Column{ResearchNodesColumns[14]},
+				Columns:    []*schema.Column{ResearchNodesColumns[16]},
 				RefColumns: []*schema.Column{TenantsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -1415,22 +1666,27 @@ var (
 			{
 				Name:    "researchnode_study_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{ResearchNodesColumns[13], ResearchNodesColumns[2]},
+				Columns: []*schema.Column{ResearchNodesColumns[15], ResearchNodesColumns[2]},
+			},
+			{
+				Name:    "researchnode_study_id_occurred_at",
+				Unique:  false,
+				Columns: []*schema.Column{ResearchNodesColumns[15], ResearchNodesColumns[10]},
 			},
 			{
 				Name:    "researchnode_study_id_kind_status",
 				Unique:  false,
-				Columns: []*schema.Column{ResearchNodesColumns[13], ResearchNodesColumns[4], ResearchNodesColumns[7]},
+				Columns: []*schema.Column{ResearchNodesColumns[15], ResearchNodesColumns[4], ResearchNodesColumns[7]},
 			},
 			{
 				Name:    "researchnode_experiment_id",
 				Unique:  true,
-				Columns: []*schema.Column{ResearchNodesColumns[11]},
+				Columns: []*schema.Column{ResearchNodesColumns[13]},
 			},
 			{
 				Name:    "researchnode_project_id_updated_at",
 				Unique:  false,
-				Columns: []*schema.Column{ResearchNodesColumns[12], ResearchNodesColumns[3]},
+				Columns: []*schema.Column{ResearchNodesColumns[14], ResearchNodesColumns[3]},
 			},
 		},
 	}
@@ -1440,7 +1696,7 @@ var (
 		{Name: "public_id", Type: field.TypeUUID, Unique: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
-		{Name: "backend", Type: field.TypeEnum, Enums: []string{"autodl_private", "self_hosted"}, Default: "autodl_private"},
+		{Name: "backend", Type: field.TypeEnum, Enums: []string{"autodl_private", "autodl_elastic", "self_hosted", "ssh_cloud"}, Default: "autodl_private"},
 		{Name: "name", Type: field.TypeString, Size: 120},
 		{Name: "region", Type: field.TypeString, Size: 80},
 		{Name: "gpu_names", Type: field.TypeJSON},
@@ -1792,6 +2048,10 @@ var (
 		AttemptsTable,
 		AuditEventsTable,
 		BudgetEntriesTable,
+		CloudSSHAssignmentsTable,
+		CloudSSHNodesTable,
+		CloudSSHProjectAccessesTable,
+		DatasetBindingsTable,
 		DiagnosticRunsTable,
 		EnvironmentsTable,
 		ExperimentsTable,
@@ -1834,6 +2094,18 @@ func init() {
 	BudgetEntriesTable.ForeignKeys[0].RefTable = ExperimentsTable
 	BudgetEntriesTable.ForeignKeys[1].RefTable = ProjectsTable
 	BudgetEntriesTable.ForeignKeys[2].RefTable = TenantsTable
+	CloudSSHAssignmentsTable.ForeignKeys[0].RefTable = AttemptsTable
+	CloudSSHAssignmentsTable.ForeignKeys[1].RefTable = CloudSSHNodesTable
+	CloudSSHAssignmentsTable.ForeignKeys[2].RefTable = ExperimentsTable
+	CloudSSHAssignmentsTable.ForeignKeys[3].RefTable = ProjectsTable
+	CloudSSHAssignmentsTable.ForeignKeys[4].RefTable = TenantsTable
+	CloudSSHNodesTable.ForeignKeys[0].RefTable = TenantsTable
+	CloudSSHProjectAccessesTable.ForeignKeys[0].RefTable = CloudSSHNodesTable
+	CloudSSHProjectAccessesTable.ForeignKeys[1].RefTable = ProjectsTable
+	CloudSSHProjectAccessesTable.ForeignKeys[2].RefTable = TenantsTable
+	DatasetBindingsTable.ForeignKeys[0].RefTable = AgentTokensTable
+	DatasetBindingsTable.ForeignKeys[1].RefTable = ProjectsTable
+	DatasetBindingsTable.ForeignKeys[2].RefTable = TenantsTable
 	DiagnosticRunsTable.ForeignKeys[0].RefTable = ExperimentsTable
 	DiagnosticRunsTable.ForeignKeys[1].RefTable = ProjectsTable
 	DiagnosticRunsTable.ForeignKeys[2].RefTable = TenantsTable

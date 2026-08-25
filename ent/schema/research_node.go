@@ -25,6 +25,8 @@ func (ResearchNode) Fields() []ent.Field {
 		field.Enum("status").Values("open", "running", "succeeded", "failed", "superseded").Default("open"),
 		field.String("metric_name").Optional().Nillable().MaxLen(80),
 		field.Float("metric_value").Optional().Nillable(),
+		field.Time("occurred_at").Optional().Nillable().Comment("scientific time: git committer date or Experiment time, not MCP write time"),
+		field.String("commit_sha").Optional().Nillable().MaxLen(64).Comment("optional evidence commit; Graph stays claim-based"),
 	}
 }
 
@@ -43,6 +45,7 @@ func (ResearchNode) Edges() []ent.Edge {
 func (ResearchNode) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("study_id", "created_at"),
+		index.Fields("study_id", "occurred_at"),
 		index.Fields("study_id", "kind", "status"),
 		index.Fields("experiment_id").Unique(),
 		index.Fields("project_id", "updated_at"),

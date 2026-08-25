@@ -750,7 +750,10 @@ func (_q *ExperimentProposalQuery) loadRepository(ctx context.Context, query *Re
 	ids := make([]int, 0, len(nodes))
 	nodeids := make(map[int][]*ExperimentProposal)
 	for i := range nodes {
-		fk := nodes[i].RepositoryID
+		if nodes[i].RepositoryID == nil {
+			continue
+		}
+		fk := *nodes[i].RepositoryID
 		if _, ok := nodeids[fk]; !ok {
 			ids = append(ids, fk)
 		}

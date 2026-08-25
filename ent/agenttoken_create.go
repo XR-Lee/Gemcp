@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/XR-Lee/Gemcp/ent/agenttoken"
+	"github.com/XR-Lee/Gemcp/ent/datasetbinding"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
@@ -220,6 +221,21 @@ func (_c *AgentTokenCreate) AddWorkspaceDatasets(v ...*WorkspaceDataset) *AgentT
 		ids[i] = v[i].ID
 	}
 	return _c.AddWorkspaceDatasetIDs(ids...)
+}
+
+// AddDatasetBindingIDs adds the "dataset_bindings" edge to the DatasetBinding entity by IDs.
+func (_c *AgentTokenCreate) AddDatasetBindingIDs(ids ...int) *AgentTokenCreate {
+	_c.mutation.AddDatasetBindingIDs(ids...)
+	return _c
+}
+
+// AddDatasetBindings adds the "dataset_bindings" edges to the DatasetBinding entity.
+func (_c *AgentTokenCreate) AddDatasetBindings(v ...*DatasetBinding) *AgentTokenCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddDatasetBindingIDs(ids...)
 }
 
 // AddStudyIDs adds the "studies" edge to the Study entity by IDs.
@@ -527,6 +543,22 @@ func (_c *AgentTokenCreate) createSpec() (*AgentToken, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(workspacedataset.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.DatasetBindingsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.DatasetBindingsTable,
+			Columns: []string{agenttoken.DatasetBindingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(datasetbinding.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

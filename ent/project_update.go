@@ -15,6 +15,9 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/agenttoken"
 	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
+	"github.com/XR-Lee/Gemcp/ent/cloudsshassignment"
+	"github.com/XR-Lee/Gemcp/ent/cloudsshprojectaccess"
+	"github.com/XR-Lee/Gemcp/ent/datasetbinding"
 	"github.com/XR-Lee/Gemcp/ent/diagnosticrun"
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
@@ -399,6 +402,36 @@ func (_u *ProjectUpdate) AddNodeAssignments(v ...*NodeAssignment) *ProjectUpdate
 	return _u.AddNodeAssignmentIDs(ids...)
 }
 
+// AddCloudSSHAccesIDs adds the "cloud_ssh_access" edge to the CloudSSHProjectAccess entity by IDs.
+func (_u *ProjectUpdate) AddCloudSSHAccesIDs(ids ...int) *ProjectUpdate {
+	_u.mutation.AddCloudSSHAccesIDs(ids...)
+	return _u
+}
+
+// AddCloudSSHAccess adds the "cloud_ssh_access" edges to the CloudSSHProjectAccess entity.
+func (_u *ProjectUpdate) AddCloudSSHAccess(v ...*CloudSSHProjectAccess) *ProjectUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddCloudSSHAccesIDs(ids...)
+}
+
+// AddCloudSSHAssignmentIDs adds the "cloud_ssh_assignments" edge to the CloudSSHAssignment entity by IDs.
+func (_u *ProjectUpdate) AddCloudSSHAssignmentIDs(ids ...int) *ProjectUpdate {
+	_u.mutation.AddCloudSSHAssignmentIDs(ids...)
+	return _u
+}
+
+// AddCloudSSHAssignments adds the "cloud_ssh_assignments" edges to the CloudSSHAssignment entity.
+func (_u *ProjectUpdate) AddCloudSSHAssignments(v ...*CloudSSHAssignment) *ProjectUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddCloudSSHAssignmentIDs(ids...)
+}
+
 // AddDiagnosticRunIDs adds the "diagnostic_runs" edge to the DiagnosticRun entity by IDs.
 func (_u *ProjectUpdate) AddDiagnosticRunIDs(ids ...int) *ProjectUpdate {
 	_u.mutation.AddDiagnosticRunIDs(ids...)
@@ -442,6 +475,21 @@ func (_u *ProjectUpdate) AddWorkspaceDatasets(v ...*WorkspaceDataset) *ProjectUp
 		ids[i] = v[i].ID
 	}
 	return _u.AddWorkspaceDatasetIDs(ids...)
+}
+
+// AddDatasetBindingIDs adds the "dataset_bindings" edge to the DatasetBinding entity by IDs.
+func (_u *ProjectUpdate) AddDatasetBindingIDs(ids ...int) *ProjectUpdate {
+	_u.mutation.AddDatasetBindingIDs(ids...)
+	return _u
+}
+
+// AddDatasetBindings adds the "dataset_bindings" edges to the DatasetBinding entity.
+func (_u *ProjectUpdate) AddDatasetBindings(v ...*DatasetBinding) *ProjectUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddDatasetBindingIDs(ids...)
 }
 
 // AddStudyIDs adds the "studies" edge to the Study entity by IDs.
@@ -740,6 +788,48 @@ func (_u *ProjectUpdate) RemoveNodeAssignments(v ...*NodeAssignment) *ProjectUpd
 	return _u.RemoveNodeAssignmentIDs(ids...)
 }
 
+// ClearCloudSSHAccess clears all "cloud_ssh_access" edges to the CloudSSHProjectAccess entity.
+func (_u *ProjectUpdate) ClearCloudSSHAccess() *ProjectUpdate {
+	_u.mutation.ClearCloudSSHAccess()
+	return _u
+}
+
+// RemoveCloudSSHAccesIDs removes the "cloud_ssh_access" edge to CloudSSHProjectAccess entities by IDs.
+func (_u *ProjectUpdate) RemoveCloudSSHAccesIDs(ids ...int) *ProjectUpdate {
+	_u.mutation.RemoveCloudSSHAccesIDs(ids...)
+	return _u
+}
+
+// RemoveCloudSSHAccess removes "cloud_ssh_access" edges to CloudSSHProjectAccess entities.
+func (_u *ProjectUpdate) RemoveCloudSSHAccess(v ...*CloudSSHProjectAccess) *ProjectUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveCloudSSHAccesIDs(ids...)
+}
+
+// ClearCloudSSHAssignments clears all "cloud_ssh_assignments" edges to the CloudSSHAssignment entity.
+func (_u *ProjectUpdate) ClearCloudSSHAssignments() *ProjectUpdate {
+	_u.mutation.ClearCloudSSHAssignments()
+	return _u
+}
+
+// RemoveCloudSSHAssignmentIDs removes the "cloud_ssh_assignments" edge to CloudSSHAssignment entities by IDs.
+func (_u *ProjectUpdate) RemoveCloudSSHAssignmentIDs(ids ...int) *ProjectUpdate {
+	_u.mutation.RemoveCloudSSHAssignmentIDs(ids...)
+	return _u
+}
+
+// RemoveCloudSSHAssignments removes "cloud_ssh_assignments" edges to CloudSSHAssignment entities.
+func (_u *ProjectUpdate) RemoveCloudSSHAssignments(v ...*CloudSSHAssignment) *ProjectUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveCloudSSHAssignmentIDs(ids...)
+}
+
 // ClearDiagnosticRuns clears all "diagnostic_runs" edges to the DiagnosticRun entity.
 func (_u *ProjectUpdate) ClearDiagnosticRuns() *ProjectUpdate {
 	_u.mutation.ClearDiagnosticRuns()
@@ -801,6 +891,27 @@ func (_u *ProjectUpdate) RemoveWorkspaceDatasets(v ...*WorkspaceDataset) *Projec
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveWorkspaceDatasetIDs(ids...)
+}
+
+// ClearDatasetBindings clears all "dataset_bindings" edges to the DatasetBinding entity.
+func (_u *ProjectUpdate) ClearDatasetBindings() *ProjectUpdate {
+	_u.mutation.ClearDatasetBindings()
+	return _u
+}
+
+// RemoveDatasetBindingIDs removes the "dataset_bindings" edge to DatasetBinding entities by IDs.
+func (_u *ProjectUpdate) RemoveDatasetBindingIDs(ids ...int) *ProjectUpdate {
+	_u.mutation.RemoveDatasetBindingIDs(ids...)
+	return _u
+}
+
+// RemoveDatasetBindings removes "dataset_bindings" edges to DatasetBinding entities.
+func (_u *ProjectUpdate) RemoveDatasetBindings(v ...*DatasetBinding) *ProjectUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveDatasetBindingIDs(ids...)
 }
 
 // ClearStudies clears all "studies" edges to the Study entity.
@@ -1539,6 +1650,96 @@ func (_u *ProjectUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.CloudSSHAccessCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.CloudSSHAccessTable,
+			Columns: []string{project.CloudSSHAccessColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(cloudsshprojectaccess.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedCloudSSHAccessIDs(); len(nodes) > 0 && !_u.mutation.CloudSSHAccessCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.CloudSSHAccessTable,
+			Columns: []string{project.CloudSSHAccessColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(cloudsshprojectaccess.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.CloudSSHAccessIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.CloudSSHAccessTable,
+			Columns: []string{project.CloudSSHAccessColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(cloudsshprojectaccess.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.CloudSSHAssignmentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.CloudSSHAssignmentsTable,
+			Columns: []string{project.CloudSSHAssignmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(cloudsshassignment.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedCloudSSHAssignmentsIDs(); len(nodes) > 0 && !_u.mutation.CloudSSHAssignmentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.CloudSSHAssignmentsTable,
+			Columns: []string{project.CloudSSHAssignmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(cloudsshassignment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.CloudSSHAssignmentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.CloudSSHAssignmentsTable,
+			Columns: []string{project.CloudSSHAssignmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(cloudsshassignment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _u.mutation.DiagnosticRunsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -1667,6 +1868,51 @@ func (_u *ProjectUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(workspacedataset.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.DatasetBindingsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.DatasetBindingsTable,
+			Columns: []string{project.DatasetBindingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(datasetbinding.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedDatasetBindingsIDs(); len(nodes) > 0 && !_u.mutation.DatasetBindingsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.DatasetBindingsTable,
+			Columns: []string{project.DatasetBindingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(datasetbinding.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.DatasetBindingsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.DatasetBindingsTable,
+			Columns: []string{project.DatasetBindingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(datasetbinding.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -2227,6 +2473,36 @@ func (_u *ProjectUpdateOne) AddNodeAssignments(v ...*NodeAssignment) *ProjectUpd
 	return _u.AddNodeAssignmentIDs(ids...)
 }
 
+// AddCloudSSHAccesIDs adds the "cloud_ssh_access" edge to the CloudSSHProjectAccess entity by IDs.
+func (_u *ProjectUpdateOne) AddCloudSSHAccesIDs(ids ...int) *ProjectUpdateOne {
+	_u.mutation.AddCloudSSHAccesIDs(ids...)
+	return _u
+}
+
+// AddCloudSSHAccess adds the "cloud_ssh_access" edges to the CloudSSHProjectAccess entity.
+func (_u *ProjectUpdateOne) AddCloudSSHAccess(v ...*CloudSSHProjectAccess) *ProjectUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddCloudSSHAccesIDs(ids...)
+}
+
+// AddCloudSSHAssignmentIDs adds the "cloud_ssh_assignments" edge to the CloudSSHAssignment entity by IDs.
+func (_u *ProjectUpdateOne) AddCloudSSHAssignmentIDs(ids ...int) *ProjectUpdateOne {
+	_u.mutation.AddCloudSSHAssignmentIDs(ids...)
+	return _u
+}
+
+// AddCloudSSHAssignments adds the "cloud_ssh_assignments" edges to the CloudSSHAssignment entity.
+func (_u *ProjectUpdateOne) AddCloudSSHAssignments(v ...*CloudSSHAssignment) *ProjectUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddCloudSSHAssignmentIDs(ids...)
+}
+
 // AddDiagnosticRunIDs adds the "diagnostic_runs" edge to the DiagnosticRun entity by IDs.
 func (_u *ProjectUpdateOne) AddDiagnosticRunIDs(ids ...int) *ProjectUpdateOne {
 	_u.mutation.AddDiagnosticRunIDs(ids...)
@@ -2270,6 +2546,21 @@ func (_u *ProjectUpdateOne) AddWorkspaceDatasets(v ...*WorkspaceDataset) *Projec
 		ids[i] = v[i].ID
 	}
 	return _u.AddWorkspaceDatasetIDs(ids...)
+}
+
+// AddDatasetBindingIDs adds the "dataset_bindings" edge to the DatasetBinding entity by IDs.
+func (_u *ProjectUpdateOne) AddDatasetBindingIDs(ids ...int) *ProjectUpdateOne {
+	_u.mutation.AddDatasetBindingIDs(ids...)
+	return _u
+}
+
+// AddDatasetBindings adds the "dataset_bindings" edges to the DatasetBinding entity.
+func (_u *ProjectUpdateOne) AddDatasetBindings(v ...*DatasetBinding) *ProjectUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddDatasetBindingIDs(ids...)
 }
 
 // AddStudyIDs adds the "studies" edge to the Study entity by IDs.
@@ -2568,6 +2859,48 @@ func (_u *ProjectUpdateOne) RemoveNodeAssignments(v ...*NodeAssignment) *Project
 	return _u.RemoveNodeAssignmentIDs(ids...)
 }
 
+// ClearCloudSSHAccess clears all "cloud_ssh_access" edges to the CloudSSHProjectAccess entity.
+func (_u *ProjectUpdateOne) ClearCloudSSHAccess() *ProjectUpdateOne {
+	_u.mutation.ClearCloudSSHAccess()
+	return _u
+}
+
+// RemoveCloudSSHAccesIDs removes the "cloud_ssh_access" edge to CloudSSHProjectAccess entities by IDs.
+func (_u *ProjectUpdateOne) RemoveCloudSSHAccesIDs(ids ...int) *ProjectUpdateOne {
+	_u.mutation.RemoveCloudSSHAccesIDs(ids...)
+	return _u
+}
+
+// RemoveCloudSSHAccess removes "cloud_ssh_access" edges to CloudSSHProjectAccess entities.
+func (_u *ProjectUpdateOne) RemoveCloudSSHAccess(v ...*CloudSSHProjectAccess) *ProjectUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveCloudSSHAccesIDs(ids...)
+}
+
+// ClearCloudSSHAssignments clears all "cloud_ssh_assignments" edges to the CloudSSHAssignment entity.
+func (_u *ProjectUpdateOne) ClearCloudSSHAssignments() *ProjectUpdateOne {
+	_u.mutation.ClearCloudSSHAssignments()
+	return _u
+}
+
+// RemoveCloudSSHAssignmentIDs removes the "cloud_ssh_assignments" edge to CloudSSHAssignment entities by IDs.
+func (_u *ProjectUpdateOne) RemoveCloudSSHAssignmentIDs(ids ...int) *ProjectUpdateOne {
+	_u.mutation.RemoveCloudSSHAssignmentIDs(ids...)
+	return _u
+}
+
+// RemoveCloudSSHAssignments removes "cloud_ssh_assignments" edges to CloudSSHAssignment entities.
+func (_u *ProjectUpdateOne) RemoveCloudSSHAssignments(v ...*CloudSSHAssignment) *ProjectUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveCloudSSHAssignmentIDs(ids...)
+}
+
 // ClearDiagnosticRuns clears all "diagnostic_runs" edges to the DiagnosticRun entity.
 func (_u *ProjectUpdateOne) ClearDiagnosticRuns() *ProjectUpdateOne {
 	_u.mutation.ClearDiagnosticRuns()
@@ -2629,6 +2962,27 @@ func (_u *ProjectUpdateOne) RemoveWorkspaceDatasets(v ...*WorkspaceDataset) *Pro
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveWorkspaceDatasetIDs(ids...)
+}
+
+// ClearDatasetBindings clears all "dataset_bindings" edges to the DatasetBinding entity.
+func (_u *ProjectUpdateOne) ClearDatasetBindings() *ProjectUpdateOne {
+	_u.mutation.ClearDatasetBindings()
+	return _u
+}
+
+// RemoveDatasetBindingIDs removes the "dataset_bindings" edge to DatasetBinding entities by IDs.
+func (_u *ProjectUpdateOne) RemoveDatasetBindingIDs(ids ...int) *ProjectUpdateOne {
+	_u.mutation.RemoveDatasetBindingIDs(ids...)
+	return _u
+}
+
+// RemoveDatasetBindings removes "dataset_bindings" edges to DatasetBinding entities.
+func (_u *ProjectUpdateOne) RemoveDatasetBindings(v ...*DatasetBinding) *ProjectUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveDatasetBindingIDs(ids...)
 }
 
 // ClearStudies clears all "studies" edges to the Study entity.
@@ -3397,6 +3751,96 @@ func (_u *ProjectUpdateOne) sqlSave(ctx context.Context) (_node *Project, err er
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.CloudSSHAccessCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.CloudSSHAccessTable,
+			Columns: []string{project.CloudSSHAccessColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(cloudsshprojectaccess.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedCloudSSHAccessIDs(); len(nodes) > 0 && !_u.mutation.CloudSSHAccessCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.CloudSSHAccessTable,
+			Columns: []string{project.CloudSSHAccessColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(cloudsshprojectaccess.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.CloudSSHAccessIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.CloudSSHAccessTable,
+			Columns: []string{project.CloudSSHAccessColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(cloudsshprojectaccess.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.CloudSSHAssignmentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.CloudSSHAssignmentsTable,
+			Columns: []string{project.CloudSSHAssignmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(cloudsshassignment.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedCloudSSHAssignmentsIDs(); len(nodes) > 0 && !_u.mutation.CloudSSHAssignmentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.CloudSSHAssignmentsTable,
+			Columns: []string{project.CloudSSHAssignmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(cloudsshassignment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.CloudSSHAssignmentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.CloudSSHAssignmentsTable,
+			Columns: []string{project.CloudSSHAssignmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(cloudsshassignment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _u.mutation.DiagnosticRunsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -3525,6 +3969,51 @@ func (_u *ProjectUpdateOne) sqlSave(ctx context.Context) (_node *Project, err er
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(workspacedataset.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.DatasetBindingsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.DatasetBindingsTable,
+			Columns: []string{project.DatasetBindingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(datasetbinding.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedDatasetBindingsIDs(); len(nodes) > 0 && !_u.mutation.DatasetBindingsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.DatasetBindingsTable,
+			Columns: []string{project.DatasetBindingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(datasetbinding.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.DatasetBindingsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.DatasetBindingsTable,
+			Columns: []string{project.DatasetBindingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(datasetbinding.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

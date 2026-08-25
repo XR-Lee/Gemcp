@@ -15,6 +15,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/agenttoken"
 	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
+	"github.com/XR-Lee/Gemcp/ent/cloudsshassignment"
 	"github.com/XR-Lee/Gemcp/ent/diagnosticrun"
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
@@ -33,24 +34,25 @@ import (
 // ExperimentQuery is the builder for querying Experiment entities.
 type ExperimentQuery struct {
 	config
-	ctx                    *QueryContext
-	order                  []experiment.OrderOption
-	inters                 []Interceptor
-	predicates             []predicate.Experiment
-	withTenant             *TenantQuery
-	withProject            *ProjectQuery
-	withAgentToken         *AgentTokenQuery
-	withRepository         *RepositoryQuery
-	withEnvironment        *EnvironmentQuery
-	withResourceProfile    *ResourceProfileQuery
-	withAttempts           *AttemptQuery
-	withProviderResources  *ProviderResourceQuery
-	withNodeAssignments    *NodeAssignmentQuery
-	withBudgetEntries      *BudgetEntryQuery
-	withIdempotencyRecords *IdempotencyRecordQuery
-	withDiagnosticRun      *DiagnosticRunQuery
-	withProposal           *ExperimentProposalQuery
-	withResearchNodes      *ResearchNodeQuery
+	ctx                     *QueryContext
+	order                   []experiment.OrderOption
+	inters                  []Interceptor
+	predicates              []predicate.Experiment
+	withTenant              *TenantQuery
+	withProject             *ProjectQuery
+	withAgentToken          *AgentTokenQuery
+	withRepository          *RepositoryQuery
+	withEnvironment         *EnvironmentQuery
+	withResourceProfile     *ResourceProfileQuery
+	withAttempts            *AttemptQuery
+	withProviderResources   *ProviderResourceQuery
+	withNodeAssignments     *NodeAssignmentQuery
+	withCloudSSHAssignments *CloudSSHAssignmentQuery
+	withBudgetEntries       *BudgetEntryQuery
+	withIdempotencyRecords  *IdempotencyRecordQuery
+	withDiagnosticRun       *DiagnosticRunQuery
+	withProposal            *ExperimentProposalQuery
+	withResearchNodes       *ResearchNodeQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -278,6 +280,28 @@ func (_q *ExperimentQuery) QueryNodeAssignments() *NodeAssignmentQuery {
 			sqlgraph.From(experiment.Table, experiment.FieldID, selector),
 			sqlgraph.To(nodeassignment.Table, nodeassignment.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, experiment.NodeAssignmentsTable, experiment.NodeAssignmentsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryCloudSSHAssignments chains the current query on the "cloud_ssh_assignments" edge.
+func (_q *ExperimentQuery) QueryCloudSSHAssignments() *CloudSSHAssignmentQuery {
+	query := (&CloudSSHAssignmentClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(experiment.Table, experiment.FieldID, selector),
+			sqlgraph.To(cloudsshassignment.Table, cloudsshassignment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, experiment.CloudSSHAssignmentsTable, experiment.CloudSSHAssignmentsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -582,25 +606,26 @@ func (_q *ExperimentQuery) Clone() *ExperimentQuery {
 		return nil
 	}
 	return &ExperimentQuery{
-		config:                 _q.config,
-		ctx:                    _q.ctx.Clone(),
-		order:                  append([]experiment.OrderOption{}, _q.order...),
-		inters:                 append([]Interceptor{}, _q.inters...),
-		predicates:             append([]predicate.Experiment{}, _q.predicates...),
-		withTenant:             _q.withTenant.Clone(),
-		withProject:            _q.withProject.Clone(),
-		withAgentToken:         _q.withAgentToken.Clone(),
-		withRepository:         _q.withRepository.Clone(),
-		withEnvironment:        _q.withEnvironment.Clone(),
-		withResourceProfile:    _q.withResourceProfile.Clone(),
-		withAttempts:           _q.withAttempts.Clone(),
-		withProviderResources:  _q.withProviderResources.Clone(),
-		withNodeAssignments:    _q.withNodeAssignments.Clone(),
-		withBudgetEntries:      _q.withBudgetEntries.Clone(),
-		withIdempotencyRecords: _q.withIdempotencyRecords.Clone(),
-		withDiagnosticRun:      _q.withDiagnosticRun.Clone(),
-		withProposal:           _q.withProposal.Clone(),
-		withResearchNodes:      _q.withResearchNodes.Clone(),
+		config:                  _q.config,
+		ctx:                     _q.ctx.Clone(),
+		order:                   append([]experiment.OrderOption{}, _q.order...),
+		inters:                  append([]Interceptor{}, _q.inters...),
+		predicates:              append([]predicate.Experiment{}, _q.predicates...),
+		withTenant:              _q.withTenant.Clone(),
+		withProject:             _q.withProject.Clone(),
+		withAgentToken:          _q.withAgentToken.Clone(),
+		withRepository:          _q.withRepository.Clone(),
+		withEnvironment:         _q.withEnvironment.Clone(),
+		withResourceProfile:     _q.withResourceProfile.Clone(),
+		withAttempts:            _q.withAttempts.Clone(),
+		withProviderResources:   _q.withProviderResources.Clone(),
+		withNodeAssignments:     _q.withNodeAssignments.Clone(),
+		withCloudSSHAssignments: _q.withCloudSSHAssignments.Clone(),
+		withBudgetEntries:       _q.withBudgetEntries.Clone(),
+		withIdempotencyRecords:  _q.withIdempotencyRecords.Clone(),
+		withDiagnosticRun:       _q.withDiagnosticRun.Clone(),
+		withProposal:            _q.withProposal.Clone(),
+		withResearchNodes:       _q.withResearchNodes.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -703,6 +728,17 @@ func (_q *ExperimentQuery) WithNodeAssignments(opts ...func(*NodeAssignmentQuery
 		opt(query)
 	}
 	_q.withNodeAssignments = query
+	return _q
+}
+
+// WithCloudSSHAssignments tells the query-builder to eager-load the nodes that are connected to
+// the "cloud_ssh_assignments" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ExperimentQuery) WithCloudSSHAssignments(opts ...func(*CloudSSHAssignmentQuery)) *ExperimentQuery {
+	query := (&CloudSSHAssignmentClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withCloudSSHAssignments = query
 	return _q
 }
 
@@ -839,7 +875,7 @@ func (_q *ExperimentQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*E
 	var (
 		nodes       = []*Experiment{}
 		_spec       = _q.querySpec()
-		loadedTypes = [14]bool{
+		loadedTypes = [15]bool{
 			_q.withTenant != nil,
 			_q.withProject != nil,
 			_q.withAgentToken != nil,
@@ -849,6 +885,7 @@ func (_q *ExperimentQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*E
 			_q.withAttempts != nil,
 			_q.withProviderResources != nil,
 			_q.withNodeAssignments != nil,
+			_q.withCloudSSHAssignments != nil,
 			_q.withBudgetEntries != nil,
 			_q.withIdempotencyRecords != nil,
 			_q.withDiagnosticRun != nil,
@@ -930,6 +967,15 @@ func (_q *ExperimentQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*E
 		if err := _q.loadNodeAssignments(ctx, query, nodes,
 			func(n *Experiment) { n.Edges.NodeAssignments = []*NodeAssignment{} },
 			func(n *Experiment, e *NodeAssignment) { n.Edges.NodeAssignments = append(n.Edges.NodeAssignments, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withCloudSSHAssignments; query != nil {
+		if err := _q.loadCloudSSHAssignments(ctx, query, nodes,
+			func(n *Experiment) { n.Edges.CloudSSHAssignments = []*CloudSSHAssignment{} },
+			func(n *Experiment, e *CloudSSHAssignment) {
+				n.Edges.CloudSSHAssignments = append(n.Edges.CloudSSHAssignments, e)
+			}); err != nil {
 			return nil, err
 		}
 	}
@@ -1065,7 +1111,10 @@ func (_q *ExperimentQuery) loadRepository(ctx context.Context, query *Repository
 	ids := make([]int, 0, len(nodes))
 	nodeids := make(map[int][]*Experiment)
 	for i := range nodes {
-		fk := nodes[i].RepositoryID
+		if nodes[i].RepositoryID == nil {
+			continue
+		}
+		fk := *nodes[i].RepositoryID
 		if _, ok := nodeids[fk]; !ok {
 			ids = append(ids, fk)
 		}
@@ -1223,6 +1272,36 @@ func (_q *ExperimentQuery) loadNodeAssignments(ctx context.Context, query *NodeA
 	}
 	query.Where(predicate.NodeAssignment(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(experiment.NodeAssignmentsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ExperimentID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "experiment_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *ExperimentQuery) loadCloudSSHAssignments(ctx context.Context, query *CloudSSHAssignmentQuery, nodes []*Experiment, init func(*Experiment), assign func(*Experiment, *CloudSSHAssignment)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Experiment)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(cloudsshassignment.FieldExperimentID)
+	}
+	query.Where(predicate.CloudSSHAssignment(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(experiment.CloudSSHAssignmentsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

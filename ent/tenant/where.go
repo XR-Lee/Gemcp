@@ -722,6 +722,75 @@ func HasNodeAssignmentsWith(preds ...predicate.NodeAssignment) predicate.Tenant 
 	})
 }
 
+// HasCloudSSHNodes applies the HasEdge predicate on the "cloud_ssh_nodes" edge.
+func HasCloudSSHNodes() predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, CloudSSHNodesTable, CloudSSHNodesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasCloudSSHNodesWith applies the HasEdge predicate on the "cloud_ssh_nodes" edge with a given conditions (other predicates).
+func HasCloudSSHNodesWith(preds ...predicate.CloudSSHNode) predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := newCloudSSHNodesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasCloudSSHProjectAccess applies the HasEdge predicate on the "cloud_ssh_project_access" edge.
+func HasCloudSSHProjectAccess() predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, CloudSSHProjectAccessTable, CloudSSHProjectAccessColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasCloudSSHProjectAccessWith applies the HasEdge predicate on the "cloud_ssh_project_access" edge with a given conditions (other predicates).
+func HasCloudSSHProjectAccessWith(preds ...predicate.CloudSSHProjectAccess) predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := newCloudSSHProjectAccessStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasCloudSSHAssignments applies the HasEdge predicate on the "cloud_ssh_assignments" edge.
+func HasCloudSSHAssignments() predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, CloudSSHAssignmentsTable, CloudSSHAssignmentsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasCloudSSHAssignmentsWith applies the HasEdge predicate on the "cloud_ssh_assignments" edge with a given conditions (other predicates).
+func HasCloudSSHAssignmentsWith(preds ...predicate.CloudSSHAssignment) predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := newCloudSSHAssignmentsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasDiagnosticRuns applies the HasEdge predicate on the "diagnostic_runs" edge.
 func HasDiagnosticRuns() predicate.Tenant {
 	return predicate.Tenant(func(s *sql.Selector) {
@@ -783,6 +852,29 @@ func HasWorkspaceDatasets() predicate.Tenant {
 func HasWorkspaceDatasetsWith(preds ...predicate.WorkspaceDataset) predicate.Tenant {
 	return predicate.Tenant(func(s *sql.Selector) {
 		step := newWorkspaceDatasetsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasDatasetBindings applies the HasEdge predicate on the "dataset_bindings" edge.
+func HasDatasetBindings() predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, DatasetBindingsTable, DatasetBindingsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasDatasetBindingsWith applies the HasEdge predicate on the "dataset_bindings" edge with a given conditions (other predicates).
+func HasDatasetBindingsWith(preds ...predicate.DatasetBinding) predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := newDatasetBindingsStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

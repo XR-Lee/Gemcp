@@ -661,6 +661,29 @@ func HasWorkspaceDatasetsWith(preds ...predicate.WorkspaceDataset) predicate.Age
 	})
 }
 
+// HasDatasetBindings applies the HasEdge predicate on the "dataset_bindings" edge.
+func HasDatasetBindings() predicate.AgentToken {
+	return predicate.AgentToken(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, DatasetBindingsTable, DatasetBindingsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasDatasetBindingsWith applies the HasEdge predicate on the "dataset_bindings" edge with a given conditions (other predicates).
+func HasDatasetBindingsWith(preds ...predicate.DatasetBinding) predicate.AgentToken {
+	return predicate.AgentToken(func(s *sql.Selector) {
+		step := newDatasetBindingsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasStudies applies the HasEdge predicate on the "studies" edge.
 func HasStudies() predicate.AgentToken {
 	return predicate.AgentToken(func(s *sql.Selector) {

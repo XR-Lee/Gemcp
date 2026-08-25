@@ -17,6 +17,10 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/auditevent"
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
+	"github.com/XR-Lee/Gemcp/ent/cloudsshassignment"
+	"github.com/XR-Lee/Gemcp/ent/cloudsshnode"
+	"github.com/XR-Lee/Gemcp/ent/cloudsshprojectaccess"
+	"github.com/XR-Lee/Gemcp/ent/datasetbinding"
 	"github.com/XR-Lee/Gemcp/ent/diagnosticrun"
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
@@ -105,39 +109,43 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			agentenrollment.Table:     agentenrollment.ValidColumn,
-			agenttoken.Table:          agenttoken.ValidColumn,
-			attempt.Table:             attempt.ValidColumn,
-			auditevent.Table:          auditevent.ValidColumn,
-			budgetentry.Table:         budgetentry.ValidColumn,
-			diagnosticrun.Table:       diagnosticrun.ValidColumn,
-			environment.Table:         environment.ValidColumn,
-			experiment.Table:          experiment.ValidColumn,
-			experimentproposal.Table:  experimentproposal.ValidColumn,
-			idempotencyrecord.Table:   idempotencyrecord.ValidColumn,
-			iterationplan.Table:       iterationplan.ValidColumn,
-			nodeassignment.Table:      nodeassignment.ValidColumn,
-			nodecommand.Table:         nodecommand.ValidColumn,
-			nodeenrollment.Table:      nodeenrollment.ValidColumn,
-			nodeevent.Table:           nodeevent.ValidColumn,
-			nodeprojectaccess.Table:   nodeprojectaccess.ValidColumn,
-			notification.Table:        notification.ValidColumn,
-			notificationsetting.Table: notificationsetting.ValidColumn,
-			project.Table:             project.ValidColumn,
-			provideraccount.Table:     provideraccount.ValidColumn,
-			providerresource.Table:    providerresource.ValidColumn,
-			recordmixin.Table:         recordmixin.ValidColumn,
-			repository.Table:          repository.ValidColumn,
-			researchedge.Table:        researchedge.ValidColumn,
-			researchnode.Table:        researchnode.ValidColumn,
-			resourceprofile.Table:     resourceprofile.ValidColumn,
-			selfhostednode.Table:      selfhostednode.ValidColumn,
-			serviceheartbeat.Table:    serviceheartbeat.ValidColumn,
-			session.Table:             session.ValidColumn,
-			study.Table:               study.ValidColumn,
-			tenant.Table:              tenant.ValidColumn,
-			user.Table:                user.ValidColumn,
-			workspacedataset.Table:    workspacedataset.ValidColumn,
+			agentenrollment.Table:       agentenrollment.ValidColumn,
+			agenttoken.Table:            agenttoken.ValidColumn,
+			attempt.Table:               attempt.ValidColumn,
+			auditevent.Table:            auditevent.ValidColumn,
+			budgetentry.Table:           budgetentry.ValidColumn,
+			cloudsshassignment.Table:    cloudsshassignment.ValidColumn,
+			cloudsshnode.Table:          cloudsshnode.ValidColumn,
+			cloudsshprojectaccess.Table: cloudsshprojectaccess.ValidColumn,
+			datasetbinding.Table:        datasetbinding.ValidColumn,
+			diagnosticrun.Table:         diagnosticrun.ValidColumn,
+			environment.Table:           environment.ValidColumn,
+			experiment.Table:            experiment.ValidColumn,
+			experimentproposal.Table:    experimentproposal.ValidColumn,
+			idempotencyrecord.Table:     idempotencyrecord.ValidColumn,
+			iterationplan.Table:         iterationplan.ValidColumn,
+			nodeassignment.Table:        nodeassignment.ValidColumn,
+			nodecommand.Table:           nodecommand.ValidColumn,
+			nodeenrollment.Table:        nodeenrollment.ValidColumn,
+			nodeevent.Table:             nodeevent.ValidColumn,
+			nodeprojectaccess.Table:     nodeprojectaccess.ValidColumn,
+			notification.Table:          notification.ValidColumn,
+			notificationsetting.Table:   notificationsetting.ValidColumn,
+			project.Table:               project.ValidColumn,
+			provideraccount.Table:       provideraccount.ValidColumn,
+			providerresource.Table:      providerresource.ValidColumn,
+			recordmixin.Table:           recordmixin.ValidColumn,
+			repository.Table:            repository.ValidColumn,
+			researchedge.Table:          researchedge.ValidColumn,
+			researchnode.Table:          researchnode.ValidColumn,
+			resourceprofile.Table:       resourceprofile.ValidColumn,
+			selfhostednode.Table:        selfhostednode.ValidColumn,
+			serviceheartbeat.Table:      serviceheartbeat.ValidColumn,
+			session.Table:               session.ValidColumn,
+			study.Table:                 study.ValidColumn,
+			tenant.Table:                tenant.ValidColumn,
+			user.Table:                  user.ValidColumn,
+			workspacedataset.Table:      workspacedataset.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

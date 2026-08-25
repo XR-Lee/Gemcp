@@ -69,6 +69,54 @@ func (f BudgetEntryFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value,
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BudgetEntryMutation", m)
 }
 
+// The CloudSSHAssignmentFunc type is an adapter to allow the use of ordinary
+// function as CloudSSHAssignment mutator.
+type CloudSSHAssignmentFunc func(context.Context, *ent.CloudSSHAssignmentMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CloudSSHAssignmentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.CloudSSHAssignmentMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CloudSSHAssignmentMutation", m)
+}
+
+// The CloudSSHNodeFunc type is an adapter to allow the use of ordinary
+// function as CloudSSHNode mutator.
+type CloudSSHNodeFunc func(context.Context, *ent.CloudSSHNodeMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CloudSSHNodeFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.CloudSSHNodeMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CloudSSHNodeMutation", m)
+}
+
+// The CloudSSHProjectAccessFunc type is an adapter to allow the use of ordinary
+// function as CloudSSHProjectAccess mutator.
+type CloudSSHProjectAccessFunc func(context.Context, *ent.CloudSSHProjectAccessMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CloudSSHProjectAccessFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.CloudSSHProjectAccessMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CloudSSHProjectAccessMutation", m)
+}
+
+// The DatasetBindingFunc type is an adapter to allow the use of ordinary
+// function as DatasetBinding mutator.
+type DatasetBindingFunc func(context.Context, *ent.DatasetBindingMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f DatasetBindingFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.DatasetBindingMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DatasetBindingMutation", m)
+}
+
 // The DiagnosticRunFunc type is an adapter to allow the use of ordinary
 // function as DiagnosticRun mutator.
 type DiagnosticRunFunc func(context.Context, *ent.DiagnosticRunMutation) (ent.Value, error)

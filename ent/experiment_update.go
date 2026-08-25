@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
+	"github.com/XR-Lee/Gemcp/ent/cloudsshassignment"
 	"github.com/XR-Lee/Gemcp/ent/diagnosticrun"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
@@ -443,6 +444,21 @@ func (_u *ExperimentUpdate) AddNodeAssignments(v ...*NodeAssignment) *Experiment
 	return _u.AddNodeAssignmentIDs(ids...)
 }
 
+// AddCloudSSHAssignmentIDs adds the "cloud_ssh_assignments" edge to the CloudSSHAssignment entity by IDs.
+func (_u *ExperimentUpdate) AddCloudSSHAssignmentIDs(ids ...int) *ExperimentUpdate {
+	_u.mutation.AddCloudSSHAssignmentIDs(ids...)
+	return _u
+}
+
+// AddCloudSSHAssignments adds the "cloud_ssh_assignments" edges to the CloudSSHAssignment entity.
+func (_u *ExperimentUpdate) AddCloudSSHAssignments(v ...*CloudSSHAssignment) *ExperimentUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddCloudSSHAssignmentIDs(ids...)
+}
+
 // AddBudgetEntryIDs adds the "budget_entries" edge to the BudgetEntry entity by IDs.
 func (_u *ExperimentUpdate) AddBudgetEntryIDs(ids ...int) *ExperimentUpdate {
 	_u.mutation.AddBudgetEntryIDs(ids...)
@@ -592,6 +608,27 @@ func (_u *ExperimentUpdate) RemoveNodeAssignments(v ...*NodeAssignment) *Experim
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveNodeAssignmentIDs(ids...)
+}
+
+// ClearCloudSSHAssignments clears all "cloud_ssh_assignments" edges to the CloudSSHAssignment entity.
+func (_u *ExperimentUpdate) ClearCloudSSHAssignments() *ExperimentUpdate {
+	_u.mutation.ClearCloudSSHAssignments()
+	return _u
+}
+
+// RemoveCloudSSHAssignmentIDs removes the "cloud_ssh_assignments" edge to CloudSSHAssignment entities by IDs.
+func (_u *ExperimentUpdate) RemoveCloudSSHAssignmentIDs(ids ...int) *ExperimentUpdate {
+	_u.mutation.RemoveCloudSSHAssignmentIDs(ids...)
+	return _u
+}
+
+// RemoveCloudSSHAssignments removes "cloud_ssh_assignments" edges to CloudSSHAssignment entities.
+func (_u *ExperimentUpdate) RemoveCloudSSHAssignments(v ...*CloudSSHAssignment) *ExperimentUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveCloudSSHAssignmentIDs(ids...)
 }
 
 // ClearBudgetEntries clears all "budget_entries" edges to the BudgetEntry entity.
@@ -747,9 +784,6 @@ func (_u *ExperimentUpdate) check() error {
 	}
 	if _u.mutation.ProjectCleared() && len(_u.mutation.ProjectIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "Experiment.project"`)
-	}
-	if _u.mutation.RepositoryCleared() && len(_u.mutation.RepositoryIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "Experiment.repository"`)
 	}
 	if _u.mutation.EnvironmentCleared() && len(_u.mutation.EnvironmentIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "Experiment.environment"`)
@@ -1011,6 +1045,51 @@ func (_u *ExperimentUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(nodeassignment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.CloudSSHAssignmentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   experiment.CloudSSHAssignmentsTable,
+			Columns: []string{experiment.CloudSSHAssignmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(cloudsshassignment.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedCloudSSHAssignmentsIDs(); len(nodes) > 0 && !_u.mutation.CloudSSHAssignmentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   experiment.CloudSSHAssignmentsTable,
+			Columns: []string{experiment.CloudSSHAssignmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(cloudsshassignment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.CloudSSHAssignmentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   experiment.CloudSSHAssignmentsTable,
+			Columns: []string{experiment.CloudSSHAssignmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(cloudsshassignment.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -1638,6 +1717,21 @@ func (_u *ExperimentUpdateOne) AddNodeAssignments(v ...*NodeAssignment) *Experim
 	return _u.AddNodeAssignmentIDs(ids...)
 }
 
+// AddCloudSSHAssignmentIDs adds the "cloud_ssh_assignments" edge to the CloudSSHAssignment entity by IDs.
+func (_u *ExperimentUpdateOne) AddCloudSSHAssignmentIDs(ids ...int) *ExperimentUpdateOne {
+	_u.mutation.AddCloudSSHAssignmentIDs(ids...)
+	return _u
+}
+
+// AddCloudSSHAssignments adds the "cloud_ssh_assignments" edges to the CloudSSHAssignment entity.
+func (_u *ExperimentUpdateOne) AddCloudSSHAssignments(v ...*CloudSSHAssignment) *ExperimentUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddCloudSSHAssignmentIDs(ids...)
+}
+
 // AddBudgetEntryIDs adds the "budget_entries" edge to the BudgetEntry entity by IDs.
 func (_u *ExperimentUpdateOne) AddBudgetEntryIDs(ids ...int) *ExperimentUpdateOne {
 	_u.mutation.AddBudgetEntryIDs(ids...)
@@ -1787,6 +1881,27 @@ func (_u *ExperimentUpdateOne) RemoveNodeAssignments(v ...*NodeAssignment) *Expe
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveNodeAssignmentIDs(ids...)
+}
+
+// ClearCloudSSHAssignments clears all "cloud_ssh_assignments" edges to the CloudSSHAssignment entity.
+func (_u *ExperimentUpdateOne) ClearCloudSSHAssignments() *ExperimentUpdateOne {
+	_u.mutation.ClearCloudSSHAssignments()
+	return _u
+}
+
+// RemoveCloudSSHAssignmentIDs removes the "cloud_ssh_assignments" edge to CloudSSHAssignment entities by IDs.
+func (_u *ExperimentUpdateOne) RemoveCloudSSHAssignmentIDs(ids ...int) *ExperimentUpdateOne {
+	_u.mutation.RemoveCloudSSHAssignmentIDs(ids...)
+	return _u
+}
+
+// RemoveCloudSSHAssignments removes "cloud_ssh_assignments" edges to CloudSSHAssignment entities.
+func (_u *ExperimentUpdateOne) RemoveCloudSSHAssignments(v ...*CloudSSHAssignment) *ExperimentUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveCloudSSHAssignmentIDs(ids...)
 }
 
 // ClearBudgetEntries clears all "budget_entries" edges to the BudgetEntry entity.
@@ -1955,9 +2070,6 @@ func (_u *ExperimentUpdateOne) check() error {
 	}
 	if _u.mutation.ProjectCleared() && len(_u.mutation.ProjectIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "Experiment.project"`)
-	}
-	if _u.mutation.RepositoryCleared() && len(_u.mutation.RepositoryIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "Experiment.repository"`)
 	}
 	if _u.mutation.EnvironmentCleared() && len(_u.mutation.EnvironmentIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "Experiment.environment"`)
@@ -2236,6 +2348,51 @@ func (_u *ExperimentUpdateOne) sqlSave(ctx context.Context) (_node *Experiment, 
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(nodeassignment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.CloudSSHAssignmentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   experiment.CloudSSHAssignmentsTable,
+			Columns: []string{experiment.CloudSSHAssignmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(cloudsshassignment.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedCloudSSHAssignmentsIDs(); len(nodes) > 0 && !_u.mutation.CloudSSHAssignmentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   experiment.CloudSSHAssignmentsTable,
+			Columns: []string{experiment.CloudSSHAssignmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(cloudsshassignment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.CloudSSHAssignmentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   experiment.CloudSSHAssignmentsTable,
+			Columns: []string{experiment.CloudSSHAssignmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(cloudsshassignment.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

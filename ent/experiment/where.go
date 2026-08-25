@@ -436,6 +436,16 @@ func RepositoryIDNotIn(vs ...int) predicate.Experiment {
 	return predicate.Experiment(sql.FieldNotIn(FieldRepositoryID, vs...))
 }
 
+// RepositoryIDIsNil applies the IsNil predicate on the "repository_id" field.
+func RepositoryIDIsNil() predicate.Experiment {
+	return predicate.Experiment(sql.FieldIsNull(FieldRepositoryID))
+}
+
+// RepositoryIDNotNil applies the NotNil predicate on the "repository_id" field.
+func RepositoryIDNotNil() predicate.Experiment {
+	return predicate.Experiment(sql.FieldNotNull(FieldRepositoryID))
+}
+
 // EnvironmentIDEQ applies the EQ predicate on the "environment_id" field.
 func EnvironmentIDEQ(v int) predicate.Experiment {
 	return predicate.Experiment(sql.FieldEQ(FieldEnvironmentID, v))
@@ -2120,6 +2130,29 @@ func HasNodeAssignments() predicate.Experiment {
 func HasNodeAssignmentsWith(preds ...predicate.NodeAssignment) predicate.Experiment {
 	return predicate.Experiment(func(s *sql.Selector) {
 		step := newNodeAssignmentsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasCloudSSHAssignments applies the HasEdge predicate on the "cloud_ssh_assignments" edge.
+func HasCloudSSHAssignments() predicate.Experiment {
+	return predicate.Experiment(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, CloudSSHAssignmentsTable, CloudSSHAssignmentsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasCloudSSHAssignmentsWith applies the HasEdge predicate on the "cloud_ssh_assignments" edge with a given conditions (other predicates).
+func HasCloudSSHAssignmentsWith(preds ...predicate.CloudSSHAssignment) predicate.Experiment {
+	return predicate.Experiment(func(s *sql.Selector) {
+		step := newCloudSSHAssignmentsStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

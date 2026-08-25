@@ -116,6 +116,8 @@ const (
 	EdgeProviderResources = "provider_resources"
 	// EdgeNodeAssignments holds the string denoting the node_assignments edge name in mutations.
 	EdgeNodeAssignments = "node_assignments"
+	// EdgeCloudSSHAssignments holds the string denoting the cloud_ssh_assignments edge name in mutations.
+	EdgeCloudSSHAssignments = "cloud_ssh_assignments"
 	// EdgeBudgetEntries holds the string denoting the budget_entries edge name in mutations.
 	EdgeBudgetEntries = "budget_entries"
 	// EdgeIdempotencyRecords holds the string denoting the idempotency_records edge name in mutations.
@@ -191,6 +193,13 @@ const (
 	NodeAssignmentsInverseTable = "node_assignments"
 	// NodeAssignmentsColumn is the table column denoting the node_assignments relation/edge.
 	NodeAssignmentsColumn = "experiment_id"
+	// CloudSSHAssignmentsTable is the table that holds the cloud_ssh_assignments relation/edge.
+	CloudSSHAssignmentsTable = "cloud_ssh_assignments"
+	// CloudSSHAssignmentsInverseTable is the table name for the CloudSSHAssignment entity.
+	// It exists in this package in order to avoid circular dependency with the "cloudsshassignment" package.
+	CloudSSHAssignmentsInverseTable = "cloud_ssh_assignments"
+	// CloudSSHAssignmentsColumn is the table column denoting the cloud_ssh_assignments relation/edge.
+	CloudSSHAssignmentsColumn = "experiment_id"
 	// BudgetEntriesTable is the table that holds the budget_entries relation/edge.
 	BudgetEntriesTable = "budget_entries"
 	// BudgetEntriesInverseTable is the table name for the BudgetEntry entity.
@@ -626,6 +635,20 @@ func ByNodeAssignments(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// ByCloudSSHAssignmentsCount orders the results by cloud_ssh_assignments count.
+func ByCloudSSHAssignmentsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newCloudSSHAssignmentsStep(), opts...)
+	}
+}
+
+// ByCloudSSHAssignments orders the results by cloud_ssh_assignments terms.
+func ByCloudSSHAssignments(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newCloudSSHAssignmentsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByBudgetEntriesCount orders the results by budget_entries count.
 func ByBudgetEntriesCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -742,6 +765,13 @@ func newNodeAssignmentsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(NodeAssignmentsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, NodeAssignmentsTable, NodeAssignmentsColumn),
+	)
+}
+func newCloudSSHAssignmentsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(CloudSSHAssignmentsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, CloudSSHAssignmentsTable, CloudSSHAssignmentsColumn),
 	)
 }
 func newBudgetEntriesStep() *sqlgraph.Step {

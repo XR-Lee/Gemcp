@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/XR-Lee/Gemcp/ent/attempt"
+	"github.com/XR-Lee/Gemcp/ent/cloudsshassignment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/project"
@@ -90,9 +91,11 @@ type AttemptEdges struct {
 	OwnedResource *ProviderResource `json:"owned_resource,omitempty"`
 	// NodeAssignment holds the value of the node_assignment edge.
 	NodeAssignment *NodeAssignment `json:"node_assignment,omitempty"`
+	// CloudSSHAssignment holds the value of the cloud_ssh_assignment edge.
+	CloudSSHAssignment *CloudSSHAssignment `json:"cloud_ssh_assignment,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [5]bool
+	loadedTypes [6]bool
 }
 
 // TenantOrErr returns the Tenant value or an error if the edge
@@ -148,6 +151,17 @@ func (e AttemptEdges) NodeAssignmentOrErr() (*NodeAssignment, error) {
 		return nil, &NotFoundError{label: nodeassignment.Label}
 	}
 	return nil, &NotLoadedError{edge: "node_assignment"}
+}
+
+// CloudSSHAssignmentOrErr returns the CloudSSHAssignment value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e AttemptEdges) CloudSSHAssignmentOrErr() (*CloudSSHAssignment, error) {
+	if e.CloudSSHAssignment != nil {
+		return e.CloudSSHAssignment, nil
+	} else if e.loadedTypes[5] {
+		return nil, &NotFoundError{label: cloudsshassignment.Label}
+	}
+	return nil, &NotLoadedError{edge: "cloud_ssh_assignment"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -380,6 +394,11 @@ func (_m *Attempt) QueryOwnedResource() *ProviderResourceQuery {
 // QueryNodeAssignment queries the "node_assignment" edge of the Attempt entity.
 func (_m *Attempt) QueryNodeAssignment() *NodeAssignmentQuery {
 	return NewAttemptClient(_m.config).QueryNodeAssignment(_m)
+}
+
+// QueryCloudSSHAssignment queries the "cloud_ssh_assignment" edge of the Attempt entity.
+func (_m *Attempt) QueryCloudSSHAssignment() *CloudSSHAssignmentQuery {
+	return NewAttemptClient(_m.config).QueryCloudSSHAssignment(_m)
 }
 
 // Update returns a builder for updating this Attempt.

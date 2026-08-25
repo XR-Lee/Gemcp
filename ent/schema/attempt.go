@@ -44,6 +44,7 @@ func (Attempt) Edges() []ent.Edge {
 		edge.From("experiment", Experiment.Type).Ref("attempts").Field("experiment_id").Unique().Required().Immutable(),
 		edge.To("owned_resource", ProviderResource.Type).Unique(),
 		edge.To("node_assignment", NodeAssignment.Type).Unique(),
+		edge.To("cloud_ssh_assignment", CloudSSHAssignment.Type).Unique(),
 	}
 }
 
