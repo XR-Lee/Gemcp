@@ -1,14 +1,17 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
-import { ArrowUpCircle, Check, Clipboard, Cpu, FolderOpen, HardDrive, LoaderCircle, Plus, RefreshCw, Server, ShieldCheck, TriangleAlert, Trash2, X } from '@lucide/vue'
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { ArrowUpCircle, Bot, Check, Clipboard, Cpu, FolderOpen, Handshake, HardDrive, KeyRound, LoaderCircle, Plus, RefreshCw, Server, ShieldCheck, TriangleAlert, Trash2, X } from '@lucide/vue'
 import {
   APIError, api, type BuildInfo, type NodeEnrollment, type NodeEnrollmentIssue, type NodeList, type Project,
-  type SelfHostedNode, type SelfHostedRuntimeList, type TrustedWorkspace,
+  type SSHCloudList, type SSHCloudNode, type SSHCloudProbeStep, type SelfHostedNode, type SelfHostedRuntimeList,
+  type TrustedWorkspace,
 } from '../api'
 import { localizedState, useI18n } from '../i18n'
+import { formatSSHTarget, parseSSHTarget, suggestedSSHLabel } from '../sshTarget'
+import { agentNodeHandshakePrompt } from '../agentNodeHandshakePrompt'
 
-const props = defineProps<{ active: boolean; projects: Project[]; build: BuildInfo | null }>()
-const emit = defineEmits<{ unauthorized: [] }>()
+const props = defineProps<{ active: boolean; projects: Project[]; build: BuildInfo | null; sshCloudEnabled?: boolean }>()
+const emit = defineEmits<{ unauthorized: []; openAgents: [] }>()
 const data = ref<NodeList>({ nodes: [], enrollments: [], assignments: [] })
 const loading = ref(false)
 const initialized = ref(false)
@@ -38,6 +41,25 @@ const workspaceTarget = ref<SelfHostedNode | null>(null)
 const workspaceBusy = ref(false)
 const workspaceError = ref('')
 const workspaceDisableTarget = ref<TrustedWorkspace | null>(null)
+const sshCloud = ref<SSHCloudList>({ experimental: true, warning: '', enabled: false, nodes: [], assignments: [] })
+const sshCloudLoading = ref(false)
+const sshCloudError = ref('')
+const sshCloudDialog = ref<'create' | 'rotate' | null>(null)
+const sshCloudTarget = ref<SSHCloudNode | null>(null)
+const sshCloudBusy = ref(false)
+const sshCloudForm = reactive({
+  command: '', label: '', host: '', port: '22', user: '', authMethod: 'password' as 'password' | 'private_key',
+  password: '', privateKey: '', passphrase: '',
+})
+const sshCloudSuggestedLabel = ref('')
+const sshCloudParsed = computed(() => parseSSHTarget(sshCloudForm.command))
+const sshCloudProgress = ref<SSHCloudNode | null>(null)
+const sshCloudProgressLog = ref<SSHCloudProbeStep[]>([])
+const sshCloudProgressRunning = ref(false)
+const sshCloudLogEl = ref<HTMLElement | null>(null)
+const sshCloudInstallNode = ref<SSHCloudNode | null>(null)
+const sshCloudInstallCopied = ref(false)
+let sshCloudProgressTimer: number | undefined
 const createForm = reactive({ label: '', expires: '30' })
 const approveForm = reactive({ pairingCode: '', projects: {} as Record<string, boolean> })
 const runtimeForm = reactive({ projectID: '', name: '', image: '', gpuNames: '', cpuLimit: 8, memoryGB: 32, makeDefault: false })
@@ -135,10 +157,291 @@ async function load() {
     const result = await api.nodes()
     data.value = { ...result, nodes: result.nodes ?? [], enrollments: result.enrollments ?? [], assignments: result.assignments ?? [] }
     initialized.value = true
+    await loadSSHCloud()
   } catch (caught) {
     error.value = apiMessage(caught, t('Could not load Self-hosted nodes.', '无法加载自托管节点。'))
   } finally {
     loading.value = false
+  }
+}
+
+async function loadSSHCloud() {
+  if (!props.sshCloudEnabled) {
+    sshCloud.value = { experimental: true, warning: '', enabled: false, nodes: [], assignments: [] }
+    return
+  }
+  sshCloudLoading.value = true
+  sshCloudError.value = ''
+  try {
+    sshCloud.value = await api.sshCloudNodes()
+  } catch (caught) {
+    if (caught instanceof APIError && caught.status === 503) {
+      sshCloud.value = { experimental: true, warning: '', enabled: false, nodes: [], assignments: [] }
+      return
+    }
+    sshCloudError.value = apiMessage(caught, t('Could not load Cloud SSH nodes.', '无法加载 Cloud SSH 节点。'))
+  } finally {
+    sshCloudLoading.value = false
+  }
+}
+
+function resetSSHCloudForm() {
+  sshCloudSuggestedLabel.value = ''
+  Object.assign(sshCloudForm, {
+    command: '', label: '', host: '', port: '22', user: '', authMethod: 'password', password: '', privateKey: '', passphrase: '',
+  })
+}
+
+function applyParsedSSHTarget() {
+  const parsed = sshCloudParsed.value
+  if (!parsed) return
+  sshCloudForm.host = parsed.host
+  sshCloudForm.port = String(parsed.port)
+  sshCloudForm.user = parsed.user
+  if (parsed.password && !sshCloudForm.password) {
+    sshCloudForm.password = parsed.password
+    sshCloudForm.authMethod = 'password'
+  }
+  const suggestion = suggestedSSHLabel(parsed)
+  if (!sshCloudForm.label.trim() || sshCloudForm.label === sshCloudSuggestedLabel.value) {
+    sshCloudForm.label = suggestion
+    sshCloudSuggestedLabel.value = suggestion
+  }
+}
+
+function openSSHCloudCreate() {
+  resetSSHCloudForm()
+  sshCloudTarget.value = null
+  sshCloudError.value = ''
+  sshCloudDialog.value = 'create'
+}
+
+function openSSHCloudRotate(node: SSHCloudNode) {
+  resetSSHCloudForm()
+  sshCloudForm.authMethod = node.auth_method
+  sshCloudTarget.value = node
+  sshCloudError.value = ''
+  sshCloudDialog.value = 'rotate'
+}
+
+async function createSSHCloudNode() {
+  applyParsedSSHTarget()
+  const parsed = sshCloudParsed.value
+  if (!parsed) {
+    sshCloudError.value = t('Paste an SSH command such as ssh -p 47174 root@connect.westb.seetacloud.com', '请粘贴 SSH 命令，例如 ssh -p 47174 root@connect.westb.seetacloud.com')
+    return
+  }
+  sshCloudBusy.value = true
+  sshCloudError.value = ''
+  let node: SSHCloudNode
+  try {
+    node = await api.createSSHCloudNode({
+      label: sshCloudForm.label.trim() || suggestedSSHLabel(parsed), host: parsed.host, port: parsed.port,
+      user: parsed.user, auth_method: sshCloudForm.authMethod,
+      password: sshCloudForm.authMethod === 'password' ? sshCloudForm.password : undefined,
+      private_key: sshCloudForm.authMethod === 'private_key' ? sshCloudForm.privateKey : undefined,
+      passphrase: sshCloudForm.passphrase || undefined,
+      probe: false,
+    })
+    sshCloudDialog.value = null
+  } catch (caught) {
+    sshCloudError.value = apiMessage(caught, t('Could not register the Cloud SSH node.', '无法注册 Cloud SSH 节点。'))
+    sshCloudBusy.value = false
+    return
+  }
+  try {
+    await runSSHCloudProbe(node)
+  } catch {
+    // The probe console stays open with the failed step and remote output.
+  } finally {
+    sshCloudBusy.value = false
+  }
+}
+
+async function rotateSSHCloudNode() {
+  if (!sshCloudTarget.value) return
+  sshCloudBusy.value = true
+  sshCloudError.value = ''
+  try {
+    await api.rotateSSHCloudCredential(sshCloudTarget.value.id, {
+      auth_method: sshCloudForm.authMethod,
+      password: sshCloudForm.authMethod === 'password' ? sshCloudForm.password : undefined,
+      private_key: sshCloudForm.authMethod === 'private_key' ? sshCloudForm.privateKey : undefined,
+      passphrase: sshCloudForm.passphrase || undefined,
+    })
+    sshCloudDialog.value = null
+    await loadSSHCloud()
+  } catch (caught) {
+    sshCloudError.value = apiMessage(caught, t('Could not rotate Cloud SSH credentials.', '无法轮换 Cloud SSH 凭据。'))
+  } finally {
+    sshCloudBusy.value = false
+  }
+}
+
+async function probeSSHCloudNode(node: SSHCloudNode) {
+  sshCloudBusy.value = true
+  sshCloudError.value = ''
+  try {
+    await runSSHCloudProbe(node)
+  } catch (caught) {
+    sshCloudError.value = apiMessage(caught, t('Cloud SSH probe failed.', 'Cloud SSH 探测失败。'))
+  } finally {
+    sshCloudBusy.value = false
+  }
+}
+
+function openSSHCloudProgress(node: SSHCloudNode) {
+  sshCloudProgress.value = node
+  sshCloudProgressRunning.value = true
+  sshCloudProgressLog.value = node.probe_log?.length
+    ? node.probe_log
+    : [{ step: 'connect', status: 'running', message: t('Starting remote probe…', '正在探测远程主机…') }]
+}
+
+function closeSSHCloudProgress() {
+  if (sshCloudProgressTimer !== undefined) {
+    window.clearInterval(sshCloudProgressTimer)
+    sshCloudProgressTimer = undefined
+  }
+  sshCloudProgress.value = null
+  sshCloudProgressRunning.value = false
+}
+
+async function refreshSSHCloudProgress() {
+  if (!sshCloudProgress.value) return
+  try {
+    const list = await api.sshCloudNodes()
+    sshCloud.value = list
+    const node = list.nodes.find((item) => item.id === sshCloudProgress.value?.id)
+    if (!node) return
+    sshCloudProgress.value = node
+    if (node.probe_log?.length) sshCloudProgressLog.value = node.probe_log
+  } catch {
+    // Keep the last visible probe lines if a refresh fails mid-install.
+  }
+}
+
+async function runSSHCloudProbe(node: SSHCloudNode) {
+  openSSHCloudProgress(node)
+  await loadSSHCloud()
+  sshCloudProgressTimer = window.setInterval(() => { void refreshSSHCloudProgress() }, 500)
+  try {
+    const probed = await api.probeSSHCloudNode(node.id)
+    sshCloudProgress.value = probed
+    if (probed.probe_log?.length) sshCloudProgressLog.value = probed.probe_log
+    await loadSSHCloud()
+  } catch (caught) {
+    await refreshSSHCloudProgress()
+    sshCloudError.value = apiMessage(caught, t('Cloud SSH probe failed.', 'Cloud SSH 探测失败。'))
+    const last = sshCloudProgressLog.value[sshCloudProgressLog.value.length - 1]
+    if (!last || last.status !== 'failed') {
+      sshCloudProgressLog.value = [
+        ...sshCloudProgressLog.value,
+        { step: 'failed', status: 'failed', message: sshCloudError.value },
+      ]
+    }
+    throw caught
+  } finally {
+    sshCloudProgressRunning.value = false
+    if (sshCloudProgressTimer !== undefined) {
+      window.clearInterval(sshCloudProgressTimer)
+      sshCloudProgressTimer = undefined
+    }
+  }
+}
+
+function sshCloudStepLabel(step: SSHCloudProbeStep) {
+  switch (step.step) {
+    case 'connect': return t('Connect SSH', '连接 SSH')
+    case 'os': return t('Check host', '检查主机')
+    case 'inventory': return t('Read optional GPU inventory', '读取可选 GPU 清单')
+    case 'done': return t('Ready', '完成')
+    case 'failed': return t('Failed', '失败')
+    default: return step.step
+  }
+}
+
+async function revokeSSHCloudNode(node: SSHCloudNode) {
+  sshCloudBusy.value = true
+  sshCloudError.value = ''
+  try {
+    await api.revokeSSHCloudNode(node.id)
+    await loadSSHCloud()
+  } catch (caught) {
+    sshCloudError.value = apiMessage(caught, t('Could not revoke the Cloud SSH node.', '无法撤销 Cloud SSH 节点。'))
+  } finally {
+    sshCloudBusy.value = false
+  }
+}
+
+function sshCloudRegisteredBy(node: SSHCloudNode) {
+  if (node.created_actor_type === 'agent') {
+    return node.created_actor_id ? `${t('Agent', 'Agent')} ${node.created_actor_id.slice(0, 8)}` : t('Agent', 'Agent')
+  }
+  if (node.created_actor_type === 'user' || node.created_actor_id) return t('Owner', 'Owner')
+  return '—'
+}
+
+function sshCloudRunningLabel(node: SSHCloudNode) {
+  const assignment = sshCloud.value.assignments.find((item) =>
+    item.node_id === node.id && ['starting', 'running', 'stopping', 'collecting'].includes(item.state),
+  )
+  if (!assignment) return t('Idle', '空闲')
+  return localizedState(assignment.state)
+}
+
+function sshCloudProbeLabel(node: SSHCloudNode) {
+  if (node.status === 'host_key_changed') return t('Host key changed', '主机密钥已变更')
+  if (node.status === 'active' && node.host_key_fingerprint) return t('Probe OK', '探测通过')
+  if (node.status === 'pending_probe') return t('Pending probe', '等待探测')
+  return localizedState(node.status)
+}
+
+function sshCloudGPULabel(node: SSHCloudNode) {
+  const names = node.inventory?.gpus?.map((gpu) => gpu.name).filter(Boolean) ?? []
+  if (names.length) return names.join(', ')
+  return t('No GPU listed', '未列出 GPU')
+}
+
+function sshCloudInstallTextFor(node?: SSHCloudNode | null) {
+  const failed = sshCloudProgressLog.value.filter((step) => step.status === 'failed').at(-1)
+  return agentNodeHandshakePrompt({
+    locale: locale.value === 'zh' ? 'zh' : 'en',
+    sshCloudEnabled: true,
+    operateNodes: true,
+    node: node ? {
+      label: node.label,
+      user: node.user,
+      host: node.host,
+      port: node.port,
+      registered: true,
+    } : undefined,
+    lastError: sshCloudError.value || failed?.message || failed?.output,
+  })
+}
+
+const sshCloudHandshakeOpen = ref(false)
+const sshCloudInstallText = computed(() => sshCloudHandshakeOpen.value || sshCloudInstallNode.value ? sshCloudInstallTextFor(sshCloudInstallNode.value) : '')
+
+function openSSHCloudInstallPrompt(node?: SSHCloudNode | null) {
+  sshCloudInstallNode.value = node ?? null
+  sshCloudHandshakeOpen.value = true
+  sshCloudInstallCopied.value = false
+}
+
+function closeSSHCloudHandshake() {
+  sshCloudInstallNode.value = null
+  sshCloudHandshakeOpen.value = false
+}
+
+async function copySSHCloudInstallPrompt(node?: SSHCloudNode | null) {
+  const target = node ?? sshCloudInstallNode.value
+  try {
+    await navigator.clipboard.writeText(sshCloudInstallTextFor(target))
+    sshCloudInstallCopied.value = true
+    window.setTimeout(() => { sshCloudInstallCopied.value = false }, 1600)
+  } catch {
+    sshCloudError.value = t('Clipboard access was denied.', '剪贴板访问被拒绝。')
   }
 }
 
@@ -388,9 +691,19 @@ watch(() => props.projects, (projects) => {
 watch(runtimeProjectID, () => {
   if (props.active) loadRuntimes()
 }, { immediate: true })
+watch(() => sshCloudForm.command, () => {
+  if (sshCloudDialog.value === 'create') applyParsedSSHTarget()
+})
+watch(sshCloudProgressLog, async () => {
+  await nextTick()
+  if (sshCloudLogEl.value) sshCloudLogEl.value.scrollTop = sshCloudLogEl.value.scrollHeight
+}, { deep: true })
 watch(locale, (value) => (setupLanguage.value = value))
 onMounted(schedule)
-onUnmounted(() => timer !== undefined && window.clearTimeout(timer))
+onUnmounted(() => {
+  if (timer !== undefined) window.clearTimeout(timer)
+  if (sshCloudProgressTimer !== undefined) window.clearInterval(sshCloudProgressTimer)
+})
 </script>
 
 <template>
@@ -419,6 +732,43 @@ onUnmounted(() => timer !== undefined && window.clearTimeout(timer))
     </div>
 
     <div v-if="error" class="inline-alert danger" role="alert">{{ error }}</div>
+
+    <section v-if="sshCloudEnabled" class="node-section ssh-cloud-lab" aria-labelledby="ssh-cloud-heading">
+      <div class="section-heading-row">
+        <div><p class="eyebrow">{{ t('Laboratory', '实验室') }}</p><h2 id="ssh-cloud-heading">{{ t('Cloud SSH (experimental)', 'Cloud SSH（实验性）') }}</h2></div>
+        <div class="heading-actions">
+          <button class="secondary-button small-button icon-command" type="button" @click="openSSHCloudInstallPrompt()"><Handshake :size="15" /> {{ t('Handshake prompt', '握手 Prompt') }}</button>
+          <button class="primary-button small-button icon-command" type="button" @click="openSSHCloudCreate"><Plus :size="15" /> {{ t('Add cloud instance', '添加云实例') }}</button>
+        </div>
+      </div>
+      <div class="inline-alert workspace-warning" role="status">{{ sshCloud.warning || t('Experimental observer: Gemcp stores an encrypted SSH password or private key and opens outbound SSH. Probe only checks connectivity and pins the host key. Experiments run as a host process in the login environment. Emergency Stop only kills the Gemcp-started process group. It does not delete host files or power off the instance. Cloud-vendor charges are outside Gemcp.', '实验性观察者：Gemcp 会加密保存 SSH 密码或私钥并主动 SSH。探测只检查连通并钉 host key。实验在登录环境里作为宿主进程运行。Emergency Stop 只杀 Gemcp 拉起的进程组，不删主机文件，也不关机。云厂商账单不在 Gemcp 内。') }}</div>
+      <div v-if="sshCloudError" class="inline-alert danger" role="alert">{{ sshCloudError }}</div>
+      <div class="table-scroll">
+        <table class="data-table node-table">
+          <thead><tr><th>{{ t('Instance', '实例') }}</th><th>{{ t('Status', '状态') }}</th><th>{{ t('Registered by', '登记者') }}</th><th>{{ t('Running', '在跑') }}</th><th>{{ t('Probe', '探测') }}</th><th>{{ t('Fingerprint', '指纹') }}</th><th :aria-label="t('Actions', '操作')"></th></tr></thead>
+          <tbody>
+            <tr v-if="sshCloudLoading && sshCloud.nodes.length === 0"><td colspan="7" class="empty-cell"><LoaderCircle :size="18" class="spinning" /> {{ t('Loading Cloud SSH nodes', '正在加载 Cloud SSH 节点') }}</td></tr>
+            <tr v-else-if="sshCloud.nodes.length === 0"><td colspan="7" class="empty-cell">{{ t('No Cloud SSH instance has been registered.', '尚未注册 Cloud SSH 实例。') }}</td></tr>
+            <tr v-for="node in sshCloud.nodes" :key="node.id">
+              <td><div class="primary-cell"><strong>{{ node.label }}</strong><span>{{ node.user }}@{{ node.host }}:{{ node.port }}</span><small v-if="sshCloudGPULabel(node) !== t('No GPU listed', '未列出 GPU')" class="muted">{{ sshCloudGPULabel(node) }}</small></div></td>
+              <td><span class="state-badge" :class="node.status">{{ localizedState(node.status) }}</span></td>
+              <td>{{ sshCloudRegisteredBy(node) }}</td>
+              <td>{{ sshCloudRunningLabel(node) }}</td>
+              <td>{{ sshCloudProbeLabel(node) }}</td>
+              <td><code>{{ node.host_key_fingerprint ? node.host_key_fingerprint.slice(0, 24) : '—' }}</code></td>
+              <td>
+                <div class="row-actions">
+                  <button class="table-command" type="button" :title="t('Probe', '探测')" @click="probeSSHCloudNode(node)"><RefreshCw :size="16" /></button>
+                  <button class="table-command" type="button" :title="t('Copy handshake prompt', '复制握手 Prompt')" :aria-label="`${t('Copy handshake prompt', '复制握手 Prompt')} ${node.label}`" @click="openSSHCloudInstallPrompt(node)"><Handshake :size="16" /></button>
+                  <button class="table-command" type="button" :title="t('Rotate credential', '轮换凭据')" @click="openSSHCloudRotate(node)"><KeyRound :size="16" /></button>
+                  <button class="table-command danger" type="button" :title="t('Revoke', '撤销')" @click="revokeSSHCloudNode(node)"><Trash2 :size="16" /></button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
 
     <div class="node-workspace">
       <section class="node-section" aria-labelledby="node-fleet-heading">
@@ -543,6 +893,80 @@ onUnmounted(() => timer !== undefined && window.clearTimeout(timer))
       </section>
     </div>
 
+    <div v-if="sshCloudDialog" class="modal-backdrop" @click.self="sshCloudDialog = null">
+      <form class="modal-card node-dialog ssh-cloud-dialog" @submit.prevent="sshCloudDialog === 'create' ? createSSHCloudNode() : rotateSSHCloudNode()">
+        <div class="modal-heading">
+          <div>
+            <p class="eyebrow">{{ t('Experimental Cloud SSH', '实验性 Cloud SSH') }}</p>
+            <h2>{{ sshCloudDialog === 'create' ? t('Register cloud instance', '注册云实例') : t('Rotate credential', '轮换凭据') }}</h2>
+          </div>
+          <button class="close-button" type="button" :aria-label="t('Close', '关闭')" @click="sshCloudDialog = null"><X :size="18" /></button>
+        </div>
+        <template v-if="sshCloudDialog === 'create'">
+          <label class="field-label">{{ t('SSH command', 'SSH 命令') }}
+            <textarea
+              v-model="sshCloudForm.command"
+              class="text-input code-input ssh-command-input"
+              required
+              rows="3"
+              spellcheck="false"
+              autocomplete="off"
+              :placeholder="t('ssh -p 47174 root@connect.westb.seetacloud.com', 'ssh -p 47174 root@connect.westb.seetacloud.com')"
+            />
+          </label>
+          <p class="field-hint">{{ t('Paste the command from the cloud console, the same way VS Code Remote SSH accepts it. A following 密码 / Password line is also read. Manual add is a fallback; Agents with operate_nodes can register the same host. Probe only checks connectivity and pins the host key. It does not install software.', '从云控制台复制整段命令，用法与 VS Code Remote SSH 相同。下一行的 密码 / Password 也会被读取。手工添加是后备；带 operate_nodes 的 Agent 也可以登记同一台主机。探测只检查连通并钉 host key，不装任何软件。') }}</p>
+          <div v-if="sshCloudParsed" class="ssh-parsed" role="status">{{ formatSSHTarget(sshCloudParsed) }}</div>
+          <div v-else-if="sshCloudForm.command.trim()" class="inline-alert danger" role="status">{{ t('Could not parse an SSH user, host, and port from that text.', '无法从这段文本解析出 SSH 用户、主机和端口。') }}</div>
+          <label class="field-label">{{ t('Label', '标签') }}<input v-model="sshCloudForm.label" class="text-input" maxlength="120" autocomplete="off" :placeholder="sshCloudParsed ? suggestedSSHLabel(sshCloudParsed) : t('Optional, filled from the host', '可选，默认用主机名')" /></label>
+        </template>
+        <template v-if="sshCloudDialog === 'create' || sshCloudDialog === 'rotate'">
+          <label class="field-label">{{ t('Authentication', '认证') }}<select v-model="sshCloudForm.authMethod" class="text-input"><option value="password">{{ t('Password', '密码') }}</option><option value="private_key">{{ t('Private key', '私钥') }}</option></select></label>
+          <label v-if="sshCloudForm.authMethod === 'password'" class="field-label">{{ t('Password', '密码') }}<input v-model="sshCloudForm.password" class="text-input" type="password" required autocomplete="new-password" /></label>
+          <template v-else>
+            <label class="field-label">{{ t('Private key (PEM)', '私钥（PEM）') }}<textarea v-model="sshCloudForm.privateKey" class="text-input code-input" required rows="6" spellcheck="false" /></label>
+            <label class="field-label">{{ t('Passphrase (optional)', '口令（可选）') }}<input v-model="sshCloudForm.passphrase" class="text-input" type="password" autocomplete="new-password" /></label>
+          </template>
+        </template>
+        <div v-if="sshCloudError" class="inline-alert danger" role="alert">{{ sshCloudError }}</div>
+        <div class="modal-actions">
+          <button class="secondary-button" type="button" @click="sshCloudDialog = null">{{ t('Cancel', '取消') }}</button>
+          <button class="primary-button icon-command" type="submit" :disabled="sshCloudBusy"><LoaderCircle v-if="sshCloudBusy" :size="16" class="spinning" /><Plus v-else :size="16" /> {{ sshCloudDialog === 'create' ? t('Register and probe', '注册并探测') : t('Rotate', '轮换') }}</button>
+        </div>
+      </form>
+    </div>
+
+    <div v-if="sshCloudProgress" class="modal-backdrop" @click.self="!sshCloudProgressRunning && closeSSHCloudProgress()">
+      <section class="modal-card node-dialog ssh-probe-console" role="dialog" aria-modal="true" aria-labelledby="ssh-probe-heading">
+        <div class="modal-heading">
+          <div>
+            <p class="eyebrow">{{ t('Cloud SSH probe', 'Cloud SSH 探测') }}</p>
+            <h2 id="ssh-probe-heading">{{ sshCloudProgress.label }}</h2>
+            <p class="field-hint">{{ sshCloudProgress.user }}@{{ sshCloudProgress.host }}:{{ sshCloudProgress.port }}</p>
+          </div>
+          <button class="close-button" type="button" :aria-label="t('Close', '关闭')" :disabled="sshCloudProgressRunning" @click="closeSSHCloudProgress()"><X :size="18" /></button>
+        </div>
+        <div ref="sshCloudLogEl" class="ssh-probe-log" role="log" aria-live="polite">
+          <div v-for="(step, index) in sshCloudProgressLog" :key="`${step.step}-${index}`" class="ssh-probe-step" :data-status="step.status || 'running'">
+            <div class="ssh-probe-line">
+              <LoaderCircle v-if="step.status === 'running'" :size="13" class="spinning" />
+              <Check v-else-if="step.status === 'ok'" :size="13" />
+              <TriangleAlert v-else-if="step.status === 'failed'" :size="13" />
+              <span v-else>•</span>
+              <strong>{{ sshCloudStepLabel(step) }}</strong>
+              <span>{{ step.message }}</span>
+            </div>
+            <pre v-if="step.output" class="ssh-probe-output">{{ step.output }}</pre>
+          </div>
+        </div>
+        <div v-if="sshCloudError && sshCloudProgress" class="inline-alert danger" role="alert">{{ sshCloudError }}</div>
+        <div class="modal-actions">
+          <p v-if="sshCloudProgressRunning" class="field-hint">{{ t('Probe only checks connectivity and pins the host key. It does not install software.', '探测只检查连通并钉 host key，不装任何软件。') }}</p>
+          <button class="secondary-button icon-command" type="button" :disabled="sshCloudProgressRunning" @click="openSSHCloudInstallPrompt(sshCloudProgress)"><Handshake :size="16" /> {{ t('Handshake prompt', '握手 Prompt') }}</button>
+          <button class="primary-button" type="button" :disabled="sshCloudProgressRunning" @click="closeSSHCloudProgress()">{{ sshCloudProgressRunning ? t('Working…', '进行中…') : t('Close', '关闭') }}</button>
+        </div>
+      </section>
+    </div>
+
     <div v-if="createDialog" class="modal-backdrop" @click.self="createDialog = false">
       <form class="modal-card node-dialog" @submit.prevent="createEnrollment">
         <div class="modal-heading"><div><p class="eyebrow">{{ t('New machine', '新主机') }}</p><h2>{{ t('Create enrollment', '创建注册') }}</h2></div><button class="close-button" type="button" :aria-label="t('Close', '关闭')" @click="createDialog = false"><X :size="18" /></button></div>
@@ -551,6 +975,24 @@ onUnmounted(() => timer !== undefined && window.clearTimeout(timer))
         <div v-if="createError" class="inline-alert danger" role="alert">{{ createError }}</div>
         <div class="modal-actions"><button class="secondary-button" type="button" @click="createDialog = false">{{ t('Cancel', '取消') }}</button><button class="primary-button icon-command" type="submit" :disabled="creating"><LoaderCircle v-if="creating" :size="16" class="spinning" /><Plus v-else :size="16" /> {{ t('Create', '创建') }}</button></div>
       </form>
+    </div>
+
+    <div v-if="sshCloudHandshakeOpen" class="modal-backdrop" @click.self="closeSSHCloudHandshake">
+      <section class="modal-card node-dialog upgrade-dialog" role="dialog" aria-modal="true" aria-labelledby="ssh-install-prompt-heading">
+        <div class="modal-heading">
+          <div>
+            <p class="eyebrow">{{ t('Gemcp handshake', 'Gemcp 握手') }}</p>
+            <h2 id="ssh-install-prompt-heading">{{ sshCloudInstallNode ? `${t('Handshake prompt', '握手 Prompt')} · ${sshCloudInstallNode.label}` : t('Handshake prompt', '握手 Prompt') }}</h2>
+          </div>
+          <button class="close-button" type="button" :aria-label="t('Close', '关闭')" @click="closeSSHCloudHandshake"><X :size="18" /></button>
+        </div>
+        <p class="dialog-note">{{ t('This is a separate node-operation prompt. If the Agent has no MCP yet, register it to the Project on Agents first and send the Project setup prompt with the one-time link. Agent registration itself does not bind this host. This Nodes copy never contains stored credentials.', '这是独立的节点操作 Prompt。Agent 还没开通 MCP 时，请先在 Agent 页将其注册到 Project，并发送含一次性链接的 Project Setup Prompt。Agent 注册本身不会绑定这台主机。节点页这份不含已保存凭据。') }}</p>
+        <pre class="upgrade-instruction">{{ sshCloudInstallText }}</pre>
+        <div class="modal-actions">
+          <button class="secondary-button icon-command" type="button" @click="emit('openAgents')"><Bot :size="16" /> {{ t('Register Agent to Project', '将 Agent 注册到 Project') }}</button>
+          <button class="primary-button icon-command" type="button" @click="copySSHCloudInstallPrompt()"><Check v-if="sshCloudInstallCopied" :size="16" /><Clipboard v-else :size="16" /> {{ sshCloudInstallCopied ? t('Copied', '已复制') : t('Copy handshake prompt', '复制握手 Prompt') }}</button>
+        </div>
+      </section>
     </div>
 
     <div v-if="upgradeTarget" class="modal-backdrop" @click.self="upgradeTarget = null">
@@ -684,6 +1126,39 @@ onUnmounted(() => timer !== undefined && window.clearTimeout(timer))
 .inline-alert { margin: 0 0 16px; padding: 10px 12px; border-radius: 5px; font-size: 12px; line-height: 18px; }
 .inline-alert.danger { color: #8b302b; background: #fff0ee; border: 1px solid #efc1bc; }
 .inline-alert.upgrade-ready { color: #26634d; background: #eef7f2; border: 1px solid #c9e2d4; }
+.ssh-cloud-dialog { width: min(560px, 100%); }
+.ssh-cloud-lab { margin: 0 0 16px; background: #fff; border: 1px solid #dce2dd; }
+.ssh-cloud-lab .workspace-warning { margin: 0 15px 15px; }
+.ssh-command-input { min-height: 84px; resize: vertical; }
+.field-hint { margin: -8px 0 14px; color: #66726b; font-size: 11px; line-height: 16px; }
+.ssh-parsed { margin: 0 0 14px; padding: 8px 10px; color: #265f49; background: #eff6f2; border: 1px solid #cce0d4; border-radius: 5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+.ssh-probe-console { width: min(640px, 100%); }
+.ssh-probe-console .field-hint { margin: 4px 0 0; }
+.ssh-probe-log {
+  height: 280px;
+  overflow: auto;
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  background: #14161c;
+  color: #d5dbd6;
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 18px;
+}
+.ssh-probe-step + .ssh-probe-step { margin-top: 10px; }
+.ssh-probe-line { display: flex; align-items: flex-start; gap: 8px; }
+.ssh-probe-line svg { flex: 0 0 auto; margin-top: 2px; }
+.ssh-probe-line strong { flex: 0 0 auto; }
+.ssh-probe-step[data-status='running'] { color: #f3d2a8; }
+.ssh-probe-step[data-status='ok'] { color: #9dceb4; }
+.ssh-probe-step[data-status='failed'] { color: #f0a8a3; }
+.ssh-probe-output {
+  margin: 6px 0 0 21px;
+  color: #8b938c;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 .node-workspace { background: #fff; border-top: 1px solid #dce2dd; border-bottom: 1px solid #dce2dd; }
 .node-section + .node-section { border-top: 1px solid #dce2dd; }
 .section-heading-row {
@@ -695,6 +1170,7 @@ onUnmounted(() => timer !== undefined && window.clearTimeout(timer))
   gap: 20px;
 }
 .section-heading-row h2 { margin: 0; color: #28302b; font-size: 15px; }
+.section-heading-row .heading-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .record-count { color: #7a847d; font-size: 11px; }
 .node-table th:nth-child(1) { width: 18%; }
 .node-table th:nth-child(2) { width: 10%; }

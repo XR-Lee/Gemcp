@@ -10,10 +10,12 @@ import {
   Image,
   KeyRound,
   LoaderCircle,
+  Plus,
   RefreshCw,
   Server,
   ShieldAlert,
   Square,
+  WalletCards,
   X,
 } from '@lucide/vue'
 import {
@@ -32,9 +34,15 @@ const props = defineProps<{ active: boolean }>()
 const emit = defineEmits<{ unauthorized: [] }>()
 
 type ProviderTab = 'inventory' | 'images' | 'deployments' | 'containers'
+type AutoDLProviderMode = 'public' | 'private'
 
-const summary = ref<ProviderSummary | null>(null)
+const publicProviderBaseURL = 'https://api.autodl.com'
+const privateProviderBaseURL = 'https://private.autodl.com'
+
+const providers = ref<ProviderSummary[]>([])
+const selectedMode = ref<AutoDLProviderMode>('private')
 const resources = ref<ProviderResources | null>(null)
+const resourcesByBackend = ref<Partial<Record<AutoDLProviderMode, ProviderResources>>>({})
 const loading = ref(false)
 const initialized = ref(false)
 const error = ref('')
@@ -51,7 +59,11 @@ const emergencyDialog = ref(false)
 const emergencyBusy = ref(false)
 const emergencyConfirmation = ref('')
 const operationError = ref('')
-const credentialForm = reactive({ name: 'AutoDL Private Cloud', token: '' })
+const credentialForm = reactive<{ name: string; mode: AutoDLProviderMode; token: string }>({
+  name: 'AutoDL Private Cloud',
+  mode: 'private',
+  token: '',
+})
 const { languageTag, t } = useI18n()
 const lastSuccessfulRefreshAt = ref(0)
 const autoRefreshSeconds = 60
@@ -68,6 +80,62 @@ const reusableCacheCount = computed(() => (resources.value?.cached_containers ??
 const managedByProvider = computed(() => new Map(managedResources.value.filter((item) => item.provider_id).map((item) => [item.provider_id as string, item])))
 const managedActiveCount = computed(() => managedResources.value.filter((item) => !['deleted', 'error'].includes(item.state)).length)
 const selectedManagedResource = computed(() => selectedDeployment.value ? managedByProvider.value.get(selectedDeployment.value.deployment.uuid) : undefined)
+const providerMode = computed<AutoDLProviderMode>(() => selectedMode.value)
+const summary = computed(() => providerForMode(selectedMode.value))
+const hasPrivate = computed(() => Boolean(providerForMode('private')))
+const hasPublic = computed(() => Boolean(providerForMode('public')))
+const credentialTargetExists = computed(() => Boolean(providerForMode(credentialForm.mode)))
+const providerBaseURL = computed(() => providerMode.value === 'public' ? publicProviderBaseURL : privateProviderBaseURL)
+const credentialBaseURL = computed(() => credentialForm.mode === 'public' ? publicProviderBaseURL : privateProviderBaseURL)
+const providerDefaultName = computed(() => providerNameForMode(providerMode.value))
+const providerServiceLabel = computed(() => providerMode.value === 'public'
+  ? t('AutoDL Public Cloud', 'AutoDL 公有云')
+  : t('AutoDL Private Cloud', 'AutoDL 私有云'))
+const credentialServiceLabel = computed(() => credentialForm.mode === 'public'
+  ? t('AutoDL Public Cloud', 'AutoDL 公有云')
+  : t('AutoDL Private Cloud', 'AutoDL 私有云'))
+const showGPURegions = computed(() => (resources.value?.gpu_stock ?? []).some((item) => Boolean(item.region)))
+
+function providerNameForMode(mode: AutoDLProviderMode) {
+  return mode === 'public' ? 'AutoDL Public Cloud' : 'AutoDL Private Cloud'
+}
+
+function modeOf(record: ProviderSummary): AutoDLProviderMode {
+  const backend = record.backend.trim().toLowerCase()
+  const baseURL = record.base_url.trim().replace(/\/+$/, '')
+  return backend === 'elastic' || baseURL === publicProviderBaseURL ? 'public' : 'private'
+}
+
+function backendOf(mode: AutoDLProviderMode) {
+  return mode === 'public' ? 'elastic' : 'private'
+}
+
+function providerForMode(mode: AutoDLProviderMode) {
+  return providers.value.find((item) => modeOf(item) === mode) ?? null
+}
+
+function upsertProvider(record: ProviderSummary) {
+  const mode = modeOf(record)
+  providers.value = [...providers.value.filter((item) => modeOf(item) !== mode), record]
+    .sort((left, right) => Number(modeOf(left) === 'public') - Number(modeOf(right) === 'public'))
+}
+
+function cacheResources(mode: AutoDLProviderMode, snapshot: ProviderResources | null) {
+  if (snapshot) {
+    resourcesByBackend.value = { ...resourcesByBackend.value, [mode]: snapshot }
+    resources.value = snapshot
+    return
+  }
+  const next = { ...resourcesByBackend.value }
+  delete next[mode]
+  resourcesByBackend.value = next
+  resources.value = null
+}
+
+function preferSelectedMode() {
+  if (providerForMode(selectedMode.value)) return
+  selectedMode.value = providerForMode('private') ? 'private' : 'public'
+}
 
 function handleError(caught: unknown, fallback: string) {
   if (caught instanceof APIError && caught.status === 401) {
@@ -106,12 +174,23 @@ async function loadProvider() {
   loading.value = true
   error.value = ''
   try {
-    summary.value = await api.provider()
+    try {
+      const catalog = await api.provider()
+      providers.value = catalog.providers ?? []
+    } catch (caught) {
+      if (caught instanceof APIError && caught.status === 404) {
+        providers.value = []
+      } else {
+        throw caught
+      }
+    }
+    preferSelectedMode()
+    resources.value = resourcesByBackend.value[selectedMode.value] ?? null
     const managedPromise = api.managedProviderResources()
-    if (summary.value.credential_configured) {
-      const [snapshot, managed] = await Promise.all([api.queryProvider(), managedPromise])
-      resources.value = snapshot
-      summary.value = snapshot.provider
+    if (summary.value?.credential_configured) {
+      const [snapshot, managed] = await Promise.all([api.queryProvider(backendOf(selectedMode.value)), managedPromise])
+      upsertProvider(snapshot.provider)
+      cacheResources(modeOf(snapshot.provider), snapshot)
       managedResources.value = managed
     } else {
       managedResources.value = await managedPromise
@@ -119,7 +198,7 @@ async function loadProvider() {
     initialized.value = true
     markRefreshSuccessful()
   } catch (caught) {
-    handleError(caught, t('Could not load Private Cloud resources.', '无法加载私有云资源。'))
+    handleError(caught, t(`Could not load ${providerServiceLabel.value} resources.`, `无法加载${providerServiceLabel.value}资源。`))
   } finally {
     loading.value = false
   }
@@ -130,16 +209,25 @@ async function refreshProvider() {
   loading.value = true
   error.value = ''
   try {
-    const [snapshot, managed] = await Promise.all([api.queryProvider(), api.managedProviderResources()])
-    resources.value = snapshot
-    summary.value = snapshot.provider
+    const [snapshot, managed] = await Promise.all([api.queryProvider(backendOf(selectedMode.value)), api.managedProviderResources()])
+    upsertProvider(snapshot.provider)
+    cacheResources(modeOf(snapshot.provider), snapshot)
     managedResources.value = managed
     initialized.value = true
     markRefreshSuccessful()
   } catch (caught) {
-    handleError(caught, t('Private Cloud refresh failed.', '私有云刷新失败。'))
+    handleError(caught, t(`${providerServiceLabel.value} refresh failed.`, `${providerServiceLabel.value}刷新失败。`))
   } finally {
     loading.value = false
+  }
+}
+
+async function selectProvider(mode: AutoDLProviderMode) {
+  if (selectedMode.value === mode && (resources.value || !providerForMode(mode)?.credential_configured)) return
+  selectedMode.value = mode
+  resources.value = resourcesByBackend.value[mode] ?? null
+  if (providerForMode(mode)?.credential_configured && !resources.value) {
+    await refreshProvider()
   }
 }
 
@@ -149,11 +237,16 @@ async function refreshLive() {
   scheduleAutoRefresh()
 }
 
-function openCredentialDialog() {
-  credentialForm.name = summary.value?.name || 'AutoDL Private Cloud'
+function openCredentialDialog(mode?: AutoDLProviderMode) {
+  credentialForm.mode = mode === 'public' || mode === 'private' ? mode : selectedMode.value
+  credentialForm.name = providerForMode(credentialForm.mode)?.name || providerNameForMode(credentialForm.mode)
   credentialForm.token = ''
   credentialError.value = ''
   credentialDialog.value = true
+}
+
+function applyCredentialMode() {
+  credentialForm.name = providerForMode(credentialForm.mode)?.name || providerNameForMode(credentialForm.mode)
 }
 
 function closeCredentialDialog() {
@@ -165,7 +258,7 @@ function closeCredentialDialog() {
 
 async function configureProvider() {
   if (credentialForm.token.trim().length < 32) {
-    credentialError.value = t('Enter a valid AutoDL Private Cloud Developer Token.', '请输入有效的 AutoDL 私有云 Developer Token。')
+    credentialError.value = t(`Enter a valid ${credentialServiceLabel.value} Developer Token.`, `请输入有效的${credentialServiceLabel.value} Developer Token。`)
     return
   }
   credentialBusy.value = true
@@ -173,11 +266,13 @@ async function configureProvider() {
   try {
     const result = await api.configureProvider({
       name: credentialForm.name.trim(),
-      base_url: 'https://private.autodl.com',
+      base_url: credentialBaseURL.value,
+      backend: credentialForm.mode === 'public' ? 'elastic' : 'private',
       token: credentialForm.token.trim(),
     })
-    summary.value = result.provider
-    resources.value = result.resources
+    upsertProvider(result.provider)
+    selectedMode.value = modeOf(result.provider)
+    cacheResources(selectedMode.value, result.resources)
     managedResources.value = await api.managedProviderResources()
     credentialForm.token = ''
     credentialDialog.value = false
@@ -263,7 +358,11 @@ function bytes(value = 0) {
 }
 
 function money(milli = 0) {
-  return `CNY ${(milli / 1000).toFixed(3)}/h`
+  return `${moneyValue(milli)}/h`
+}
+
+function moneyValue(milli = 0) {
+  return `CNY ${(milli / 1000).toFixed(3)}`
 }
 
 function stateLabel(value: string) {
@@ -332,28 +431,36 @@ onBeforeUnmount(() => {
   <section class="provider-page">
     <div v-if="error || operationError" class="page-alert provider-alert" role="alert">{{ error || operationError }}<button type="button" :title="t('Dismiss', '关闭')" @click="error = ''; operationError = ''"><X :size="16" /></button></div>
 
+    <div class="provider-switcher segmented-control" :aria-label="t('Bound AutoDL providers', '已绑定的 AutoDL Provider')">
+      <button v-if="hasPrivate" type="button" :class="{ active: selectedMode === 'private' }" @click="selectProvider('private')">{{ t('Private Cloud', '私有云') }}</button>
+      <button v-if="hasPublic" type="button" :class="{ active: selectedMode === 'public' }" @click="selectProvider('public')">{{ t('Public Cloud', '公有云') }}</button>
+      <button v-if="!hasPrivate" type="button" class="add-provider" @click="openCredentialDialog('private')"><Plus :size="14" />{{ t('Add Private Cloud', '添加私有云') }}</button>
+      <button v-if="!hasPublic" type="button" class="add-provider" @click="openCredentialDialog('public')"><Plus :size="14" />{{ t('Add Public Cloud', '添加公有云') }}</button>
+    </div>
+
     <header class="provider-heading">
       <div>
         <p class="eyebrow">{{ t('Live Provider', '实时 Provider') }}</p>
-        <h2>{{ summary?.name ?? 'AutoDL Private Cloud' }}</h2>
-        <p>{{ summary?.base_url ?? 'https://private.autodl.com' }}</p>
+        <h2>{{ summary?.name ?? providerDefaultName }}</h2>
+        <p>{{ summary?.base_url ?? providerBaseURL }}</p>
       </div>
       <div class="provider-actions">
         <span class="state-badge" :data-state="summary?.status ?? 'pending_validation'"><span />{{ stateLabel(summary?.status ?? 'not connected') }}</span>
         <button class="danger-button" type="button" :disabled="managedActiveCount === 0" @click="openEmergencyDialog"><ShieldAlert :size="16" />Emergency Stop</button>
-        <button class="secondary-button" type="button" @click="openCredentialDialog"><KeyRound :size="16" />{{ t('Rotate token', '轮换 Token') }}</button>
+        <button class="secondary-button" type="button" @click="openCredentialDialog()"><KeyRound :size="16" />{{ t('Rotate token', '轮换 Token') }}</button>
         <button class="primary-button" type="button" :disabled="loading || (initialized && !summary?.credential_configured)" @click="refreshLive"><RefreshCw :size="16" :class="{ spinning: loading }" />{{ t('Refresh live', '刷新实时数据') }}</button>
       </div>
     </header>
 
-    <div v-if="loading && !resources" class="provider-loading"><LoaderCircle :size="20" class="spinning" /><span>{{ t('Querying Private Cloud', '正在查询私有云') }}</span></div>
+    <div v-if="loading && !resources" class="provider-loading"><LoaderCircle :size="20" class="spinning" /><span>{{ t(`Querying ${providerServiceLabel}`, `正在查询${providerServiceLabel}`) }}</span></div>
 
     <template v-else-if="resources">
       <section class="provider-metrics">
         <div><span><Gauge :size="16" />{{ t('GPU capacity', 'GPU 容量') }}</span><strong>{{ idleGPU }} / {{ totalGPU }}</strong><small>{{ t('Idle / total', '空闲 / 总量') }}</small></div>
         <div><span><Image :size="16" />{{ t('Images', '镜像') }}</span><strong>{{ images.length }}</strong><small>{{ resources.private_images.length }} {{ t('private', '私有') }}, {{ resources.system_images.length }} {{ t('system', '系统') }}</small></div>
         <div><span><Server :size="16" />{{ t('Deployments', '部署') }}</span><strong>{{ activeDeploymentCount }}</strong><small>{{ managedActiveCount }} {{ t('managed', '受管') }} / {{ resources.deployments.length }} Provider</small></div>
-        <div><span><HardDrive :size="16" />{{ t('Reusable cache', '可复用缓存') }}</span><strong>{{ reusableCacheCount }}</strong><small>{{ resources.cached_containers.length }} {{ t('released containers', '个已释放容器') }}</small></div>
+        <div v-if="providerMode === 'public' && resources.wallet"><span><WalletCards :size="16" />{{ t('Wallet balance', '钱包余额') }}</span><strong>{{ moneyValue(resources.wallet.assets) }}</strong><small>{{ t('Voucher', '代金券') }} {{ moneyValue(resources.wallet.voucher_balance) }} · {{ t('Accumulated', '累计') }} {{ moneyValue(resources.wallet.accumulate) }}</small></div>
+        <div v-else><span><HardDrive :size="16" />{{ t('Reusable cache', '可复用缓存') }}</span><strong>{{ reusableCacheCount }}</strong><small>{{ resources.cached_containers.length }} {{ t('released containers', '个已释放容器') }}</small></div>
       </section>
 
       <section class="provider-connection-band">
@@ -370,17 +477,17 @@ onBeforeUnmount(() => {
       </div>
 
       <section v-if="activeTab === 'inventory'" class="provider-workspace">
-        <div class="section-heading"><div><h2>{{ t('GPU inventory', 'GPU 库存') }}</h2><p>{{ t('Current schedulable capacity returned by Private Cloud.', '私有云返回的当前可调度容量。') }}</p></div><Cpu :size="18" /></div>
+        <div class="section-heading"><div><h2>{{ t('GPU inventory', 'GPU 库存') }}</h2><p>{{ t('Current schedulable capacity returned by the Provider.', 'Provider 返回的当前可调度容量。') }}</p></div><Cpu :size="18" /></div>
         <div v-if="resources.gpu_stock.length" class="table-scroll">
           <table class="data-table provider-table">
-            <thead><tr><th>{{ t('GPU model', 'GPU 型号') }}</th><th>{{ t('Idle', '空闲') }}</th><th>{{ t('Total', '总量') }}</th><th>{{ t('Utilized', '已使用') }}</th><th>{{ t('Availability', '可用率') }}</th></tr></thead>
-            <tbody><tr v-for="gpu in resources.gpu_stock" :key="gpu.name"><td><strong>{{ gpu.name }}</strong></td><td>{{ gpu.idle }}</td><td>{{ gpu.total }}</td><td>{{ gpu.total - gpu.idle }}</td><td><div class="capacity"><span :style="{ width: `${gpu.total ? (gpu.idle / gpu.total) * 100 : 0}%` }" /></div></td></tr></tbody>
+            <thead><tr><th v-if="showGPURegions">{{ t('Region', '区域') }}</th><th>{{ t('GPU model', 'GPU 型号') }}</th><th>{{ t('Idle', '空闲') }}</th><th>{{ t('Total', '总量') }}</th><th>{{ t('Utilized', '已使用') }}</th><th>{{ t('Availability', '可用率') }}</th></tr></thead>
+            <tbody><tr v-for="gpu in resources.gpu_stock" :key="`${gpu.region ?? ''}-${gpu.name}`"><td v-if="showGPURegions"><code>{{ gpu.region || t('Not set', '未设置') }}</code></td><td><strong>{{ gpu.name }}</strong></td><td>{{ gpu.idle }}</td><td>{{ gpu.total }}</td><td>{{ gpu.total - gpu.idle }}</td><td><div class="capacity"><span :style="{ width: `${gpu.total ? (gpu.idle / gpu.total) * 100 : 0}%` }" /></div></td></tr></tbody>
           </table>
         </div>
       </section>
 
       <section v-else-if="activeTab === 'images'" class="provider-workspace">
-        <div class="section-heading"><div><h2>{{ t('Images', '镜像') }}</h2><p>{{ t('Private and system images visible to the configured Token.', '已配置 Token 可见的私有镜像和系统镜像。') }}</p></div><Image :size="18" /></div>
+        <div class="section-heading"><div><h2>{{ t('Images', '镜像') }}</h2><p>{{ t('Images visible to the configured Provider Token.', '已配置 Provider Token 可见的镜像。') }}</p></div><Image :size="18" /></div>
         <div class="table-scroll">
           <table class="data-table provider-table image-table">
             <thead><tr><th>{{ t('Source', '来源') }}</th><th>{{ t('Name', '名称') }}</th><th>UUID</th><th>CUDA</th><th>{{ t('Chip', '芯片') }}</th><th>{{ t('Architecture', '架构') }}</th><th>{{ t('Status', '状态') }}</th></tr></thead>
@@ -414,7 +521,8 @@ onBeforeUnmount(() => {
       </section>
     </template>
 
-    <div v-else-if="summary && !summary.credential_configured" class="empty-state provider-empty"><span class="empty-icon"><KeyRound :size="21" /></span><h3>{{ t('Provider credential missing', '缺少 Provider 凭据') }}</h3><button class="primary-button" type="button" @click="openCredentialDialog"><KeyRound :size="16" />{{ t('Configure token', '配置 Token') }}</button></div>
+    <div v-else-if="!providers.length" class="empty-state provider-empty"><span class="empty-icon"><KeyRound :size="21" /></span><h3>{{ t('No AutoDL Provider bound', '尚未绑定 AutoDL Provider') }}</h3><p>{{ t('Private Cloud and Public Elastic can be bound at the same time. Each keeps its own Token.', '私有云和公有云可以同时绑定，各自保留独立 Token。') }}</p><div class="provider-empty-actions"><button class="secondary-button" type="button" @click="openCredentialDialog('private')"><Plus :size="16" />{{ t('Add Private Cloud', '添加私有云') }}</button><button class="primary-button" type="button" @click="openCredentialDialog('public')"><Plus :size="16" />{{ t('Add Public Cloud', '添加公有云') }}</button></div></div>
+    <div v-else-if="summary && !summary.credential_configured" class="empty-state provider-empty"><span class="empty-icon"><KeyRound :size="21" /></span><h3>{{ t('Provider credential missing', '缺少 Provider 凭据') }}</h3><button class="primary-button" type="button" @click="openCredentialDialog()"><KeyRound :size="16" />{{ t('Configure token', '配置 Token') }}</button></div>
   </section>
 
   <div v-if="emergencyDialog" class="modal-backdrop" @click.self="!emergencyBusy && (emergencyDialog = false)">
@@ -429,13 +537,14 @@ onBeforeUnmount(() => {
   </div>
 
   <div v-if="credentialDialog" class="modal-backdrop" @click.self="closeCredentialDialog">
-    <section class="modal" role="dialog" aria-modal="true" :aria-label="t('Rotate Provider token', '轮换 Provider Token')">
-      <header><div><p class="eyebrow">{{ t('Credential custody', '凭据托管') }}</p><h2>{{ t('Rotate Provider token', '轮换 Provider Token') }}</h2></div><button class="icon-button" type="button" :title="t('Close', '关闭')" :disabled="credentialBusy" @click="closeCredentialDialog"><X :size="17" /></button></header>
+    <section class="modal" role="dialog" aria-modal="true" :aria-label="credentialTargetExists ? t('Rotate Provider token', '轮换 Provider Token') : t('Add Provider token', '添加 Provider Token')">
+      <header><div><p class="eyebrow">{{ t('Credential custody', '凭据托管') }}</p><h2>{{ credentialTargetExists ? t('Rotate Provider token', '轮换 Provider Token') : t('Add Provider token', '添加 Provider Token') }}</h2></div><button class="icon-button" type="button" :title="t('Close', '关闭')" :disabled="credentialBusy" @click="closeCredentialDialog"><X :size="17" /></button></header>
       <form class="dialog-form" @submit.prevent="configureProvider">
+        <label>{{ t('AutoDL service', 'AutoDL 服务') }}<select v-model="credentialForm.mode" @change="applyCredentialMode"><option value="private">{{ t('Private Cloud', '私有云') }}</option><option value="public">{{ t('Public Cloud', '公有云') }}</option></select></label>
         <label>{{ t('Provider name', 'Provider 名称') }}<input v-model="credentialForm.name" required maxlength="120" /></label>
-        <label>API base URL<input value="https://private.autodl.com" disabled /></label>
+        <label>API base URL<input :value="credentialBaseURL" disabled /></label>
         <label>Developer Token<input v-model="credentialForm.token" type="password" required autocomplete="off" spellcheck="false" /></label>
-        <p class="form-note">{{ t('The new Token is validated before replacing the encrypted credential.', '新 Token 会在替换已加密凭据前完成验证。') }}</p>
+        <p class="form-note">{{ credentialTargetExists ? t('The new Token is validated before replacing the encrypted credential.', '新 Token 会在替换已加密凭据前完成验证。') : t('The Token is validated before it is stored. The other AutoDL account is left unchanged.', 'Token 会先验证再保存，不会改动另一个 AutoDL 账户。') }}</p>
         <div v-if="credentialError" class="form-error" role="alert">{{ credentialError }}</div>
         <button class="primary-button" type="submit" :disabled="credentialBusy"><LoaderCircle v-if="credentialBusy" :size="16" class="spinning" /><KeyRound v-else :size="16" />{{ t('Validate and rotate', '验证并轮换') }}</button>
       </form>
@@ -444,7 +553,7 @@ onBeforeUnmount(() => {
 
   <div v-if="selectedDeployment || deploymentLoading" class="modal-backdrop" @click.self="selectedDeployment = null">
     <section class="detail-panel provider-detail" role="dialog" aria-modal="true" :aria-label="t('Provider deployment details', 'Provider 部署详情')">
-      <header><div><p class="eyebrow">{{ t('Private Cloud deployment', '私有云部署') }}</p><h2>{{ selectedDeployment?.deployment.name ?? t('Loading deployment', '正在加载部署') }}</h2></div><button class="icon-button" type="button" :title="t('Close details', '关闭详情')" @click="selectedDeployment = null"><X :size="17" /></button></header>
+      <header><div><p class="eyebrow">{{ t(`${providerServiceLabel} deployment`, `${providerServiceLabel}部署`) }}</p><h2>{{ selectedDeployment?.deployment.name ?? t('Loading deployment', '正在加载部署') }}</h2></div><button class="icon-button" type="button" :title="t('Close details', '关闭详情')" @click="selectedDeployment = null"><X :size="17" /></button></header>
       <div v-if="deploymentLoading" class="provider-loading"><LoaderCircle :size="20" class="spinning" /></div>
       <template v-else-if="selectedDeployment">
         <div class="detail-state"><span class="state-badge" :data-state="selectedDeployment.deployment.status"><span />{{ stateLabel(selectedDeployment.deployment.status) }}</span><span class="ownership-chip" :data-managed="Boolean(selectedManagedResource)">{{ selectedManagedResource ? t('Managed', '受管') : t('External', '外部') }}</span><code>{{ selectedDeployment.deployment.uuid }}</code><button v-if="selectedManagedResource" class="danger-button small-button" type="button" :disabled="Boolean(resourceAction) || Boolean(selectedManagedResource.stop_requested_at)" @click="requestStop(selectedDeployment.deployment)"><LoaderCircle v-if="resourceAction" :size="15" class="spinning" /><Square v-else :size="14" />{{ selectedManagedResource.stop_requested_at ? t('Stop requested', '已请求停止') : t('Stop deployment', '停止部署') }}</button></div>

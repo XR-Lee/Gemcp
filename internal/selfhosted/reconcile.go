@@ -9,7 +9,6 @@ import (
 	"github.com/XR-Lee/Gemcp/ent"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/nodecommand"
-	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
 	"github.com/XR-Lee/Gemcp/ent/selfhostednode"
 )
 
@@ -196,14 +195,6 @@ func (s *Service) retryInfrastructure(ctx context.Context, tx *ent.Tx, assignmen
 		SetAction("experiment.finalized").SetTargetType("experiment").SetTargetID(experiment.PublicID.String()).
 		SetMetadata(map[string]any{"state": "provider_error", "attempt_id": attempt.PublicID.String(), "failure_code": code}).Save(ctx)
 	return err
-}
-
-func (s *Service) IsSelfHostedProfile(ctx context.Context, tx *ent.Tx, profileID int) (bool, error) {
-	profile, err := tx.ResourceProfile.Query().Where(resourceprofile.IDEQ(profileID)).Only(ctx)
-	if err != nil {
-		return false, err
-	}
-	return profile.Backend == resourceprofile.BackendSelfHosted, nil
 }
 
 func (s *Service) Enabled() bool { return s != nil && s.config.Enabled }

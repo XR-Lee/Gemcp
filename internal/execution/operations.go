@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/XR-Lee/Gemcp/ent"
+	"github.com/XR-Lee/Gemcp/ent/cloudsshassignment"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/serviceheartbeat"
@@ -46,8 +47,10 @@ type EmergencyStopResult struct {
 type RuntimeStatus struct {
 	SchedulerEnabled          bool                     `json:"scheduler_enabled"`
 	SelfHostedEnabled         bool                     `json:"self_hosted_enabled"`
+	SSHCloudEnabled           bool                     `json:"ssh_cloud_enabled"`
 	GlobalConcurrency         int                      `json:"global_concurrency"`
 	PublicURLConfigured       bool                     `json:"public_url_configured"`
+	PublicURLHTTPS            bool                     `json:"public_url_https"`
 	SchedulerHealthy          bool                     `json:"scheduler_healthy"`
 	WatchdogHealthy           bool                     `json:"watchdog_healthy"`
 	NotificationWorkerHealthy bool                     `json:"notification_worker_healthy"`
@@ -61,24 +64,35 @@ type Operations struct {
 	client              *ent.Client
 	schedulerEnabled    bool
 	selfHostedEnabled   bool
+	sshCloudEnabled     bool
 	globalConcurrency   int
 	publicURLConfigured bool
+	publicURLHTTPS      bool
 	now                 func() time.Time
 }
 
 type OperationsOption func(*Operations)
 
-func WithRuntimeConfiguration(schedulerEnabled bool, globalConcurrency int, publicURLConfigured bool) OperationsOption {
+func WithRuntimeConfiguration(schedulerEnabled bool, globalConcurrency int, publicURLConfigured bool, publicURLHTTPS ...bool) OperationsOption {
 	return func(operations *Operations) {
 		operations.schedulerEnabled = schedulerEnabled
 		operations.globalConcurrency = globalConcurrency
 		operations.publicURLConfigured = publicURLConfigured
+		if len(publicURLHTTPS) > 0 {
+			operations.publicURLHTTPS = publicURLHTTPS[0]
+		}
 	}
 }
 
 func WithSelfHostedEnabled(enabled bool) OperationsOption {
 	return func(operations *Operations) {
 		operations.selfHostedEnabled = enabled
+	}
+}
+
+func WithSSHCloudEnabled(enabled bool) OperationsOption {
+	return func(operations *Operations) {
+		operations.sshCloudEnabled = enabled
 	}
 }
 
@@ -92,8 +106,9 @@ func NewOperations(client *ent.Client, options ...OperationsOption) *Operations 
 
 func (s *Operations) Status(ctx context.Context) (RuntimeStatus, error) {
 	result := RuntimeStatus{
-		SchedulerEnabled: s.schedulerEnabled, SelfHostedEnabled: s.selfHostedEnabled, GlobalConcurrency: s.globalConcurrency,
-		PublicURLConfigured: s.publicURLConfigured, GeneratedAt: s.now().UTC(),
+		SchedulerEnabled: s.schedulerEnabled, SelfHostedEnabled: s.selfHostedEnabled, SSHCloudEnabled: s.sshCloudEnabled,
+		GlobalConcurrency: s.globalConcurrency, PublicURLConfigured: s.publicURLConfigured, PublicURLHTTPS: s.publicURLHTTPS,
+		GeneratedAt: s.now().UTC(),
 	}
 	var err error
 	result.SchedulerHeartbeat, err = servicehealth.Latest(ctx, s.client, serviceheartbeat.RoleScheduler)
@@ -239,6 +254,35 @@ func (s *Operations) EmergencyStop(ctx context.Context, tenantID int, actorID st
 		}
 		if assignment.StopRequestedAt == nil {
 			if _, err := tx.NodeAssignment.UpdateOneID(assignment.ID).SetStopRequestedAt(result.At).SetStopReason("emergency").Save(ctx); err != nil {
+				return result, err
+			}
+		}
+		if !isTerminalExperiment(experimentRecord.State) {
+			update := tx.Experiment.UpdateOneID(experimentRecord.ID).SetDesiredState("cancelled").SetState("cancelling").
+				SetFailureCode("emergency_stop").SetFailureReason("Owner requested emergency shutdown")
+			if experimentRecord.CancelRequestedAt == nil {
+				update.SetCancelRequestedAt(result.At)
+			}
+			if _, err := update.Save(ctx); err != nil {
+				return result, err
+			}
+		}
+		result.Requested++
+	}
+	sshAssignments, err := tx.CloudSSHAssignment.Query().Where(
+		cloudsshassignment.TenantIDEQ(tenantID),
+		cloudsshassignment.StateIn(cloudsshassignment.StateStarting, cloudsshassignment.StateRunning, cloudsshassignment.StateStopping, cloudsshassignment.StateCollecting),
+	).WithExperiment().All(ctx)
+	if err != nil {
+		return result, err
+	}
+	for _, assignment := range sshAssignments {
+		experimentRecord, err := assignment.Edges.ExperimentOrErr()
+		if err != nil {
+			return result, err
+		}
+		if assignment.StopRequestedAt == nil {
+			if _, err := tx.CloudSSHAssignment.UpdateOneID(assignment.ID).SetStopRequestedAt(result.At).SetStopReason("emergency").Save(ctx); err != nil {
 				return result, err
 			}
 		}

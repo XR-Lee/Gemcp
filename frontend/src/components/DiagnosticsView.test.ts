@@ -77,4 +77,26 @@ describe('DiagnosticsView request ordering', () => {
     expect(wrapper.text()).not.toContain('Preflight passed')
     wrapper.unmount()
   })
+
+  it('selects AutoDL Public when that is the only configured diagnostic backend', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const path = String(input)
+      if (path.includes('/diagnostics/options')) {
+        return response({
+          ...options('project-public', 'Public Repo'),
+          environments: [{ id: 'project-public-environment', name: 'elastic-env', backend: 'autodl_elastic', image_uuid: 'image' }],
+          resource_profiles: [{ id: 'project-public-profile', name: 'elastic-profile', backend: 'autodl_elastic', gpu_names: ['RTX 4090'], gpu_num: 1, price_to_milli: 1000 }],
+        })
+      }
+      if (path.includes('/diagnostics?')) return response({ runs: [] })
+      throw new Error(`unexpected request ${path}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const wrapper = mount(DiagnosticsView, { props: { active: true, project: project('project-public', 'Public Project') } })
+    await flushPromises()
+    expect(wrapper.text()).toContain('AutoDL Public')
+    expect(wrapper.findAll('button').some((button) => button.text() === 'AutoDL Public' && button.classes().includes('active'))).toBe(true)
+    wrapper.unmount()
+  })
 })

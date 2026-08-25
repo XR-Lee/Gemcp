@@ -28,7 +28,7 @@ export type Project = {
   updated_at?: string
 }
 
-export type AgentScope = 'read' | 'submit' | 'cancel' | 'configure'
+export type AgentScope = 'read' | 'submit' | 'cancel' | 'configure' | 'operate_nodes'
 
 export type AgentToken = {
   id: string
@@ -91,6 +91,90 @@ export type AgentTokenIssue = {
   mcp_url: string
   mcp_config: MCPConfig
   config_file_name: string
+}
+
+export type AgentReadinessStatus = 'ready' | 'blocked' | 'waiting_agent' | 'waiting_compute'
+
+export type AgentReadinessGPU = {
+  name: string
+  memory_bytes: number
+}
+
+export type AgentReadinessAgent = {
+  id: string
+  label: string
+  prefix: string
+  scopes: AgentScope[]
+  status: string
+  last_used_at?: string
+  can_read: boolean
+  can_submit: boolean
+  can_operate_nodes: boolean
+  bound_node_ids: string[]
+}
+
+export type AgentReadinessSelfHosted = {
+  id: string
+  label: string
+  status: string
+  observed_state: string
+  gpus: AgentReadinessGPU[]
+  ready: boolean
+  readiness: string
+  blockers: string[]
+  last_seen_at?: string
+  runtime_configured: boolean
+}
+
+export type AgentReadinessSSHCloud = {
+  id: string
+  label: string
+  status: string
+  host: string
+  user: string
+  gpus: AgentReadinessGPU[]
+  ready: boolean
+  readiness: string
+  blockers: string[]
+  last_probed_at?: string
+  runtime_configured: boolean
+  bound_to_project: boolean
+  registered_by_kind?: string
+  registered_by_id?: string
+  registered_by_label?: string
+}
+
+export type AgentReadinessAction = {
+  kind: 'handshake' | 'grant_operate_nodes' | 'register_node' | 'open_nodes' | 'copy_readiness' | string
+  title: string
+  detail: string
+}
+
+export type AgentReadiness = {
+  project_id: string
+  project_name: string
+  status: AgentReadinessStatus
+  summary: string
+  generated_at: string
+  agents: AgentReadinessAgent[]
+  compute: {
+    ssh_cloud_enabled: boolean
+    ssh_cloud: AgentReadinessSSHCloud[]
+    self_hosted: AgentReadinessSelfHosted[]
+  }
+  heartbeats: {
+    agent_last_used_at?: string
+    ssh_cloud_last_probed_at?: string
+    self_hosted_last_seen_at?: string
+    note: string
+  }
+  next_actions: AgentReadinessAction[]
+  instructions: {
+    inspect_tool: string
+    monitor_tool: string
+    heartbeat: string
+    binding: string
+  }
 }
 
 export type Repository = {
@@ -234,6 +318,8 @@ export type ProposalActivity = {
   resource_profile_name: string
   gpu_models: string[]
   gpu_num: number
+  runtime_preset?: string
+  max_runtime_seconds?: number
   reserved_cost_milli: number
   checks: DiagnosticCheck[]
   confirmation_digest: string
@@ -241,6 +327,17 @@ export type ProposalActivity = {
   created_at: string
   updated_at: string
   expires_at: string
+}
+
+export type DatasetBinding = {
+  id: string
+  project_id: string
+  name: string
+  backend: 'autodl_elastic' | 'autodl_private'
+  canonical_root: string
+  environment_variable: string
+  required_markers: string[]
+  status: 'active' | 'disabled'
 }
 export type OperationsFeed = { activities: AgentActivity[]; proposals: ProposalActivity[]; generated_at: string }
 
@@ -266,6 +363,8 @@ export type ResearchNode = {
   metric_value?: number
   experiment_id?: string
   experiment_state?: string
+  occurred_at?: string
+  commit_sha?: string
   created_at: string
   updated_at: string
 }
@@ -306,7 +405,7 @@ export type ResearchWorkspace = {
   generated_at: string
 }
 
-export type DiagnosticBackend = 'autodl_private' | 'self_hosted'
+export type DiagnosticBackend = 'autodl_private' | 'autodl_elastic' | 'self_hosted'
 export type DiagnosticSuite = 'gpu_connectivity' | 'pytorch_cuda'
 
 export type DiagnosticRepositoryOption = { id: string; name: string; default_branch: string }
@@ -408,16 +507,6 @@ export type DiagnosticRun = {
   updated_at: string
 }
 
-export type Cost = {
-  period: string
-  monthly_budget_milli: number
-  reserved_milli: number
-  charged_milli: number
-  adjustments_milli: number
-  committed_milli: number
-  available_milli: number
-}
-
 export type FinanceTotals = {
   base_budget_milli: number
   reserved_milli: number
@@ -504,10 +593,23 @@ export type ProviderSummary = {
   updated_at: string
 }
 
+export type ProviderCatalog = {
+  providers: ProviderSummary[]
+}
+
+export type ProviderBackend = 'elastic' | 'private'
+
 export type ProviderGPUStock = {
+  region?: string
   name: string
   idle: number
   total: number
+}
+
+export type ProviderWallet = {
+  assets: number
+  accumulate: number
+  voucher_balance: number
 }
 
 export type ProviderImage = {
@@ -568,6 +670,7 @@ export type ProviderEvent = {
 export type ProviderResources = {
   generated_at: string
   provider: ProviderSummary
+  wallet?: ProviderWallet
   gpu_stock: ProviderGPUStock[]
   private_images: ProviderImage[]
   system_images: ProviderImage[]
@@ -588,8 +691,10 @@ export type RuntimeHeartbeat = {
 export type RuntimeStatus = {
   scheduler_enabled: boolean
   self_hosted_enabled: boolean
+  ssh_cloud_enabled?: boolean
   global_concurrency: number
   public_url_configured: boolean
+  public_url_https?: boolean
   scheduler_healthy: boolean
   watchdog_healthy: boolean
   notification_worker_healthy: boolean
@@ -667,6 +772,72 @@ export type NodeList = {
   enrollments: NodeEnrollment[]
   assignments: NodeAssignment[]
   truncated?: boolean
+}
+
+export type SSHCloudGPU = {
+  name?: string
+  uuid?: string
+  memory_bytes?: number
+}
+
+export type SSHCloudProbeStep = {
+  at?: string
+  step: string
+  message?: string
+  output?: string
+  status?: 'running' | 'ok' | 'failed' | string
+}
+
+export type SSHCloudProjectRuntime = {
+  project_id: string
+  project_name: string
+  environment_id: string
+  environment_name: string
+  image: string
+  is_default: boolean
+}
+
+export type SSHCloudNode = {
+  id: string
+  label: string
+  status: string
+  experimental: boolean
+  warning: string
+  host: string
+  port: number
+  user: string
+  auth_method: 'password' | 'private_key'
+  host_key_fingerprint?: string
+  inventory?: { gpus?: SSHCloudGPU[]; docker_version?: string; nvidia_ready?: boolean; os?: string; arch?: string; host_kind?: string; docker_network?: string; storage_driver?: string }
+  probe_log?: SSHCloudProbeStep[]
+  project_ids: string[]
+  project_runtimes: SSHCloudProjectRuntime[]
+  created_actor_type?: string
+  created_actor_id?: string
+  last_probed_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export type SSHCloudAssignment = {
+  id: string
+  experiment_id: string
+  node_id: string
+  node_label: string
+  state: string
+  attempt_number: number
+  started_at?: string
+  last_heartbeat_at?: string
+  exit_code?: number
+  failure_code?: string
+}
+
+export type SSHCloudList = {
+  experimental: boolean
+  warning: string
+  enabled: boolean
+  nodes: SSHCloudNode[]
+  assignments: SSHCloudAssignment[]
 }
 
 export type NodeAssignment = {
@@ -778,10 +949,10 @@ export type SetupPayload = Record<string, unknown>
 export type SetupResult = {
   tenant_id: string
   owner_id: string
-  provider_id: string
+  provider_id?: string
   project_id: string
-  environment_id: string
-  resource_profile_id: string
+  environment_id?: string
+  resource_profile_id?: string
   agent_token: string
   agent_token_prefix: string
 }
@@ -863,7 +1034,47 @@ export const api = {
     setCSRFToken('')
   },
   projects: () => request<Project[]>('/api/v1/projects'),
+  updateProject: (projectID: string, payload: {
+    monthly_budget_milli?: number
+    max_experiment_milli?: number
+    max_concurrency?: number
+    max_runtime_seconds?: number
+    timeout_extension_seconds?: number
+    termination_grace_seconds?: number
+  }) => request<Project>(`/api/v1/projects/${encodeURIComponent(projectID)}`, {
+    method: 'PATCH', body: JSON.stringify(payload),
+  }),
+  datasetBindings: (projectID: string) =>
+    request<DatasetBinding[]>(`/api/v1/projects/${encodeURIComponent(projectID)}/dataset-bindings`),
+  createDatasetBinding: (projectID: string, payload: {
+    name: string; backend?: 'autodl_elastic' | 'autodl_private'; canonical_root: string; required_markers?: string[]
+  }) => request<DatasetBinding>(`/api/v1/projects/${encodeURIComponent(projectID)}/dataset-bindings`, {
+    method: 'POST', body: JSON.stringify(payload),
+  }),
+  removeDatasetBinding: (projectID: string, bindingID: string) =>
+    request<DatasetBinding>(`/api/v1/projects/${encodeURIComponent(projectID)}/dataset-bindings/${encodeURIComponent(bindingID)}`, {
+      method: 'DELETE',
+    }),
+  submitPreparedProposal: (projectID: string, proposalID: string, payload: { confirmation_digest: string; confirmed: boolean }) =>
+    request<{ experiment: Experiment; run_node_id?: string; idempotent: boolean }>(
+      `/api/v1/projects/${encodeURIComponent(projectID)}/experiment-proposals/${encodeURIComponent(proposalID)}/submit`,
+      { method: 'POST', body: JSON.stringify(payload) },
+    ),
   nodes: () => request<NodeList>('/api/v1/nodes'),
+  sshCloudNodes: () => request<SSHCloudList>('/api/v1/ssh-cloud-nodes'),
+  createSSHCloudNode: (payload: {
+    label: string; host: string; port?: number; user: string; auth_method: 'password' | 'private_key'
+    password?: string; private_key?: string; passphrase?: string; probe?: boolean
+  }) => request<SSHCloudNode>('/api/v1/ssh-cloud-nodes', { method: 'POST', body: JSON.stringify(payload) }),
+  probeSSHCloudNode: (nodeID: string) =>
+    request<SSHCloudNode>(`/api/v1/ssh-cloud-nodes/${encodeURIComponent(nodeID)}/probe`, { method: 'POST' }),
+  rotateSSHCloudCredential: (nodeID: string, payload: {
+    auth_method: 'password' | 'private_key'; password?: string; private_key?: string; passphrase?: string; probe?: boolean
+  }) => request<SSHCloudNode>(`/api/v1/ssh-cloud-nodes/${encodeURIComponent(nodeID)}/rotate-credential`, {
+    method: 'POST', body: JSON.stringify(payload),
+  }),
+  revokeSSHCloudNode: (nodeID: string) =>
+    request<SSHCloudNode>(`/api/v1/ssh-cloud-nodes/${encodeURIComponent(nodeID)}`, { method: 'DELETE' }),
   issueNodeEnrollment: (payload: { label: string; setup_expires_in_minutes: number }) =>
     request<NodeEnrollmentIssue>('/api/v1/node-enrollments', { method: 'POST', body: JSON.stringify(payload) }),
   approveNodeEnrollment: (enrollmentID: string, payload: { pairing_code: string; project_ids: string[] }) =>
@@ -885,6 +1096,8 @@ export const api = {
     }),
   disableTrustedWorkspace: (projectID: string, nodeID: string) =>
     request<{ node_id: string; disabled: boolean }>(`/api/v1/projects/${encodeURIComponent(projectID)}/self-hosted-trusted-workspace/${encodeURIComponent(nodeID)}`, { method: 'DELETE' }),
+  agentReadiness: (projectID: string) =>
+    request<AgentReadiness>(`/api/v1/projects/${encodeURIComponent(projectID)}/agent-readiness`),
   agentTokens: (projectID: string) =>
     request<AgentTokenList>(`/api/v1/projects/${encodeURIComponent(projectID)}/agent-tokens`),
   issueAgentToken: (projectID: string, payload: {
@@ -950,7 +1163,6 @@ export const api = {
   }) => request<ResearchWorkspace>(`/api/v1/projects/${encodeURIComponent(projectID)}/research`, {
     method: 'PUT', body: JSON.stringify(payload),
   }),
-  cost: (projectID: string) => request<Cost>(`/api/v1/projects/${encodeURIComponent(projectID)}/cost`),
   diagnosticOptions: (projectID: string) =>
     request<DiagnosticOptions>(`/api/v1/projects/${encodeURIComponent(projectID)}/diagnostics/options`),
   diagnosticPreflight: (projectID: string, payload: DiagnosticInput) =>
@@ -967,19 +1179,30 @@ export const api = {
     request<DiagnosticRun>(`/api/v1/projects/${encodeURIComponent(projectID)}/diagnostics/${encodeURIComponent(runID)}`),
   cancelDiagnostic: (projectID: string, runID: string) =>
     request<DiagnosticRun>(`/api/v1/projects/${encodeURIComponent(projectID)}/diagnostics/${encodeURIComponent(runID)}/cancel`, { method: 'POST' }),
-  finance: (period: string, projectID = '') => {
+  finance: async (period: string, projectID = '') => {
     const params = new URLSearchParams({ period })
     if (projectID) params.set('project_id', projectID)
-    return request<FinanceDashboard>(`/api/v1/finance?${params}`)
+    const dashboard = await request<FinanceDashboard>(`/api/v1/finance?${params}`)
+    return {
+      ...dashboard,
+      projects: dashboard.projects ?? [],
+      daily: dashboard.daily ?? [],
+      backends: dashboard.backends ?? [],
+      ledger: dashboard.ledger ?? [],
+      audit: dashboard.audit ?? [],
+    }
   },
   adjustBudget: (projectID: string, payload: {
     direction: 'credit' | 'debit'; amount_milli: number; reason: string; idempotency_key: string;
   }) => request<BudgetAdjustmentResult>(`/api/v1/projects/${encodeURIComponent(projectID)}/budget-adjustments`, {
     method: 'POST', body: JSON.stringify(payload),
   }),
-  provider: () => request<ProviderSummary>('/api/v1/provider'),
-  queryProvider: () => request<ProviderResources>('/api/v1/provider/query', { method: 'POST' }),
-  configureProvider: (payload: { name: string; base_url: string; token: string }) =>
+  provider: () => request<ProviderCatalog>('/api/v1/provider'),
+  queryProvider: (backend?: ProviderBackend) => {
+    const query = backend ? `?backend=${encodeURIComponent(backend)}` : ''
+    return request<ProviderResources>(`/api/v1/provider/query${query}`, { method: 'POST' })
+  },
+  configureProvider: (payload: { name: string; base_url: string; backend?: ProviderBackend; token: string }) =>
     request<{ provider: ProviderSummary; resources: ProviderResources }>('/api/v1/provider', {
       method: 'PUT',
       body: JSON.stringify(payload),

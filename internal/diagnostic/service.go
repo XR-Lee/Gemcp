@@ -41,7 +41,7 @@ type ArchiveReader interface {
 }
 
 type ProviderReader interface {
-	QueryResources(context.Context, int) (provider.ResourceSnapshot, error)
+	QueryResources(context.Context, int, string) (provider.ResourceSnapshot, error)
 }
 
 type RuntimeReader interface {
@@ -238,8 +238,8 @@ func (s *Service) resolve(ctx context.Context, tenantID int, projectID string, i
 func normalize(input PreflightInput) (normalizedInput, error) {
 	var result normalizedInput
 	result.Backend = strings.TrimSpace(input.Backend)
-	if result.Backend != BackendAutoDL && result.Backend != BackendSelfHosted {
-		return result, invalid("backend must be autodl_private or self_hosted")
+	if !isAutoDLBackend(result.Backend) && result.Backend != BackendSelfHosted {
+		return result, invalid("backend must be autodl_private, autodl_elastic, or self_hosted")
 	}
 	result.Suite = strings.TrimSpace(input.Suite)
 	if result.Suite != SuiteGPUConnectivity && result.Suite != SuitePyTorchCUDA {
@@ -297,7 +297,7 @@ func proposalFor(resolved resolvedInput) Proposal {
 		RepositoryID: resolved.repository.PublicID.String(), EnvironmentID: resolved.environment.PublicID.String(),
 		ResourceProfileID: resolved.profile.PublicID.String(), CommitSHA: resolved.normalized.CommitSHA,
 		Command: resolved.command, RuntimeSeconds: resolved.runtime, TerminationGraceSeconds: resolved.grace,
-		ReservedCostMilli: resolved.reservation, Billable: resolved.normalized.Backend == BackendAutoDL,
+		ReservedCostMilli: resolved.reservation, Billable: isAutoDLBackend(resolved.normalized.Backend),
 		GPUModels: append([]string(nil), resolved.profile.GpuNames...), GPUNum: resolved.profile.GpuNum, ImageUUID: resolved.environment.ImageUUID,
 		Region: resolved.profile.Region, CUDAFrom: resolved.profile.CudaFrom, CUDATo: resolved.profile.CudaTo,
 		CPUFrom: resolved.profile.CPUFrom, CPUTo: resolved.profile.CPUTo,

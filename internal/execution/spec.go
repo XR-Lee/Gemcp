@@ -9,6 +9,11 @@ import (
 	"github.com/XR-Lee/Gemcp/internal/runner"
 )
 
+const (
+	backendAutoDLPrivate = "autodl_private"
+	backendAutoDLElastic = "autodl_elastic"
+)
+
 type environmentSnapshot struct {
 	Backend   string `json:"backend"`
 	ImageUUID string `json:"image_uuid"`
@@ -42,8 +47,20 @@ func deploymentSpec(experimentRecord *ent.Experiment, resourceRecord *ent.Provid
 	if strings.TrimSpace(environment.ImageUUID) == "" {
 		return DeploymentSpec{}, fmt.Errorf("environment snapshot has no image UUID")
 	}
-	if resource.Region != "private" || resource.CUDAFrom <= 0 || resource.CUDAFrom != resource.CUDATo {
-		return DeploymentSpec{}, fmt.Errorf("resource snapshot is not a Private Cloud profile")
+	if environment.Backend != resource.Backend {
+		return DeploymentSpec{}, fmt.Errorf("environment and resource snapshots use different backends")
+	}
+	switch resource.Backend {
+	case backendAutoDLPrivate:
+		if resource.Region != "private" || resource.CUDAFrom <= 0 || resource.CUDAFrom != resource.CUDATo {
+			return DeploymentSpec{}, fmt.Errorf("resource snapshot is not a Private Cloud profile")
+		}
+	case backendAutoDLElastic:
+		if strings.TrimSpace(resource.Region) == "" || resource.Region == "private" || resource.CUDAFrom <= 0 || resource.CUDATo < resource.CUDAFrom {
+			return DeploymentSpec{}, fmt.Errorf("resource snapshot is not a Public Elastic profile")
+		}
+	default:
+		return DeploymentSpec{}, fmt.Errorf("resource snapshot is not an AutoDL profile")
 	}
 	if len(resource.GPUNames) == 0 || resource.GPUNum <= 0 || resource.GPUNum > 4 {
 		return DeploymentSpec{}, fmt.Errorf("resource snapshot has invalid GPU requirements")
@@ -59,8 +76,9 @@ func deploymentSpec(experimentRecord *ent.Experiment, resourceRecord *ent.Provid
 		return DeploymentSpec{}, err
 	}
 	return DeploymentSpec{
-		Name: resourceRecord.Name, ImageUUID: environment.ImageUUID, Command: command,
-		CUDAVersion: resource.CUDAFrom, GPUNames: resource.GPUNames, GPUNum: resource.GPUNum,
+		Name: resourceRecord.Name, Backend: resource.Backend, Region: resource.Region,
+		ImageUUID: environment.ImageUUID, Command: command,
+		CUDAFrom: resource.CUDAFrom, CUDATo: resource.CUDATo, GPUNames: resource.GPUNames, GPUNum: resource.GPUNum,
 		CPUFrom: resource.CPUFrom, CPUTo: resource.CPUTo,
 		MemoryFromGB: resource.MemoryFromGB, MemoryToGB: resource.MemoryToGB,
 		PriceFromMilli: resource.PriceFromMilli, PriceToMilli: resource.PriceToMilli,

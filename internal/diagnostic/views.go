@@ -162,7 +162,7 @@ func decodePreflight(value map[string]any) (Preflight, error) {
 }
 
 func (s *Service) backendObservation(ctx context.Context, backend diagnosticrun.Backend, experimentID int, terminal bool) (*BackendObservation, bool, error) {
-	if backend == diagnosticrun.BackendAutodlPrivate {
+	if backend != diagnosticrun.BackendSelfHosted {
 		record, err := s.client.ProviderResource.Query().Where(
 			providerresource.ExperimentIDEQ(experimentID),
 		).Order(ent.Desc(providerresource.FieldID)).First(ctx)
@@ -174,7 +174,7 @@ func (s *Service) backendObservation(ctx context.Context, backend diagnosticrun.
 		}
 		cleanup := record.State == providerresource.StateDeleted || (record.State == providerresource.StateError && record.ProviderID == nil)
 		return &BackendObservation{
-			Kind: BackendAutoDL, ID: record.PublicID.String(), State: string(record.State), Status: record.ProviderStatus,
+			Kind: string(backend), ID: record.PublicID.String(), State: string(record.State), Status: record.ProviderStatus,
 			StopReason: record.StopReason, LastError: record.LastError, StopRequestedAt: record.StopRequestedAt, FinishedAt: record.DeletedAt,
 		}, cleanup, nil
 	}

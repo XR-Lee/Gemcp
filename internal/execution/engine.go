@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"strings"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/XR-Lee/Gemcp/internal/secrets"
 	"github.com/XR-Lee/Gemcp/internal/selfhosted"
 	"github.com/XR-Lee/Gemcp/internal/servicehealth"
+	"github.com/XR-Lee/Gemcp/internal/sshcloud"
 )
 
 var activeExperimentStates = []string{"provisioning", "running", "cancelling", "collecting"}
@@ -54,6 +56,7 @@ type Engine struct {
 	box        *secrets.Box
 	provider   LifecycleProvider
 	selfHosted *selfhosted.Service
+	sshCloud   *sshcloud.Service
 	config     Config
 	now        func() time.Time
 }
@@ -62,6 +65,10 @@ type EngineOption func(*Engine)
 
 func WithSelfHostedService(service *selfhosted.Service) EngineOption {
 	return func(engine *Engine) { engine.selfHosted = service }
+}
+
+func WithSSHCloudService(service *sshcloud.Service) EngineOption {
+	return func(engine *Engine) { engine.sshCloud = service }
 }
 
 func NewEngine(client *ent.Client, box *secrets.Box, provider LifecycleProvider, config Config, options ...EngineOption) (*Engine, error) {
@@ -83,7 +90,7 @@ func NewEngine(client *ent.Client, box *secrets.Box, provider LifecycleProvider,
 	if strings.TrimSpace(config.InstanceID) == "" {
 		return nil, fmt.Errorf("execution instance ID is required")
 	}
-	if config.Enabled {
+	if config.Enabled && httpsPublicOrigin(config.PublicURL) {
 		if _, err := runner.LaunchCommand(config.PublicURL, strings.Repeat("x", 40)); err != nil {
 			return nil, err
 		}
@@ -173,4 +180,12 @@ func (e *Engine) releaseExperimentLease(experimentID int) {
 	_, _ = e.client.Experiment.Update().Where(
 		entexperiment.IDEQ(experimentID), entexperiment.LeaseOwnerEQ(e.config.InstanceID),
 	).ClearLeaseOwner().ClearLeaseExpiresAt().Save(ctx)
+}
+
+func httpsPublicOrigin(raw string) bool {
+	parsed, err := url.Parse(strings.TrimRight(strings.TrimSpace(raw), "/"))
+	if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || strings.Trim(parsed.Path, "/") != "" {
+		return false
+	}
+	return true
 }

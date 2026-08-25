@@ -90,6 +90,40 @@ func TestEmergencyStopIncludesSelfHostedAssignments(t *testing.T) {
 	}
 }
 
+func TestEmergencyStopIncludesCloudSSHAssignments(t *testing.T) {
+	f := newExecutionFixture(t)
+	ctx := context.Background()
+	experimentRecord := f.addExperiment(t)
+	attemptRecord, err := f.client.Attempt.Create().SetTenantID(f.tenant.ID).SetProjectID(f.project.ID).
+		SetExperimentID(experimentRecord.ID).SetNumber(1).SetState("running").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	node, err := f.client.CloudSSHNode.Create().SetTenantID(f.tenant.ID).SetLabel("cloud-gpu").
+		SetSSHHost("203.0.113.10").SetSSHUser("ubuntu").SetAuthMethod("password").SetCredentialCiphertext("v1.not-used").
+		SetStatus("active").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assignmentRecord, err := f.client.CloudSSHAssignment.Create().SetTenantID(f.tenant.ID).SetProjectID(f.project.ID).
+		SetExperimentID(experimentRecord.ID).SetAttemptID(attemptRecord.ID).SetNodeID(node.ID).SetState("running").
+		SetRemoteDir("/var/tmp/gemcp/assignment").SetOutputRef("experiments/test/outputs").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	operations := NewOperations(f.client)
+	result, err := operations.EmergencyStop(ctx, f.tenant.ID, "owner-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	experimentRecord, _ = f.client.Experiment.Get(ctx, experimentRecord.ID)
+	assignmentRecord, _ = f.client.CloudSSHAssignment.Get(ctx, assignmentRecord.ID)
+	if result.Requested != 1 || experimentRecord.DesiredState != "cancelled" || experimentRecord.FailureCode == nil || *experimentRecord.FailureCode != "emergency_stop" ||
+		assignmentRecord.StopReason == nil || *assignmentRecord.StopReason != "emergency" {
+		t.Fatalf("result=%+v experiment=%+v assignment=%+v", result, experimentRecord, assignmentRecord)
+	}
+}
+
 func TestEmergencyStopMarksAllOwnedResources(t *testing.T) {
 	f := newExecutionFixture(t)
 	f.addExperiment(t)

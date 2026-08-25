@@ -200,6 +200,13 @@ func TestWorkspaceDatasetPathsMustExistInsideApprovedRoot(t *testing.T) {
 	if err := validateWorkspaceDatasetsOnHost(root, []nodeprotocol.WorkspaceDataset{dataset}); err != nil {
 		t.Fatal(err)
 	}
+	linkedRoot := filepath.Join(t.TempDir(), "workspace")
+	if err := os.Symlink(root, linkedRoot); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateWorkspaceDatasetsOnHost(linkedRoot, []nodeprotocol.WorkspaceDataset{dataset}); err != nil {
+		t.Fatalf("symlinked approved root rejected: %v", err)
+	}
 	dataset.RelativePath = "data/missing"
 	if err := validateWorkspaceDatasetsOnHost(root, []nodeprotocol.WorkspaceDataset{dataset}); err == nil {
 		t.Fatal("missing workspace dataset was accepted")

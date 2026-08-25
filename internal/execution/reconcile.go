@@ -21,6 +21,12 @@ func (e *Engine) step(ctx context.Context, experimentID int) error {
 			return err
 		}
 	}
+	if e.sshCloud != nil {
+		handled, err := e.sshCloud.Reconcile(ctx, experimentID, e.now().UTC())
+		if handled || err != nil {
+			return err
+		}
+	}
 	experimentRecord, err := e.client.Experiment.Get(ctx, experimentID)
 	if err != nil {
 		return err

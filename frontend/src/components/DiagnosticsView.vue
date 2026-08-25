@@ -71,8 +71,19 @@ function handleError(caught: unknown, fallback: string) {
   error.value = caught instanceof APIError ? caught.message : fallback
 }
 
+function diagnosticBackends(): DiagnosticBackend[] {
+  return (['autodl_private', 'autodl_elastic', 'self_hosted'] as const).filter((backend) => (
+    Boolean(options.value?.environments.some((item) => item.backend === backend))
+    && Boolean(options.value?.resource_profiles.some((item) => item.backend === backend))
+  ))
+}
+
 function syncSelections() {
   if (!options.value) return
+  const backends = diagnosticBackends()
+  if (!backends.includes(form.backend) && backends.length) {
+    form.backend = backends[0]
+  }
   if (!options.value.repositories.some((item) => item.id === form.repository_id)) {
     form.repository_id = options.value.repositories[0]?.id ?? ''
   }
@@ -222,7 +233,9 @@ function suiteLabel(value: DiagnosticSuite) {
 }
 
 function backendLabel(value: DiagnosticBackend) {
-  return value === 'autodl_private' ? 'AutoDL Private' : t('Self-hosted Node', '自托管 Node')
+  if (value === 'autodl_private') return 'AutoDL Private'
+  if (value === 'autodl_elastic') return 'AutoDL Public'
+  return t('Self-hosted Node', '自托管 Node')
 }
 
 function assessmentLabel(value: DiagnosticRun['assessment']['status']) {
@@ -267,8 +280,10 @@ const diagnosticChinese: Record<string, string> = {
   'AutoDL Provider service is unavailable': 'AutoDL Provider 服务不可用',
   'AutoDL Provider query failed': 'AutoDL Provider 查询失败',
   'AutoDL Provider credential and Developer API are reachable': 'AutoDL Provider 凭据和 Developer API 可访问',
+  'AutoDL Provider backend does not match the diagnostic': 'AutoDL Provider 后端与诊断所选后端不一致',
   'Selected AutoDL GPU capacity is unavailable': '所选 AutoDL GPU 容量不可用',
   'Selected AutoDL GPU capacity is available': '所选 AutoDL GPU 容量可用',
+  'Public Elastic reports enough individual GPUs': '公有云弹性部署报告有足够的单卡库存',
   'Selected AutoDL image is visible to the Provider API': 'Provider API 可发现所选 AutoDL 镜像',
   'Selected AutoDL image was not visible in image discovery': '镜像发现中未找到所选 AutoDL 镜像',
   'Self-hosted image is not digest-pinned': '自托管镜像未固定 digest',
@@ -395,6 +410,7 @@ onUnmounted(() => {
           <legend>{{ t('Backend', '后端') }}</legend>
           <div class="segmented-control">
             <button type="button" :class="{ active: form.backend === 'autodl_private' }" @click="form.backend = 'autodl_private'">AutoDL Private</button>
+            <button type="button" :class="{ active: form.backend === 'autodl_elastic' }" @click="form.backend = 'autodl_elastic'">AutoDL Public</button>
             <button type="button" :class="{ active: form.backend === 'self_hosted' }" @click="form.backend = 'self_hosted'">{{ t('Self-hosted', '自托管') }}</button>
           </div>
         </fieldset>

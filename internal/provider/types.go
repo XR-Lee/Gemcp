@@ -17,6 +17,7 @@ type Summary struct {
 type ConfigureInput struct {
 	Name    string `json:"name"`
 	BaseURL string `json:"base_url"`
+	Backend string `json:"backend,omitempty"`
 	Token   string `json:"token"`
 }
 
@@ -28,6 +29,7 @@ type ConfigureResult struct {
 type ResourceSnapshot struct {
 	GeneratedAt      time.Time    `json:"generated_at"`
 	Provider         Summary      `json:"provider"`
+	Wallet           *Wallet      `json:"wallet,omitempty"`
 	GPUStock         []GPUStock   `json:"gpu_stock"`
 	PrivateImages    []Image      `json:"private_images"`
 	SystemImages     []Image      `json:"system_images"`
@@ -37,10 +39,17 @@ type ResourceSnapshot struct {
 	Truncated        []string     `json:"truncated,omitempty"`
 }
 
+type Wallet struct {
+	Assets         int64 `json:"assets"`
+	Accumulate     int64 `json:"accumulate"`
+	VoucherBalance int64 `json:"voucher_balance"`
+}
+
 type GPUStock struct {
-	Name  string `json:"name"`
-	Idle  int    `json:"idle"`
-	Total int    `json:"total"`
+	Region string `json:"region,omitempty"`
+	Name   string `json:"name"`
+	Idle   int    `json:"idle"`
+	Total  int    `json:"total"`
 }
 
 type Image struct {

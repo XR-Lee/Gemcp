@@ -105,8 +105,25 @@ func (e *Engine) dispatchOne(ctx context.Context, experimentID int, now time.Tim
 		}
 		return true, nil
 	}
+	if profileRecord.Backend == resourceprofile.BackendSSHCloud {
+		if e.sshCloud == nil || !e.sshCloud.Enabled() {
+			return false, nil
+		}
+		dispatched, err := e.sshCloud.Dispatch(ctx, tx, record, now)
+		if err != nil || !dispatched {
+			return false, err
+		}
+		if err := tx.Commit(); err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+	providerBackend := provideraccount.BackendPrivate
+	if profileRecord.Backend == resourceprofile.BackendAutodlElastic {
+		providerBackend = provideraccount.BackendElastic
+	}
 	providerRecord, err := tx.ProviderAccount.Query().Where(
-		provideraccount.TenantIDEQ(record.TenantID), provideraccount.BackendEQ(provideraccount.BackendPrivate),
+		provideraccount.TenantIDEQ(record.TenantID), provideraccount.BackendEQ(providerBackend),
 		provideraccount.StatusEQ(provideraccount.StatusActive),
 	).Order(ent.Asc(provideraccount.FieldID)).First(ctx)
 	if ent.IsNotFound(err) {
@@ -120,6 +137,12 @@ func (e *Engine) dispatchOne(ctx context.Context, experimentID int, now time.Tim
 	).Order(ent.Desc(budgetentry.FieldID)).First(ctx)
 	if err != nil {
 		return false, fmt.Errorf("load experiment reservation: %w", err)
+	}
+	if !httpsPublicOrigin(e.config.PublicURL) {
+		if err := terminalQueuedProviderError(ctx, tx, record, reservation, now, "callback_origin_required", "AutoDL dispatch requires a credential-free HTTPS public URL"); err != nil {
+			return false, err
+		}
+		return false, tx.Commit()
 	}
 	requiredReservation, reservationErr := executionReservation(record)
 	if reservationErr != nil {

@@ -246,6 +246,50 @@ describe('API security headers', () => {
     expect(headers.get('X-CSRF-Token')).toBe('csrf-test-token')
   })
 
+  it('protects Project policy, AutoDL dataset bindings, and Owner proposal confirmation with CSRF', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true, status: 200, json: async () => ({ data: { id: 'project/id', max_runtime_seconds: 57600 } }),
+      })
+      .mockResolvedValueOnce({
+        ok: true, status: 201, json: async () => ({ data: { id: 'binding/id', status: 'active' } }),
+      })
+      .mockResolvedValueOnce({
+        ok: true, status: 200, json: async () => ({ data: { id: 'binding/id', status: 'disabled' } }),
+      })
+      .mockResolvedValueOnce({
+        ok: true, status: 200, json: async () => ({ data: { experiment: { id: 'experiment-id' }, idempotent: false } }),
+      })
+    vi.stubGlobal('fetch', fetchMock)
+    setCSRFToken('csrf-paid-run')
+
+    await api.updateProject('project/id', { max_runtime_seconds: 57600, max_experiment_milli: 40000 })
+    await api.createDatasetBinding('project/id', {
+      name: 'scanobjectnn-objbg', backend: 'autodl_elastic',
+      canonical_root: '/root/autodl-fs/datasets/ScanObjectNN', required_markers: ['main_split/train.h5'],
+    })
+    await api.removeDatasetBinding('project/id', 'binding/id')
+    await api.submitPreparedProposal('project/id', 'proposal/id', {
+      confirmation_digest: `sha256:${'ab'.repeat(32)}`, confirmed: true,
+    })
+
+    expect(fetchMock.mock.calls.map(([path, options]) => [path, options.method])).toEqual([
+      ['/api/v1/projects/project%2Fid', 'PATCH'],
+      ['/api/v1/projects/project%2Fid/dataset-bindings', 'POST'],
+      ['/api/v1/projects/project%2Fid/dataset-bindings/binding%2Fid', 'DELETE'],
+      ['/api/v1/projects/project%2Fid/experiment-proposals/proposal%2Fid/submit', 'POST'],
+    ])
+    for (const [, options] of fetchMock.mock.calls) {
+      expect((options.headers as Headers).get('X-CSRF-Token')).toBe('csrf-paid-run')
+    }
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1].body))).toEqual({
+      max_runtime_seconds: 57600, max_experiment_milli: 40000,
+    })
+    expect(JSON.parse(String(fetchMock.mock.calls[3][1].body))).toEqual({
+      confirmation_digest: `sha256:${'ab'.repeat(32)}`, confirmed: true,
+    })
+  })
+
   it('protects diagnostic preflight, submission and cancellation with CSRF', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true, status: 200, json: async () => ({ data: {} }),

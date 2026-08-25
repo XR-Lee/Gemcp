@@ -16,14 +16,16 @@ import (
 
 type fakeProviderOperations struct {
 	configureInput providerservice.ConfigureInput
+	queryBackend   string
 	err            error
 }
 
-func (f *fakeProviderOperations) Summary(context.Context, int) (providerservice.Summary, error) {
-	return providerservice.Summary{ID: "provider-id", Name: "Private", BaseURL: "https://private.autodl.com", Backend: "private", Status: "active", CredentialConfigured: true}, f.err
+func (f *fakeProviderOperations) Summaries(context.Context, int) ([]providerservice.Summary, error) {
+	return []providerservice.Summary{{ID: "provider-id", Name: "Private", BaseURL: "https://private.autodl.com", Backend: "private", Status: "active", CredentialConfigured: true}}, f.err
 }
 
-func (f *fakeProviderOperations) QueryResources(context.Context, int) (providerservice.ResourceSnapshot, error) {
+func (f *fakeProviderOperations) QueryResources(_ context.Context, _ int, backend string) (providerservice.ResourceSnapshot, error) {
+	f.queryBackend = backend
 	return providerservice.ResourceSnapshot{
 		GeneratedAt: time.Date(2026, 7, 17, 2, 0, 0, 0, time.UTC),
 		GPUStock:    []providerservice.GPUStock{{Name: "RTX 3090", Idle: 2, Total: 9}},
@@ -91,6 +93,31 @@ func TestProviderHTTPRequiresOwner(t *testing.T) {
 	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/provider", nil))
 	if response.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
+	}
+}
+
+func TestProviderHTTPQueryForwardsBackend(t *testing.T) {
+	service := &fakeProviderOperations{}
+	router := providerRouter("owner", service)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/provider/query?backend=elastic", nil))
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
+	}
+	if service.queryBackend != "elastic" {
+		t.Fatalf("query backend = %q", service.queryBackend)
+	}
+}
+
+func TestProviderHTTPSummaryReturnsProviderList(t *testing.T) {
+	router := providerRouter("owner", &fakeProviderOperations{})
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/provider", nil))
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"providers"`) || !strings.Contains(response.Body.String(), `"provider-id"`) {
+		t.Fatalf("body = %s", response.Body.String())
 	}
 }
 

@@ -12,8 +12,8 @@ import (
 )
 
 type providerOperations interface {
-	Summary(context.Context, int) (providerservice.Summary, error)
-	QueryResources(context.Context, int) (providerservice.ResourceSnapshot, error)
+	Summaries(context.Context, int) ([]providerservice.Summary, error)
+	QueryResources(context.Context, int, string) (providerservice.ResourceSnapshot, error)
 	Configure(context.Context, int, string, providerservice.ConfigureInput) (providerservice.ConfigureResult, error)
 	Deployment(context.Context, int, string) (providerservice.DeploymentDetails, error)
 }
@@ -31,12 +31,12 @@ func (h *ProviderHandlers) Summary(c *gin.Context) {
 	if !ok {
 		return
 	}
-	view, err := h.service.Summary(c.Request.Context(), principal.TenantID)
+	views, err := h.service.Summaries(c.Request.Context(), principal.TenantID)
 	if err != nil {
 		h.writeError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": view})
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"providers": views}})
 }
 
 func (h *ProviderHandlers) Query(c *gin.Context) {
@@ -46,7 +46,7 @@ func (h *ProviderHandlers) Query(c *gin.Context) {
 	}
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 25*time.Second)
 	defer cancel()
-	view, err := h.service.QueryResources(ctx, principal.TenantID)
+	view, err := h.service.QueryResources(ctx, principal.TenantID, c.Query("backend"))
 	if err != nil {
 		h.writeError(c, err)
 		return
@@ -118,7 +118,7 @@ func (h *ProviderHandlers) writeError(c *gin.Context, err error) {
 	case errors.Is(err, providerservice.ErrDeploymentNotFound):
 		writeError(c, http.StatusNotFound, "PROVIDER_DEPLOYMENT_NOT_FOUND", "Provider deployment not found")
 	case errors.Is(err, providerservice.ErrUnsupportedBackend):
-		writeError(c, http.StatusConflict, "PROVIDER_BACKEND_UNSUPPORTED", "Configure the Provider for AutoDL Private Cloud")
+		writeError(c, http.StatusConflict, "PROVIDER_BACKEND_UNSUPPORTED", "Configure the Provider for AutoDL Private Cloud or Public Elastic")
 	case errors.As(err, &operation):
 		slog.Warn("Provider query failed", "operation", operation.Operation, "error", operation.Cause)
 		writeError(c, http.StatusBadGateway, "PROVIDER_QUERY_FAILED", operation.Error())

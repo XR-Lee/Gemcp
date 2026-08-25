@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"math"
+	"net"
 	"net/url"
 	"os"
 	"strconv"
@@ -25,6 +26,7 @@ type Config struct {
 	SecureCookies            bool
 	PublicURL                string
 	SelfHostedEnabled        bool
+	SSHCloudEnabled          bool
 	SchedulerEnabled         bool
 	GlobalConcurrency        int
 	SchedulerPollInterval    time.Duration
@@ -51,6 +53,10 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	selfHostedEnabled, err := boolOrDefault("GEMCP_SELF_HOSTED_ENABLED", false)
+	if err != nil {
+		return Config{}, err
+	}
+	sshCloudEnabled, err := boolOrDefault("GEMCP_SSH_CLOUD_ENABLED", false)
 	if err != nil {
 		return Config{}, err
 	}
@@ -127,6 +133,7 @@ func Load() (Config, error) {
 		SecureCookies:            secureCookies,
 		PublicURL:                strings.TrimRight(strings.TrimSpace(os.Getenv("GEMCP_PUBLIC_URL")), "/"),
 		SelfHostedEnabled:        selfHostedEnabled,
+		SSHCloudEnabled:          sshCloudEnabled,
 		SchedulerEnabled:         schedulerEnabled,
 		GlobalConcurrency:        globalConcurrency,
 		SchedulerPollInterval:    schedulerPollInterval,
@@ -175,13 +182,44 @@ func Load() (Config, error) {
 	if cfg.NotificationPollInterval <= 0 {
 		return Config{}, fmt.Errorf("GEMCP_NOTIFICATION_POLL_INTERVAL must be positive")
 	}
-	if cfg.SchedulerEnabled || cfg.SelfHostedEnabled {
-		parsed, err := url.Parse(cfg.PublicURL)
-		if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || strings.Trim(parsed.Path, "/") != "" {
-			return Config{}, fmt.Errorf("GEMCP_PUBLIC_URL must be a credential-free HTTPS origin when scheduling or Self-hosted nodes are enabled")
+	if cfg.SchedulerEnabled {
+		if !acceptablePublicOrigin(cfg.PublicURL, true) {
+			return Config{}, fmt.Errorf("GEMCP_PUBLIC_URL must be a credential-free HTTPS origin, or loopback HTTP, when scheduling is enabled")
+		}
+	}
+	if cfg.SelfHostedEnabled {
+		if !acceptablePublicOrigin(cfg.PublicURL, true) {
+			return Config{}, fmt.Errorf("GEMCP_PUBLIC_URL must be a credential-free HTTPS origin, or loopback HTTP, when Self-hosted nodes are enabled")
 		}
 	}
 	return cfg, nil
+}
+
+func HTTPSPublicOrigin(raw string) bool {
+	return acceptablePublicOrigin(raw, false)
+}
+
+func isLoopbackHost(host string) bool {
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
+func acceptablePublicOrigin(raw string, allowLoopbackHTTP bool) bool {
+	parsed, err := url.Parse(strings.TrimRight(strings.TrimSpace(raw), "/"))
+	if err != nil || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || strings.Trim(parsed.Path, "/") != "" {
+		return false
+	}
+	switch parsed.Scheme {
+	case "https":
+		return true
+	case "http":
+		return allowLoopbackHTTP && isLoopbackHost(parsed.Hostname())
+	default:
+		return false
+	}
 }
 
 func envOrDefault(key, fallback string) string {

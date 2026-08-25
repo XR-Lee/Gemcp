@@ -168,3 +168,136 @@ describe('NodeView enrollment operations', () => {
     wrapper.unmount()
   })
 })
+
+describe('NodeView Cloud SSH laboratory', () => {
+  it('shows the experimental warning and never renders credential fields from the list payload', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const path = String(input)
+      if (path === '/api/v1/nodes') return response({ nodes: [], enrollments: [], assignments: [] })
+      if (path === '/api/v1/projects/project-id/self-hosted-runtimes') return response({ environments: [], resource_profiles: [], trusted_workspaces: [] })
+      if (path === '/api/v1/ssh-cloud-nodes') return response({
+        experimental: true,
+        warning: 'Experimental: Gemcp stores an encrypted SSH password or private key.',
+        enabled: true,
+        nodes: [{
+          id: 'ssh-node', label: 'autodl-vm', status: 'active', experimental: true,
+          warning: 'Experimental: Gemcp stores an encrypted SSH password or private key.',
+          host: '203.0.113.10', port: 22, user: 'ubuntu', auth_method: 'password',
+          host_key_fingerprint: 'SHA256:public-fingerprint-only', project_ids: ['project-id'],
+          created_actor_type: 'agent', created_actor_id: 'token-aa',
+          project_runtimes: [],
+          inventory: { gpus: [{ name: 'NVIDIA GeForce RTX 4090' }] },
+          created_at: '2026-08-22T10:00:00Z', updated_at: '2026-08-22T10:00:00Z',
+        }],
+        assignments: [],
+      })
+      throw new Error(`unexpected request ${path}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const wrapper = mount(NodeView, {
+      props: {
+        active: true, build, sshCloudEnabled: true,
+        projects: [{
+          id: 'project-id', name: 'Research', slug: 'research', timezone: 'UTC', status: 'active',
+          monthly_budget_milli: 100000, max_experiment_milli: 10000, max_concurrency: 1,
+          max_runtime_seconds: 3600, timeout_extension_seconds: 600, termination_grace_seconds: 30,
+        }],
+      },
+    })
+    await flushPromises()
+    expect(wrapper.text()).toContain('Cloud SSH (experimental)')
+    expect(wrapper.text()).toContain('ubuntu@203.0.113.10:22')
+    expect(wrapper.text()).toContain('NVIDIA GeForce RTX 4090')
+    expect(wrapper.text()).toContain('Agent token-aa')
+    expect(wrapper.text()).toContain('Idle')
+    expect(wrapper.text()).toContain('Experimental: Gemcp stores an encrypted SSH password or private key.')
+    expect(wrapper.text()).not.toContain('Authorize Project')
+    expect(wrapper.text()).not.toContain('Digest-pinned image')
+    expect(wrapper.text()).not.toContain(`pytorch/pytorch@sha256:${'a'.repeat(64)}`)
+    expect(wrapper.find('button[title="Authorize Project"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('BEGIN')
+    expect(wrapper.text()).not.toContain('ciphertext')
+    expect(wrapper.html()).not.toContain('super-secret')
+    const copy = vi.fn()
+    vi.stubGlobal('navigator', { language: 'en-GB', clipboard: { writeText: copy } })
+    await wrapper.find('button[aria-label="Copy handshake prompt autodl-vm"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Handshake prompt')
+    expect(wrapper.text()).toContain('ssh ubuntu@203.0.113.10')
+    expect(wrapper.text()).toContain('register_ssh_cloud_node')
+    expect(wrapper.text()).toContain('operate_nodes')
+    expect(wrapper.text()).toContain('Register Agent to Project')
+    expect(wrapper.text()).not.toContain('--bridge=none')
+    expect(wrapper.text()).not.toContain('BEGIN')
+    expect(wrapper.text()).not.toContain('ciphertext')
+    await wrapper.findAll('button').find((button) => button.text().includes('Copy handshake prompt'))!.trigger('click')
+    expect(copy).toHaveBeenCalled()
+    expect(String(copy.mock.calls[0]?.[0])).toContain('ssh ubuntu@203.0.113.10')
+    expect(String(copy.mock.calls[0]?.[0])).toContain('register_ssh_cloud_node')
+    expect(String(copy.mock.calls[0]?.[0])).not.toContain('super-secret')
+    wrapper.unmount()
+  })
+
+  it('parses a pasted ssh -p command and password like VS Code Remote SSH', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, options?: RequestInit) => {
+      const path = String(input)
+      const method = options?.method ?? 'GET'
+      if (path === '/api/v1/nodes') return response({ nodes: [], enrollments: [], assignments: [] })
+      if (path === '/api/v1/projects/project-id/self-hosted-runtimes') return response({ environments: [], resource_profiles: [], trusted_workspaces: [] })
+      if (path === '/api/v1/ssh-cloud-nodes' && method === 'GET') return response({
+        experimental: true, warning: 'Experimental', enabled: true, nodes: [], assignments: [],
+      })
+      if (path === '/api/v1/ssh-cloud-nodes' && method === 'POST') {
+        return response({
+          id: 'ssh-created', label: 'connect', status: 'pending_probe', experimental: true, warning: 'Experimental',
+          host: 'connect.westb.seetacloud.com', port: 47174, user: 'root', auth_method: 'password',
+          project_ids: [], created_at: '2026-08-22T10:00:00Z', updated_at: '2026-08-22T10:00:00Z',
+        }, 201)
+      }
+      if (path === '/api/v1/ssh-cloud-nodes/ssh-created/probe' && method === 'POST') {
+        return response({
+          id: 'ssh-created', label: 'connect', status: 'active', experimental: true, warning: 'Experimental',
+          host: 'connect.westb.seetacloud.com', port: 47174, user: 'root', auth_method: 'password',
+          project_ids: [],
+          probe_log: [
+            { step: 'connect', status: 'ok', message: 'Connecting to root@connect.westb.seetacloud.com:47174' },
+            { step: 'os', status: 'ok', message: 'Linux x86_64' },
+            { step: 'done', status: 'ok', message: 'Probe finished' },
+          ],
+          created_at: '2026-08-22T10:00:00Z', updated_at: '2026-08-22T10:00:00Z',
+        })
+      }
+      throw new Error(`unexpected request ${method} ${path}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const wrapper = mount(NodeView, {
+      props: {
+        active: true, build, sshCloudEnabled: true,
+        projects: [{
+          id: 'project-id', name: 'Research', slug: 'research', timezone: 'UTC', status: 'active',
+          monthly_budget_milli: 100000, max_experiment_milli: 10000, max_concurrency: 1,
+          max_runtime_seconds: 3600, timeout_extension_seconds: 600, termination_grace_seconds: 30,
+        }],
+      },
+    })
+    await flushPromises()
+    await wrapper.findAll('button').find((button) => button.text().includes('Add cloud instance'))!.trigger('click')
+    await wrapper.get('textarea.ssh-command-input').setValue('ssh -p 47174 root@connect.westb.seetacloud.com')
+    await wrapper.get('input[type="password"]').setValue('cloud-instance-password')
+    expect(wrapper.text()).toContain('root@connect.westb.seetacloud.com:47174')
+    await wrapper.get('.node-dialog').trigger('submit')
+    await flushPromises()
+    const createCall = fetchMock.mock.calls.find(([input, options]) => String(input) === '/api/v1/ssh-cloud-nodes' && options?.method === 'POST')
+    expect(JSON.parse(String(createCall?.[1]?.body))).toMatchObject({
+      host: 'connect.westb.seetacloud.com', port: 47174, user: 'root', auth_method: 'password',
+      password: 'cloud-instance-password', label: 'connect', probe: false,
+    })
+    expect(fetchMock.mock.calls.some(([input, options]) => String(input) === '/api/v1/ssh-cloud-nodes/ssh-created/probe' && options?.method === 'POST')).toBe(true)
+    expect(wrapper.text()).toContain('Cloud SSH probe')
+    expect(wrapper.text()).toContain('Connect SSH')
+    expect(wrapper.text()).toContain('Linux x86_64')
+    expect(wrapper.text()).not.toContain('Install Docker')
+    expect(wrapper.text()).not.toContain('downloading Docker Engine')
+    wrapper.unmount()
+  })
+})

@@ -41,7 +41,7 @@ func (s *Service) Preflight(ctx context.Context, tenantID int, projectID string,
 	}()
 	go func() {
 		defer close(backendDone)
-		if resolved.normalized.Backend == BackendAutoDL {
+		if isAutoDLBackend(resolved.normalized.Backend) {
 			s.autoDLChecks(ctx, resolved, &backendResult)
 		} else {
 			s.selfHostedChecks(ctx, resolved, &backendResult)
@@ -94,7 +94,7 @@ func (s *Service) runtimeChecks(ctx context.Context, resolved resolvedInput, res
 	} else {
 		addCheck(result, "public_url", CheckPass, "Public callback URL is configured", "")
 	}
-	if resolved.normalized.Backend == BackendAutoDL {
+	if isAutoDLBackend(resolved.normalized.Backend) {
 		if !status.WatchdogHealthy {
 			addCheck(result, "watchdog", CheckFail, "Watchdog heartbeat is stale", "AutoDL cleanup enforcement must be healthy before a paid diagnostic.")
 		} else {
@@ -196,16 +196,27 @@ func (s *Service) autoDLChecks(ctx context.Context, resolved resolvedInput, resu
 		return
 	}
 	queryCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
-	snapshot, err := s.provider.QueryResources(queryCtx, resolved.project.TenantID)
+	expectedBackend := "private"
+	if resolved.normalized.Backend == BackendAutoDLElastic {
+		expectedBackend = "elastic"
+	}
+	snapshot, err := s.provider.QueryResources(queryCtx, resolved.project.TenantID, expectedBackend)
 	cancel()
 	if err != nil {
 		addCheck(result, "provider", CheckFail, "AutoDL Provider query failed", bounded(err.Error(), 320))
+		return
+	}
+	if snapshot.Provider.Backend != expectedBackend {
+		addCheck(result, "provider", CheckFail, "AutoDL Provider backend does not match the diagnostic", fmt.Sprintf("Configured Provider is %s; diagnostic requires %s.", snapshot.Provider.Backend, expectedBackend))
 		return
 	}
 	addCheck(result, "provider", CheckPass, "AutoDL Provider credential and Developer API are reachable", snapshot.Provider.Name)
 	idle := 0
 	matched := []string{}
 	for _, stock := range snapshot.GPUStock {
+		if resolved.normalized.Backend == BackendAutoDLElastic && stock.Region != resolved.profile.Region {
+			continue
+		}
 		matchesProfile := false
 		for _, accepted := range resolved.profile.GpuNames {
 			if strings.EqualFold(strings.TrimSpace(stock.Name), strings.TrimSpace(accepted)) {
@@ -220,6 +231,8 @@ func (s *Service) autoDLChecks(ctx context.Context, resolved resolvedInput, resu
 	}
 	if idle < resolved.profile.GpuNum {
 		addCheck(result, "gpu_capacity", CheckFail, "Selected AutoDL GPU capacity is unavailable", strings.Join(matched, ", "))
+	} else if resolved.normalized.Backend == BackendAutoDLElastic && resolved.profile.GpuNum > 1 {
+		addCheck(result, "gpu_capacity", CheckWarn, "Public Elastic reports enough individual GPUs", strings.Join(matched, ", ")+"; inventory does not guarantee that multiple GPUs are available on one machine.")
 	} else {
 		addCheck(result, "gpu_capacity", CheckPass, "Selected AutoDL GPU capacity is available", strings.Join(matched, ", "))
 	}

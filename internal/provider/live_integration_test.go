@@ -62,7 +62,7 @@ func TestLivePrivateCloudResources(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	snapshot, err := NewService(client, box, "live-test").QueryResources(ctx, tenant.ID)
+	snapshot, err := NewService(client, box, "live-test").QueryResources(ctx, tenant.ID, "")
 	if err != nil {
 		t.Fatalf("QueryResources() error = %v", err)
 	}

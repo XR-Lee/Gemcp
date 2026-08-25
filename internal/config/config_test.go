@@ -30,6 +30,9 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.SelfHostedEnabled {
 		t.Fatal("Self-hosted nodes defaulted to enabled")
 	}
+	if cfg.SSHCloudEnabled {
+		t.Fatal("Cloud SSH nodes defaulted to enabled")
+	}
 }
 
 func TestLoadRejectsShortBootstrapToken(t *testing.T) {
@@ -52,8 +55,17 @@ func TestSelfHostedNodesAreOptInAndRequireHTTPSPublicOrigin(t *testing.T) {
 	if _, err := Load(); err == nil {
 		t.Fatal("Load() accepted Self-hosted nodes without a public HTTPS origin")
 	}
-	t.Setenv("GEMCP_PUBLIC_URL", "https://gemcp.example.com")
+	t.Setenv("GEMCP_PUBLIC_URL", "http://gemcp.example.com")
+	if _, err := Load(); err == nil {
+		t.Fatal("Load() accepted Self-hosted nodes with a public HTTP origin")
+	}
+	t.Setenv("GEMCP_PUBLIC_URL", "http://127.0.0.1:18080")
 	cfg, err := Load()
+	if err != nil || !cfg.SelfHostedEnabled {
+		t.Fatalf("loopback Self-hosted config=%+v err=%v", cfg, err)
+	}
+	t.Setenv("GEMCP_PUBLIC_URL", "https://gemcp.example.com")
+	cfg, err = Load()
 	if err != nil || !cfg.SelfHostedEnabled {
 		t.Fatalf("Self-hosted config=%+v err=%v", cfg, err)
 	}
@@ -75,10 +87,34 @@ func TestSchedulerIsOptInAndRequiresHTTPSPublicOrigin(t *testing.T) {
 	if _, err := Load(); err == nil {
 		t.Fatal("Load() accepted an HTTP Runner origin")
 	}
-	t.Setenv("GEMCP_PUBLIC_URL", "https://gemcp.example.com")
+	t.Setenv("GEMCP_PUBLIC_URL", "http://127.0.0.1:18080")
 	cfg, err = Load()
 	if err != nil || !cfg.SchedulerEnabled {
+		t.Fatalf("loopback scheduler config = %+v, %v", cfg, err)
+	}
+	if HTTPSPublicOrigin(cfg.PublicURL) {
+		t.Fatal("loopback HTTP origin was treated as an HTTPS callback origin")
+	}
+	t.Setenv("GEMCP_PUBLIC_URL", "https://gemcp.example.com")
+	cfg, err = Load()
+	if err != nil || !cfg.SchedulerEnabled || !HTTPSPublicOrigin(cfg.PublicURL) {
 		t.Fatalf("enabled scheduler config = %+v, %v", cfg, err)
+	}
+}
+
+func TestSSHCloudNodesAreOptIn(t *testing.T) {
+	t.Setenv("GEMCP_SSH_CLOUD_ENABLED", "")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.SSHCloudEnabled {
+		t.Fatal("Cloud SSH nodes defaulted to enabled")
+	}
+	t.Setenv("GEMCP_SSH_CLOUD_ENABLED", "true")
+	cfg, err = Load()
+	if err != nil || !cfg.SSHCloudEnabled {
+		t.Fatalf("Cloud SSH config=%+v err=%v", cfg, err)
 	}
 }
 

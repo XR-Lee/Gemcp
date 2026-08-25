@@ -158,9 +158,9 @@ func (f *executionFixture) addExperimentWithPeriod(t *testing.T, secretNames []s
 		SetCommitSha("0123456789012345678901234567890123456789").SetCommand("echo trained").
 		SetMaxRuntimeSeconds(300).SetTimeoutExtensionSeconds(60).SetTerminationGraceSeconds(5).
 		SetRepositorySnapshot(map[string]any{"id": f.repository.PublicID.String(), "project_id": f.project.PublicID.String()}).
-		SetEnvironmentSnapshot(map[string]any{"id": f.environment.PublicID.String(), "image_uuid": "image-1"}).
+		SetEnvironmentSnapshot(map[string]any{"id": f.environment.PublicID.String(), "backend": "autodl_private", "image_uuid": "image-1"}).
 		SetResourceSnapshot(map[string]any{
-			"id": f.profile.PublicID.String(), "region": "private", "gpu_names": []string{"RTX 3090"}, "gpu_num": 1,
+			"id": f.profile.PublicID.String(), "backend": "autodl_private", "region": "private", "gpu_names": []string{"RTX 3090"}, "gpu_num": 1,
 			"cuda_from": 118, "cuda_to": 118, "cpu_from": 1, "cpu_to": 16,
 			"memory_from_gb": 1, "memory_to_gb": 64, "price_from_milli": 100, "price_to_milli": 1000,
 			"reuse_container": true,

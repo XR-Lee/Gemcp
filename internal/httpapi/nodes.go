@@ -257,7 +257,7 @@ func (h *NodeHandlers) writeError(c *gin.Context, err error) {
 	case errors.Is(err, nodeaccess.ErrDisabled):
 		writeError(c, http.StatusServiceUnavailable, "SELF_HOSTED_DISABLED", "Self-hosted nodes are not enabled")
 	case errors.Is(err, nodeaccess.ErrPublicURL):
-		writeError(c, http.StatusServiceUnavailable, "NODE_PUBLIC_URL_UNAVAILABLE", "GEMCP_PUBLIC_URL must be a credential-free HTTPS origin")
+		writeError(c, http.StatusServiceUnavailable, "NODE_PUBLIC_URL_UNAVAILABLE", "GEMCP_PUBLIC_URL must be a credential-free HTTPS origin, or loopback HTTP for local-only setup")
 	case errors.Is(err, nodeaccess.ErrNotFound):
 		writeError(c, http.StatusNotFound, "NODE_NOT_FOUND", "node or enrollment not found")
 	case errors.Is(err, nodeaccess.ErrEnrollmentInvalid):

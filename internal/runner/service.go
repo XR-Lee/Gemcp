@@ -98,6 +98,7 @@ func (s *Service) Spec(ctx context.Context, token string) (Spec, error) {
 		HeartbeatIntervalSeconds: 15, SourceMaxBytes: sourceTransferLimit(s.sourceMaxBytes),
 		ProvisioningSecondsRemaining: provisioningSecondsRemaining,
 		TokenExpiresAt:               *session.attempt.RunnerTokenExpiresAt,
+		DatasetBindings:              runnerDatasetBindings(session.experiment.EnvironmentSnapshot),
 	}, nil
 }
 
@@ -127,7 +128,11 @@ func (s *Service) Source(ctx context.Context, token string) (repository.Archive,
 		releaseReservation()
 		return nil, fmt.Errorf("Runner source archiver is unavailable")
 	}
-	archive, err := s.archiver.ArchiveCommit(ctx, session.experiment.RepositoryID, session.experiment.CommitSha, s.sourceMaxBytes)
+	if session.experiment.RepositoryID == nil {
+		releaseReservation()
+		return nil, fmt.Errorf("experiment source repository is missing")
+	}
+	archive, err := s.archiver.ArchiveCommit(ctx, *session.experiment.RepositoryID, session.experiment.CommitSha, s.sourceMaxBytes)
 	if err != nil {
 		releaseReservation()
 		return nil, fmt.Errorf("archive experiment source: %w", err)
@@ -524,4 +529,20 @@ func isTerminalState(state string) bool {
 	default:
 		return false
 	}
+}
+
+func runnerDatasetBindings(snapshot map[string]any) []DatasetBinding {
+	raw, ok := snapshot["dataset_bindings"]
+	if !ok || raw == nil {
+		return nil
+	}
+	encoded, err := json.Marshal(raw)
+	if err != nil {
+		return nil
+	}
+	var bindings []DatasetBinding
+	if err := json.Unmarshal(encoded, &bindings); err != nil {
+		return nil
+	}
+	return bindings
 }

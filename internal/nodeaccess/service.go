@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/url"
 	"path"
 	"sort"
@@ -583,8 +584,21 @@ func cloneMap(value map[string]any) map[string]any {
 
 func canonicalOrigin(raw string) string {
 	parsed, err := url.Parse(strings.TrimRight(strings.TrimSpace(raw), "/"))
-	if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || strings.Trim(parsed.Path, "/") != "" {
+	if err != nil || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || strings.Trim(parsed.Path, "/") != "" {
 		return ""
 	}
-	return parsed.String()
+	switch parsed.Scheme {
+	case "https":
+	case "http":
+		host := parsed.Hostname()
+		if !strings.EqualFold(host, "localhost") {
+			ip := net.ParseIP(host)
+			if ip == nil || !ip.IsLoopback() {
+				return ""
+			}
+		}
+	default:
+		return ""
+	}
+	return strings.TrimRight(parsed.String(), "/")
 }

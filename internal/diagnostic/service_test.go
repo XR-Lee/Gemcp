@@ -49,7 +49,7 @@ type testProvider struct {
 	err      error
 }
 
-func (p *testProvider) QueryResources(context.Context, int) (provider.ResourceSnapshot, error) {
+func (p *testProvider) QueryResources(context.Context, int, string) (provider.ResourceSnapshot, error) {
 	return p.snapshot, p.err
 }
 
@@ -108,7 +108,7 @@ func newDiagnosticFixture(t *testing.T) *diagnosticFixture {
 	box, _ := secrets.New(key)
 	archiver := &testArchiver{data: makeArchive(t, map[string]string{"README.md": "diagnostic source"})}
 	providerReader := &testProvider{snapshot: provider.ResourceSnapshot{
-		Provider:      provider.Summary{Name: "AutoDL", Status: "active"},
+		Provider:      provider.Summary{Name: "AutoDL", Backend: "private", Status: "active"},
 		GPUStock:      []provider.GPUStock{{Name: "RTX 3090", Idle: 1, Total: 1}},
 		PrivateImages: []provider.Image{{UUID: "image-test", Name: "torch", Source: "private"}},
 	}}

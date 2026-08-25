@@ -24,19 +24,27 @@ var (
 )
 
 type Spec struct {
-	ExperimentID                 string    `json:"experiment_id"`
-	AttemptID                    string    `json:"attempt_id"`
-	ExecutionMode                string    `json:"execution_mode"`
-	Command                      string    `json:"command,omitempty"`
-	Argv                         []string  `json:"argv,omitempty"`
-	OutputPath                   string    `json:"output_path"`
-	MaxRuntimeSeconds            int       `json:"max_runtime_seconds"`
-	TimeoutExtensionSeconds      int       `json:"timeout_extension_seconds"`
-	TerminationGraceSeconds      int       `json:"termination_grace_seconds"`
-	HeartbeatIntervalSeconds     int       `json:"heartbeat_interval_seconds"`
-	SourceMaxBytes               int64     `json:"source_max_bytes"`
-	ProvisioningSecondsRemaining int       `json:"provisioning_seconds_remaining,omitempty"`
-	TokenExpiresAt               time.Time `json:"token_expires_at"`
+	ExperimentID                 string           `json:"experiment_id"`
+	AttemptID                    string           `json:"attempt_id"`
+	ExecutionMode                string           `json:"execution_mode"`
+	Command                      string           `json:"command,omitempty"`
+	Argv                         []string         `json:"argv,omitempty"`
+	OutputPath                   string           `json:"output_path"`
+	MaxRuntimeSeconds            int              `json:"max_runtime_seconds"`
+	TimeoutExtensionSeconds      int              `json:"timeout_extension_seconds"`
+	TerminationGraceSeconds      int              `json:"termination_grace_seconds"`
+	HeartbeatIntervalSeconds     int              `json:"heartbeat_interval_seconds"`
+	SourceMaxBytes               int64            `json:"source_max_bytes"`
+	ProvisioningSecondsRemaining int              `json:"provisioning_seconds_remaining,omitempty"`
+	TokenExpiresAt               time.Time        `json:"token_expires_at"`
+	DatasetBindings              []DatasetBinding `json:"dataset_bindings,omitempty"`
+}
+
+type DatasetBinding struct {
+	Name                string   `json:"name"`
+	CanonicalRoot       string   `json:"canonical_root"`
+	EnvironmentVariable string   `json:"environment_variable"`
+	RequiredMarkers     []string `json:"required_markers,omitempty"`
 }
 
 type EventInput struct {

@@ -279,6 +279,37 @@ def observed_runtime(source_path, output_path):
         "cuda_visible_devices": visible, "gpu_devices": devices,
     }
 
+def apply_dataset_bindings(spec, environment):
+    bindings = spec.get("dataset_bindings") or []
+    if not isinstance(bindings, list):
+        raise RuntimeError("dataset_bindings must be a list")
+    seen_names = set()
+    seen_vars = set()
+    for binding in bindings:
+        if not isinstance(binding, dict):
+            raise RuntimeError("dataset binding is invalid")
+        name = str(binding.get("name") or "")
+        root = str(binding.get("canonical_root") or "")
+        variable = str(binding.get("environment_variable") or "")
+        markers = binding.get("required_markers") or []
+        if not name or not root or not variable:
+            raise RuntimeError("dataset binding is incomplete")
+        if name in seen_names or variable in seen_vars:
+            raise RuntimeError("dataset binding name or environment variable is duplicated")
+        if not root.startswith("/root/autodl-fs/") or ".." in root.split("/"):
+            raise RuntimeError("dataset binding root is not an approved AutoDL path")
+        if not os.path.isdir(root):
+            raise RuntimeError("dataset root is missing: " + root)
+        if not isinstance(markers, list):
+            raise RuntimeError("dataset binding markers are invalid")
+        for marker in markers:
+            marker_path = os.path.join(root, str(marker))
+            if not os.path.isfile(marker_path):
+                raise RuntimeError("dataset marker is missing: " + marker_path)
+        seen_names.add(name)
+        seen_vars.add(variable)
+        environment[variable] = root
+
 def write_result(output_path, result):
     temporary = os.path.join(output_path, ".gemcp-result.json.tmp")
     final = os.path.join(output_path, "gemcp-result.json")
@@ -327,6 +358,7 @@ def main():
             environment.pop("GEMCP_RUNNER_TOKEN", None)
             environment.pop("GEMCP_LAUNCH_LOG", None)
             environment["GEMCP_OUTPUT_DIR"] = output_path
+            apply_dataset_bindings(spec, environment)
             process_argv = execution_argv(spec)
             with open(log_path, "ab", buffering=0) as log:
                 process = subprocess.Popen(

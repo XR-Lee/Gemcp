@@ -5,11 +5,14 @@ import (
 	"time"
 
 	"github.com/XR-Lee/Gemcp/internal/experiment"
+	"github.com/XR-Lee/Gemcp/internal/validation"
 )
 
 const (
-	BackendAutoDL     = "autodl_private"
-	BackendSelfHosted = "self_hosted"
+	BackendAutoDL        = "autodl_private"
+	BackendAutoDLPrivate = "autodl_private"
+	BackendAutoDLElastic = "autodl_elastic"
+	BackendSelfHosted    = "self_hosted"
 
 	SuiteGPUConnectivity = "gpu_connectivity"
 	SuitePyTorchCUDA     = "pytorch_cuda"
@@ -18,6 +21,10 @@ const (
 	CheckWarn = "warn"
 	CheckFail = "fail"
 )
+
+func isAutoDLBackend(value string) bool {
+	return value == BackendAutoDLPrivate || value == BackendAutoDLElastic
+}
 
 var (
 	ErrNotFound             = errors.New("diagnostic project or run not found")
@@ -30,9 +37,9 @@ var (
 	ErrExperimentCap        = errors.New("diagnostic reservation exceeds the project experiment cap")
 )
 
-type ValidationError struct{ Message string }
+type validationDomain struct{}
 
-func (e *ValidationError) Error() string { return e.Message }
+type ValidationError = validation.Error[validationDomain]
 
 func invalid(message string) error { return &ValidationError{Message: message} }
 

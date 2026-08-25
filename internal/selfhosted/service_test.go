@@ -362,7 +362,7 @@ func TestTrustedWorkspaceDispatchBindsApprovedNodePathAndTag(t *testing.T) {
 	base := f.experiment
 	experimentID := uuid.New()
 	experimentRecord, err := f.client.Experiment.Create().SetPublicID(experimentID).SetTenantID(base.TenantID).SetProjectID(base.ProjectID).
-		SetAgentTokenID(*base.AgentTokenID).SetRepositoryID(base.RepositoryID).SetEnvironmentID(environmentRecord.ID).SetResourceProfileID(profileRecord.ID).
+		SetAgentTokenID(*base.AgentTokenID).SetNillableRepositoryID(base.RepositoryID).SetEnvironmentID(environmentRecord.ID).SetResourceProfileID(profileRecord.ID).
 		SetCommitSha(strings.Repeat("1", 40)).SetExecutionMode("argv").SetArgv([]string{"python", "train.py"}).SetCommand("python train.py").
 		SetMaxRuntimeSeconds(300).SetTimeoutExtensionSeconds(60).SetTerminationGraceSeconds(5).
 		SetRepositorySnapshot(base.RepositorySnapshot).SetEnvironmentSnapshot(map[string]any{

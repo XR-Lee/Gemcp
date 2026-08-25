@@ -59,7 +59,11 @@ func (s *Service) Source(ctx context.Context, nodeID int, assignmentPublicID str
 		release()
 		return nil, fmt.Errorf("Self-hosted source archiver is unavailable")
 	}
-	archive, err := s.archiver.ArchiveCommit(ctx, experimentRecord.RepositoryID, experimentRecord.CommitSha, s.config.SourceMaxBytes)
+	if experimentRecord.RepositoryID == nil {
+		release()
+		return nil, fmt.Errorf("experiment source repository is missing")
+	}
+	archive, err := s.archiver.ArchiveCommit(ctx, *experimentRecord.RepositoryID, experimentRecord.CommitSha, s.config.SourceMaxBytes)
 	if err != nil {
 		release()
 		return nil, fmt.Errorf("archive Self-hosted experiment source: %w", err)

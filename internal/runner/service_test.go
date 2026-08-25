@@ -152,7 +152,7 @@ func TestSpecAndSourceAreScopedToRunnerToken(t *testing.T) {
 	payload, _ := io.ReadAll(reader)
 	_ = reader.Close()
 	_ = archive.Close()
-	if string(payload) != "archive" || f.archiver.repositoryID != f.experiment.RepositoryID || f.archiver.sha != f.experiment.CommitSha {
+	if string(payload) != "archive" || f.experiment.RepositoryID == nil || f.archiver.repositoryID != *f.experiment.RepositoryID || f.archiver.sha != f.experiment.CommitSha {
 		t.Fatalf("archive payload=%q archiver=%+v", payload, f.archiver)
 	}
 	for index := 1; index < MaxSourceDownloads; index++ {

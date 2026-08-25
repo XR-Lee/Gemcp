@@ -56,6 +56,9 @@ const adjustmentAmountMilli = computed(() => {
   const milli = Math.round(amount * 1000)
   return Number.isSafeInteger(milli) ? milli : 0
 })
+const adjustmentDialogTitle = computed(() => adjustmentForm.direction === 'credit'
+  ? t('Add Project budget', '充值 Project 预算')
+  : t('Reduce Project budget', '扣减 Project 预算'))
 
 function handleError(caught: unknown, fallback: string) {
   if (caught instanceof APIError && caught.status === 401) {
@@ -115,6 +118,7 @@ async function submitAdjustment() {
   }
   adjustmentBusy.value = true
   adjustmentError.value = ''
+  const adjustedProjectID = adjustmentForm.projectID
   try {
     const result = await api.adjustBudget(adjustmentForm.projectID, {
       direction: adjustmentForm.direction,
@@ -126,8 +130,10 @@ async function submitAdjustment() {
     adjustmentForm.amountCNY = ''
     adjustmentForm.reason = ''
     adjustmentForm.confirmed = false
+    const followAdjustedProject = Boolean(projectFilter.value) && projectFilter.value !== adjustedProjectID
+    if (followAdjustedProject) projectFilter.value = adjustedProjectID
     if (period.value !== result.entry.period) period.value = result.entry.period
-    else await load()
+    else if (!followAdjustedProject) await load()
   } catch (caught) {
     if (caught instanceof APIError && caught.status === 401) emit('unauthorized')
     else adjustmentError.value = caught instanceof APIError ? caught.message : t('Could not record the budget adjustment.', '无法记录额度调整。')
@@ -166,6 +172,7 @@ function kindLabel(entry: FinanceLedgerEntry) {
 
 function backendLabel(value?: string) {
   if (value === 'autodl_private') return 'AutoDL Private'
+  if (value === 'autodl_elastic') return 'AutoDL Public'
   if (value === 'self_hosted') return t('Self-hosted', '自托管')
   return value || '—'
 }
@@ -208,11 +215,11 @@ watch(() => [props.active, period.value, projectFilter.value] as const, ([active
         <label class="compact-field"><span>{{ t('Period', '周期') }}</span><input v-model="period" type="month" /></label>
         <label class="compact-field"><span>Project</span><select v-model="projectFilter"><option value="">{{ t('All Projects', '全部 Project') }}</option><option v-for="project in projects" :key="project.id" :value="project.id">{{ project.name }}</option></select></label>
         <button class="icon-button" type="button" :title="t('Refresh finance data', '刷新财务数据')" :disabled="loading" @click="load"><RefreshCw :size="16" :class="{ spinning: loading }" /></button>
-        <button class="primary-button" type="button" :disabled="activeProjects.length === 0" @click="openAdjustment"><Plus :size="16" />{{ t('Adjust credit', '额度调整') }}</button>
+        <button class="primary-button finance-budget-button" type="button" :disabled="activeProjects.length === 0" @click="openAdjustment"><Plus :size="16" />{{ t('Add Project budget', '充值 Project 预算') }}</button>
       </div>
     </header>
 
-    <div class="finance-boundary"><ShieldCheck :size="17" /><span><strong>{{ t('Internal control ledger', '内部控制账本') }}</strong>{{ t("Adjustments are recorded in the Project's current billing period; the period filter only views history. They do not charge, refund, or top up the AutoDL account.", '额度调整记录在 Project 当前计费周期；周期筛选仅用于查看历史。它不会向 AutoDL 账户付款、退款或实际充值。') }}</span></div>
+    <div class="finance-boundary"><ShieldCheck :size="17" /><span><strong>{{ t('Project budget ledger', 'Project 预算账本') }}</strong>{{ t("Budget added here belongs only to the selected Project and is recorded in its current billing period. The period filter only views history; this does not transfer money to a Provider account.", '这里充值的预算只属于所选 Project，并记录在其当前计费周期。周期筛选仅用于查看历史；此操作不会向 Provider 账户转账。') }}</span></div>
 
     <div v-if="loading && !data" class="finance-loading"><LoaderCircle :size="20" class="spinning" />{{ t('Loading finance analytics', '正在加载财务分析') }}</div>
     <template v-else-if="data">
@@ -283,18 +290,18 @@ watch(() => [props.active, period.value, projectFilter.value] as const, ([active
   </section>
 
   <div v-if="adjustmentDialog" class="modal-backdrop" @click.self="closeAdjustment">
-    <section class="modal finance-adjustment-modal" role="dialog" aria-modal="true" :aria-label="t('Record budget adjustment', '记录额度调整')">
-      <header><div><p class="eyebrow">{{ t('Append-only ledger', 'Append-only 账本') }}</p><h2>{{ t('Record budget adjustment', '记录额度调整') }}</h2></div><button class="icon-button" type="button" :title="t('Close', '关闭')" :disabled="adjustmentBusy" @click="closeAdjustment"><X :size="17" /></button></header>
+    <section class="modal finance-adjustment-modal" role="dialog" aria-modal="true" :aria-label="adjustmentDialogTitle">
+      <header><div><p class="eyebrow">{{ t('Project budget', 'Project 预算') }}</p><h2>{{ adjustmentDialogTitle }}</h2></div><button class="icon-button" type="button" :title="t('Close', '关闭')" :disabled="adjustmentBusy" @click="closeAdjustment"><X :size="17" /></button></header>
       <form class="dialog-form" @submit.prevent="submitAdjustment">
-        <div class="adjustment-warning"><ShieldCheck :size="18" /><p>{{ t('This records internal Gemcp capacity only. It does not transfer money to or from AutoDL.', '这里只记录 Gemcp 内部调度额度，不会向 AutoDL 转入或转出资金。') }}</p></div>
+        <div class="adjustment-warning"><ShieldCheck :size="18" /><p>{{ t('This records an internal budget change for one Project only. It does not transfer money to a Provider account.', '这里只记录一个 Project 的内部预算变更，不会向 Provider 账户转账。') }}</p></div>
         <label>Project<select v-model="adjustmentForm.projectID" required><option v-for="project in activeProjects" :key="project.id" :value="project.id">{{ project.name }}</option></select></label>
-        <fieldset class="adjustment-direction"><legend>{{ t('Direction', '方向') }}</legend><button type="button" :class="{ active: adjustmentForm.direction === 'credit' }" @click="adjustmentForm.direction = 'credit'">{{ t('Credit capacity', '充值额度') }}</button><button type="button" :class="{ active: adjustmentForm.direction === 'debit' }" @click="adjustmentForm.direction = 'debit'">{{ t('Debit capacity', '扣减额度') }}</button></fieldset>
+        <fieldset class="adjustment-direction"><legend>{{ t('Budget change', '预算变更') }}</legend><button type="button" :class="{ active: adjustmentForm.direction === 'credit' }" @click="adjustmentForm.direction = 'credit'">{{ t('Credit', '充值') }}</button><button type="button" :class="{ active: adjustmentForm.direction === 'debit' }" @click="adjustmentForm.direction = 'debit'">{{ t('Debit', '扣减') }}</button></fieldset>
         <label>{{ t('Amount (CNY)', '金额 (CNY)') }}<input v-model="adjustmentForm.amountCNY" type="number" min="0.001" max="1000000000" step="0.001" inputmode="decimal" required /></label>
-        <label>{{ t('Reason', '原因') }}<textarea v-model="adjustmentForm.reason" rows="3" minlength="3" maxlength="255" required :placeholder="t('Example: approved July AutoDL test allocation', '例如：已批准的 7 月 AutoDL 测试额度')" /></label>
-        <div class="adjustment-preview"><span>{{ t('Available balance effect', '可用额度影响') }}</span><strong :class="adjustmentForm.direction === 'credit' ? 'positive' : 'negative'">{{ adjustmentForm.direction === 'credit' ? '+' : '-' }}{{ money(adjustmentAmountMilli) }}</strong></div>
-        <label class="confirmation-row"><input v-model="adjustmentForm.confirmed" type="checkbox" /><span>{{ t('I confirm this immutable entry applies to the current Project billing period.', '我确认此不可变条目应用于该 Project 的当前计费周期。') }}</span></label>
+        <label>{{ t('Reason', '原因') }}<textarea v-model="adjustmentForm.reason" rows="3" minlength="3" maxlength="255" required :placeholder="t('Example: approved August Project budget', '例如：已批准的 8 月 Project 预算')" /></label>
+        <div class="adjustment-preview"><span>{{ t('Available budget change', '可用预算变更') }}</span><strong :class="adjustmentForm.direction === 'credit' ? 'positive' : 'negative'">{{ adjustmentForm.direction === 'credit' ? '+' : '-' }}{{ money(adjustmentAmountMilli) }}</strong></div>
+        <label class="confirmation-row"><input v-model="adjustmentForm.confirmed" type="checkbox" /><span>{{ t('I confirm this immutable entry applies to the selected Project in its current billing period.', '我确认此不可变条目应用于所选 Project 的当前计费周期。') }}</span></label>
         <div v-if="adjustmentError" class="form-error" role="alert">{{ adjustmentError }}</div>
-        <button class="primary-button" type="submit" :disabled="adjustmentBusy || !adjustmentForm.confirmed"><LoaderCircle v-if="adjustmentBusy" :size="16" class="spinning" /><Plus v-else :size="16" />{{ adjustmentForm.direction === 'credit' ? t('Record credit', '记录充值') : t('Record debit', '记录扣减') }}</button>
+        <button class="primary-button" type="submit" :disabled="adjustmentBusy || !adjustmentForm.confirmed"><LoaderCircle v-if="adjustmentBusy" :size="16" class="spinning" /><Plus v-else :size="16" />{{ adjustmentForm.direction === 'credit' ? t('Add budget', '确认充值') : t('Record reduction', '确认扣减') }}</button>
       </form>
     </section>
   </div>

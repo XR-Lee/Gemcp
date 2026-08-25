@@ -12,6 +12,7 @@ const project = {
   monthly_budget_milli: 100_000, max_experiment_milli: 50_000, max_concurrency: 1,
   max_runtime_seconds: 3600, timeout_extension_seconds: 600, termination_grace_seconds: 30,
 }
+const otherProject = { ...project, id: 'project-two', name: 'Second Project', slug: 'second-project' }
 
 const dashboard = {
   period: '2026-07', audit_scope: 'organization' as const,
@@ -45,7 +46,40 @@ afterEach(() => {
 })
 
 describe('FinanceView', () => {
-  it('renders analytics and records an idempotent Project credit', async () => {
+  it('exposes a clear Project budget top-up action in Chinese', () => {
+    useI18n().setLocale('zh')
+    const wrapper = mount(FinanceView, { props: { active: false, projects: [project] } })
+
+    expect(wrapper.get('button.finance-budget-button').text()).toBe('充值 Project 预算')
+    wrapper.unmount()
+  })
+
+  it('renders empty states when an empty billing period returns null collections', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(response({
+      ...dashboard,
+      projects: null,
+      daily: null,
+      backends: null,
+      ledger: null,
+      audit: null,
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const wrapper = mount(FinanceView, { props: { active: true, projects: [project] } })
+    await flushPromises()
+
+    expect(wrapper.get('.finance-metrics').text()).toContain('Available')
+    expect(wrapper.text()).toContain('No ledger activity in this period.')
+    expect(wrapper.text()).toContain('No backend costs in this period.')
+    expect(wrapper.text()).toContain('No ledger entries.')
+    expect(wrapper.get('.project-finance-section').text()).toContain('0 Projects')
+
+    await wrapper.get('.segmented-control button:last-child').trigger('click')
+    expect(wrapper.text()).toContain('No finance-related audit events.')
+    wrapper.unmount()
+  })
+
+  it('renders analytics and adds idempotent budget to a Project', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL, options?: RequestInit) => {
       const path = String(input)
       const method = options?.method ?? 'GET'
@@ -66,17 +100,20 @@ describe('FinanceView', () => {
     expect(wrapper.text()).toContain('AutoDL Private')
     expect(wrapper.text()).toContain('Initial test allocation')
 
-    const adjustmentButton = wrapper.findAll('button').find((button) => button.text().includes('Adjust credit'))
-    await adjustmentButton!.trigger('click')
+    const budgetButton = wrapper.get('button.finance-budget-button')
+    expect(budgetButton.text()).toContain('Add Project budget')
+    await budgetButton.trigger('click')
+    expect(wrapper.get('[role="dialog"]').attributes('aria-label')).toBe('Add Project budget')
+    expect(wrapper.get('.adjustment-direction button.active').text()).toBe('Credit')
     await wrapper.get('input[type="number"]').setValue('25.5')
-    await wrapper.get('textarea').setValue('Approved AutoDL smoke test allocation')
+    await wrapper.get('textarea').setValue('Approved Project smoke test budget')
     await wrapper.get('input[type="checkbox"]').setValue(true)
     await wrapper.get('form.dialog-form').trigger('submit')
     await flushPromises()
 
     const adjustmentCall = fetchMock.mock.calls.find(([input]) => String(input).includes('/budget-adjustments'))
     expect(JSON.parse(String(adjustmentCall?.[1]?.body))).toEqual({
-      direction: 'credit', amount_milli: 25_500, reason: 'Approved AutoDL smoke test allocation',
+      direction: 'credit', amount_milli: 25_500, reason: 'Approved Project smoke test budget',
       idempotency_key: 'budget-00000000-0000-4000-8000-000000000001',
     })
     expect(fetchMock.mock.calls.filter(([input]) => String(input).startsWith('/api/v1/finance?'))).toHaveLength(2)
@@ -107,6 +144,42 @@ describe('FinanceView', () => {
 
     expect(wrapper.get('.finance-metrics .available strong').text()).toContain('88.00')
     expect(wrapper.get('input[type="month"]').element).toHaveProperty('value', '2026-06')
+    wrapper.unmount()
+  })
+
+  it('follows the Project selected in the budget dialog after a filtered top-up', async () => {
+    const financeRequests: string[] = []
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, options?: RequestInit) => {
+      const path = String(input)
+      const method = options?.method ?? 'GET'
+      if (path.startsWith('/api/v1/finance?') && method === 'GET') {
+        financeRequests.push(path)
+        return response(dashboard)
+      }
+      if (path === `/api/v1/projects/${otherProject.id}/budget-adjustments` && method === 'POST') {
+        return response({
+          entry: { ...dashboard.ledger[0], project_id: otherProject.id, project_name: otherProject.name },
+          idempotent: false,
+        }, 201)
+      }
+      throw new Error(`unexpected request ${method} ${path}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const wrapper = mount(FinanceView, { props: { active: true, projects: [project, otherProject] } })
+    await flushPromises()
+    await wrapper.findAll('select')[0].setValue(project.id)
+    await flushPromises()
+    await wrapper.get('button.finance-budget-button').trigger('click')
+    await wrapper.findAll('select').at(-1)!.setValue(otherProject.id)
+    await wrapper.get('input[type="number"]').setValue('10')
+    await wrapper.get('textarea').setValue('Move this month budget to the selected Project')
+    await wrapper.get('input[type="checkbox"]').setValue(true)
+    await wrapper.get('form.dialog-form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.findAll('select')[0].element).toHaveProperty('value', otherProject.id)
+    expect(financeRequests.at(-1)).toContain(`project_id=${otherProject.id}`)
     wrapper.unmount()
   })
 })

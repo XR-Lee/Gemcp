@@ -253,6 +253,15 @@ func TestAuthenticateAcceptsURLSafeUnderscoresInTokenSecret(t *testing.T) {
 	}
 }
 
+func TestCanonicalOriginAcceptsLoopbackHTTP(t *testing.T) {
+	if got := canonicalOrigin("http://127.0.0.1:18080"); got != "http://127.0.0.1:18080" {
+		t.Fatalf("loopback origin = %q", got)
+	}
+	if got := canonicalOrigin("http://gemcp.example.com"); got != "" {
+		t.Fatalf("public HTTP origin = %q", got)
+	}
+}
+
 func issueNodeEnrollment(t *testing.T, f *nodeFixture) (EnrollmentIssueResult, string) {
 	t.Helper()
 	issued, err := f.service.IssueEnrollment(context.Background(), f.tenant.ID, "owner", EnrollmentIssueInput{Label: "gpu-home-a"})

@@ -406,13 +406,17 @@ func validWorkspaceDatasets(workspaceMode string, datasets []nodeprotocol.Worksp
 }
 
 func validateWorkspaceDatasetsOnHost(workspaceRoot string, datasets []nodeprotocol.WorkspaceDataset) error {
+	resolvedRoot, err := filepath.EvalSymlinks(workspaceRoot)
+	if err != nil {
+		return fmt.Errorf("approved workspace root is unavailable")
+	}
 	for _, dataset := range datasets {
-		candidate := filepath.Join(workspaceRoot, filepath.FromSlash(dataset.RelativePath))
+		candidate := filepath.Join(resolvedRoot, filepath.FromSlash(dataset.RelativePath))
 		resolved, err := filepath.EvalSymlinks(candidate)
 		if err != nil {
 			return fmt.Errorf("workspace dataset %s is unavailable", dataset.Name)
 		}
-		if !pathContains(workspaceRoot, resolved) {
+		if !pathContains(resolvedRoot, resolved) {
 			return fmt.Errorf("workspace dataset %s escapes the approved root", dataset.Name)
 		}
 		if _, err := os.Stat(resolved); err != nil {
