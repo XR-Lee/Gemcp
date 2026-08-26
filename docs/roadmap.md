@@ -106,7 +106,7 @@ Add an Owner-only Diagnostics workspace with fixed GPU-connectivity and PyTorch-
 
 ### v0.13.0 - repository-first prepared Agent experiments
 
-Add durable 30-minute Experiment Proposals and the `prepare_experiment` and `submit_prepared_experiment` MCP tools. Resolve a sole repository, server-verified full commit, compatible Environment and Resource Profile, source safety, backend readiness, capacity, budget, runtime bounds, and worst-case reservation before confirmation. Use the Proposal as the immutable drift and idempotency boundary. Carry structured argv end to end and execute it directly in the AutoDL Runner or capability-compatible Self-hosted Nodes while retaining `submit_experiment` as the Advanced shell path.
+Add durable two-hour Experiment Proposals and the `prepare_experiment` and `submit_prepared_experiment` MCP tools. Resolve a sole repository, server-verified full commit, compatible Environment and Resource Profile, source safety, backend readiness, capacity, budget, runtime bounds, and worst-case reservation before confirmation. Use the Proposal as the immutable drift and idempotency boundary. Carry structured argv end to end and execute it directly in the AutoDL Runner or capability-compatible Self-hosted Nodes while retaining `submit_experiment` as the Advanced shell path.
 
 ### v0.13.1 - Git archive compatibility
 
@@ -148,6 +148,14 @@ Keep LangGraph and other harnesses outside Gemcp. Enforce the research Graph thr
 
 Import a Study from a registered repository or a pasted GitHub SSH URL, pin GitHub with the official host key, and keep MCP directory-scoped for Pi, Codex, OpenCode, Claude Code, and Grok. Reconstruct experimental branches onto the Graph. The canvas is height-capped with fullscreen, a time axis, double-click detail, success/failure stamps, and an active path that follows the newest linked record. Research defaults to the latest imported Project and Study.
 
+### v0.18.0 - AutoDL Public Elastic production scheduling
+
+Schedule AutoDL Public Elastic Jobs through the same immutable Experiment, Attempt, reservation, reconciliation, and cleanup path as Private Cloud. First-run setup and Provider rotation accept only the two official hosts. Public Elastic queries regional inventory, shows wallet milli-CNY for visibility, and creates deployments with `dc_list` plus a CUDA range. Public Pro stays phase-zero read-only.
+
+### v0.19.0 - experimental Cloud SSH push nodes
+
+Add an opt-in Cloud SSH laboratory. An Agent with `operate_nodes`, or the Owner as a fallback, stores an encrypted SSH password or private key; the control plane opens outbound SSH, pins the host key, and starts the Agent's argv as a host process. Agents keep prepare/submit tools and never receive SSH material. Loopback HTTP may start the scheduler, while AutoDL dispatch still requires HTTPS. The three backends do not fall back to one another.
+
 ## In progress
 
 ### Repository readiness and Owner prepared experiments
@@ -166,6 +174,7 @@ The following items still require the target environment or newly authorized pai
 - SMTP deliverability through the selected production relay.
 - Concurrent scheduling, GPU binding, Docker and daemon restart recovery, external GPU occupancy, node loss, and retry behavior across two physical Self-hosted NVIDIA machines.
 - The fixed diagnostic suites on a paid AutoDL deployment and each authorized physical Self-hosted Node.
+- A paid Public Elastic Job on an enterprise-verified account, including region inventory versus multi-GPU placement.
 
 ## Later increments
 
@@ -176,4 +185,4 @@ The following items still require the target environment or newly authorized pai
 - Artifact manifests and controlled downloads where shared-storage access permits.
 - Optional off-host backups and restore drills.
 - Provider-specific billing import if AutoDL exposes a reliable Developer API.
-- More Provider backends only after the Private Cloud execution path is operationally stable.
+- AutoDL Public Pro instance create/cleanup only after Public Elastic is operationally stable.

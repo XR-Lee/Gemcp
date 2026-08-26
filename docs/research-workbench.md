@@ -8,6 +8,8 @@ UI kits in `v0.16.1`: Vue Flow for the Graph, Reka UI for selectors and dialogs,
 
 `v0.17.0` makes an imported repository usable: Study import, directory-scoped MCP, a time-axis Graph with fullscreen and double-click detail, success/failure stamps, and default selection of the latest import.
 
+The Graph time axis uses each node's `occurred_at` (git committer date for historical evidence, Experiment start/create time for Gemcp runs). `created_at` remains the MCP write time and is not the axis.
+
 Scope: Owner-facing research Graph and iteration plans, Agent-reported scientific progress, and a separate Lab layer for infrastructure. Execution, Docker isolation, Proposal confirmation, and Node protocol stay in place; the Graph now gates what an external harness may do next.
 
 ## Product correction
@@ -69,7 +71,7 @@ A Study belongs to one Project. Plans, nodes, and edges belong to one Study.
 Project
   └── Study
         ├── IterationPlan (current plus superseded history)
-        ├── ResearchNode (question, hypothesis, plan, run, result, observation, decision)
+        ├── ResearchNode (question, hypothesis, plan, run, result, observation, decision; optional occurred_at + commit_sha)
         └── ResearchEdge (leads_to, compares, supersedes, supports, contradicts, produced)
 ```
 
@@ -85,14 +87,16 @@ Constraints:
 
 ## Agent contract
 
-The Graph is the execution contract. External harnesses stay outside Gemcp; MCP tools constrain what they may record and spend.
+The Graph is the execution contract. External harnesses stay outside Gemcp; MCP tools constrain what they may record and spend. The recommended singleton companion deployment, Git result manifest, and autonomy boundary are defined in [Lightweight experiment harness](node-experiment-harness.md).
 
 - `get_research_workspace` (`read`): return Studies, the selected plan, Graph, and legal next actions.
 - `get_next_actions` (`read`): return only Graph-legal next steps.
 - `update_research_workspace` (`submit`): create or update a Study, replace the active plan, or record a Graph node and optional legal edge.
 - `prepare_experiment` (`submit`): when a Study exists, `from_node_id` must be a hypothesis or plan node and is bound into the confirmation digest.
 - `submit_prepared_experiment` (`submit`): creates the Experiment and writes the `run` node.
-- `close_run` (`submit`): the only way to write a `result` on that run after the Experiment is terminal.
+- `close_run` (`submit`): the only way to write a `result` on that run after the Experiment is terminal. Monitor with `get_experiment`; do not SSH or infer metrics from logs.
+
+Calling `get_next_actions` before spending is an Agent operating requirement, not a separately persisted server precondition. The server enforces the Graph boundary at the write operations: `prepare_experiment` requires a current hypothesis or plan `from_node_id`, submission binds the `run`, and only `close_run` can add its terminal `result`.
 
 `produced` is legal only from `run` to `result`. Experiments that are not bound to a Graph node are marked orphaned on the Evidence page.
 

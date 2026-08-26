@@ -12,6 +12,7 @@ An Agent Token is bound to one project and a selected set of scopes:
 | `submit` | Report controlled Agent phases and prepare or enqueue immutable experiments |
 | `cancel` | Request cancellation of queued or active experiments |
 | `configure` | Register and verify repositories in this Project, and declare dataset paths below an already approved trusted workspace root |
+| `operate_nodes` | Register Cloud SSH hosts and rotate their credentials. Off by default. Not included in `configure`. |
 
 The Token does not expose AutoDL credentials, repository deploy private keys, Runner Tokens, arbitrary machines, or arbitrary Provider operations. A `configure` Agent receives only the generated deploy public key so a repository administrator can install it read-only.
 
@@ -22,13 +23,13 @@ Existing active Token scopes can be edited from the Agents table. The update tak
 1. Sign in to Gemcp and select the intended project.
 2. Confirm the repository is active and its exact commit is pushed.
 3. Confirm the approved environment, GPU profile, budget, runtime, extension, grace, and concurrency policy.
-4. Open **Agents**, choose **MCP setup link**, select minimum scopes and a finite credential lifetime, then create a short-lived link.
+4. Open **Agents**. For Cloud SSH training choose **Handshake prompt** (creates the setup link plus a prompt that covers MCP, host registration, and `prepare_experiment`). **MCP setup link** remains the enrollment-only path. Select minimum scopes and a finite credential lifetime, then create the short-lived link.
 5. Send the one-time link only to the intended Agent. It works for Pi, Codex, OpenCode, Claude Code, and Grok. Do not open it through an untrusted link previewer or store it in a repository.
 6. Let the Agent enable Gemcp MCP in the research repository directory. Its provisional credential is read-only until tool, guide, option, and cost verification succeeds.
 7. Confirm the setup row becomes **Completed**, then let the Agent reload or restart its MCP client once so the Gemcp tools are available.
 8. The advanced **Token** action remains available when you must install a secret through a client's secret store without the setup link.
 9. Require the Agent to show the exact prepared Proposal, full commit, argv, resource, runtime, digest, expiry, and worst-case reservation before paid work.
-10. Monitor the Study, iteration plan, and research Graph first. Agent phases, Proposals, Experiments, runtime evidence, live output, and backend cleanup remain in the Lab layer. Activity is limited to controlled phases and must never contain prompts, reasoning, source contents, environment values, or credentials. The Agent follows `get_next_actions`, binds `from_node_id` into prepared Proposals, and closes runs with `close_run`. Graph tools never start a workload.
+10. Monitor the Study, iteration plan, and research Graph first. Agent phases, Proposals, Experiments, runtime evidence, live output, and backend cleanup remain in the Lab layer. Agents monitor Experiments through `get_experiment` (`log_tail` and `metrics`); they do not receive SSH or remote files. Activity is limited to controlled phases and must never contain prompts, reasoning, source contents, environment values, or credentials. The Agent follows `get_next_actions`, binds `from_node_id` into prepared Proposals, and closes runs with `close_run`. Graph tools never start a workload.
 11. Revoke the issued Token immediately if its use is unexpected.
 
 ## Endpoint and authentication
@@ -45,7 +46,7 @@ The MCP setup flow writes this authentication configuration for the Agent that c
 
 An MCP setup link stores its 256-bit setup code only in the URL fragment. Browsers do not include the fragment in the setup-page request, access log, or Referer. Previewing the public setup page does not consume the link. The same link enrolls Pi, Codex, OpenCode, Claude Code, or Grok.
 
-Claiming creates a short-lived `read`-only credential. The Agent stores that credential in a directory-local MCP config for its client. Pi may still use the fixed installer, which writes the Pi agent directory's `mcp.json` with mode `0600` and preserves other MCP servers. Every client must discover all twenty-one Gemcp tools, call `get_usage_guide`, `get_project_options`, and `get_project_cost`, and then complete enrollment. Completion atomically applies the Owner-selected scopes and credential lifetime. The database stores only HMAC-SHA-256 digests of the setup code and Agent Token.
+Claiming creates a short-lived `read`-only credential. The Agent stores that credential in a directory-local MCP config for its client. Pi may still use the fixed installer, which writes the Pi agent directory's `mcp.json` with mode `0600` and preserves other MCP servers. Every client must discover all twenty-six Gemcp tools, call `get_usage_guide`, `get_project_options`, and `get_project_cost`, and then complete enrollment. Completion atomically applies the Owner-selected scopes and credential lifetime. The database stores only HMAC-SHA-256 digests of the setup code and Agent Token.
 
 The setup link is shown once, may be claimed repeatedly only until completion for retry safety, and becomes unusable after completion, expiry, or revocation. The Owner can revoke pending or claimed setup from the console; revoking a claimed setup also revokes its provisional Token.
 
@@ -183,24 +184,22 @@ Recommended instruction:
 Use the connected Gemcp MCP server and follow its Agent operating guide. Call
 get_project_options and get_project_cost first. Before paid work, show me the
 full commit SHA, exact command, approved environment/resource IDs, runtime,
-idempotency key, and worst-case reservation. Wait for my explicit approval.
+worst-case reservation, and exact confirmation digest. Wait for my explicit
+approval of that digest.
 After submission, monitor the returned experiment ID to a terminal state and
 report artifacts, metrics, estimated charge, and any failure details.
 ```
 
 ## Approval boundary
 
-A `submit` scope is technical capability, not blanket financial approval. Establish one of these policies before use:
+A `submit` scope is technical capability, not blanket financial approval. In v0.19, every prepared proposal requires per-experiment Owner confirmation of the exact digest after reviewing its immutable specification and worst-case reservation. The Owner may confirm in Evidence or explicitly authorize the Agent to submit that same digest. Gemcp enforces project budget and per-experiment caps, but those ceilings are not approvals. Standing approvals are not implemented; they remain a later design item.
 
-- per-experiment approval with exact specification and spend ceiling;
-- a documented standing policy that limits repository, GPU profile, runtime, command class, concurrency, and cumulative budget.
-
-Gemcp enforces project budget and per-experiment caps, but the Owner remains responsible for deciding whether work should run.
+Prepared submission has an idempotency boundary on the same proposal and digest. If the response is lost, retry that exact pair instead of preparing or approving a replacement run.
 
 ## Verification and troubleshooting
 
 1. `get_usage_guide` succeeds: Token authentication and `read` scope work.
-2. `get_project_options` returns the intended project and approved IDs.
+2. `get_project_options` returns the intended project, approved IDs, compute readiness, and the heartbeat contract. The Owner console **Agent Readiness** panel shows the same binding without probing.
 3. `get_project_cost` returns current capacity in milli-CNY.
 4. A 401 means the Token is missing, expired, revoked, malformed, or attached incorrectly.
 5. Forbidden means the Token lacks the requested scope.

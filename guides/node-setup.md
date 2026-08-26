@@ -68,7 +68,7 @@ sudo GEMCP_NODE_STORAGE_ROOT=/var/lib/gemcp-node/storage \
 
 Paste the complete Setup Link only when the installer prompts. It prints a Node ID and short pairing code, never the Node Token. Report the Node ID, pairing code, hostname, GPU UUID and model, and `systemctl status gemcp-node` to the Owner. Do not report the Node Token.
 
-The node must remain `pending_verification` until the Owner compares the pairing code and hardware in **Nodes -> Enrollment activity**, selects the authorized Projects, and approves it. After approval, confirm that the daemon becomes active and continues sending heartbeats.
+After the installer claims the link, the Enrollment row is `claimed` while the Node reports desired state `pending_verification`. At that point the Owner compares the pairing code and hardware in **Nodes -> Enrollment activity**, selects the authorized Projects, and approves it. After approval, confirm that the daemon becomes active and continues sending heartbeats.
 
 ## Runtime configuration
 

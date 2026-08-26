@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gemcp 框架图 · 用户 / Agent / 控制面 / 节点</title>
+  <link rel="icon" href="../frontend/public/favicon.svg">
+  <style>
+    :root {
+      --ink: #14161c;
+      --ink-soft: #2a2d36;
+      --paper: #f3f1eb;
+      --surface: #fffcf6;
+      --line: #e4dfd4;
+      --muted: #6d6a63;
+      --accent: #c4621a;
+      --accent-deep: #9a4a12;
+      --accent-soft: #f4e6d3;
+      --owner: #c4621a;
+      --agent: #3d5a80;
+      --gemcp: #111318;
+      --node: #2d7a58;
+      --danger: #b4453f;
+      --success: #2d7a58;
+      --shadow: 0 18px 40px rgba(20, 22, 28, .08);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "PingFang SC", "Noto Sans SC", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 500px at 10% -10%, #f7ead4 0%, transparent 55%),
+        var(--paper);
+    }
+    button { font: inherit; color: inherit; }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: .86em;
+      background: var(--accent-soft);
+      padding: .08em .35em;
+      border-radius: 4px;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    a { color: var(--accent-deep); }
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 20px 80px; }
+
+    header.hero {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 18px 22px;
+      align-items: start;
+      margin-bottom: 28px;
+    }
+    .brand {
+      width: 46px; height: 46px;
+      display: grid; place-items: center;
+      background: #1a1c21;
+      border-radius: 10px;
+      color: #f3d2a8;
+    }
+    h1 { margin: 0; font-size: 28px; letter-spacing: -.02em; }
+    .lede { margin: 6px 0 0; color: var(--ink-soft); max-width: 62ch; }
+    .meta { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
+
+    nav.jump {
+      display: flex; flex-wrap: wrap; gap: 8px;
+      margin: 18px 0 0;
+      grid-column: 2;
+    }
+    nav.jump a {
+      text-decoration: none;
+      color: var(--ink);
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 13px;
+    }
+    nav.jump a:hover { border-color: var(--accent); }
+
+    section { margin-top: 42px; }
+    .eyebrow {
+      margin: 0 0 6px;
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 750;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    h2 { margin: 0 0 14px; font-size: 22px; }
+
+    /* ---------- relationship canvas ---------- */
+    .canvas {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .bands { display: grid; }
+    .band {
+      position: relative;
+      padding: 18px 18px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+    .band:last-child { border-bottom: 0; }
+    .band-label {
+      display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+      margin-bottom: 12px;
+    }
+    .band-label b { font-size: 13px; }
+    .band-label span { color: var(--muted); font-size: 12px; }
+    .research { background: linear-gradient(180deg, #fffdf8, #fbf7ee); }
+    .control { background: #15171c; color: #eeeae3; }
+    .control .band-label span { color: #9a958b; }
+    .exec { background: #f6f4ee; }
+
+    .row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.25fr) auto minmax(0, 1fr);
+      gap: 10px;
+      align-items: stretch;
+    }
+    .actor, .hub {
+      border-radius: 12px;
+      padding: 14px 14px 12px;
+      min-width: 0;
+      cursor: pointer;
+      text-align: left;
+      border: 1px solid transparent;
+      overflow-wrap: anywhere;
+      transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease, opacity .15s ease;
+    }
+    .actor:hover, .hub:hover { transform: translateY(-1px); }
+    .actor.is-on, .hub.is-on { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .dim .actor:not(.is-on), .dim .hub:not(.is-on), .dim .node:not(.is-on) { opacity: .38; }
+    .actor h3, .hub h3, .node h3 { margin: 0 0 4px; font-size: 16px; }
+    .actor p, .hub p, .node p { margin: 0; font-size: 12.5px; color: inherit; opacity: .82; }
+    .who { display: inline-block; font-size: 10px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
+    .owner { background: #fff; border-color: #ead7bb; box-shadow: inset 0 0 0 1px #f3e4cf; }
+    .owner .who { color: var(--owner); }
+    .agent { background: #fff; border-color: #c9d6e6; }
+    .agent .who { color: var(--agent); }
+    .hub {
+      background: #1d2027;
+      color: #f3efe6;
+      border-color: #2c3038;
+    }
+    .hub code, .control .actor code {
+      background: #2a2118;
+      color: #f3d2a8;
+    }
+    .hub .who { color: #e0b07a; }
+    .arrow {
+      align-self: center;
+      width: 78px;
+      min-width: 78px;
+      text-align: center;
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 650;
+    }
+    .arrow b { display: block; font-size: 16px; color: var(--ink-soft); line-height: 1.1; }
+    .control .arrow { color: #b7b1a6; }
+    .control .arrow b { color: #f3d2a8; }
+
+    .nodes {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .node {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      min-width: 0;
+      overflow-wrap: anywhere;
+      cursor: pointer;
+      text-align: left;
+    }
+    .node .who { color: var(--node); }
+    .node small { display: block; margin-top: 6px; color: var(--muted); font-size: 11.5px; }
+    .pipe {
+      margin: 0 0 10px;
+      text-align: center;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .pipe b { display: block; color: var(--ink-soft); font-size: 15px; }
+
+    .detail {
+      display: grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap: 0;
+      border-top: 1px solid var(--line);
+      background: #fff;
+    }
+    .detail article { padding: 16px 18px 18px; }
+    .detail article:first-child { border-right: 1px solid var(--line); }
+    .detail h3 { margin: 0 0 8px; font-size: 15px; }
+    .cans { margin: 0; padding: 0; list-style: none; }
+    .cans li {
+      position: relative;
+      padding: 4px 0 4px 18px;
+      font-size: 13.5px;
+    }
+    .cans li::before {
+      content: "";
+      position: absolute; left: 0; top: .72em;
+      width: 8px; height: 8px; border-radius: 99px;
+      background: var(--success);
+    }
+    .cans li.no::before { background: var(--danger); }
+
+    /* ---------- two node meanings ---------- */
+    .split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }
+    .kinds {
+      display: flex; flex-wrap: wrap; gap: 6px;
+      margin: 10px 0 0;
+    }
+    .chip {
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent-deep);
+    }
+    .chip.g { background: #e4f0e9; color: #1f5c40; }
+    .note {
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-left: 3px solid var(--accent);
+      background: #fff8ee;
+      border-radius: 0 10px 10px 0;
+      font-size: 13.5px;
+    }
+
+    /* ---------- graph legality ---------- */
+    .graph {
+      margin-top: 14px;
+      overflow-x: auto;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 8px 8px 4px;
+    }
+    .graph svg { display: block; width: 100%; min-width: 720px; height: auto; }
+    .g-q { fill: #14161c; }
+    .g-h { fill: #c4621a; }
+    .g-p { fill: #5c6570; }
+    .g-r { fill: #9a4a12; }
+    .g-s { fill: #2d7a58; }
+    .g-o { fill: #6d6a63; }
+    .g-d { fill: #3d5a80; }
+
+    /* ---------- flow ---------- */
+    .flow {
+      display: grid;
+      grid-template-columns: 230px 1fr;
+      gap: 14px;
+      align-items: start;
+    }
+    .steps { display: grid; gap: 6px; }
+    .step {
+      text-align: left;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 9px 10px;
+      cursor: pointer;
+    }
+    .step strong { display: block; font-size: 13px; }
+    .step span { color: var(--muted); font-size: 11.5px; }
+    .step.is-on {
+      border-color: var(--accent);
+      background: #fff8ee;
+      box-shadow: inset 3px 0 0 var(--accent);
+    }
+    .scene {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      min-height: 340px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .scene-head {
+      display: flex; justify-content: space-between; gap: 12px; align-items: baseline;
+      padding: 14px 16px 10px;
+      border-bottom: 1px solid var(--line);
+    }
+    .scene-head h3 { margin: 0; font-size: 16px; }
+    .scene-head span { color: var(--muted); font-size: 12px; }
+    .lanes {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border-bottom: 1px solid var(--line);
+      background: #fff;
+    }
+    .lane { padding: 10px 12px 12px; min-height: 148px; min-width: 0; border-right: 1px solid var(--line); overflow-wrap: anywhere; }
+    .lane:last-child { border-right: 0; }
+    .lane .who { margin-bottom: 8px; }
+    .lane.idle { opacity: .42; }
+    .bubble {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 9px;
+      font-size: 12.5px;
+    }
+    .bubble + .bubble { margin-top: 6px; }
+    .scene-foot { padding: 12px 16px 16px; font-size: 13.5px; }
+    .scene-foot ul { margin: 8px 0 0; padding-left: 18px; }
+    .nav-btns { display: flex; gap: 8px; padding: 0 16px 14px; }
+    .nav-btns button {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 6px 12px;
+      cursor: pointer;
+    }
+    .nav-btns button:hover { border-color: var(--accent); }
+
+    .rules {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .rule {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 14px;
+    }
+    .rule b { display: block; margin-bottom: 4px; }
+    .rule span { color: var(--ink-soft); font-size: 13.5px; }
+
+    footer {
+      margin-top: 36px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    @media (max-width: 920px) {
+      header.hero, .detail, .split, .flow, .rules, .row, .nodes, .lanes {
+        grid-template-columns: 1fr;
+      }
+      nav.jump, header.hero { grid-column: 1; }
+      .band-label { flex-direction: column; align-items: flex-start; gap: 4px; }
+      .arrow, .pipe { width: auto; min-width: 0; padding: 4px 0 10px; }
+      .hub { min-width: 0; }
+      .detail article:first-child { border-right: 0; border-bottom: 1px solid var(--line); }
+      .lane { border-right: 0; border-bottom: 1px solid var(--line); min-height: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <div class="brand" aria-hidden="true">
+        <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
+          <path d="M16 8.4 8.6 22.1h14.8Z" stroke="#f3d2a8" stroke-width="1.7" stroke-linejoin="round"/>
+          <circle cx="16" cy="8.2" r="3.15" fill="#c4621a"/>
+          <circle cx="8.5" cy="22.2" r="2.7" fill="#f3d2a8"/>
+          <circle cx="23.5" cy="22.2" r="2.7" fill="#f3d2a8"/>
+        </svg>
+      </div>
+      <div>
+        <p class="eyebrow">Gemcp v0.19.0</p>
+        <h1>谁对谁做什么</h1>
+        <p class="lede">用户只看研究问题和签字；Agent 只通过 MCP 维护 Graph 和提案；Gemcp 独占凭证、预算和调度；机器节点只执行已确认的 argv。在 Graph 上记一个节点，不会启动任何计算。</p>
+        <p class="meta">对照 <code>docs/architecture.md</code> · <code>docs/research-workbench.md</code> · <code>guides/agent-mcp.md</code></p>
+        <nav class="jump">
+          <a href="#rel">四角色关系</a>
+          <a href="#nodes">两种「节点」</a>
+          <a href="#graph">Graph 合约</a>
+          <a href="#flow">研究任务流程</a>
+          <a href="#rules">硬边界</a>
+        </nav>
+      </div>
+    </header>
+
+    <section id="rel">
+      <p class="eyebrow">Topology</p>
+      <h2>用户 · Agent · Gemcp · 机器节点</h2>
+      <div class="canvas" id="canvas">
+        <div class="bands" id="bands">
+          <div class="band research">
+            <div class="band-label">
+              <b>研究层 · 默认主界面</b>
+              <span>Owner 看见问题、下一步、结果谱系；Agent 维护同一份 Graph</span>
+            </div>
+            <div class="row">
+              <button class="actor owner" data-id="owner" type="button">
+                <span class="who">Owner · 用户</span>
+                <h3>Web 控制台</h3>
+                <p>审 Study / 计划 / Graph；确认 digest 才能花钱；发 Token、登记机器。</p>
+              </button>
+              <div class="arrow"><b>← HTTPS Web →</b>审阅与确认</div>
+              <button class="hub" data-id="graph" type="button">
+                <span class="who">Research object</span>
+                <h3>Study · Plan · Graph</h3>
+                <p>问题、假说、计划、run、result。合法边由控制面裁定。下一步只来自 next actions。</p>
+              </button>
+              <div class="arrow"><b>← HTTPS MCP →</b>Bearer Token</div>
+              <button class="actor agent" data-id="agent" type="button">
+                <span class="who">Agent · 编码助手</span>
+                <h3>Claude / Codex / Grok / Pi</h3>
+                <p>Project 作用域。准备、等人确认、提交、轮询、close_run。不持有主机密钥。</p>
+              </button>
+            </div>
+          </div>
+
+          <div class="band control">
+            <div class="band-label">
+              <b>控制层 · Gemcp</b>
+              <span>同一 Go 二进制：Web + MCP + 调度器；Watchdog 独立进程；PostgreSQL 权威</span>
+            </div>
+            <div class="row">
+              <button class="actor owner" data-id="owner" type="button" style="background:#1f1710;color:#f3efe6;border-color:#3a2a1c">
+                <span class="who">Lab</span>
+                <h3>人工配置</h3>
+                <p>Agents / Nodes / Provider / Finance / Diagnostics。基础设施不占主屏。</p>
+              </button>
+              <div class="arrow"><b>政策</b>预算授权</div>
+              <button class="hub" data-id="gemcp" type="button">
+                <span class="who">Control plane</span>
+                <h3>Gemcp</h3>
+                <p>不可变 Proposal、Experiment、Attempt、reservation、审计。调度不回退后端。凭证只在进程内解密。</p>
+              </button>
+              <div class="arrow"><b>合约</b>digest · 幂等</div>
+              <button class="actor agent" data-id="agent" type="button" style="background:#121820;color:#eef3f8;border-color:#243044">
+                <span class="who">MCP tools</span>
+                <h3>准备 / 提交 / 观测</h3>
+                <p>prepare 零成本；确认后 submit；观测只用 get_experiment。记录 Graph 不会开机。</p>
+              </button>
+            </div>
+          </div>
+
+          <div class="band exec">
+            <div class="band-label">
+              <b>执行层 · 机器节点</b>
+              <span>三条后端互不回退。选错就失败。Agent 和用户都不 SSH 去读实验。</span>
+            </div>
+            <p class="pipe"><b>↓ 仅 Gemcp 派发已确认的 Experiment ↓</b>Agent 不连节点 · Owner 不向节点下 argv</p>
+            <div class="nodes">
+              <button class="node" data-id="selfhosted" type="button">
+                <span class="who">Self-hosted</span>
+                <h3>gemcp-node</h3>
+                <p>节点主动出站 HTTPS。Docker 隔离，一卡一 Attempt。工作负载拿不到 Node Token。</p>
+                <small>Owner 登记配对码 · 可选 trusted workspace</small>
+              </button>
+              <button class="node" data-id="ssh" type="button">
+                <span class="who">Cloud SSH · 实验</span>
+                <h3>宿主机进程</h3>
+                <p>控制面出站 SSH，启动 argv。无镜像、无 Docker、无 Git 归档。digest 钉死 host / user / cwd / argv。</p>
+                <small>需要 operate_nodes · 凭证只写不读</small>
+              </button>
+              <button class="node" data-id="autodl" type="button">
+                <span class="who">AutoDL</span>
+                <h3>Private Cloud / Elastic</h3>
+                <p>官方 API。Runner 回连 HTTPS。源码归档用 Attempt Token，Deploy Key 永不进容器。</p>
+                <small>按 CNY 预留 · 需 HTTPS 公网回调</small>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail">
+          <article>
+            <h3 id="focus-title">点上面的角色看职责</h3>
+            <ul class="cans" id="focus-cans"></ul>
+          </article>
+          <article>
+            <h3>刻意不存在的边</h3>
+            <ul class="cans">
+              <li class="no">Agent 不连机器节点：没有 SSH tool，没有远程文件，没有日志推演指标</li>
+              <li class="no">Owner 不直接改容器：控制台不下发任意主机命令</li>
+              <li class="no">Self-hosted / AutoDL / Cloud SSH 互不兜底</li>
+              <li class="no">记录 Graph 节点不等于启动 GPU：只有确认后的 submit 才创建 Experiment</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="nodes">
+      <p class="eyebrow">Homonym</p>
+      <h2>「节点」是两件东西</h2>
+      <div class="split">
+        <div class="card">
+          <span class="who" style="color:var(--node)">Machine node</span>
+          <h3>跑计算的机器</h3>
+          <p>组织资产。Owner 授权给 Project。调度器选中一台，占一卡或一个 SSH 进程。</p>
+          <div class="kinds">
+            <span class="chip g">Self-hosted GPU PC</span>
+            <span class="chip g">Cloud SSH 主机</span>
+            <span class="chip g">AutoDL Job</span>
+          </div>
+        </div>
+        <div class="card">
+          <span class="who" style="color:var(--accent)">Graph node</span>
+          <h3>研究主张</h3>
+          <p>Study 里的记录。时间轴用 <code>occurred_at</code>，不是 MCP 写入时间。有类型、有合法边。</p>
+          <div class="kinds">
+            <span class="chip">question</span>
+            <span class="chip">hypothesis</span>
+            <span class="chip">plan</span>
+            <span class="chip">run</span>
+            <span class="chip">result</span>
+            <span class="chip">observation</span>
+            <span class="chip">decision</span>
+          </div>
+        </div>
+      </div>
+      <p class="note">两套节点在 <code>submit_prepared_experiment</code> 才相交：控制面创建 Experiment，并在 Graph 写下 <code>run</code>。<code>close_run</code> 是唯一能写 <code>result</code> 的入口，边只能是 run produced result。没挂上 Graph 的 Experiment 在 Evidence 标 orphaned。</p>
+    </section>
+
+    <section id="graph">
+      <p class="eyebrow">Contract</p>
+      <h2>Graph 是执行合约，不是海报</h2>
+      <p style="margin:0 0 8px;color:var(--ink-soft)">Agent 花钱前必须 <code>get_next_actions</code>。<code>prepare_experiment</code> 的 <code>from_node_id</code> 必须是 hypothesis 或 plan，并钉进 Owner 确认的 digest。</p>
+      <div class="graph" aria-label="合法边">
+        <svg viewBox="0 0 960 250" role="img">
+          <defs>
+            <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#8a857b"/>
+            </marker>
+          </defs>
+          <g fill="none" stroke="#8a857b" stroke-width="1.4" marker-end="url(#arr)">
+            <path d="M118 64 H278"/>
+            <path d="M342 64 H452"/>
+            <path d="M508 64 H602"/>
+            <path d="M658 64 H802"/>
+            <path d="M290 92 C240 92 210 130 210 166"/>
+            <path d="M802 92 C802 168 620 188 528 200"/>
+          </g>
+          <g font-family="ui-sans-serif,system-ui,sans-serif" font-size="12" text-anchor="middle">
+            <g>
+              <circle class="g-q" cx="90" cy="64" r="28"/>
+              <text fill="#fff" x="90" y="68">question</text>
+            </g>
+            <g>
+              <circle class="g-h" cx="310" cy="64" r="32"/>
+              <text fill="#fff" x="310" y="68">hypothesis</text>
+            </g>
+            <g>
+              <circle class="g-p" cx="480" cy="64" r="28"/>
+              <text fill="#fff" x="480" y="68">plan</text>
+            </g>
+            <g>
+              <circle class="g-r" cx="630" cy="64" r="28"/>
+              <text fill="#fff" x="630" y="68">run</text>
+            </g>
+            <g>
+              <circle class="g-s" cx="830" cy="64" r="28"/>
+              <text fill="#fff" x="830" y="68">result</text>
+            </g>
+            <g>
+              <circle class="g-o" cx="180" cy="196" r="30"/>
+              <text fill="#fff" x="180" y="200">observation</text>
+            </g>
+            <g>
+              <circle class="g-d" cx="500" cy="210" r="28"/>
+              <text fill="#fff" x="500" y="214">decision</text>
+            </g>
+            <text fill="#6d6a63" x="188" y="52">leads_to</text>
+            <text fill="#6d6a63" x="402" y="52">leads_to</text>
+            <text fill="#c4621a" x="555" y="52">submit 写入</text>
+            <text fill="#2d7a58" x="716" y="52">produced · close_run</text>
+            <text fill="#6d6a63" x="248" y="128">历史证据</text>
+            <text fill="#6d6a63" x="720" y="150">result → decision</text>
+          </g>
+        </svg>
+      </div>
+    </section>
+
+    <section id="flow">
+      <p class="eyebrow">Loop</p>
+      <h2>一次研究任务怎么走</h2>
+      <div class="flow">
+        <div class="steps" id="steps"></div>
+        <div class="scene">
+          <div class="scene-head">
+            <h3 id="scene-title"></h3>
+            <span id="scene-tool"></span>
+          </div>
+          <div class="lanes">
+            <div class="lane" data-lane="owner"><span class="who" style="color:var(--owner)">Owner</span><div class="slot"></div></div>
+            <div class="lane" data-lane="agent"><span class="who" style="color:var(--agent)">Agent</span><div class="slot"></div></div>
+            <div class="lane" data-lane="gemcp"><span class="who" style="color:var(--accent)">Gemcp</span><div class="slot"></div></div>
+            <div class="lane" data-lane="node"><span class="who" style="color:var(--node)">Node</span><div class="slot"></div></div>
+          </div>
+          <div class="nav-btns">
+            <button type="button" id="prev">上一步</button>
+            <button type="button" id="next">下一步</button>
+          </div>
+          <div class="scene-foot" id="scene-foot"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="rules">
+      <p class="eyebrow">Why</p>
+      <h2>这些约束不是风格问题</h2>
+      <div class="rules">
+        <div class="rule">
+          <b>确认 digest 才是花钱开关</b>
+          <span><code>submit</code> 权限不是财务批准。prepare 不建 Experiment、不占预算。提交时再跑一遍 drift 检查。</span>
+        </div>
+        <div class="rule">
+          <b>观测面只有 get_experiment</b>
+          <span>log_tail 和 metrics.json 由 Runner / gemcp-node / SSH 轮询投影上来。Agent 不准从日志发明标量。</span>
+        </div>
+        <div class="rule">
+          <b>工作负载是无权主体</b>
+          <span>容器或宿主机进程没有 Agent Token、Node Token、Deploy Key、Docker socket。Harness 若存在，也必须待在 MCP 这一侧。</span>
+        </div>
+        <div class="rule">
+          <b>FIFO + 不可变 Attempt</b>
+          <span>一次 Experiment 多次基础设施重试会建新 Attempt，不会改原请求。命令失败不会换后端重跑。</span>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      打开方式：浏览器打开本文件即可，不进控制台。内容按 v0.19.0 的控制面合约绘制；Cloud SSH 仍是实验通道。
+    </footer>
+  </div>
+
+  <script>
+    const facts = {
+      graph: {
+        title: "Study · Plan · Graph · 研究对象",
+        items: [
+          "Owner 默认看见的是问题、下一步和谱系，不是 GPU 控制台",
+          "Agent 用 update_research_workspace 维护同一份对象；画节点不会启动计算",
+          "prepare 必须从 hypothesis 或 plan 出发，from_node_id 钉进确认 digest",
+          "submit 才写 run；close_run 才写 result（produced）。没挂 Graph 的实验标 orphaned",
+          "不：不准把 prompt、推理、密钥、环境转储写进标题或摘要"
+        ]
+      },
+      owner: {
+        title: "Owner · 实验室主人",
+        items: [
+          "Web 看 Study、下一步、Graph、最近结果；UUID 和镜像留在 Lab / Experiment 详情",
+          "唯一花钱动作：确认 Proposal 的精确 digest（host/user/cwd/argv 或镜像/资源/commit）",
+          "一次性接入：Project、仓库 Deploy Key、节点配对、MCP setup link、预算",
+          "可以停托管资源、紧急停止、轮转 Provider Token；看不到明文 SSH / AutoDL 密钥",
+          "不：不给 Agent 贴 Token 到聊天；不对节点下任意 shell"
+        ]
+      },
+      agent: {
+        title: "Agent · 连着 MCP 的编码助手",
+        items: [
+          "身份是 Project 作用域 Bearer Token，HMAC 摘要存库，明文只出现一次",
+          "读：get_research_workspace / get_next_actions / get_experiment / get_project_options",
+          "写研究：update_research_workspace；写计算：prepare → 等人确认 → submit → close_run",
+          "Cloud SSH 登记需要单独的 operate_nodes，默认关闭，不含在 configure 里",
+          "不：不 SSH、不读远程盘、不把 prompt/推理/密钥写进 Graph"
+        ]
+      },
+      gemcp: {
+        title: "Gemcp · 唯一权威",
+        items: [
+          "研究合约：合法边、from_node_id、run/result 写入权、orphaned 标记",
+          "执行合约：2 小时不可变 Proposal、确认后 Serializable 创建、一提案至多一 Experiment",
+          "调度：FIFO、并发、预算预留、三后端独立；Watchdog 在控制面挂掉时仍能停资源",
+          "密钥：AutoDL、Git Deploy、SMTP、Cloud SSH 用主密钥加密，不进 PostgreSQL 明文",
+          "不：不替 harness 推 Git；不把 Provider 密码、容器 root 密码暴露给 API"
+        ]
+      },
+      selfhosted: {
+        title: "Self-hosted · gemcp-node",
+        items: [
+          "机器出站连 Gemcp，不开入站控制端口、不暴露 MCP/SSH/数据库",
+          "Owner 短时配对 → 硬件核对 → 按 Project 授权；心跳 60s 掉线不再接新活",
+          "严格模式钉死镜像 digest；trusted workspace 只多挂 Owner 批过的一个目录",
+          "容器只拿源码、GPU、/outputs、声明过的数据集路径",
+          "不：不规划研究、不 git push、不把 Node Token 传进容器"
+        ]
+      },
+      ssh: {
+        title: "Cloud SSH · 实验通道",
+        items: [
+          "控制面保存加密密码或私钥，出站 SSH，在登录环境拉起 argv",
+          "只做三件事：当通道、观察进程/日志/metrics.json、用 digest 设门",
+          "没有镜像锁定、没有 Docker 安装、没有 Git 归档上传；GPU 可选",
+          "Agent 监控仍然只用 get_experiment；紧急停止只杀 Gemcp 拉起的进程组",
+          "不：不回退到 AutoDL 或 gemcp-node；不给 Agent 开 SSH shell tool"
+        ]
+      },
+      autodl: {
+        title: "AutoDL · 付费 Job",
+        items: [
+          "Private Cloud 或 Public Elastic，官方 HTTP API，不是浏览器自动化",
+          "create 之前先落 ownership；一次 Attempt 至多一次 create；用确定性名字和解不确定响应",
+          "Runner 下源码、跑 argv、本地硬超时、回传 64KiB 日志尾和 metrics",
+          "需要可达的 HTTPS GEMCP_PUBLIC_URL 做回调；调度器另需显式打开",
+          "不：Public Pro 只读；Elastic 闲置卡数不等于同机多卡可调度"
+        ]
+      }
+    };
+
+    const defaultCans = [
+      "点上方卡片：Owner / Graph / Agent / 三种机器节点",
+      "关系是星型：所有人只连 Gemcp，不互相直连执行面",
+      "研究层是主屏；Lab 是配置；执行层对 Agent 不可见"
+    ];
+
+    const focusTitle = document.getElementById("focus-title");
+    const focusCans = document.getElementById("focus-cans");
+    const bands = document.getElementById("bands");
+
+    function renderCans(items, noFrom) {
+      focusCans.innerHTML = items.map((t, i) => {
+        const no = t.startsWith("不") || (noFrom && i >= noFrom);
+        return `<li class="${no ? "no" : ""}">${t.replace(/^不：/, "不：")}</li>`;
+      }).join("");
+    }
+    renderCans(defaultCans);
+
+    function selectActor(id) {
+      document.querySelectorAll("[data-id]").forEach(el => {
+        el.classList.toggle("is-on", el.dataset.id === id);
+      });
+      bands.classList.toggle("dim", Boolean(id));
+      const fact = facts[id];
+      if (!fact) {
+        focusTitle.textContent = "点上面的角色看职责";
+        renderCans(defaultCans);
+        return;
+      }
+      focusTitle.textContent = fact.title;
+      renderCans(fact.items);
+    }
+
+    document.querySelectorAll("[data-id]").forEach(el => {
+      el.addEventListener("click", () => {
+        const id = el.dataset.id;
+        const already = el.classList.contains("is-on") && [...document.querySelectorAll("[data-id].is-on")].every(n => n.dataset.id === id);
+        selectActor(already ? null : id);
+      });
+    });
+
+    const flow = [
+      {
+        k: "0 一次性接入",
+        tool: "Web · MCP setup link",
+        title: "Owner 把实验室接上，只做一次",
+        why: "后面每轮研究不再问路径、密钥、镜像 UUID。Agent 是 Project 租客，不是机器管理员。",
+        owner: "建 Project、登记仓库、配对 Self-hosted 或（可选）批 Cloud SSH；发出带 fragment 的 setup link。",
+        agent: "claim 得到只读临时凭证 → 发现全部工具并核对 guide/options/cost → complete 才激活 Owner 选的 scopes。",
+        gemcp: "setup code 和 Token 只存 HMAC。完成是原子的：scopes + 寿命一起生效。",
+        node: "Self-hosted 此时只心跳和报库存。还没有 Assignment。"
+      },
+      {
+        k: "1 先问 Graph",
+        tool: "get_research_workspace · get_next_actions",
+        title: "下一步由 Graph 裁定，不由模型即兴",
+        why: "没有 Study 就先开问题。没有 hypothesis/plan 就不能 prepare。花钱前必须看到合法动作。",
+        owner: "主屏已经是问题、next_action、谱系。不必先读 Experiment UUID。",
+        agent: "调用两个只读工具。把 prompt 和私有推理留在对话里，不准写入 Graph 文本。",
+        gemcp: "按合法边生成最多 8 条 next actions。记录节点本身不会 dispatch。",
+        node: "不参与。"
+      },
+      {
+        k: "2 写下主张",
+        tool: "update_research_workspace",
+        title: "Study、计划、假说先于计算",
+        why: "Owner 审的是科学对象。计划更新是 supersede，不是改历史。",
+        owner: "看到问题、当前目标和下一步。",
+        agent: "创建/更新 Study；替换 iteration plan；记录 question / hypothesis / plan / observation。",
+        gemcp: "限额：32 Study / Project，128 节点，256 边。拒绝凭证和思维链。",
+        node: "不参与。"
+      },
+      {
+        k: "3 零成本准备",
+        tool: "prepare_experiment",
+        title: "解析 commit、默认资源、预检、算出最坏 CNY",
+        why: "这一步不创建 Experiment、Attempt、Provider 资源、预算占用。失败可以白改。",
+        owner: "还不用签字。若返回 choice_required，只在候选里选，不让 Agent 猜后端。",
+        agent: "带上 argv 和 from_node_id（hypothesis 或 plan）。Cloud SSH 可带 cwd，不要带 image。",
+        gemcp: "钉死完整 SHA、环境、资源、后端；Cloud SSH 把 host/user/cwd/argv 写进 digest；提案 2 小时过期。",
+        node: "只被探活：Self-hosted last_seen、Cloud SSH probe。不拉起进程。"
+      },
+      {
+        k: "4 人确认 digest",
+        tool: "Owner 明示批准",
+        title: "唯一的花钱/开机开关",
+        why: "Token 有 submit 不等于批准。digest 变了必须重新 prepare。",
+        owner: "核对仓库、commit、argv、镜像或 host、GPU、预检、最坏预留、过期时间。明确说 yes。",
+        agent: "原样展示提案。不改字段。不把 Token 贴进对话。",
+        gemcp: "等待同一 proposal_id + 精确 sha256 digest。",
+        node: "不参与。"
+      },
+      {
+        k: "5 提交一次",
+        tool: "submit_prepared_experiment",
+        title: "一提案至多一个 Experiment，并写 run 节点",
+        why: "幂等边界在服务器。重试同一对 id+digest 返回同一条，不会双花。",
+        owner: "Graph 上出现 run，详情里出现不可变请求。",
+        agent: "只传 proposal_id 和 confirmation_digest。然后转 monitoring。",
+        gemcp: "Serializable 再检 drift 和预算；创建 Experiment；Graph 写入 run，from_node_id 已在 digest 里。",
+        node: "仍未启动。排队归调度器。"
+      },
+      {
+        k: "6 调度到选定后端",
+        tool: "scheduler · 不回退",
+        title: "queued → provisioning → running",
+        why: "选错后端就失败。Self-hosted 忙不会改去 AutoDL。",
+        owner: "Lab 里能看 Attempt、所有权、心跳。Research 仍只显示这条 run。",
+        agent: "不要 SSH，不要猜机器。",
+        gemcp: "事务里占节点或建 ProviderResource；源码归档（AutoDL/Self-hosted）；Cloud SSH 则打开出站 SSH。",
+        node: "Self-hosted 收 Command 起 Docker；SSH 拉起 argv；AutoDL Runner 回连并跑 argv。"
+      },
+      {
+        k: "7 只通过投影观察",
+        tool: "get_experiment",
+        title: "state · log_tail · metrics",
+        why: "指标来自工作负载写的 metrics.json，不是日志分析，也不是 Provider 开机成功。",
+        owner: "详情区分不可变请求 vs 观测：路径、GPU、日志尾、清理证据。",
+        agent: "轮询同一视图。终端态之前不准 close_run，不准发明 result。",
+        gemcp: "把 Runner 回调 / Node Event / SSH 轮询投影到 Experiment。",
+        node: "每 15s 左右送日志尾；完整日志留在节点或 AutoDL 盘；SSH 结束后删 /var/tmp/gemcp/<assignment>/。"
+      },
+      {
+        k: "8 关闭 run",
+        tool: "close_run",
+        title: "唯一写 result 的入口",
+        why: "produced 边只能 run→result。标量必须与 Experiment metrics 一致；成功不得把失败实验改贴成功。",
+        owner: "Graph 盖章：绿成功 / 红失败。谱系停在最新挂上的记录。",
+        agent: "可省略 metric_name 以复制准备时的 expected_metric；可选 result_commit_sha 指向结果清单提交。",
+        gemcp: "校验终端态、metrics、status。普通 update_research_workspace 改不了 result。",
+        node: "清理已发生或正在发生；不参与科学结论。"
+      },
+      {
+        k: "9 决策和下一步",
+        tool: "update_research_workspace",
+        title: "result → decision → 新 hypothesis/plan",
+        why: "循环关闭在研究层。新的花钱仍要从假说或计划 prepare，不会从 result 直接开火。",
+        owner: "看到被 supersede 的旧计划，和仍在的谱系。",
+        agent: "记录 decision，换新的 iteration plan，再 get_next_actions。",
+        gemcp: "边合法性：result/observation 可 leads_to decision/hypothesis；decision 可回到 hypothesis/plan。",
+        node: "空闲，等下一份确认过的 Assignment。"
+      }
+    ];
+
+    const stepsEl = document.getElementById("steps");
+    let idx = 4;
+    flow.forEach((s, i) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "step";
+      b.innerHTML = `<strong>${s.k}</strong><span>${s.tool}</span>`;
+      b.addEventListener("click", () => show(i));
+      stepsEl.appendChild(b);
+    });
+
+    function show(i) {
+      idx = (i + flow.length) % flow.length;
+      const s = flow[idx];
+      [...stepsEl.children].forEach((el, n) => el.classList.toggle("is-on", n === idx));
+      document.getElementById("scene-title").textContent = s.title;
+      document.getElementById("scene-tool").textContent = s.tool;
+      const map = { owner: s.owner, agent: s.agent, gemcp: s.gemcp, node: s.node };
+      document.querySelectorAll(".lane").forEach(lane => {
+        const key = lane.dataset.lane;
+        const text = map[key];
+        const idle = text === "不参与。" || text.startsWith("空闲");
+        lane.classList.toggle("idle", idle);
+        lane.querySelector(".slot").innerHTML = `<div class="bubble">${text}</div>`;
+      });
+      document.getElementById("scene-foot").innerHTML = `<b>为什么是这样</b><ul><li>${s.why}</li></ul>`;
+    }
+    document.getElementById("prev").onclick = () => show(idx - 1);
+    document.getElementById("next").onclick = () => show(idx + 1);
+    show(idx);
+  </script>
+</body>
+</html>

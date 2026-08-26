@@ -68,7 +68,7 @@ sudo GEMCP_NODE_STORAGE_ROOT=/var/lib/gemcp-node/storage \
 
 仅在安装器提示时粘贴完整 Setup Link。安装器只输出 Node ID 和短 pairing code，不会输出 Node Token。向 Owner 报告 Node ID、pairing code、hostname、GPU UUID/型号和 `systemctl status gemcp-node`；不得报告 Node Token。
 
-Owner 必须在 **Nodes -> Enrollment activity** 中核对 pairing code 和硬件，选择授权的 Projects 并批准。在批准前，节点必须保持 `pending_verification`。批准后确认 daemon 变为 active，并持续发送 heartbeat。
+安装器领取链接后，Enrollment 行显示 `claimed`，同时 Node 的 desired state 为 `pending_verification`。Owner 应在此时于 **Nodes -> Enrollment activity** 中核对 pairing code 和硬件，选择授权的 Projects 并批准。批准后确认 daemon 变为 active，并持续发送 heartbeat。
 
 ## Runtime 配置
 

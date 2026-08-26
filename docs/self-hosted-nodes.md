@@ -8,6 +8,8 @@ This document records the architecture for adding trusted, single-GPU PCs to Gem
 
 MCP remains the Agent-facing control-plane boundary. A GPU PC does not expose MCP, SSH, a database, or an inbound control port. It runs a `gemcp-node` daemon that initiates outbound HTTPS connections to Gemcp.
 
+Experimental Cloud SSH is a different backend. The control plane opens outbound SSH and starts a host process. It does not enroll `gemcp-node`, does not reuse Self-hosted tokens or command queues, and never falls back to this path. See [Cloud SSH nodes](ssh-cloud-nodes.md).
+
 ```text
 Agent --HTTPS MCP--> Gemcp control plane --PostgreSQL
                             ^

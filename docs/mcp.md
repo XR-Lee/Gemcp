@@ -18,13 +18,13 @@ Create a short-lived **MCP setup link** from the Owner console and let the Agent
 
 The Owner sends one URL from `/agent/setup#code=...`. The Agent reads the public setup instructions at `/agent/setup` and enrolls its own MCP client. The code remains in the URL fragment and is not sent by link previews or ordinary page requests.
 
-Claiming creates a short-lived `read`-only credential. After the Agent discovers all twenty-one tools and verifies guide, options, and cost, completion activates the Owner-selected scopes and lifetime. Claim and complete are retry-safe if the final response is lost.
+Claiming creates a short-lived `read`-only credential. After the Agent discovers all twenty-six tools and verifies guide, options, and cost, completion activates the Owner-selected scopes and lifetime. Claim and complete are retry-safe if the final response is lost.
 
 ## Pi with pi-mcp-adapter
 
 Pi can run the fixed installer from the same configured origin when `pi-mcp-adapter` is already installed.
 
-The installer merges a `gemcp-<project>` server into `<Pi agent dir>/mcp.json`, preserves existing servers, writes mode `0600`, exposes all twenty-one bounded Gemcp tools through `directTools`, and verifies tool discovery plus guide, options, and cost calls. A local credential-reading helper supports the current session without printing the Token. One `/reload` activates native `gemcp-<project>_*` tools through the adapter.
+The installer merges a `gemcp-<project>` server into `<Pi agent dir>/mcp.json`, preserves existing servers, writes mode `0600`, exposes all twenty-six bounded Gemcp tools through `directTools`, and verifies tool discovery plus guide, options, and cost calls. A local credential-reading helper supports the current session without printing the Token. One `/reload` activates native `gemcp-<project>_*` tools through the adapter.
 
 Claimed credentials remain `read`-only and expire at the setup deadline until verification completes. Completion activates the Owner-selected scopes and lifetime, clears the setup capability, and leaves only a credential-free local receipt. The complete API and installer are retry-safe if the final response is lost.
 
@@ -251,6 +251,8 @@ Then call `get_project_options`. It is read-only and confirms all of the followi
 - the Token has `read` scope;
 - approved repository, environment, and resource-profile IDs are visible.
 - authorized Self-hosted Nodes are discovered from current heartbeats even before a runtime is configured; fixed readiness codes explain missing runtime, workspace upgrade, availability, or capacity requirements without exposing Node credentials. An Owner-approved workspace path and successful image history are visible only to that Project Agent.
+- experimental Cloud SSH nodes appear in `ssh_cloud_nodes` even before Project authorization. `get_project_options` probes them on the control plane. No SSH host key, password, or private key is ever returned.
+- `readiness` summarizes ready vs blocked compute and repeats the heartbeat contract: MCP `last_used_at` updates on every authenticated call; Self-hosted `last_seen_at` is the node heartbeat; Cloud SSH `last_probed_at` updates on this probe or an Owner probe. Monitor runs with `get_experiment`. Agents are Project-scoped and not exclusively bound to one node.
 
 The installer also calls `get_project_cost` as a read-only setup check. Normal work then uses `prepare_experiment`, which resolves UUIDs, a moving ref, immutable commit, preflight, cost, and idempotency on the server. `get_project_options` and `get_project_cost` remain available for inspection and the Advanced direct path.
 
@@ -273,14 +275,17 @@ before calling submit_prepared_experiment.
 - `register_workspace_dataset`: declare one normalized relative dataset path without authorizing a new host root; requires `configure`.
 - `remove_workspace_dataset`: disable one declaration without deleting host data; requires `configure`.
 - `get_research_workspace`: return Studies, the selected iteration plan, the research Graph, and legal next actions without starting a workload.
-- `update_research_workspace`: create or update a Study, replace the active plan, or record a Graph node; requires `submit` and never starts a workload.
+- `update_research_workspace`: create or update a Study, replace the active plan, or record a Graph node; historical nodes should set `occurred_at` from the evidence committer date and optional `commit_sha`. Requires `submit` and never starts a workload.
 - `get_next_actions`: return only Graph-legal next steps for the selected Study.
-- `close_run`: write a result node on a terminal Experiment that already has a Graph run; requires `submit`.
-- `prepare_experiment`: resolve a repository/ref, safe argv, compatible defaults, preflight checks, cost, and a short-lived immutable proposal without reserving budget. When a Study exists, `from_node_id` must be a hypothesis or plan node and is bound into the confirmation digest. Its optional `image` accepts a public name, tag, or digest only when the selected Environment is an Owner-approved trusted Self-hosted workspace.
-- `submit_prepared_experiment`: submit one confirmed proposal by ID and digest; identical retries return the same Experiment and bind its Graph run node.
-- `get_project_options`: approved repositories, environments, resource profiles, project limits, and dynamically discovered authorized Self-hosted Node readiness.
+- `close_run`: write a result node on a terminal Experiment that already has a Graph run; omit `metric_name` to copy the prepared `expected_metric` from the Experiment; optionally attach the full Git commit containing a durable result manifest as `result_commit_sha`; requires `submit`.
+- `prepare_experiment`: resolve a repository/ref, safe argv, compatible defaults, preflight checks, cost, and a short-lived immutable proposal without reserving budget. `runtime_preset` may be `smoke` (300s), `probe` (3600s), or `train` (up to the Project max runtime). AutoDL probe/train require a Project dataset binding under `/root/autodl-fs/`. When a Study exists, `from_node_id` must be a hypothesis or plan node and is bound into the confirmation digest. For experimental Cloud SSH, omit `image` and optionally omit repository; pass `argv` and optional `cwd`. The digest pins host, user, cwd, and argv. A trusted Self-hosted workspace still accepts a public name, tag, or digest. Do not invent SSH credentials or fall back to AutoDL.
+- `list_dataset_bindings` / `register_dataset_binding` / `remove_dataset_binding`: Project AutoDL dataset roots and `GEMCP_DATASET_*` injection; write tools require `configure`.
+- `register_ssh_cloud_node`: register a Cloud SSH host for the Token's Project; requires `operate_nodes`. Credentials are write-only. Probe only checks connectivity and pins the host key.
+- `rotate_ssh_cloud_node_credential`: replace the encrypted SSH password or private key; requires `operate_nodes`.
+- `submit_prepared_experiment`: submit one confirmed proposal by ID and digest; identical retries return the same Experiment and bind its Graph run node. Agents do not auto-submit. The Owner console can confirm the same digest and start the Experiment.
+- `get_project_options`: approved repositories, environments, resource profiles, project limits, dynamically discovered authorized Self-hosted Node readiness, experimental Cloud SSH node readiness, and a `readiness` summary with the heartbeat contract. Cloud SSH listing does not require prior Project access; the control plane probes registered nodes.
 - `submit_experiment`: Advanced compatibility path for a full commit SHA, arbitrary shell command, and caller-managed idempotency key.
-- `get_experiment`: current state and immutable experiment specification.
+- `get_experiment`: current state, immutable specification, bounded `log_tail`, and `metrics.json` projection. This is the monitoring surface; it does not expose SSH or remote files.
 - `list_experiments`: recent experiments with optional state filters.
 - `cancel_experiment`: cancel queued work immediately or request cancellation of active work.
 - `list_artifacts`: durable output path and registered artifact names.
@@ -293,7 +298,8 @@ Scope mapping:
 | `read` | usage guide, options, research workspace, next actions, experiment queries, artifact listing, and cost queries |
 | `submit` | research updates, close_run, prepare, prepared submission, and Advanced direct submission |
 | `cancel` | `cancel_experiment` |
-| `configure` | register and verify Project repositories; register or disable dataset paths below an approved workspace root |
+| `configure` | register and verify Project repositories; register or disable trusted-workspace dataset paths and AutoDL dataset bindings |
+| `operate_nodes` | register Cloud SSH hosts and rotate their credentials; off by default and not included in `configure` |
 
 Issue the minimum scopes needed by the third-party Agent.
 
@@ -348,7 +354,7 @@ Money values are milli-CNY. Submission fails when the reservation exceeds either
 
 ## Execution boundary
 
-Submission is durable even when dispatch is disabled. With `GEMCP_SCHEDULER_ENABLED=false`, accepted experiments remain `queued` and no paid Provider resource is created. Existing Attempts are still reconciled and settled. Enabling the flag activates FIFO dispatch for the validated Private Cloud account.
+Submission remains durable while dispatch is disabled. With `GEMCP_SCHEDULER_ENABLED=false`, `prepare_experiment` includes a scheduler warning but the proposal remains eligible. After exact-digest confirmation, whether submitted by the Agent or confirmed in the Owner console, both prepared and Advanced paths persist the Experiment as `queued` and create no compute resource. Set `GEMCP_SCHEDULER_ENABLED=true` and restart Gemcp to begin FIFO dispatch, then confirm a current scheduler heartbeat and the selected backend's readiness. Existing Attempts are still reconciled and settled while new dispatch is off.
 
 `cancel_experiment` immediately releases a queued reservation. For provisioning or active work, it records a durable stop request for the scheduler and independent Watchdog. Agents cannot select arbitrary Provider resources, retrieve Runner credentials, or operate raw machines.
 

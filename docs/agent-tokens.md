@@ -48,6 +48,23 @@ The response contains no secret:
 
 Token `status` is `active`, `expired`, or `revoked`. Expiry is evaluated at response time. Expired records remain visible for audit history but fail authentication. The endpoint returns the newest 200 Tokens and sets `truncated: true` when older history exists.
 
+## Agent Readiness
+
+```http
+GET /api/v1/projects/<project-uuid>/agent-readiness
+```
+
+Owner-only. This is the same compute picture an Agent gets from `get_project_options`, plus Token bindings and next actions. It does **not** probe Cloud SSH hosts.
+
+The response contains no secrets:
+
+- `status`: `ready`, `blocked`, `waiting_agent`, or `waiting_compute`
+- `agents`: scopes, `last_used_at` (MCP heartbeat), and Cloud SSH nodes that Agent registered
+- `compute.ssh_cloud` / `compute.self_hosted`: readiness, blockers, `last_probed_at` / `last_seen_at`, and whether a Cloud SSH node is bound to this Project
+- `heartbeats` and `instructions`: tell the Agent to inspect with `get_project_options` and monitor with `get_experiment`
+
+Agents are Project-scoped. They are not exclusively bound to one node. `last_used_at` updates on every authenticated MCP call. Self-hosted `last_seen_at` is the `gemcp-node` heartbeat. Cloud SSH `last_probed_at` updates when `get_project_options` probes or the Owner probes.
+
 The same response includes `enrollments`, containing only setup metadata such as label, requested scopes, status, expiry, claim/completion timestamps, and issued Token prefix. It never includes a setup code, setup URL, or Token secret. The newest 50 enrollments are returned, with `enrollments_truncated: true` when older history exists.
 
 ## Create an MCP setup link
@@ -64,11 +81,11 @@ X-CSRF-Token: <session-csrf-token>
   "scopes": ["read", "submit", "cancel"],
   "expires_in_days": 30,
   "never_expires": false,
-  "setup_expires_in_minutes": 30
+  "setup_expires_in_minutes": 240
 }
 ```
 
-`read` is mandatory because setup verifies the guide, options, and cost tools. Setup validity must be 5 to 1440 minutes, and each project may have at most 20 unexpired pending or claimed links. The `201 Created` response returns `setup_url` exactly once. Its 256-bit code appears only after `#code=` in the URL fragment, so browsers do not include it in setup-page requests, access logs, or Referer headers.
+`read` is mandatory because setup verifies the guide, options, and cost tools. Setup validity defaults to 240 minutes and must be 5 to 1440 minutes; each project may have at most 20 unexpired pending or claimed links. The `201 Created` response returns `setup_url` exactly once. Its 256-bit code appears only after `#code=` in the URL fragment, so browsers do not include it in setup-page requests, access logs, or Referer headers.
 
 The trusted installer uses these public endpoints:
 
@@ -79,7 +96,7 @@ POST /api/v1/agent-enrollments/complete
 
 Installer downloads, enrollment requests, and MCP verification use `User-Agent: Gemcp-Pi-Setup/1` so reverse proxies can identify the machine client. This header is not authentication; setup code and Agent Bearer Token checks remain mandatory.
 
-Claim is retryable until setup completes and creates a provisional Token limited to `read` and the setup deadline. After all twenty-one tools plus the guide, options, and cost checks pass, complete atomically applies the Owner-selected scopes and full credential lifetime. Completion is idempotent so a lost final HTTP response can be retried safely. Invalid, expired, revoked, or completed claims return the same `410 AGENT_SETUP_INVALID` response.
+Claim is retryable until setup completes and creates a provisional Token limited to `read` and the setup deadline. After all twenty-six tools plus the guide, options, and cost checks pass, complete atomically applies the Owner-selected scopes and full credential lifetime. Completion is idempotent so a lost final HTTP response can be retried safely. Invalid, expired, revoked, or completed claims return the same `410 AGENT_SETUP_INVALID` response.
 
 The Owner can revoke pending or claimed enrollment:
 
@@ -110,7 +127,7 @@ X-CSRF-Token: <session-csrf-token>
 Rules:
 
 - `label` is required and at most 120 characters.
-- Allowed scopes are `read`, `submit`, `cancel`, and `configure`; at least one is required. `configure` can register repositories in the Token's Project and dataset paths below an already Owner-approved trusted workspace root, but cannot authorize a new host root.
+- Allowed scopes are `read`, `submit`, `cancel`, `configure`, and `operate_nodes`; at least one is required. `configure` can register repositories in the Token's Project and dataset paths below an already Owner-approved trusted workspace root, but cannot authorize a new host root. `operate_nodes` can register Cloud SSH hosts and rotate their credentials. It is off by default and is not included in `configure`.
 - `expires_in_days` must be between 1 and 3650. It defaults to 90 when omitted.
 - Set `never_expires` to `true` and omit `expires_in_days` for a non-expiring credential.
 - A project can have at most 50 unexpired active Tokens.
@@ -184,9 +201,10 @@ Gemcp records `agent_token.revoked` once when status first changes. Owners may l
 
 ## Console workflow
 
-1. Sign in as Owner, select the project, and open **Agents**.
-2. Choose **MCP setup link**, select minimum scopes plus finite setup and credential lifetimes, and create the one-time link.
-3. Send the link only to the intended private Agent session. It is a bearer capability until completion and works for Pi, Codex, OpenCode, Claude Code, and Grok.
+1. Sign in as Owner, select the project, and read **Agent Readiness** on Research. It shows usable Agents, bound compute, and heartbeats.
+2. Use **Copy readiness** when an Agent is already connected: that prompt tells it to call `get_project_options` and lists the current binding.
+3. For Cloud SSH training, open **Agents** and choose **Handshake prompt**. That creates the one-time MCP setup link and a prompt that tells the Agent to enable Gemcp in the repository directory, register the host when `operate_nodes` is granted, then `prepare_experiment`. **MCP setup link** remains the thinner enrollment-only path.
+3. Send the handshake (or the link alone) only to the intended private Agent session. The setup URL is a bearer capability until completion and works for Pi, Codex, OpenCode, Claude Code, and Grok.
 4. Let the Agent enable Gemcp MCP in the research repository directory; do not copy a Token into chat.
 5. Confirm the enrollment becomes **Completed** and the Agent reports all four checks, then let it reload or restart its MCP client once.
 6. Require the Agent to present the full commit, command, runtime, approved resource, idempotency key, and worst-case reservation before paid work.

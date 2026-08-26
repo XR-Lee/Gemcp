@@ -1,6 +1,6 @@
 # Gemcp MCP Agent Operating Guide
 
-This document is for an AI or automation Agent connected to a Gemcp MCP server. Gemcp schedules bounded AutoDL and authorized Self-hosted experiments. It does not provide arbitrary host access, Provider credentials, SSH, or a general-purpose cloud API.
+This document is for an AI or automation Agent connected to a Gemcp MCP server. Gemcp schedules bounded AutoDL, authorized Self-hosted, and experimental Cloud SSH experiments. It does not provide arbitrary host access, Provider credentials, SSH material, or a general-purpose cloud API.
 
 ## Non-negotiable rules
 
@@ -13,7 +13,7 @@ This document is for an AI or automation Agent connected to a Gemcp MCP server. 
 7. Wait for explicit human approval of the exact confirmation digest before calling `submit_prepared_experiment`.
 8. Submit a prepared proposal using only its proposal ID and exact digest. Never alter fields between preparation and submission.
 9. A proposal retry uses the same proposal ID and digest and returns the same Experiment. A failed paid Experiment is never automatically resubmitted.
-10. After submission, Gemcp writes the Graph `run` node. Monitor the Experiment to a terminal state, then call `close_run` with the approved metric. Do not invent a result while the Experiment is still running. Do not infer success from Provider or Node startup alone.
+10. After submission, Gemcp writes the Graph `run` node. Monitor with `get_experiment` (`state`, `log_tail`, `metrics`). Then call `close_run`; omit `metric_name` to copy the prepared `expected_metric` from that view. Do not invent a result while the Experiment is still running. Do not SSH, fetch remote files, or infer metrics from logs. Do not infer success from Provider or Node startup alone.
 11. Use `cancel_experiment` when the human cancels work or when the submitted Experiment should no longer run.
 12. Use `submit_experiment` only when the human explicitly requests the Advanced shell-command compatibility path.
 
@@ -83,7 +83,7 @@ A typical update is:
 }
 ```
 
-`prepare_experiment` requires `from_node_id` when the Project has an active Study. That ID must be a hypothesis or plan node and is bound into the confirmation digest the Owner approves. `submit_prepared_experiment` then writes the `run` node. `produced` edges are only legal from `run` to `result`, and only `close_run` may write that result. Historical evidence uses `observation` nodes hung off a hypothesis with `leads_to`; do not leave observations unlinked. The Graph is the human-visible lineage; argv, image, GPU, logs, and cleanup stay in Experiment detail. Multiple Studies require an explicit `study_id`.
+`prepare_experiment` requires `from_node_id` when the Project has an active Study. That ID must be a hypothesis or plan node and is bound into the confirmation digest the Owner approves. `submit_prepared_experiment` then writes the `run` node. `produced` edges are only legal from `run` to `result`, and only `close_run` may write that result. Historical evidence uses `observation` nodes hung off a hypothesis with `leads_to`; do not leave observations unlinked. Set `occurred_at` from `git log -1 --format=%cI <sha>` and pass `commit_sha`; the Owner axis uses that evidence time, not the MCP write time. The Graph is still claim-based, not one node per commit. argv, image, GPU, logs, and cleanup stay in Experiment detail. Multiple Studies require an explicit `study_id`.
 
 ## Required workflow
 
@@ -112,9 +112,17 @@ The tool call contains transport context that the user should not have to copy:
 }
 ```
 
-Omit `repository` and `repository_remote` when the authenticated Project has exactly one active repository. Omit `ref` to use its default branch. Omit Environment and Resource Profile selectors to use an unambiguous compatible default.
+Omit `repository` and `repository_remote` when the authenticated Project has exactly one active repository. Omit `ref` to use its default branch. Omit Environment and Resource Profile selectors to use an unambiguous compatible default. `runtime_preset` may be `smoke` (300s), `probe` (3600s), or `train` (up to the Project `max_runtime_seconds`). Probe and train on AutoDL require a registered dataset binding under `/root/autodl-fs/`.
 
-For Self-hosted inspection, `get_project_options.self_hosted_nodes` is generated from current Node heartbeats and Project authorization rather than runtime records. A discovered GPU can therefore appear before it is selectable. Treat `readiness=runtime_configuration_required` as an Owner configuration requirement: report the Node label and GPU model and ask the Owner either to approve one trusted host workspace or to create an Advanced digest-pinned runtime. Do not invent a host path or silently fall back to AutoDL. Other fixed blockers include `gpu_busy`, `node_incompatible`, `node_not_online`, `node_stale`, `argv_upgrade_required`, `workspace_upgrade_required`, `dataset_upgrade_required`, and `node_busy`.
+For Self-hosted inspection, `get_project_options.self_hosted_nodes` is generated from current Node heartbeats and Project authorization rather than runtime records. A discovered GPU can therefore appear before it is selectable. Treat `readiness=runtime_configuration_required` as an Owner configuration requirement: report the Node label and GPU model and ask the Owner either to approve one trusted host workspace or to create an Advanced digest-pinned runtime. Do not invent a host path or silently fall back to AutoDL or Cloud SSH. Other fixed blockers include `gpu_busy`, `node_incompatible`, `node_not_online`, `node_stale`, `argv_upgrade_required`, `workspace_upgrade_required`, `dataset_upgrade_required`, and `node_busy`.
+
+For Cloud SSH inspection, `get_project_options.ssh_cloud_nodes` is experimental. The control plane probes registered nodes during this call. Each entry includes `experimental: true` and a warning that the control plane holds host login credentials. Present that warning during confirmation. Do not ask the Owner to click Probe or Authorize. Do not invent an SSH host, key, or password, and do not fall back to AutoDL or Self-hosted when the selected backend is `ssh_cloud`.
+
+`get_project_options.readiness` is the heartbeat contract. Your Token `last_used_at` updates on every authenticated MCP call; that is how the Owner sees you are alive. Self-hosted `last_seen_at` is the `gemcp-node` heartbeat. Cloud SSH `last_probed_at` updates when this tool probes or the Owner probes. You are Project-scoped, not exclusively bound to one node. After a run exists, monitor only with `get_experiment`. Do not SSH for logs or invent a private heartbeat.
+
+The Owner handshake prompt is the intended handoff: it contains the MCP setup link, whether `operate_nodes` is granted, and the prepare/train contract. Prepare a Cloud SSH host yourself, then register it with `register_ssh_cloud_node` when the Token has `operate_nodes`. That scope is off by default and is not included in `configure`. Credentials are write-only. Probe only checks connectivity and pins the host key.
+
+Call `prepare_experiment` with `argv` and optional absolute `cwd`. Omit `image`. Repository is optional. The confirmation digest pins host, user, cwd, and argv and warns that there is no container isolation. Do not ask the Owner to pick an image. After submit, monitor only with `get_experiment`. Do not SSH again for logs. Fixed blockers include `host_key_changed`, `node_not_active`, `runtime_configuration_required`, and `node_busy`. A GPU is optional.
 
 When `execution_policy=trusted_workspace`, the Owner has intentionally exposed the returned `workspace_path` to this Project. Select that Environment and same-named Resource Profile together. You may pass an `image` such as `pytorch/pytorch:2.4.1-cuda12.1-cudnn9-runtime`; this parameter is rejected for every other Environment. Present the mutable-image warning and workspace path during confirmation. Inside the container use `${GEMCP_TRUSTED_WORKSPACE:?GEMCP_TRUSTED_WORKSPACE is required}` for shared code and data. A successful run records the resolved digest in `successful_images`, after which omitting `image` reuses the latest successful image. Physical Node selection otherwise remains server-owned.
 
@@ -187,6 +195,8 @@ get_experiment {"experiment_id":"..."}
 list_experiments {"limit":20}
 ```
 
+`get_experiment` is the monitoring surface. It already includes the bounded log tail and `metrics.json` projection for AutoDL, Self-hosted, and Cloud SSH. Do not ask Gemcp to open SSH, download remote files, or analyze logs into a metric. Workloads write `${GEMCP_OUTPUT_DIR}/metrics.json`; Gemcp copies that object onto the Experiment.
+
 Typical states:
 
 ```text
@@ -252,6 +262,9 @@ The optional context is limited to repository remote, ref, and Experiment ID. `m
 | `list_workspace_datasets` | List declared dataset paths below approved workspace roots | `read` |
 | `register_workspace_dataset` | Declare a normalized relative dataset path | `configure` |
 | `remove_workspace_dataset` | Disable a dataset declaration without deleting data | `configure` |
+| `list_dataset_bindings` | List AutoDL dataset bindings for Public Elastic and Private Cloud | `read` |
+| `register_dataset_binding` | Register a `/root/autodl-fs/` dataset root and `GEMCP_DATASET_*` variable | `configure` |
+| `remove_dataset_binding` | Disable an AutoDL dataset binding without deleting data | `configure` |
 | `get_research_workspace` | Return Studies, the selected plan, Graph, and legal next actions | `read` |
 | `update_research_workspace` | Create or update a Study, plan, or Graph node without starting a workload | `submit` |
 | `get_next_actions` | Return the only Graph-legal next actions for the selected Study | `read` |

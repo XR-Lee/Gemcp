@@ -14,7 +14,10 @@ Gemcp is an independent implementation. These projects inform specific design ch
 - VS Code MCP server configuration: `https://code.visualstudio.com/docs/copilot/chat/mcp-servers`.
 - OpenAI Codex Streamable HTTP and bearer-token configuration: `https://developers.openai.com/codex/mcp`.
 - Grok Build project MCP configuration: `https://docs.x.ai/build/features/mcp-servers`.
+- AutoDL Public Elastic Developer API: `https://www.autodl.com/docs/esd_api_doc/`.
+- AutoDL common Developer API, including public wallet balance: `https://www.autodl.com/docs/common_api/`.
 - AutoDL Private Cloud Developer API: `https://private.autodl.com/docs/esd_api_doc/`.
 - AutoDL Private Cloud image and storage behavior: `https://private.autodl.com/docs/image/` and `https://private.autodl.com/docs/fs/`.
+- golang.org/x/crypto/ssh: outbound Cloud SSH client, host-key fingerprints, and private-key parsing.
 
 Production behavior is validated against current official AutoDL documentation and live phase-zero probes.

@@ -16,6 +16,9 @@ const expectedDirectTools = [
   'list_workspace_datasets',
   'register_workspace_dataset',
   'remove_workspace_dataset',
+  'list_dataset_bindings',
+  'register_dataset_binding',
+  'remove_dataset_binding',
   'get_research_workspace',
   'update_research_workspace',
   'get_next_actions',
@@ -30,8 +33,10 @@ const expectedDirectTools = [
   'list_experiments',
   'cancel_experiment',
   'list_artifacts',
+  'register_ssh_cloud_node',
+  'rotate_ssh_cloud_node_credential',
 ]
-const allowedScopes = ['read', 'submit', 'cancel', 'configure']
+const allowedScopes = ['read', 'submit', 'cancel', 'configure', 'operate_nodes']
 
 function isExpectedScopes(scopes) {
   if (!Array.isArray(scopes) || scopes.length === 0 || scopes[0] !== 'read' || scopes.length !== new Set(scopes).size) return false

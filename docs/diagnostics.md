@@ -1,6 +1,6 @@
 # Backend diagnostics
 
-Gemcp provides an Owner-only Diagnostics workspace for bounded end-to-end checks of the `autodl_private` and `self_hosted` execution backends. A diagnostic is a real immutable Experiment, not a control-plane-only probe. It exercises the registered Git commit archive, scheduler, Attempt creation, backend provisioning, source transfer, container GPU access, callbacks, managed output, settlement, and cleanup path used by normal workloads.
+Gemcp provides an Owner-only Diagnostics workspace for bounded end-to-end checks of the `autodl_elastic`, `autodl_private`, and `self_hosted` execution backends. Public Pro is not a diagnostic execution backend. Experimental Cloud SSH can store a `ssh_cloud` enum value but does not run this diagnostic suite in v1. A diagnostic is a real immutable Experiment, not a control-plane-only probe. It exercises the registered Git commit archive, scheduler, Attempt creation, backend provisioning, source transfer, container GPU access, callbacks, managed output, settlement, and cleanup path used by normal workloads.
 
 Diagnostics never fall back between backends. Select the Environment and Resource Profile for the backend that must be tested.
 
@@ -43,12 +43,14 @@ Preflight performs bounded read-only checks:
 - public callback URL and AutoDL Watchdog health;
 - exact commit archival, gzip/tar readability, entry count, path/link safety, and payload bounds;
 - current-period Project budget and per-Experiment cap;
-- AutoDL Provider credential/API reachability, matching idle GPU inventory, and image discovery;
+- AutoDL Provider credential/API reachability, matching idle GPU inventory in the selected region where applicable, and image discovery;
 - Self-hosted feature enablement, digest-pinned image, recent Node heartbeat, Project authorization, idle Assignment state, and exact GPU model match.
 
 A full Project or global concurrency limit is a warning because the diagnostic can remain queued. Unsafe source, unhealthy cleanup enforcement, missing callback configuration, unavailable matching backend capacity, invalid image policy, or insufficient budget blocks submission.
 
-AutoDL image discovery can be incomplete when the optional Web-console system-image endpoint rejects Developer Token authentication. A missing image in discovery is therefore a warning; the documented Provider create operation remains authoritative. A create rejection is captured in the real Attempt and backend timeline.
+AutoDL image discovery is backend-specific and can be incomplete. Private Cloud's optional Web-console system-image endpoint may reject Developer Token authentication. Public Elastic has no dynamic Developer API endpoint for official base images, so a valid documented or console-provided base-image UUID may be absent from discovery. A missing image is therefore a warning; the documented Provider create operation remains authoritative. A create rejection is captured in the real Attempt and backend timeline.
+
+For Public Elastic, the inventory endpoint reports individual idle cards in one region. It does not prove that multiple cards are colocated on a machine, so multi-GPU placement can still fail after a passing capacity preflight.
 
 Preflight archives the commit to verify it before confirmation. Submission repeats preflight so stale capacity, budget, repository, and runtime observations cannot authorize a run.
 

@@ -4,7 +4,7 @@ Status: implementation in progress
 
 Scope: Agent MCP experiment preparation, paid confirmation, workload and dataset selection, result observation, and compatibility with the existing advanced submission path.
 
-The first implementation slice now covers durable expiring proposals, sole-repository and compatible-default resolution, server-side ref resolution, one-shot argv, zero-cost preflight, digest-confirmed idempotent submission, and shell-free argv execution in AutoDL and capability-compatible Self-hosted Nodes. Repository URL onboarding, named manifest workloads, Dataset Bindings, richer generic observations, and standing approvals remain later slices.
+The first implementation slice now covers durable expiring proposals, sole-repository and compatible-default resolution, server-side ref resolution, one-shot argv, zero-cost preflight, digest-confirmed idempotent submission, and shell-free argv execution in AutoDL and capability-compatible Self-hosted Nodes. Prepared presets now include `smoke`, `probe`, and `train` up to Owner-unfrozen Project runtime. AutoDL Dataset Bindings inject `GEMCP_DATASET_*` from `/root/autodl-fs/` roots. The Owner console can PATCH Project policy, register those bindings, and confirm a prepared digest. Repository URL onboarding, named manifest workloads, richer generic observations, and standing approvals remain later slices.
 
 ## Summary
 
@@ -580,7 +580,7 @@ The Agent guide should make the prepared path normative and label direct submiss
 
 ### Phase 1a - prepared Agent path (delivered in v0.13.0)
 
-- Add a durable, 30-minute Experiment Proposal model.
+- Add a durable, two-hour Experiment Proposal model.
 - Add `prepare_experiment` and `submit_prepared_experiment` MCP tools.
 - Add the structured execution union end to end; execute `argv` without `/bin/sh` in the AutoDL Runner and capability-compatible Self-hosted Nodes.
 - Resolve a sole repository, its default ref, and compatible Project defaults without UUID input.
@@ -667,13 +667,13 @@ The design is successful when:
 - Whether standing approvals apply to Agent Tokens, Projects, workload versions, or a combination.
 - Whether generic Experiment assessment should use the same classifications as Diagnostics or a smaller common vocabulary.
 
-The initial proposal lifetime is 30 minutes and proposals are immutable. Refreshing means preparing a replacement proposal. Gemcp resolves repository refs directly and stores the resulting full SHA; an Agent-supplied SHA is useful context but is never the execution authority without server verification.
+The current proposal lifetime is two hours and proposals are immutable. Refreshing means preparing a replacement proposal. Gemcp resolves repository refs directly and stores the resulting full SHA; an Agent-supplied SHA is useful context but is never the execution authority without server verification.
 
 ## Current implementation anchors
 
 - [`internal/experiment/proposal_prepare.go`](../internal/experiment/proposal_prepare.go) resolves and persists zero-cost prepared proposals.
 - [`internal/experiment/proposal_submit.go`](../internal/experiment/proposal_submit.go) confirms drift and atomically creates the Experiment and reservation.
-- [`internal/mcpserver/server.go`](../internal/mcpserver/server.go) registers the ten MCP tools, including both prepared-path tools.
+- [`internal/mcpserver/server.go`](../internal/mcpserver/server.go) registers the twenty-six MCP tools, including both prepared-path tools.
 - [`internal/diagnostic/types.go`](../internal/diagnostic/types.go) defines the richer proposal and observation model.
 - [`docs/diagnostics.md`](diagnostics.md) documents the existing drift-protected two-stage confirmation workflow.
 - [`docs/execution.md`](execution.md) documents immutable execution, Runner output, deadline enforcement, and cleanup.

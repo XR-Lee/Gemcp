@@ -35,21 +35,19 @@ Content-Type: application/json
 
 The response includes `deploy_public_key`. Add it to that GitHub repository as a read-only Deploy Key. Do not enable write access.
 
-## Pin and verify the host
+## Verify the host and repository
 
-Obtain GitHub's current SSH host-key fingerprint from the official GitHub documentation through an independently trusted HTTPS connection. Do not trust the output of `ssh-keyscan` by itself.
-
-Then verify repository access:
+Gemcp ships a release-pinned copy of GitHub's official Ed25519 host fingerprint. Normal GitHub onboarding does not ask the Owner to transcribe it. Verify repository access after installing the read-only Deploy Key:
 
 ```http
 POST /api/v1/repositories/<repository-id>/verify
 X-CSRF-Token: <csrf-token>
 Content-Type: application/json
 
-{"host_key_fingerprint":"SHA256:<trusted-fingerprint>"}
+{}
 ```
 
-Gemcp scans `github.com`, requires one returned host key to match the pinned fingerprint, and performs a noninteractive read-only Git fetch with an isolated HOME, no system Git configuration, strict host-key checking, and the repository Deploy Key. The repository becomes `active` only after that succeeds.
+Gemcp scans `github.com`, requires one returned host key to match the release-pinned fingerprint, and performs a noninteractive read-only Git fetch with an isolated HOME, no system Git configuration, strict host-key checking, and the repository Deploy Key. The repository becomes `active` only after that succeeds. The optional `host_key_fingerprint` request field remains an Advanced override for a separately reviewed pin; never derive it from untrusted `ssh-keyscan` output alone.
 
 List registrations and retrieve their public Deploy Keys:
 

@@ -2,7 +2,7 @@
 
 ## Boundaries
 
-Gemcp is a private single-organization service. The initial data model remains tenant-aware, but the first release has one owner and one AutoDL provider account.
+Gemcp is a private single-organization service. The initial data model remains tenant-aware, but the first release has one owner and up to two AutoDL provider accounts: Private Cloud and Public Elastic.
 
 The control plane owns:
 
@@ -27,7 +27,9 @@ watchdog:     independent overdue-resource shutdown loop
 postgres:     authoritative durable state
 ```
 
-The FIFO scheduler runs in the controlplane process only when explicitly enabled. The watchdog remains a separate process so a stuck or unavailable HTTP path cannot disable shutdown enforcement. Each long-running role writes an independently visible PostgreSQL heartbeat.
+The FIFO scheduler runs in the controlplane process only when explicitly enabled. Loopback HTTP is an acceptable public origin for starting the scheduler so local Cloud SSH dispatch can run; AutoDL create still requires a credential-free HTTPS origin for Runner callbacks. The watchdog remains a separate process so a stuck or unavailable HTTP path cannot disable shutdown enforcement. Each long-running role writes an independently visible PostgreSQL heartbeat.
+
+Production scheduling has three independent backends. AutoDL Private Cloud and Public Elastic use official HTTP APIs. Self-hosted Nodes use a `gemcp-node` daemon that dials outbound HTTPS. Experimental Cloud SSH is the reverse: the control plane stores an encrypted SSH credential and starts the Agent's argv as a host process on a registered Linux host. Selecting the wrong backend fails; Gemcp does not silently change path. Cloud SSH details are in [Cloud SSH nodes](ssh-cloud-nodes.md).
 
 ## Durable coordination
 
@@ -39,25 +41,27 @@ The remote MCP endpoint uses the official Go SDK's Streamable HTTP transport. Ag
 
 ## Provider boundary
 
-The production AutoDL adapter uses documented Developer APIs; browser automation is excluded. Live phase zero selected **AutoDL Private Cloud Job** as the M0 execution backend. Public Elastic and Pro remain diagnostic clients, not production scheduling fallbacks.
+The production AutoDL adapter uses documented Developer APIs; browser automation is excluded. Production scheduling supports **AutoDL Private Cloud Job** (`autodl_private`) and **AutoDL Public Elastic Job** (`autodl_elastic`). Public Pro remains a phase-zero read-only client and is not a production scheduling fallback.
 
-Private Cloud differs materially from public Elastic: it has a separate API host, no Developer wallet endpoint, a non-regional GPU inventory, one `cuda_v` selector, and Provider statuses where `finished_num=1` may coexist with `status=running`. The official console's read-only system-image endpoint is used only to enumerate valid base-image UUIDs during phase zero.
+The two production AutoDL backends have separate contracts. Private Cloud uses `https://private.autodl.com`, has no Developer wallet endpoint, exposes non-regional GPU inventory, and uses one `cuda_v` selector. Public Elastic uses `https://api.autodl.com`, requires an enterprise-verified account for Elastic deployment APIs, queries GPU inventory one region at a time, and creates deployments with `container_template.dc_list` plus a CUDA range. A Public Elastic stock count represents individual idle GPUs and does not prove that multiple cards are available in one machine.
 
-The Provider adapter decrypts the credential only inside the controlplane or Watchdog process. Owner APIs expose normalized GPU, image, deployment, container, cache, and event views. Token rotation validates the candidate against all required read endpoints before an atomic encrypted update and audit event. Container access fields are intentionally absent from the decoded model.
+The Provider adapter decrypts the credential only inside the controlplane or Watchdog process. Owner APIs expose normalized GPU, image, deployment, container, cache, and event views. Token rotation validates the candidate against the required read endpoints for its official host before an atomic encrypted update and audit event. Public container inventory is queried per deployment because the documented API requires `deployment_uuid`. Container access fields, including root passwords, SSH commands, and public service URLs, are intentionally absent from the decoded model.
 
-Execution records every Provider request ID available in responses. The validated Private Cloud installation did not return request IDs, so deterministic resource names, persisted ownership before create, immutable local Attempt IDs, and reconciliation queries are mandatory. An Attempt makes at most one create request; an uncertain response is resolved by name before retrying at the experiment level. Truncated listings cannot prove absence.
+Image discovery is also backend-specific. Both backends expose user-private images through the Developer API. Private Cloud additionally attempts its optional Web-console system-image endpoint. Public Elastic has no dynamic system-image list endpoint in the Developer API, so approved public base-image UUIDs come from current AutoDL documentation or the console and may not appear in Provider discovery.
+
+Execution records every Provider request ID available in responses. The validated Private Cloud installation did not return request IDs, and callers cannot assume Public Elastic always returns one, so deterministic resource names, persisted ownership before create, immutable local Attempt IDs, and reconciliation queries remain mandatory. An Attempt makes at most one create request; an uncertain response is resolved by name before retrying at the experiment level. Truncated listings cannot prove absence.
 
 Stop intent is durable and monotonic. Agent cancel, Owner stop, emergency stop, deadline expiry, and budget enforcement all update owned resource rows. Scheduler and Watchdog idempotently converge those resources to stopped and deleted. Neither process adopts or mutates external resources.
 
 ## Storage boundary
 
-M0 uses an existing path under `/root/autodl-fs`. Experiment output remains in UUID-scoped project and experiment directories there. PostgreSQL stores bounded log tails, scalar metrics, Runner result fields, and paths, not large artifacts. The controlplane securely archives the exact verified private Git commit; an Attempt-scoped Runner Token retrieves it without exposing the Deploy private key to the experiment.
+M0 uses an existing path under `/root/autodl-fs`. Experiment output remains in UUID-scoped project and experiment directories there. PostgreSQL stores bounded log tails, scalar metrics, Runner result fields, and paths, not large artifacts. Cloud SSH copies those same bounded fields over Owner-held SSH before deleting the remote work directory; Agents see them only through `get_experiment`. The controlplane securely archives the exact verified private Git commit; an Attempt-scoped Runner Token retrieves it without exposing the Deploy private key to the experiment.
 
 Stopped-container reuse is an opportunistic cache. Correctness cannot depend on a cache hit.
 
 ## Security boundary
 
-Agent Bearer Tokens identify project-scoped principals and are stored as keyed hashes. Issuance and revocation are audited; token lists expose only prefix, scopes, status, expiry, and usage timestamps. Pi enrollment uses a short-lived fragment setup code stored only as a keyed hash; its retryable read-only Token is deterministically HMAC-derived and never stored recoverably. Verified completion atomically activates the Owner-selected scopes and lifetime. One-time MCP exports contain a live secret and are never persisted by Gemcp. AutoDL, Git Deploy Key, SMTP, and transient Runner credentials are encrypted with a master key that is not stored in PostgreSQL. GitHub host keys are pinned by trusted SHA256 fingerprint before a repository can become active.
+Agent Bearer Tokens identify project-scoped principals and are stored as keyed hashes. Issuance and revocation are audited; token lists expose only prefix, scopes, status, expiry, and usage timestamps. Pi enrollment uses a short-lived fragment setup code stored only as a keyed hash; its retryable read-only Token is deterministically HMAC-derived and never stored recoverably. Verified completion atomically activates the Owner-selected scopes and lifetime. One-time MCP exports contain a live secret and are never persisted by Gemcp. AutoDL, Git Deploy Key, SMTP, Cloud SSH host credentials, and transient Runner credentials are encrypted with a master key that is not stored in PostgreSQL. GitHub host keys are pinned by trusted SHA256 fingerprint before a repository can become active.
 
 Owner Sessions use Secure, HttpOnly, SameSite=Strict cookies plus CSRF validation for state-changing requests. API and MCP responses are marked `no-store`, including first-run and Agent enrollment responses that contain credentials. Provider responses expose only a credential-presence boolean; neither plaintext Token nor ciphertext has an API representation.
 
