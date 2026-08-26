@@ -69,13 +69,13 @@ const research = {
       created_at: '2026-08-17T17:00:00Z', updated_at: '2026-08-17T18:05:00Z',
     },
     nodes: [
-      { id: 'n-q', kind: 'question', title: 'OBJ-BG 遍历能否提高 ScanObjectNN 精度？', summary: '约束：不增加 GPU 小时。', status: 'open', created_at: '2026-08-17T16:00:00Z', updated_at: '2026-08-17T16:00:00Z' },
-      { id: 'n-h', kind: 'hypothesis', title: '噪声背景是精度上限', summary: '旧遍历把背景点带进局部邻域。', status: 'open', created_at: '2026-08-17T16:10:00Z', updated_at: '2026-08-17T16:10:00Z' },
-      { id: 'n-p', kind: 'plan', title: '先复现 baseline', summary: '同一仓库、同一 digest，只换评估脚本。', status: 'open', created_at: '2026-08-17T16:20:00Z', updated_at: '2026-08-17T16:20:00Z' },
-      { id: 'n-run', kind: 'run', title: 'OBJ-BG smoke', summary: 'prepared Experiment，未新开 GPU。', status: 'succeeded', experiment_id: experimentID, experiment_state: 'succeeded', created_at: '2026-08-17T17:40:00Z', updated_at: '2026-08-17T17:55:00Z' },
-      { id: 'n-r', kind: 'result', title: 'OBJ-BG smoke accuracy', summary: '现有 smoke Experiment 达到 86.4 overall accuracy。', status: 'succeeded', metric_name: 'overall_accuracy', metric_value: 86.4, experiment_id: experimentID, experiment_state: 'succeeded', created_at: '2026-08-17T18:00:00Z', updated_at: '2026-08-17T18:00:00Z' },
-      { id: 'n-o', kind: 'observation', title: '背景点仍进入 kNN', summary: '失败样本里邻域仍有桌面点。', status: 'open', created_at: '2026-08-17T18:02:00Z', updated_at: '2026-08-17T18:02:00Z' },
-      { id: 'n-d', kind: 'decision', title: '下一步只改遍历，不换模型', summary: '先验证假设，再谈更大的训练。', status: 'open', created_at: '2026-08-17T18:05:00Z', updated_at: '2026-08-17T18:05:00Z' },
+      { id: 'n-q', kind: 'question', title: 'OBJ-BG 遍历能否提高 ScanObjectNN 精度？', summary: '约束：不增加 GPU 小时。', status: 'open', occurred_at: '2024-03-12T00:00:00Z', commit_sha: 'aa11bb22cc33', created_at: '2026-08-17T16:00:00Z', updated_at: '2026-08-17T16:00:00Z' },
+      { id: 'n-h', kind: 'hypothesis', title: '噪声背景是精度上限', summary: '旧遍历把背景点带进局部邻域。', status: 'open', occurred_at: '2024-06-01T09:00:00Z', commit_sha: 'bb22cc33dd44', created_at: '2026-08-17T16:10:00Z', updated_at: '2026-08-17T16:10:00Z' },
+      { id: 'n-p', kind: 'plan', title: '先复现 baseline', summary: '同一仓库、同一 digest，只换评估脚本。', status: 'open', occurred_at: '2025-02-18T10:00:00Z', created_at: '2026-08-17T16:20:00Z', updated_at: '2026-08-17T16:20:00Z' },
+      { id: 'n-run', kind: 'run', title: 'OBJ-BG smoke', summary: 'prepared Experiment，未新开 GPU。', status: 'succeeded', experiment_id: experimentID, experiment_state: 'succeeded', occurred_at: '2026-08-17T17:40:00Z', commit_sha: '0123456789012345678901234567890123456789', created_at: '2026-08-17T17:40:00Z', updated_at: '2026-08-17T17:55:00Z' },
+      { id: 'n-r', kind: 'result', title: 'OBJ-BG smoke accuracy', summary: '现有 smoke Experiment 达到 86.4 overall accuracy。', status: 'succeeded', metric_name: 'overall_accuracy', metric_value: 86.4, experiment_id: experimentID, experiment_state: 'succeeded', occurred_at: '2026-08-17T17:55:00Z', commit_sha: '0123456789012345678901234567890123456789', created_at: '2026-08-17T18:00:00Z', updated_at: '2026-08-17T18:00:00Z' },
+      { id: 'n-o', kind: 'observation', title: '背景点仍进入 kNN', summary: '失败样本里邻域仍有桌面点。', status: 'open', occurred_at: '2025-11-02T18:04:00Z', commit_sha: 'cc33dd44ee55', created_at: '2026-08-17T18:02:00Z', updated_at: '2026-08-17T18:02:00Z' },
+      { id: 'n-d', kind: 'decision', title: '下一步只改遍历，不换模型', summary: '先验证假设，再谈更大的训练。', status: 'open', occurred_at: '2025-11-03T09:00:00Z', created_at: '2026-08-17T18:05:00Z', updated_at: '2026-08-17T18:05:00Z' },
     ],
     edges: [
       { id: 'e1', from_id: 'n-q', to_id: 'n-h', relation: 'leads_to' },
@@ -112,20 +112,49 @@ function json(data: unknown, status = 200) {
   })
 }
 
-function match(url: URL, method: string): Response | null {
+function match(url: URL, method: string, body?: unknown): Response | null {
   const path = url.pathname
-  if (path === '/api/v1/version') return json({ name: 'Gemcp', version: '0.16.1', commit: '0b68bed', built_at: '2026-08-17T18:00:00Z' })
+  if (path === '/api/v1/version') return json({ name: 'Gemcp', version: '0.19.0', commit: 'preview', built_at: '2026-08-25T00:00:00Z' })
   if (path === '/api/v1/setup/status') return json({ initialized: true })
   if (path === '/api/v1/auth/me') return json({ user_id: 'owner-id', tenant_id: 'tenant-id', email: 'owner@lab.local', role: 'owner' })
   if (path === '/api/v1/auth/logout' && method === 'POST') return json(undefined, 204)
   if (path === '/api/v1/runtime/status') {
     return json({
-      scheduler_enabled: true, self_hosted_enabled: true, global_concurrency: 2, public_url_configured: true,
+      scheduler_enabled: true, self_hosted_enabled: true, ssh_cloud_enabled: true, global_concurrency: 2, public_url_configured: true, public_url_https: true,
       scheduler_healthy: true, watchdog_healthy: true, notification_worker_healthy: true,
       generated_at: '2026-08-17T18:05:00Z',
     })
   }
   if (path === '/api/v1/projects') return json([project])
+  if (path === `/api/v1/projects/${projectID}` && method === 'PATCH') {
+    const update = body && typeof body === 'object' ? body : {}
+    Object.assign(project, update)
+    return json({ ...project })
+  }
+  if (path === `/api/v1/projects/${projectID}/dataset-bindings` && method === 'GET') {
+    return json([{
+      id: 'binding-scanobjectnn', project_id: projectID, name: 'scanobjectnn-objbg', backend: 'autodl_elastic',
+      canonical_root: '/root/autodl-fs/datasets/ScanObjectNN', environment_variable: 'GEMCP_DATASET_SCANOBJECTNN_OBJBG',
+      required_markers: ['main_split/train.h5'], status: 'active',
+    }])
+  }
+  if (path === `/api/v1/projects/${projectID}/dataset-bindings` && method === 'POST') {
+    return json({
+      id: 'binding-new', project_id: projectID, name: 'new-dataset', backend: 'autodl_elastic',
+      canonical_root: '/root/autodl-fs/datasets/new', environment_variable: 'GEMCP_DATASET_NEW_DATASET',
+      required_markers: [], status: 'active',
+    }, 201)
+  }
+  if (path.startsWith(`/api/v1/projects/${projectID}/dataset-bindings/`) && method === 'DELETE') {
+    return json({
+      id: 'binding-scanobjectnn', project_id: projectID, name: 'scanobjectnn-objbg', backend: 'autodl_elastic',
+      canonical_root: '/root/autodl-fs/datasets/ScanObjectNN', environment_variable: 'GEMCP_DATASET_SCANOBJECTNN_OBJBG',
+      required_markers: ['main_split/train.h5'], status: 'disabled',
+    })
+  }
+  if (path.includes('/experiment-proposals/') && path.endsWith('/submit') && method === 'POST') {
+    return json({ experiment: experiments[0], idempotent: false })
+  }
   if (path === `/api/v1/projects/${projectID}/research`) return json(research)
   if (path === `/api/v1/projects/${projectID}/operations`) {
     return json({
@@ -133,7 +162,16 @@ function match(url: URL, method: string): Response | null {
         id: 'activity-1', agent_label: 'training-agent', agent_token_prefix: 'gmc_abcd123',
         phase: 'monitoring', experiment_id: experimentID, at: '2026-08-17T18:05:00Z',
       }],
-      proposals: [],
+      proposals: [{
+        id: 'proposal-elastic-1', status: 'prepared', eligible: true, agent_label: 'training-agent',
+        agent_token_prefix: 'gmc_abcd123', repository_name: 'dynamic-point-mamba', requested_ref: 'autoresearch/m1-gapdelta-confirm-20260824',
+        commit_sha: '0123456789012345678901234567890123456789', display_command: 'python tools/smoke.py --hostname',
+        backend: 'autodl_elastic', environment_name: 'public-elastic', image: 'image-uuid', resource_profile_name: 'rtx4090',
+        gpu_models: ['RTX 4090'], gpu_num: 1, runtime_preset: 'smoke', max_runtime_seconds: 300,
+        reserved_cost_milli: 3825, checks: [{ id: 'budget', status: 'pass', summary: 'Budget can reserve' }],
+        confirmation_digest: 'sha256:' + 'ab'.repeat(32), created_at: '2026-08-27T16:00:00Z',
+        updated_at: '2026-08-27T16:00:00Z', expires_at: '2026-08-27T18:00:00Z',
+      }],
       generated_at: '2026-08-17T18:05:00Z',
     })
   }
@@ -187,6 +225,48 @@ function match(url: URL, method: string): Response | null {
       ledger: [], audit: [],
     })
   }
+  if (path === `/api/v1/projects/${projectID}/agent-readiness`) {
+    return json({
+      project_id: projectID, project_name: project.name, status: 'ready',
+      summary: '1 Agent(s) and 1 ready compute target(s). Binding is Project-scoped, not exclusive to one node.',
+      generated_at: '2026-08-17T18:05:00Z',
+      agents: [{
+        id: 'agent-token-1', label: 'default-agent', prefix: 'gmc_abcd123',
+        scopes: ['read', 'submit', 'cancel'], status: 'active', last_used_at: '2026-08-17T18:00:00Z',
+        can_read: true, can_submit: true, can_operate_nodes: false, bound_node_ids: ['ssh-cloud-1'],
+      }],
+      compute: {
+        ssh_cloud_enabled: true,
+        ssh_cloud: [{
+          id: 'ssh-cloud-1', label: 'cloud-4090', status: 'active', host: '203.0.113.10', user: 'ubuntu',
+          gpus: [{ name: 'NVIDIA GeForce RTX 4090', memory_bytes: 25769803776 }],
+          ready: true, readiness: 'ready', blockers: [], last_probed_at: '2026-08-17T18:00:00Z',
+          runtime_configured: true, bound_to_project: true, registered_by_kind: 'agent', registered_by_label: 'default-agent',
+        }],
+        self_hosted: [{
+          id: node.id, label: node.label, status: node.status, observed_state: node.observed_state,
+          gpus: [{ name: 'NVIDIA GeForce RTX 3090', memory_bytes: 25769803776 }],
+          ready: false, readiness: 'runtime_configuration_required', blockers: ['runtime_configuration_required'],
+          last_seen_at: node.last_seen_at, runtime_configured: false,
+        }],
+      },
+      heartbeats: {
+        agent_last_used_at: '2026-08-17T18:00:00Z',
+        ssh_cloud_last_probed_at: '2026-08-17T18:00:00Z',
+        self_hosted_last_seen_at: node.last_seen_at,
+        note: 'MCP last_used_at updates on every authenticated tool call. Monitor with get_experiment.',
+      },
+      next_actions: [
+        { kind: 'copy_readiness', title: 'Copy readiness prompt', detail: 'Tell the Agent to call get_project_options.' },
+        { kind: 'open_nodes', title: 'Open Nodes', detail: 'Finish Self-hosted runtime configuration.' },
+      ],
+      instructions: {
+        inspect_tool: 'get_project_options', monitor_tool: 'get_experiment',
+        heartbeat: 'MCP last_used_at updates on every authenticated tool call. Self-hosted last_seen_at is the gemcp-node heartbeat. Cloud SSH last_probed_at updates when get_project_options probes or the Owner probes. Monitor running work with get_experiment.',
+        binding: 'Agents are Project-scoped. They are not exclusively bound to one node.',
+      },
+    })
+  }
   if (path === `/api/v1/projects/${projectID}/agent-tokens`) {
     return json({
       tokens: [{
@@ -200,8 +280,37 @@ function match(url: URL, method: string): Response | null {
       config_template: { mcpServers: { 'gemcp-point-models': { type: 'http', url: 'https://gemcp.example.com/mcp', headers: { Authorization: 'Bearer ${GEMCP_AGENT_TOKEN}' } } } },
     })
   }
+  if (path === `/api/v1/projects/${projectID}/agent-enrollments` && method === 'POST') {
+    return json({
+      enrollment: {
+        id: 'enrollment-preview', project_id: projectID, label: 'preview-handshake',
+        scopes: ['read', 'submit', 'cancel', 'operate_nodes'], status: 'pending',
+        expires_at: '2026-08-27T01:00:00Z', token_expires_in_days: 90,
+        created_at: '2026-08-26T00:30:00Z', updated_at: '2026-08-26T00:30:00Z',
+      },
+      setup_url: 'https://gemcp.example.com/agent/setup#code=preview-one-time',
+    }, 201)
+  }
   if (path === '/api/v1/nodes') {
     return json({ nodes: [node], enrollments: [], assignments: [] })
+  }
+  if (path === '/api/v1/ssh-cloud-nodes') {
+    return json({
+      experimental: true,
+      warning: 'Experimental observer: Gemcp stores an encrypted SSH password or private key and opens outbound SSH.',
+      enabled: true,
+      nodes: [{
+        id: 'ssh-cloud-1', label: 'cloud-4090', status: 'active', experimental: true,
+        warning: 'Experimental observer: Gemcp stores an encrypted SSH password or private key.',
+        host: '203.0.113.10', port: 22, user: 'ubuntu', auth_method: 'private_key',
+        host_key_fingerprint: 'SHA256:preview-fingerprint', project_ids: [projectID],
+        created_actor_type: 'agent', created_actor_id: 'preview-token',
+        project_runtimes: [],
+        inventory: { gpus: [{ name: 'NVIDIA GeForce RTX 4090' }] },
+        created_at: '2026-08-22T10:00:00Z', updated_at: '2026-08-22T10:00:00Z',
+      }],
+      assignments: [],
+    })
   }
   if (path === `/api/v1/projects/${projectID}/self-hosted-runtimes`) {
     return json({
@@ -215,7 +324,7 @@ function match(url: URL, method: string): Response | null {
     backend: 'private', status: 'active', credential_configured: true,
     last_validated_at: '2026-08-17T18:00:00Z', created_at: '2026-08-01T00:00:00Z', updated_at: '2026-08-17T18:00:00Z',
   }
-  if (path === '/api/v1/provider') return json(provider)
+  if (path === '/api/v1/provider') return json({ providers: [provider] })
   if (path === '/api/v1/provider/query' && method === 'POST') {
     return json({
       generated_at: '2026-08-17T18:00:00Z', provider,
@@ -241,6 +350,14 @@ export function installPreviewMock() {
     const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url, window.location.origin)
     if (!url.pathname.startsWith('/api/')) return original(input, init)
     const method = (init?.method ?? (typeof input === 'object' && 'method' in input ? input.method : 'GET') ?? 'GET').toUpperCase()
-    return match(url, method) ?? json({ error: { code: 'NOT_FOUND', message: `${method} ${url.pathname}` } }, 404)
+    let body: unknown
+    if (typeof init?.body === 'string') {
+      try {
+        body = JSON.parse(init.body)
+      } catch {
+        // Non-JSON preview requests do not need a parsed body.
+      }
+    }
+    return match(url, method, body) ?? json({ error: { code: 'NOT_FOUND', message: `${method} ${url.pathname}` } }, 404)
   }
 }

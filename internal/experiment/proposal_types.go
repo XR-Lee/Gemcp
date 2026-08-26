@@ -18,10 +18,11 @@ const (
 )
 
 var (
-	ErrProposalNotFound = errors.New("experiment proposal not found")
-	ErrProposalExpired  = errors.New("experiment proposal expired")
-	ErrProposalChanged  = errors.New("experiment proposal changed after confirmation")
-	ErrProposalBlocked  = errors.New("experiment proposal preflight did not pass")
+	ErrProposalNotFound     = errors.New("experiment proposal not found")
+	ErrProposalExpired      = errors.New("experiment proposal expired")
+	ErrProposalChanged      = errors.New("experiment proposal changed after confirmation")
+	ErrProposalBlocked      = errors.New("experiment proposal preflight did not pass")
+	ErrConfirmationRequired = errors.New("review and explicitly confirm the immutable experiment proposal")
 )
 
 type ProposalRefResolver interface {
@@ -33,7 +34,7 @@ type ProposalArchiveReader interface {
 }
 
 type ProposalProviderReader interface {
-	QueryResources(context.Context, int) (provider.ResourceSnapshot, error)
+	QueryResources(context.Context, int, string) (provider.ResourceSnapshot, error)
 }
 
 type ProposalRuntimeReader interface {
@@ -43,6 +44,7 @@ type ProposalRuntimeReader interface {
 type ProposalConfig struct {
 	SourceMaxBytes    int64
 	SelfHostedEnabled bool
+	SSHCloudEnabled   bool
 	NodeStaleAfter    time.Duration
 	Lifetime          time.Duration
 }
@@ -52,11 +54,12 @@ type PrepareInput struct {
 	RepositoryRemote  string   `json:"repository_remote,omitempty" jsonschema:"registered Git remote; omit when the Project has exactly one active repository"`
 	Ref               string   `json:"ref,omitempty" jsonschema:"branch, tag, or full commit; omit to use the repository default branch"`
 	Argv              []string `json:"argv" jsonschema:"ordered program argument vector; shell interpreters are rejected"`
-	RuntimePreset     string   `json:"runtime_preset,omitempty" jsonschema:"runtime preset; phase one supports smoke"`
-	MaxRuntimeSeconds int      `json:"max_runtime_seconds,omitempty" jsonschema:"runtime at most 300 seconds for the smoke preset"`
+	RuntimePreset     string   `json:"runtime_preset,omitempty" jsonschema:"runtime preset: smoke (300s), probe (3600s), or train (up to the Project max runtime)"`
+	MaxRuntimeSeconds int      `json:"max_runtime_seconds,omitempty" jsonschema:"requested runtime; must stay within the selected preset and Project max_runtime_seconds"`
 	Environment       string   `json:"environment,omitempty" jsonschema:"approved environment name or ID; omit to resolve a compatible default"`
 	ResourceProfile   string   `json:"resource_profile,omitempty" jsonschema:"active resource profile name or ID; omit to resolve a compatible default"`
-	Image             string   `json:"image,omitempty" jsonschema:"public OCI image tag or digest; accepted only by an Owner-approved trusted Self-hosted workspace"`
+	Image             string   `json:"image,omitempty" jsonschema:"omit for Cloud SSH. Trusted Self-hosted workspace may pass a public name, tag, or digest"`
+	Cwd               string   `json:"cwd,omitempty" jsonschema:"optional remote absolute working directory for Cloud SSH; defaults to the login home"`
 	FromNodeID        string   `json:"from_node_id,omitempty" jsonschema:"Graph hypothesis or plan node ID; required when the Project has an active Study"`
 	ExpectedMetric    string   `json:"expected_metric,omitempty" jsonschema:"optional metric name the Owner should expect after close_run"`
 }
@@ -116,8 +119,22 @@ type ProposalResource struct {
 	WorkspacePath       string                          `json:"workspace_path,omitempty"`
 	NodeID              string                          `json:"node_id,omitempty"`
 	NodeLabel           string                          `json:"node_label,omitempty"`
+	Host                string                          `json:"host,omitempty"`
+	User                string                          `json:"user,omitempty"`
+	WorkingDirectory    string                          `json:"working_directory,omitempty"`
+	Isolation           string                          `json:"isolation,omitempty"`
 	ImageMutable        bool                            `json:"image_mutable,omitempty"`
 	WorkspaceDatasets   []nodeprotocol.WorkspaceDataset `json:"workspace_datasets,omitempty"`
+	DatasetBindings     []ProposalDatasetBinding        `json:"dataset_bindings,omitempty"`
+}
+
+type ProposalDatasetBinding struct {
+	ID                  string   `json:"id"`
+	Name                string   `json:"name"`
+	Backend             string   `json:"backend"`
+	CanonicalRoot       string   `json:"canonical_root"`
+	EnvironmentVariable string   `json:"environment_variable"`
+	RequiredMarkers     []string `json:"required_markers,omitempty"`
 }
 
 type PreparedProposal struct {
@@ -150,6 +167,11 @@ type PrepareResult struct {
 type SubmitPreparedInput struct {
 	ProposalID         string `json:"proposal_id" jsonschema:"prepared experiment proposal ID"`
 	ConfirmationDigest string `json:"confirmation_digest" jsonschema:"exact digest shown in the approved proposal"`
+}
+
+type OwnerSubmitPreparedInput struct {
+	ConfirmationDigest string `json:"confirmation_digest"`
+	Confirmed          bool   `json:"confirmed"`
 }
 
 type SubmitPreparedResult struct {

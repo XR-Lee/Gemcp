@@ -15,6 +15,10 @@ import (
 	entattempt "github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/auditevent"
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
+	"github.com/XR-Lee/Gemcp/ent/cloudsshassignment"
+	"github.com/XR-Lee/Gemcp/ent/cloudsshnode"
+	"github.com/XR-Lee/Gemcp/ent/cloudsshprojectaccess"
+	"github.com/XR-Lee/Gemcp/ent/datasetbinding"
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	entexperiment "github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
@@ -300,10 +304,14 @@ func (s *Service) cancelOnce(ctx context.Context, principal agentauth.Principal,
 }
 
 func (s *Service) Options(ctx context.Context, principal agentauth.Principal) (ProjectOptions, error) {
-	var result ProjectOptions
 	if !principal.HasScope("read") {
-		return result, ErrForbidden
+		return ProjectOptions{}, ErrForbidden
 	}
+	return s.projectOptions(ctx, principal, true)
+}
+
+func (s *Service) projectOptions(ctx context.Context, principal agentauth.Principal, ensureSSHCloud bool) (ProjectOptions, error) {
+	var result ProjectOptions
 	projectRecord, err := s.client.Project.Get(ctx, principal.ProjectID)
 	if ent.IsNotFound(err) || (err == nil && projectRecord.Status == "archived") {
 		return result, ErrProjectPaused
@@ -335,6 +343,12 @@ func (s *Service) Options(ctx context.Context, principal agentauth.Principal) (P
 	if err != nil {
 		return result, err
 	}
+	bindings, err := s.client.DatasetBinding.Query().Where(
+		datasetbinding.ProjectIDEQ(principal.ProjectID),
+	).Order(ent.Asc(datasetbinding.FieldBackend), ent.Asc(datasetbinding.FieldName)).All(ctx)
+	if err != nil {
+		return result, err
+	}
 	result.Project = ProjectPolicy{
 		ID: projectRecord.PublicID.String(), Name: projectRecord.Name, MonthlyBudgetMilli: projectRecord.MonthlyBudgetMilli,
 		MaxExperimentMilli: projectRecord.MaxExperimentMilli, MaxConcurrency: projectRecord.MaxConcurrency,
@@ -359,6 +373,14 @@ func (s *Service) Options(ctx context.Context, principal agentauth.Principal) (P
 			ID: record.PublicID.String(), Name: record.Name, Backend: string(record.Backend), Region: record.Region, GPUNames: record.GpuNames,
 			GPUNum: record.GpuNum, PriceFromMilli: record.PriceFromMilli, PriceToMilli: record.PriceToMilli,
 			ReuseContainer: record.ReuseContainer, IsDefault: record.IsDefault,
+		})
+	}
+	result.DatasetBindings = make([]DatasetBindingOption, 0, len(bindings))
+	for _, record := range bindings {
+		result.DatasetBindings = append(result.DatasetBindings, DatasetBindingOption{
+			ID: record.PublicID.String(), Name: record.Name, Backend: string(record.Backend),
+			CanonicalRoot: record.CanonicalRoot, EnvironmentVariable: record.EnvironmentVariable,
+			RequiredMarkers: append([]string(nil), record.RequiredMarkers...), Status: string(record.Status),
 		})
 	}
 	result.WorkspaceDatasets = make([]WorkspaceDatasetOption, 0, len(datasets))
@@ -444,7 +466,151 @@ func (s *Service) Options(ctx context.Context, principal agentauth.Principal) (P
 			option.SuccessfulImages = append([]string(nil), access.SuccessfulImages...)
 		}
 	}
+	if ensureSSHCloud && s.proposalConfig.SSHCloudEnabled && s.sshCloud != nil {
+		_, _ = s.sshCloud.EnsureForProject(ctx, principal.TenantID, "agent:"+principal.TokenPublicID, principal.ProjectPublicID, "")
+		if refreshed, refreshErr := s.client.Environment.Query().Where(
+			environment.ProjectIDEQ(principal.ProjectID), environment.StatusEQ("approved"),
+		).Order(ent.Desc(environment.FieldIsDefault), ent.Asc(environment.FieldName)).All(ctx); refreshErr == nil {
+			environments = refreshed
+			result.Environments = make([]EnvironmentOption, 0, len(environments))
+			for _, record := range environments {
+				result.Environments = append(result.Environments, EnvironmentOption{
+					ID: record.PublicID.String(), Name: record.Name, Backend: string(record.Backend), ImageUUID: record.ImageUUID, IsDefault: record.IsDefault,
+				})
+			}
+		}
+		if refreshed, refreshErr := s.client.ResourceProfile.Query().Where(
+			resourceprofile.ProjectIDEQ(principal.ProjectID), resourceprofile.StatusEQ("active"),
+		).Order(ent.Desc(resourceprofile.FieldIsDefault), ent.Asc(resourceprofile.FieldName)).All(ctx); refreshErr == nil {
+			profiles = refreshed
+			result.ResourceProfiles = make([]ResourceProfileOption, 0, len(profiles))
+			for _, record := range profiles {
+				result.ResourceProfiles = append(result.ResourceProfiles, ResourceProfileOption{
+					ID: record.PublicID.String(), Name: record.Name, Backend: string(record.Backend), Region: record.Region, GPUNames: record.GpuNames,
+					GPUNum: record.GpuNum, PriceFromMilli: record.PriceFromMilli, PriceToMilli: record.PriceToMilli,
+					ReuseContainer: record.ReuseContainer, IsDefault: record.IsDefault,
+				})
+			}
+		}
+	}
+	if err := s.appendSSHCloudOptions(ctx, principal, environments, profiles, &result); err != nil {
+		return result, err
+	}
+	result.Readiness = projectOptionsReadiness(result)
 	return result, nil
+}
+
+func (s *Service) appendSSHCloudOptions(ctx context.Context, principal agentauth.Principal, environments []*ent.Environment, profiles []*ent.ResourceProfile, result *ProjectOptions) error {
+	result.SSHCloudNodes = []SSHCloudNodeOption{}
+	if !s.proposalConfig.SSHCloudEnabled {
+		return nil
+	}
+	nodes, err := s.client.CloudSSHNode.Query().Where(
+		cloudsshnode.TenantIDEQ(principal.TenantID),
+		cloudsshnode.StatusNEQ(cloudsshnode.StatusRevoked),
+	).Order(ent.Asc(cloudsshnode.FieldLabel), ent.Asc(cloudsshnode.FieldID)).All(ctx)
+	if err != nil {
+		return err
+	}
+	busyNodes := map[int]bool{}
+	boundNodes := map[int]bool{}
+	if len(nodes) > 0 {
+		nodeIDs := make([]int, 0, len(nodes))
+		for _, node := range nodes {
+			nodeIDs = append(nodeIDs, node.ID)
+		}
+		assignments, err := s.client.CloudSSHAssignment.Query().Where(
+			cloudsshassignment.NodeIDIn(nodeIDs...),
+			cloudsshassignment.StateIn(cloudsshassignment.StateStarting, cloudsshassignment.StateRunning, cloudsshassignment.StateStopping, cloudsshassignment.StateCollecting),
+		).All(ctx)
+		if err != nil {
+			return err
+		}
+		for _, assignment := range assignments {
+			busyNodes[assignment.NodeID] = true
+		}
+		accesses, err := s.client.CloudSSHProjectAccess.Query().Where(
+			cloudsshprojectaccess.ProjectIDEQ(principal.ProjectID),
+			cloudsshprojectaccess.NodeIDIn(nodeIDs...),
+			cloudsshprojectaccess.StatusEQ(cloudsshprojectaccess.StatusActive),
+		).All(ctx)
+		if err != nil {
+			return err
+		}
+		for _, access := range accesses {
+			boundNodes[access.NodeID] = true
+		}
+	}
+	for _, node := range nodes {
+		gpus := sshCloudOptionGPUs(node.Inventory)
+		runtimeConfigured := sshCloudRuntimeConfigured(gpus, environments, profiles)
+		blockers := sshCloudOptionBlockers(node, runtimeConfigured, busyNodes[node.ID])
+		readiness := "ready"
+		if len(blockers) > 0 {
+			readiness = blockers[0]
+		}
+		result.SSHCloudNodes = append(result.SSHCloudNodes, SSHCloudNodeOption{
+			ID: node.PublicID.String(), Label: node.Label, Status: string(node.Status), Experimental: true, Warning: sshCloudAgentWarning,
+			Host: node.SSHHost, User: node.SSHUser, GPUs: gpus, RuntimeConfigured: runtimeConfigured,
+			Ready: len(blockers) == 0, Readiness: readiness, Blockers: blockers, LastProbedAt: node.LastProbedAt,
+			BoundToProject: boundNodes[node.ID],
+		})
+	}
+	return nil
+}
+
+func sshCloudOptionGPUs(inventory map[string]any) []SelfHostedGPUOption {
+	result := []SelfHostedGPUOption{}
+	switch values := inventory["gpus"].(type) {
+	case []any:
+		for _, value := range values {
+			gpu, ok := value.(map[string]any)
+			if !ok {
+				continue
+			}
+			name, _ := gpu["name"].(string)
+			name = strings.TrimSpace(name)
+			if name == "" {
+				continue
+			}
+			result = append(result, SelfHostedGPUOption{Name: name, MemoryBytes: int64(snapshotInt(gpu, "memory_bytes"))})
+		}
+	}
+	return result
+}
+
+func sshCloudRuntimeConfigured(gpus []SelfHostedGPUOption, environments []*ent.Environment, profiles []*ent.ResourceProfile) bool {
+	_ = gpus
+	approved := map[string]bool{}
+	for _, record := range environments {
+		if record.Backend == environment.BackendSSHCloud {
+			approved[record.Name] = true
+		}
+	}
+	for _, profile := range profiles {
+		if profile.Backend == resourceprofile.BackendSSHCloud && approved[profile.Name] {
+			return true
+		}
+	}
+	return false
+}
+
+func sshCloudOptionBlockers(node *ent.CloudSSHNode, runtimeConfigured, busy bool) []string {
+	result := make([]string, 0, 3)
+	switch node.Status {
+	case cloudsshnode.StatusHostKeyChanged:
+		result = append(result, "host_key_changed")
+	case cloudsshnode.StatusActive:
+	default:
+		result = append(result, "node_not_active")
+	}
+	if !runtimeConfigured {
+		result = append(result, "runtime_configuration_required")
+	}
+	if busy {
+		result = append(result, "node_busy")
+	}
+	return result
 }
 
 func selfHostedOptionGPUs(capabilities map[string]any) []SelfHostedGPUOption {

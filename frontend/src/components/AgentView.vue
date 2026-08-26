@@ -23,15 +23,19 @@ import {
   type AgentEnrollment,
   type AgentEnrollmentIssue,
   type AgentScope,
+  type AgentReadiness,
   type AgentToken,
   type AgentTokenIssue,
   type AgentTokenList,
   type Project,
+  type RuntimeStatus,
 } from '../api'
 import { localizedState, useI18n } from '../i18n'
+import { projectAgentSetupPrompt } from '../projectAgentSetupPrompt'
+import AgentReadinessPanel from './AgentReadinessPanel.vue'
 
-const props = defineProps<{ active: boolean; project: Project | null }>()
-const emit = defineEmits<{ unauthorized: [] }>()
+const props = defineProps<{ active: boolean; project: Project | null; runtime?: RuntimeStatus | null }>()
+const emit = defineEmits<{ unauthorized: []; openNodes: [] }>()
 
 const data = ref<AgentTokenList | null>(null)
 const loadedProjectID = ref('')
@@ -58,16 +62,17 @@ const revokingEnrollment = ref(false)
 const setupForm = reactive({
   label: '',
   expiration: '90',
-  linkExpiration: '30',
-  scopes: { read: true, submit: true, cancel: true, configure: false } as Record<AgentScope, boolean>,
+  linkExpiration: '240',
+  scopes: { read: true, submit: true, cancel: true, configure: false, operate_nodes: false } as Record<AgentScope, boolean>,
 })
 const form = reactive({
   label: '',
   expiration: '90',
-  scopes: { read: true, submit: true, cancel: true, configure: false } as Record<AgentScope, boolean>,
+  scopes: { read: true, submit: true, cancel: true, configure: false, operate_nodes: false } as Record<AgentScope, boolean>,
 })
-const scopeForm = reactive({ read: true, submit: false, cancel: false, configure: false } as Record<AgentScope, boolean>)
-const { languageTag, t } = useI18n()
+const scopeForm = reactive({ read: true, submit: false, cancel: false, configure: false, operate_nodes: false } as Record<AgentScope, boolean>)
+const readiness = ref<AgentReadiness | null>(null)
+const { languageTag, locale, t } = useI18n()
 
 const activeTokens = computed(() => data.value?.tokens.filter((item) => item.status === 'active').length ?? 0)
 const activeEnrollments = computed(() => data.value?.enrollments.filter((item) => item.status === 'pending' || item.status === 'claimed').length ?? 0)
@@ -77,9 +82,15 @@ const expiringTokens = computed(() => {
 })
 const selectedScopes = computed(() => (Object.keys(form.scopes) as AgentScope[]).filter((scope) => form.scopes[scope]))
 const selectedSetupScopes = computed(() => (Object.keys(setupForm.scopes) as AgentScope[]).filter((scope) => setupForm.scopes[scope]))
-const setupAgentMessage = computed(() => setupReveal.value
-  ? `${t('Set up Gemcp MCP for this Agent using the one-time link below. It works for Pi, Codex, OpenCode, Claude Code, and Grok. Enable Gemcp only in this research repository directory, then complete tool verification and credential storage yourself. Do not print or forward the link, and do not pass the complete link to a Web-fetch, search, or preview tool.', '请使用下面的一次性链接为此 Agent 设置 Gemcp MCP。Pi、Codex、OpenCode、Claude Code 和 Grok 都能用。只把 Gemcp 开在当前研究仓库目录里，然后自行完成工具验证和凭据存储。不要打印或转发此链接，也不要将完整链接传给 Web fetch、搜索或预览工具。')}\n\n${setupReveal.value.setup_url}`
-  : '')
+const setupAgentMessage = computed(() => {
+  if (!setupReveal.value) return ''
+  return projectAgentSetupPrompt({
+    locale: locale.value,
+    projectName: props.project?.name,
+    setupUrl: setupReveal.value.setup_url,
+    scopes: setupReveal.value.enrollment.scopes,
+  })
+})
 const configJSON = computed(() => reveal.value ? JSON.stringify(reveal.value.mcp_config, null, 2) : '')
 const templateJSON = computed(() => data.value?.config_template ? JSON.stringify(data.value.config_template, null, 2) : '')
 const ownerGuideURL = computed(() => guideURL('owner-mcp.md'))
@@ -111,8 +122,18 @@ async function load() {
   try {
     const loaded = await api.agentTokens(projectID)
     loaded.enrollments ??= []
+    let loadedReadiness: AgentReadiness | null = null
+    try {
+      loadedReadiness = await api.agentReadiness(projectID)
+    } catch (caught) {
+      if (caught instanceof APIError && caught.status === 401) {
+        emit('unauthorized')
+        return
+      }
+    }
     if (props.project?.id === projectID) {
       data.value = loaded
+      readiness.value = loadedReadiness
       loadedProjectID.value = projectID
     }
   } catch (caught) {
@@ -123,15 +144,20 @@ async function load() {
   }
 }
 
-function openSetup() {
+function resetSetupForm() {
   setupForm.label = ''
   setupForm.expiration = '90'
-  setupForm.linkExpiration = '30'
+  setupForm.linkExpiration = '240'
   setupForm.scopes.read = true
   setupForm.scopes.submit = true
   setupForm.scopes.cancel = true
   setupForm.scopes.configure = false
+  setupForm.scopes.operate_nodes = false
   setupError.value = ''
+}
+
+function openSetup() {
+  resetSetupForm()
   setupDialog.value = true
 }
 
@@ -185,6 +211,7 @@ function openIssue() {
   form.scopes.submit = true
   form.scopes.cancel = true
   form.scopes.configure = false
+  form.scopes.operate_nodes = false
   issueError.value = ''
   issueDialog.value = true
 }
@@ -384,16 +411,16 @@ watch(() => [props.active, props.project?.id] as const, ([active, projectID]) =>
 
     <header class="agent-heading">
       <div>
-        <p class="eyebrow">{{ t('Project credentials', 'Project 凭据') }}</p>
-        <h2>{{ t('Agent access', 'Agent 访问') }}</h2>
+        <p class="eyebrow">{{ t('Project registration', 'Project 注册') }}</p>
+        <h2>{{ t('Project Agents', 'Agent 访问') }}</h2>
         <p>{{ props.project?.name ?? t('Select a project', '请选择 Project') }}</p>
-        <p class="form-note">{{ t('Enable this MCP config in the research repository directory. The Token is Project-scoped; do not turn Gemcp on as a global MCP for every workspace.', '把这份 MCP 配置开在研究仓库的目录里。Token 属于整个 Project，但不要把 Gemcp 开成对所有工作区生效的全局 MCP。') }}</p>
+        <p class="form-note">{{ t('Register an Agent to this Project, then enable its MCP config in the research repository directory. Registration is Project-scoped and does not bind a GPU, node, or Provider.', '把 Agent 注册到此 Project，再在研究仓库目录里开启其 MCP 配置。注册只绑定 Project，不绑定 GPU、节点或 Provider。') }}</p>
       </div>
       <div class="agent-actions">
         <button class="secondary-button" type="button" :disabled="!agentGuideURL" @click="openGuide"><BookOpen :size="16" />{{ t('Guide', '指南') }}</button>
         <button class="secondary-button" type="button" :disabled="!props.project || !data?.mcp_url" @click="openIssue"><KeyRound :size="16" />Token</button>
         <button class="icon-button" type="button" :title="t('Refresh Agent access', '刷新 Agent 访问')" :disabled="loading || !props.project" @click="load"><RefreshCw :size="16" :class="{ spinning: loading }" /></button>
-        <button class="primary-button" type="button" :disabled="!props.project || !data?.mcp_url" @click="openSetup"><Link2 :size="16" />{{ t('MCP setup link', 'MCP Setup Link') }}</button>
+        <button class="primary-button" type="button" :disabled="!props.project || !data?.mcp_url" @click="openSetup"><Bot :size="16" />{{ t('Register Agent', '注册 Agent') }}</button>
       </div>
     </header>
 
@@ -413,8 +440,17 @@ watch(() => [props.active, props.project?.id] as const, ([active, projectID]) =>
         <div class="agent-template-action"><span>{{ t('Environment config', '环境变量配置') }}</span><button class="icon-button" type="button" :title="t('Copy environment-variable MCP template', '复制环境变量 MCP 模板')" :disabled="!templateJSON" @click="copy(templateJSON, 'template')"><Check v-if="copied === 'template'" :size="16" /><Clipboard v-else :size="16" /></button></div>
       </section>
 
+      <AgentReadinessPanel
+        :readiness="readiness"
+        :loading="loading && !readiness"
+        :runtime="runtime"
+        @handshake="openSetup"
+        @open-agents="openSetup"
+        @open-nodes="emit('openNodes')"
+      />
+
       <section class="agent-workspace agent-setup-workspace">
-        <div class="section-heading"><div><h2>{{ t('MCP Setup Links', 'MCP Setup Link') }}</h2><p>{{ data?.enrollments_truncated ? t('Latest 50 links. Setup secrets are never listed again.', '仅显示最新 50 条；Setup secret 不会再次列出。') : t('Short-lived one-time links that enroll Pi, Codex, OpenCode, Claude Code, or Grok in this research repository directory.', '短期一次性链接，给 Pi、Codex、OpenCode、Claude Code 或 Grok 在当前研究仓库目录里开通 MCP。') }}</p></div><button class="primary-button small-button" type="button" :disabled="!props.project || !data?.mcp_url" @click="openSetup"><Link2 :size="15" />{{ t('New link', '新建链接') }}</button></div>
+        <div class="section-heading"><div><h2>{{ t('Project Agent registrations', 'Project Agent 注册') }}</h2><p>{{ data?.enrollments_truncated ? t('Latest 50 registration links. Setup secrets are never listed again.', '仅显示最新 50 条注册链接；Setup secret 不会再次列出。') : t('Short-lived links register Pi, Codex, OpenCode, Claude Code, or Grok to this Project. Compute is configured separately.', '短期链接将 Pi、Codex、OpenCode、Claude Code 或 Grok 注册到此 Project；计算资源另行配置。') }}</p></div><button class="primary-button small-button" type="button" :disabled="!props.project || !data?.mcp_url" @click="openSetup"><Bot :size="15" />{{ t('Register Agent', '注册 Agent') }}</button></div>
         <div v-if="data?.enrollments.length" class="table-scroll">
           <table class="data-table agent-enrollment-table">
             <thead><tr><th>{{ t('Status', '状态') }}</th><th>{{ t('Label', '标签') }}</th><th>Scopes</th><th>{{ t('Link expires', '链接过期时间') }}</th><th>{{ t('Credential policy', '凭据策略') }}</th><th>{{ t('Installed token', '已安装 Token') }}</th><th>{{ t('Actions', '操作') }}</th></tr></thead>
@@ -431,7 +467,7 @@ watch(() => [props.active, props.project?.id] as const, ([active, projectID]) =>
             </tbody>
           </table>
         </div>
-        <div v-else class="empty-state compact-empty"><span class="empty-icon"><Link2 :size="21" /></span><h3>{{ t('No MCP setup links', '暂无 MCP Setup Link') }}</h3><p>{{ t('Create one link, send it to the Agent, and let Pi, Codex, OpenCode, Claude Code, or Grok finish MCP setup in this repository.', '创建一个链接并发送给 Agent，由 Pi、Codex、OpenCode、Claude Code 或 Grok 在当前仓库完成 MCP 设置。') }}</p></div>
+        <div v-else class="empty-state compact-empty"><span class="empty-icon"><Bot :size="21" /></span><h3>{{ t('No Project setup links', '暂无 Project Setup Link') }}</h3><p>{{ t('Create one Project setup link and let the Agent finish MCP registration in this repository.', '创建一个 Project Setup Link，让 Agent 在当前仓库完成 MCP 注册。') }}</p></div>
       </section>
 
       <section class="agent-workspace">
@@ -459,16 +495,18 @@ watch(() => [props.active, props.project?.id] as const, ([active, projectID]) =>
   </section>
 
   <div v-if="setupDialog" class="modal-backdrop" @click.self="closeSetup">
-    <section class="modal agent-token-modal" role="dialog" aria-modal="true" :aria-label="t('Create MCP setup link', '创建 MCP Setup Link')">
-      <header><div><p class="eyebrow">{{ t('Automated enrollment', '自动注册') }}</p><h2>{{ t('Create MCP setup link', '创建 MCP Setup Link') }}</h2></div><button class="icon-button" type="button" :title="t('Close setup link form', '关闭 Setup Link 表单')" :disabled="settingUp" @click="closeSetup"><X :size="17" /></button></header>
+    <section class="modal agent-token-modal" role="dialog" aria-modal="true" :aria-label="t('Register Agent', '注册 Agent')">
+      <header><div><p class="eyebrow">{{ t('Project-scoped enrollment', 'Project 范围注册') }}</p><h2>{{ t('Register Agent', '注册 Agent') }}</h2></div><button class="icon-button" type="button" :title="t('Close setup link form', '关闭 Setup Link 表单')" :disabled="settingUp" @click="closeSetup"><X :size="17" /></button></header>
       <form class="dialog-form agent-token-form" @submit.prevent="createSetupLink">
+        <p class="form-note">{{ t('This creates a one-time link that registers the Agent only to the selected Project. GPU, node, and Provider selection are separate runtime concerns.', '这会创建一次性链接，只将 Agent 注册到所选 Project。GPU、节点和 Provider 选择属于独立的运行时配置。') }}</p>
         <label>{{ t('Agent label', 'Agent 标签') }}<input v-model="setupForm.label" required maxlength="120" autocomplete="off" placeholder="research-agent" /></label>
         <div class="form-grid two-columns">
           <label>{{ t('Credential expiration', '凭据有效期') }}<select v-model="setupForm.expiration"><option value="30">30 {{ t('days', '天') }}</option><option value="90">90 {{ t('days', '天') }}</option><option value="365">1 {{ t('year', '年') }}</option><option value="never">{{ t('No expiry', '永不过期') }}</option></select></label>
           <label>{{ t('Link validity', '链接有效期') }}<select v-model="setupForm.linkExpiration"><option value="15">15 {{ t('minutes', '分钟') }}</option><option value="30">30 {{ t('minutes', '分钟') }}</option><option value="60">1 {{ t('hour', '小时') }}</option><option value="240">4 {{ t('hours', '小时') }}</option></select></label>
         </div>
-        <fieldset class="scope-fieldset"><legend>Scopes</legend><label :title="t('Required for setup verification', '设置验证所必需')"><input v-model="setupForm.scopes.read" type="checkbox" disabled /><span>Read</span></label><label><input v-model="setupForm.scopes.submit" type="checkbox" /><span>Submit</span></label><label><input v-model="setupForm.scopes.cancel" type="checkbox" /><span>Cancel</span></label><label :title="t('Register Project repositories and dataset paths under an approved workspace root', '在已批准工作区根目录下注册 Project 仓库和数据路径')"><input v-model="setupForm.scopes.configure" type="checkbox" /><span>Configure</span></label></fieldset>
-        <p class="form-note">{{ t('The provisional credential is read-only. Selected write scopes activate after verification. Configure cannot authorize a new host root; Submit is not standing approval for paid work.', '临时凭据仅有读取权限，验证后才激活所选写入 scope。Configure 不能批准新的宿主根目录；Submit 也不代表对付费任务的长期批准。') }}</p>
+        <fieldset class="scope-fieldset"><legend>Scopes</legend><label :title="t('Required for setup verification', '设置验证所必需')"><input v-model="setupForm.scopes.read" type="checkbox" disabled /><span>Read</span></label><label><input v-model="setupForm.scopes.submit" type="checkbox" /><span>Submit</span></label><label><input v-model="setupForm.scopes.cancel" type="checkbox" /><span>Cancel</span></label><label :title="t('Register Project repositories and dataset paths under an approved workspace root', '在已批准工作区根目录下注册 Project 仓库和数据路径')"><input v-model="setupForm.scopes.configure" type="checkbox" /><span>Configure</span></label><label :title="t('Register Cloud SSH hosts and rotate their credentials. Off by default. Not included in Configure.', '登记 Cloud SSH 主机并轮换凭据。默认关闭，不包含在 Configure 中。')"><input v-model="setupForm.scopes.operate_nodes" type="checkbox" /><span>Operate nodes</span></label></fieldset>
+        <p v-if="setupForm.scopes.operate_nodes" class="form-note form-warning">{{ t('Operate nodes lets this Agent register Cloud SSH hosts and store credentials. Grant only to Agents you trust with those hosts.', 'Operate nodes 允许该 Agent 登记 Cloud SSH 主机并保存凭据。只授予你信任能接触这些主机的 Agent。') }}</p>
+        <p class="form-note">{{ t('The provisional credential is read-only. Selected write scopes activate after verification and operate within the Project budget; none of these scopes binds compute hardware.', '临时凭据仅有读取权限，验证后才激活所选写入 scope，并受 Project 预算约束；这些 scope 都不会绑定计算硬件。') }}</p>
         <div v-if="setupError" class="form-error" role="alert">{{ setupError }}</div>
         <button class="primary-button" type="submit" :disabled="settingUp"><LoaderCircle v-if="settingUp" :size="16" class="spinning" /><Link2 v-else :size="16" />{{ t('Create setup link', '创建 Setup Link') }}</button>
       </form>
@@ -480,10 +518,14 @@ watch(() => [props.active, props.project?.id] as const, ([active, projectID]) =>
       <header><div><p class="eyebrow">{{ t('Ready to hand off', '可以交接') }}</p><h2>{{ t('Send one link to the Agent', '向 Agent 发送一个链接') }}</h2></div><button class="icon-button" type="button" :title="t('Close MCP setup link', '关闭 MCP Setup Link')" @click="closeSetupReveal"><X :size="17" /></button></header>
       <div class="agent-reveal-body">
         <div class="credential-block"><span>{{ t('One-time setup link', '一次性 Setup Link') }}</span><div class="code-box"><code>{{ setupReveal.setup_url }}</code><button class="icon-button" type="button" :title="copied === 'setup-link' ? t('Copied', '已复制') : t('Copy setup link', '复制 Setup Link')" @click="copy(setupReveal.setup_url, 'setup-link')"><Check v-if="copied === 'setup-link'" :size="16" /><Clipboard v-else :size="16" /></button></div></div>
-        <div class="setup-handoff-summary"><Link2 :size="18" /><div><strong>{{ t('Give the Agent only this link', '仅将此链接交给 Agent') }}</strong><p>{{ t('Pi, Codex, OpenCode, Claude Code, or Grok will enable Gemcp MCP in this research repository directory, store the credential locally, verify all tools plus project options and cost, then invalidate the link.', 'Pi、Codex、OpenCode、Claude Code 或 Grok 会在当前研究仓库目录开通 Gemcp MCP，在本地保存凭据，验证所有工具、Project 选项和成本，然后使链接失效。') }}</p></div></div>
+        <div class="setup-handoff-summary"><Bot :size="18" /><div><strong>{{ t('Give the Agent this Project setup prompt', '把这份 Project Setup Prompt 交给 Agent') }}</strong><p>{{ t('The prompt registers the Agent to this Project and explains that compute selection is separate. It contains no node or GPU binding.', '这份 Prompt 将 Agent 注册到此 Project，并说明计算资源另行选择；其中不含节点或 GPU 绑定。') }}</p></div></div>
+        <label class="attach-prompt-label">
+          <span>{{ t('Project setup prompt', 'Project Setup Prompt') }}</span>
+          <textarea class="attach-prompt" readonly rows="14" spellcheck="false" :value="setupAgentMessage"></textarea>
+        </label>
         <dl class="setup-link-facts"><div><dt>{{ t('Link expires', '链接过期时间') }}</dt><dd>{{ dateTime(setupReveal.enrollment.expires_at) }}</dd></div><div><dt>Scopes</dt><dd>{{ setupReveal.enrollment.scopes.join(', ') }}</dd></div><div><dt>{{ t('Credential', '凭据') }}</dt><dd>{{ setupReveal.enrollment.token_expires_in_days ? `${setupReveal.enrollment.token_expires_in_days} ${t('days', '天')}` : t('No expiry', '永不过期') }}</dd></div></dl>
         <p class="form-note">{{ t('This link is not shown again. Do not open it with untrusted preview services or include it in a repository.', '此链接不会再次显示。不要使用不可信的预览服务打开，也不要将其写入仓库。') }}</p>
-        <div class="agent-reveal-actions"><button class="secondary-button" type="button" @click="copy(setupAgentMessage, 'setup-message')"><Check v-if="copied === 'setup-message'" :size="16" /><Clipboard v-else :size="16" />{{ copied === 'setup-message' ? t('Copied', '已复制') : t('Copy Agent message', '复制 Agent 消息') }}</button><button class="primary-button" type="button" @click="copy(setupReveal.setup_url, 'setup-link')"><Check v-if="copied === 'setup-link'" :size="16" /><Link2 v-else :size="16" />{{ copied === 'setup-link' ? t('Copied', '已复制') : t('Copy link', '复制链接') }}</button></div>
+        <div class="agent-reveal-actions"><button class="secondary-button" type="button" @click="copy(setupReveal.setup_url, 'setup-link')"><Check v-if="copied === 'setup-link'" :size="16" /><Link2 v-else :size="16" />{{ copied === 'setup-link' ? t('Copied', '已复制') : t('Copy link', '复制链接') }}</button><button class="primary-button" type="button" @click="copy(setupAgentMessage, 'setup-message')"><Check v-if="copied === 'setup-message'" :size="16" /><Clipboard v-else :size="16" />{{ copied === 'setup-message' ? t('Copied', '已复制') : t('Copy Project setup prompt', '复制 Project Setup Prompt') }}</button></div>
       </div>
     </section>
   </div>
@@ -493,11 +535,11 @@ watch(() => [props.active, props.project?.id] as const, ([active, projectID]) =>
       <header><div><p class="eyebrow">{{ t('Owner onboarding', 'Owner 接入') }}</p><h2>{{ t('Connect an Agent safely', '安全连接 Agent') }}</h2></div><button class="icon-button" type="button" :title="t('Close MCP guide', '关闭 MCP 指南')" @click="guideDialog = false"><X :size="17" /></button></header>
       <div class="agent-guide-body">
         <ol class="agent-guide-steps">
-          <li><span>1</span><div><strong>{{ t('Set the boundary', '设置边界') }}</strong><p>{{ t('Choose the project scopes, credential lifetime, budget policy, and whether every paid run requires explicit approval.', '选择 Project scope、凭据有效期、预算策略，以及每次付费运行是否都需要显式批准。') }}</p></div></li>
+          <li><span>1</span><div><strong>{{ t('Set the Project boundary', '设置 Project 边界') }}</strong><p>{{ t('Assign the Project budget, then choose the Agent scopes and credential lifetime. Compute hardware is not part of Agent registration.', '先分配 Project 预算，再选择 Agent scope 和凭据有效期。计算硬件不属于 Agent 注册。') }}</p></div></li>
           <li><span>2</span><div><strong>{{ t('Create one setup link', '创建一个 Setup Link') }}</strong><p>{{ t('The short-lived fragment capability is shown once. No long-lived Token is exposed to the Owner or placed in the link.', '短期 fragment capability 只显示一次，不会向 Owner 暴露长期 Token，也不会把长期 Token 放入链接。') }}</p></div></li>
           <li><span>3</span><div><strong>{{ t('Send only the link', '只发送链接') }}</strong><p>{{ t('The Agent enables Gemcp MCP in this research repository directory, stores its credential, discovers all tools, and tests the guide, options and cost itself. Pi, Codex, OpenCode, Claude Code, and Grok all use the same link.', 'Agent 在当前研究仓库目录开通 Gemcp MCP、保存凭据、发现所有工具，并自行测试指南、选项和成本。Pi、Codex、OpenCode、Claude Code 和 Grok 用同一条链接。') }}</p></div></li>
           <li><span>4</span><div><strong>{{ t('Reload once', '重载一次') }}</strong><p>{{ t('After setup reports all checks passed, reload or restart the MCP client once so the bounded Gemcp tools are available.', '设置报告所有检查通过后，重载或重启一次 MCP 客户端，即可使用受限的 Gemcp 工具。') }}</p></div></li>
-          <li><span>5</span><div><strong>{{ t('Approve and supervise', '批准并监督') }}</strong><p>{{ t('The Agent must still present the immutable run and worst-case reservation before paid submission, then monitor it to a terminal state.', 'Agent 在付费提交前仍必须展示不可变运行规格和最坏情况预留，随后监控至终态。') }}</p></div></li>
+          <li><span>5</span><div><strong>{{ t('Monitor budget and runs', '监控预算与运行') }}</strong><p>{{ t('The Project budget controls spend. Follow prepared and submitted runs in Evidence and monitor active Experiments to a terminal state.', 'Project 预算控制费用。在 Evidence 中查看已准备和已提交的运行，并监控活跃 Experiment 至终态。') }}</p></div></li>
         </ol>
         <div class="agent-discovery-list">
           <div><span>{{ t('Tool fallback', '工具回退') }}</span><code>get_usage_guide</code></div>
@@ -522,7 +564,8 @@ watch(() => [props.active, props.project?.id] as const, ([active, projectID]) =>
       <form class="dialog-form agent-token-form" @submit.prevent="issueToken">
         <label>{{ t('Label', '标签') }}<input v-model="form.label" required maxlength="120" autocomplete="off" placeholder="training-agent" /></label>
         <label>{{ t('Expiration', '有效期') }}<select v-model="form.expiration"><option value="30">30 {{ t('days', '天') }}</option><option value="90">90 {{ t('days', '天') }}</option><option value="365">1 {{ t('year', '年') }}</option><option value="never">{{ t('No expiry', '永不过期') }}</option></select></label>
-        <fieldset class="scope-fieldset"><legend>Scopes</legend><label><input v-model="form.scopes.read" type="checkbox" /><span>Read</span></label><label><input v-model="form.scopes.submit" type="checkbox" /><span>Submit</span></label><label><input v-model="form.scopes.cancel" type="checkbox" /><span>Cancel</span></label><label :title="t('Register Project repositories and dataset paths under an approved workspace root', '在已批准工作区根目录下注册 Project 仓库和数据路径')"><input v-model="form.scopes.configure" type="checkbox" /><span>Configure</span></label></fieldset>
+        <fieldset class="scope-fieldset"><legend>Scopes</legend><label><input v-model="form.scopes.read" type="checkbox" /><span>Read</span></label><label><input v-model="form.scopes.submit" type="checkbox" /><span>Submit</span></label><label><input v-model="form.scopes.cancel" type="checkbox" /><span>Cancel</span></label><label :title="t('Register Project repositories and dataset paths under an approved workspace root', '在已批准工作区根目录下注册 Project 仓库和数据路径')"><input v-model="form.scopes.configure" type="checkbox" /><span>Configure</span></label><label :title="t('Register Cloud SSH hosts and rotate their credentials. Off by default. Not included in Configure.', '登记 Cloud SSH 主机并轮换凭据。默认关闭，不包含在 Configure 中。')"><input v-model="form.scopes.operate_nodes" type="checkbox" /><span>Operate nodes</span></label></fieldset>
+        <p v-if="form.scopes.operate_nodes" class="form-note form-warning">{{ t('Operate nodes lets this Agent register Cloud SSH hosts and store credentials. Grant only to Agents you trust with those hosts.', 'Operate nodes 允许该 Agent 登记 Cloud SSH 主机并保存凭据。只授予你信任能接触这些主机的 Agent。') }}</p>
         <p class="form-note">{{ t('The secret and complete MCP configuration are returned once. Lost credentials must be revoked and replaced.', 'secret 和完整 MCP 配置仅返回一次；丢失的凭据必须撤销并替换。') }}</p>
         <div v-if="issueError" class="form-error" role="alert">{{ issueError }}</div>
         <button class="primary-button" type="submit" :disabled="issuing"><LoaderCircle v-if="issuing" :size="16" class="spinning" /><KeyRound v-else :size="16" />{{ t('Generate token', '生成 Token') }}</button>
@@ -546,7 +589,8 @@ watch(() => [props.active, props.project?.id] as const, ([active, projectID]) =>
     <section class="modal agent-token-modal" role="dialog" aria-modal="true" :aria-label="t('Edit Agent scopes', '编辑 Agent scope')">
       <header><div><p class="eyebrow">{{ t('Existing credential', '现有凭据') }}</p><h2>{{ t('Edit Agent scopes', '编辑 Agent scope') }} · {{ scopeTarget.label }}</h2></div><button class="icon-button" type="button" :disabled="scopeSaving" :title="t('Close scope form', '关闭 scope 表单')" @click="scopeTarget = null"><X :size="17" /></button></header>
       <form class="dialog-form agent-token-form" @submit.prevent="updateScopes">
-        <fieldset class="scope-fieldset"><legend>Scopes</legend><label><input v-model="scopeForm.read" type="checkbox" /><span>Read</span></label><label><input v-model="scopeForm.submit" type="checkbox" /><span>Submit</span></label><label><input v-model="scopeForm.cancel" type="checkbox" /><span>Cancel</span></label><label :title="t('Register Project repositories and dataset paths under an approved workspace root', '在已批准工作区根目录下注册 Project 仓库和数据路径')"><input v-model="scopeForm.configure" type="checkbox" /><span>Configure</span></label></fieldset>
+        <fieldset class="scope-fieldset"><legend>Scopes</legend><label><input v-model="scopeForm.read" type="checkbox" /><span>Read</span></label><label><input v-model="scopeForm.submit" type="checkbox" /><span>Submit</span></label><label><input v-model="scopeForm.cancel" type="checkbox" /><span>Cancel</span></label><label :title="t('Register Project repositories and dataset paths under an approved workspace root', '在已批准工作区根目录下注册 Project 仓库和数据路径')"><input v-model="scopeForm.configure" type="checkbox" /><span>Configure</span></label><label :title="t('Register Cloud SSH hosts and rotate their credentials. Off by default. Not included in Configure.', '登记 Cloud SSH 主机并轮换凭据。默认关闭，不包含在 Configure 中。')"><input v-model="scopeForm.operate_nodes" type="checkbox" /><span>Operate nodes</span></label></fieldset>
+        <p v-if="scopeForm.operate_nodes" class="form-note form-warning">{{ t('Operate nodes lets this Agent register Cloud SSH hosts and store credentials. Grant only to Agents you trust with those hosts.', 'Operate nodes 允许该 Agent 登记 Cloud SSH 主机并保存凭据。只授予你信任能接触这些主机的 Agent。') }}</p>
         <p class="form-note">{{ t('Changes apply to the existing Token on its next authenticated request and are written to the audit log. Configure cannot authorize a new host root.', '变更会在现有 Token 的下一次认证请求生效并写入审计日志；Configure 不能批准新的宿主根目录。') }}</p>
         <div v-if="scopeError" class="form-error" role="alert">{{ scopeError }}</div>
         <button class="primary-button" type="submit" :disabled="scopeSaving"><LoaderCircle v-if="scopeSaving" :size="16" class="spinning" /><ShieldCheck v-else :size="16" />{{ t('Update scopes', '更新 scope') }}</button>

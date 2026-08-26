@@ -3,6 +3,7 @@ package setup
 import (
 	"testing"
 
+	"github.com/XR-Lee/Gemcp/internal/autodl"
 	"github.com/XR-Lee/Gemcp/internal/secrets"
 )
 
@@ -32,6 +33,17 @@ func TestValidateInput(t *testing.T) {
 	}
 }
 
+func TestValidateInputAllowsSkippingProvider(t *testing.T) {
+	input := validInput()
+	input.SkipProvider = true
+	input.Provider = ProviderInput{}
+	input.Environment = EnvironmentInput{}
+	input.ResourceProfile = ResourceProfileInput{}
+	if err := validateInput(input); err != nil {
+		t.Fatalf("validateInput() error = %v", err)
+	}
+}
+
 func TestValidateInputAcceptsPrivateCloud(t *testing.T) {
 	input := validInput()
 	input.Provider.BaseURL = "https://private.autodl.com"
@@ -40,6 +52,36 @@ func TestValidateInputAcceptsPrivateCloud(t *testing.T) {
 	input.ResourceProfile.CUDATo = input.ResourceProfile.CUDAFrom
 	if err := validateInput(input); err != nil {
 		t.Fatalf("validateInput() error = %v", err)
+	}
+}
+
+func TestValidateInputRejectsBackendSpecificResourceShape(t *testing.T) {
+	publicInput := validInput()
+	publicInput.ResourceProfile.Region = "private"
+	if err := validateInput(publicInput); err == nil {
+		t.Fatal("validateInput() accepted the Private Cloud region for Public Elastic")
+	}
+
+	privateInput := validInput()
+	privateInput.Provider.BaseURL = autodl.PrivateBaseURL
+	privateInput.ResourceProfile.Region = "private"
+	privateInput.ResourceProfile.CUDATo++
+	if err := validateInput(privateInput); err == nil {
+		t.Fatal("validateInput() accepted a CUDA range for Private Cloud")
+	}
+}
+
+func TestValidateInputRejectsMismatchedProviderBackend(t *testing.T) {
+	input := validInput()
+	input.Provider.Backend = "private"
+	if err := validateInput(input); err == nil {
+		t.Fatal("validateInput() accepted Private Cloud backend with the public API host")
+	}
+
+	input = validInput()
+	input.Provider.Backend = "pro"
+	if err := validateInput(input); err == nil {
+		t.Fatal("validateInput() accepted Public Pro as a production backend")
 	}
 }
 

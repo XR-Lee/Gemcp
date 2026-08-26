@@ -48,6 +48,11 @@ func TestRuntimeNotificationAndFinanceOperationsRequireOwner(t *testing.T) {
 	router.DELETE("/projects/:id/agent-tokens/:tokenID", agentTokenHandlers.Revoke)
 	router.GET("/finance", financeHandlers.Dashboard)
 	router.POST("/projects/:id/budget-adjustments", financeHandlers.Adjust)
+	router.PATCH("/projects/:id", NewProjectHandlers(nil).Update)
+	router.GET("/projects/:id/dataset-bindings", NewDatasetBindingHandlers(nil).List)
+	router.POST("/projects/:id/dataset-bindings", NewDatasetBindingHandlers(nil).Create)
+	router.DELETE("/projects/:id/dataset-bindings/:bindingID", NewDatasetBindingHandlers(nil).Remove)
+	router.POST("/projects/:id/experiment-proposals/:proposalID/submit", NewExperimentHandlers(nil).SubmitPrepared)
 
 	for _, request := range []*http.Request{
 		httptest.NewRequest(http.MethodGet, "/managed", nil),
@@ -60,6 +65,11 @@ func TestRuntimeNotificationAndFinanceOperationsRequireOwner(t *testing.T) {
 		httptest.NewRequest(http.MethodDelete, "/projects/project-id/agent-tokens/token-id", nil),
 		httptest.NewRequest(http.MethodGet, "/finance", nil),
 		httptest.NewRequest(http.MethodPost, "/projects/project-id/budget-adjustments", nil),
+		httptest.NewRequest(http.MethodPatch, "/projects/project-id", nil),
+		httptest.NewRequest(http.MethodGet, "/projects/project-id/dataset-bindings", nil),
+		httptest.NewRequest(http.MethodPost, "/projects/project-id/dataset-bindings", nil),
+		httptest.NewRequest(http.MethodDelete, "/projects/project-id/dataset-bindings/binding-id", nil),
+		httptest.NewRequest(http.MethodPost, "/projects/project-id/experiment-proposals/proposal-id/submit", nil),
 	} {
 		response := httptest.NewRecorder()
 		router.ServeHTTP(response, request)

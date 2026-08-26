@@ -14,6 +14,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/agenttoken"
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/internal/secrets"
+	"github.com/XR-Lee/Gemcp/internal/validation"
 	"github.com/google/uuid"
 )
 
@@ -29,9 +30,9 @@ var (
 	ErrActiveTokenLimit     = errors.New("active Agent token limit reached")
 )
 
-type ValidationError struct{ Message string }
+type validationDomain struct{}
 
-func (e *ValidationError) Error() string { return e.Message }
+type ValidationError = validation.Error[validationDomain]
 
 func invalid(message string) error { return &ValidationError{Message: message} }
 
@@ -374,8 +375,8 @@ func validateIssueInput(input IssueInput) (string, []string, *int, error) {
 	seen := make(map[string]bool, len(requested))
 	for _, value := range requested {
 		value = strings.ToLower(strings.TrimSpace(value))
-		if value != "read" && value != "submit" && value != "cancel" && value != "configure" {
-			return "", nil, nil, invalid("scopes may contain only read, submit, cancel, and configure")
+		if value != "read" && value != "submit" && value != "cancel" && value != "configure" && value != "operate_nodes" {
+			return "", nil, nil, invalid("scopes may contain only read, submit, cancel, configure, and operate_nodes")
 		}
 		if seen[value] {
 			return "", nil, nil, invalid("scopes must not contain duplicates")
@@ -383,7 +384,7 @@ func validateIssueInput(input IssueInput) (string, []string, *int, error) {
 		seen[value] = true
 	}
 	scopes := make([]string, 0, len(seen))
-	for _, value := range []string{"read", "submit", "cancel", "configure"} {
+	for _, value := range []string{"read", "submit", "cancel", "configure", "operate_nodes"} {
 		if seen[value] {
 			scopes = append(scopes, value)
 		}

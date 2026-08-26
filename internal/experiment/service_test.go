@@ -14,6 +14,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
 	"github.com/XR-Lee/Gemcp/internal/secrets"
+	"github.com/XR-Lee/Gemcp/internal/sshcloud"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -71,8 +72,8 @@ func newFixture(t *testing.T, monthlyBudget, experimentCap int64) fixture {
 		t.Fatal(err)
 	}
 	profile, err := client.ResourceProfile.Create().
-		SetProjectID(project.ID).SetName("default").SetRegion("west").SetGpuNames([]string{"RTX 4090"}).SetGpuNum(1).
-		SetCudaFrom(118).SetCudaTo(128).SetCPUFrom(1).SetCPUTo(128).SetMemoryFromGB(1).SetMemoryToGB(512).
+		SetProjectID(project.ID).SetName("default").SetRegion("private").SetGpuNames([]string{"RTX 4090"}).SetGpuNum(1).
+		SetCudaFrom(118).SetCudaTo(118).SetCPUFrom(1).SetCPUTo(128).SetMemoryFromGB(1).SetMemoryToGB(512).
 		SetPriceFromMilli(10).SetPriceToMilli(3000).SetIsDefault(true).Save(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -455,8 +456,11 @@ func TestOptionsAndList(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(options.Repositories) != 1 || len(options.Environments) != 1 || len(options.ResourceProfiles) != 1 {
+	if len(options.Repositories) != 1 || len(options.Environments) != 1 || len(options.ResourceProfiles) != 1 || options.SSHCloudNodes == nil {
 		t.Fatalf("unexpected options: %+v", options)
+	}
+	if options.Readiness == nil || options.Readiness.Heartbeat.InspectTool != "get_project_options" || options.Readiness.Heartbeat.MonitorTool != "get_experiment" {
+		t.Fatalf("readiness = %+v", options.Readiness)
 	}
 	if _, err := f.service.Submit(ctx, f.principal, validSubmit(f, "request-0001")); err != nil {
 		t.Fatal(err)
@@ -558,4 +562,189 @@ func TestOptionsDiscoversAuthorizedSelfHostedNodeBeforeRuntimeConfiguration(t *t
 	if err != nil || !options.SelfHostedNodes[0].Ready || !options.SelfHostedNodes[0].DatasetCapable {
 		t.Fatalf("dataset-ready options = %+v, %v", options, err)
 	}
+}
+
+func TestOptionsDiscoversAuthorizedSSHCloudNode(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	ctx := context.Background()
+	f.service = NewService(f.client, f.box, f.verifier, WithPreparedExperiments(
+		nil, nil, nil, nil, ProposalConfig{SSHCloudEnabled: true},
+	))
+	node, err := f.client.CloudSSHNode.Create().SetTenantID(f.principal.TenantID).SetLabel("gpu-cloud-1").
+		SetSSHHost("203.0.113.10").SetSSHUser("ubuntu").SetAuthMethod("password").SetCredentialCiphertext("v1.not-used").
+		SetStatus("active").SetInventory(map[string]any{
+		"docker_version": "27.0.3", "nvidia_ready": true,
+		"gpus": []any{map[string]any{"name": "NVIDIA GeForce RTX 4090", "memory_bytes": int64(24 << 30)}},
+	}).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.client.CloudSSHProjectAccess.Create().SetTenantID(f.principal.TenantID).SetNodeID(node.ID).SetProjectID(f.project.ID).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	options, err := f.service.Options(ctx, f.principal)
+	if err != nil || len(options.SSHCloudNodes) != 1 {
+		t.Fatalf("options=%+v err=%v", options, err)
+	}
+	discovered := options.SSHCloudNodes[0]
+	if !discovered.Experimental || discovered.Warning == "" || discovered.Host != "203.0.113.10" || discovered.Ready ||
+		discovered.Readiness != "runtime_configuration_required" || !discovered.BoundToProject {
+		t.Fatalf("discovered=%+v", discovered)
+	}
+	if _, err := f.client.Environment.Create().SetProjectID(f.project.ID).SetBackend("ssh_cloud").SetName("ssh-cloud-node").
+		SetImageUUID(sshcloud.HostImage).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.client.ResourceProfile.Create().SetProjectID(f.project.ID).SetBackend("ssh_cloud").SetName("ssh-cloud-node").
+		SetRegion("ssh_cloud").SetGpuNames([]string{"NVIDIA GeForce RTX 4090"}).SetGpuNum(1).SetCudaFrom(1).SetCudaTo(1).
+		SetCPUFrom(1).SetCPUTo(8).SetMemoryFromGB(1).SetMemoryToGB(32).SetPriceFromMilli(0).SetPriceToMilli(0).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	options, err = f.service.Options(ctx, f.principal)
+	if err != nil || len(options.SSHCloudNodes) != 1 || !options.SSHCloudNodes[0].Ready || options.SSHCloudNodes[0].Readiness != "ready" {
+		t.Fatalf("ready options=%+v err=%v", options, err)
+	}
+}
+
+func TestOptionsReportsHostKeyChanged(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	ctx := context.Background()
+	f.service = NewService(f.client, f.box, f.verifier, WithPreparedExperiments(
+		nil, nil, nil, nil, ProposalConfig{SSHCloudEnabled: true},
+	))
+	if _, err := f.client.CloudSSHNode.Create().SetTenantID(f.principal.TenantID).SetLabel("gpu-cloud-1").
+		SetSSHHost("203.0.113.10").SetSSHUser("ubuntu").SetAuthMethod("password").SetCredentialCiphertext("v1.not-used").
+		SetStatus("host_key_changed").SetInventory(map[string]any{"os": "Linux"}).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	options, err := f.service.Options(ctx, f.principal)
+	if err != nil || len(options.SSHCloudNodes) != 1 {
+		t.Fatalf("options=%+v err=%v", options, err)
+	}
+	discovered := options.SSHCloudNodes[0]
+	if discovered.Ready || discovered.Readiness != "host_key_changed" || discovered.Blockers[0] != "host_key_changed" {
+		t.Fatalf("discovered=%+v", discovered)
+	}
+}
+
+func TestOptionsDiscoversSSHCloudNodeWithoutProjectAccess(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	ctx := context.Background()
+	controller := &fakeSSHCloudController{err: errors.New("ssh timeout")}
+	f.service = NewService(f.client, f.box, f.verifier, WithSSHCloud(controller), WithPreparedExperiments(
+		nil, nil, nil, nil, ProposalConfig{SSHCloudEnabled: true},
+	))
+	if _, err := f.client.CloudSSHNode.Create().SetTenantID(f.principal.TenantID).SetLabel("gpu-cloud-1").
+		SetSSHHost("203.0.113.10").SetSSHUser("ubuntu").SetAuthMethod("password").SetCredentialCiphertext("v1.not-used").
+		SetStatus("pending_probe").Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	options, err := f.service.Options(ctx, f.principal)
+	if err != nil || controller.calls != 1 || len(options.SSHCloudNodes) != 1 {
+		t.Fatalf("options=%+v calls=%d err=%v", options, controller.calls, err)
+	}
+	discovered := options.SSHCloudNodes[0]
+	if discovered.Ready || discovered.Readiness != "node_not_active" || discovered.Host != "203.0.113.10" || discovered.BoundToProject {
+		t.Fatalf("discovered=%+v", discovered)
+	}
+}
+
+func TestOwnerReadinessProjectsAgentComputeBinding(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	ctx := context.Background()
+	now := time.Date(2026, 8, 24, 18, 0, 0, 0, time.UTC)
+	f.service = NewService(f.client, f.box, f.verifier, WithPreparedExperiments(
+		nil, nil, nil, nil, ProposalConfig{SSHCloudEnabled: true},
+	))
+	f.service.now = func() time.Time { return now }
+	if _, err := f.client.AgentToken.UpdateOneID(f.principal.TokenID).SetLastUsedAt(now.Add(-2 * time.Minute)).
+		SetScopes([]string{"read", "submit", "cancel", "operate_nodes"}).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	node, err := f.client.CloudSSHNode.Create().SetTenantID(f.principal.TenantID).SetLabel("cloud-4090").
+		SetSSHHost("203.0.113.10").SetSSHUser("ubuntu").SetAuthMethod("password").SetCredentialCiphertext("v1.not-used").
+		SetStatus("active").SetCreatedActorType("agent").SetCreatedActorID(f.principal.TokenPublicID).
+		SetLastProbedAt(now.Add(-time.Minute)).SetInventory(map[string]any{
+		"gpus": []any{map[string]any{"name": "NVIDIA GeForce RTX 4090", "memory_bytes": int64(24 << 30)}},
+	}).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.client.CloudSSHProjectAccess.Create().SetTenantID(f.principal.TenantID).SetNodeID(node.ID).SetProjectID(f.project.ID).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.client.Environment.Create().SetProjectID(f.project.ID).SetBackend("ssh_cloud").SetName("ssh-cloud-node").
+		SetImageUUID(sshcloud.HostImage).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.client.ResourceProfile.Create().SetProjectID(f.project.ID).SetBackend("ssh_cloud").SetName("ssh-cloud-node").
+		SetRegion("ssh_cloud").SetGpuNames([]string{"NVIDIA GeForce RTX 4090"}).SetGpuNum(1).SetCudaFrom(1).SetCudaTo(1).
+		SetCPUFrom(1).SetCPUTo(8).SetMemoryFromGB(1).SetMemoryToGB(32).SetPriceFromMilli(0).SetPriceToMilli(0).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	controller := &fakeSSHCloudController{}
+	f.service.sshCloud = controller
+	readiness, err := f.service.OwnerReadiness(ctx, f.principal.TenantID, f.project.PublicID.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if controller.calls != 0 {
+		t.Fatalf("OwnerReadiness probed Cloud SSH: calls=%d", controller.calls)
+	}
+	if readiness.Status != ReadinessReady || len(readiness.Agents) != 1 || !readiness.Agents[0].CanOperateNodes ||
+		len(readiness.Agents[0].BoundNodeIDs) != 1 || readiness.Agents[0].BoundNodeIDs[0] != node.PublicID.String() {
+		t.Fatalf("agents = %+v status=%s", readiness.Agents, readiness.Status)
+	}
+	if len(readiness.Compute.SSHCloud) != 1 || !readiness.Compute.SSHCloud[0].Ready || !readiness.Compute.SSHCloud[0].BoundToProject ||
+		readiness.Compute.SSHCloud[0].RegisteredByKind != "agent" || readiness.Compute.SSHCloud[0].RegisteredByLabel != "test" {
+		t.Fatalf("ssh cloud = %+v", readiness.Compute.SSHCloud)
+	}
+	if readiness.Instructions.InspectTool != "get_project_options" || readiness.Instructions.MonitorTool != "get_experiment" ||
+		!strings.Contains(readiness.Heartbeats.Note, "last_used_at") {
+		t.Fatalf("instructions = %+v heartbeats = %+v", readiness.Instructions, readiness.Heartbeats)
+	}
+	kinds := map[string]bool{}
+	for _, action := range readiness.NextActions {
+		kinds[action.Kind] = true
+	}
+	if !kinds["copy_readiness"] {
+		t.Fatalf("next actions = %+v", readiness.NextActions)
+	}
+}
+
+func TestOwnerReadinessWaitingAgentDoesNotProbe(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	ctx := context.Background()
+	f.service = NewService(f.client, f.box, f.verifier, WithPreparedExperiments(
+		nil, nil, nil, nil, ProposalConfig{SSHCloudEnabled: true},
+	))
+	if _, err := f.client.AgentToken.UpdateOneID(f.principal.TokenID).SetStatus("revoked").Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	controller := &fakeSSHCloudController{err: errors.New("should not probe")}
+	f.service.sshCloud = controller
+	readiness, err := f.service.OwnerReadiness(ctx, f.principal.TenantID, f.project.PublicID.String())
+	if err != nil || controller.calls != 0 || readiness.Status != ReadinessWaitingAgent {
+		t.Fatalf("readiness=%+v calls=%d err=%v", readiness, controller.calls, err)
+	}
+	kinds := map[string]bool{}
+	for _, action := range readiness.NextActions {
+		kinds[action.Kind] = true
+	}
+	if !kinds["handshake"] || !kinds["register_node"] {
+		t.Fatalf("next actions = %+v", readiness.NextActions)
+	}
+}
+
+type fakeSSHCloudController struct {
+	result    sshcloud.EnsureResult
+	err       error
+	calls     int
+	lastImage string
+}
+
+func (f *fakeSSHCloudController) EnsureForProject(_ context.Context, _ int, _, _, image string) (sshcloud.EnsureResult, error) {
+	f.calls++
+	f.lastImage = image
+	return f.result, f.err
 }

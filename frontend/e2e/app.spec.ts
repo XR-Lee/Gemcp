@@ -108,6 +108,27 @@ const agentTokenList = {
     },
   },
 }
+const agentReadiness = {
+  project_id: project.id, project_name: project.name, status: 'waiting_compute',
+  summary: 'An Agent is bound to the Project, but no Self-hosted or Cloud SSH node is visible yet.',
+  generated_at: '2026-07-17T02:00:00Z',
+  agents: [{
+    id: agentTokens[0].id, label: agentTokens[0].label, prefix: agentTokens[0].prefix,
+    scopes: agentTokens[0].scopes, status: 'active', last_used_at: agentTokens[0].last_used_at,
+    can_read: true, can_submit: true, can_operate_nodes: false, bound_node_ids: [],
+  }],
+  compute: { ssh_cloud_enabled: true, ssh_cloud: [], self_hosted: [] },
+  heartbeats: { agent_last_used_at: agentTokens[0].last_used_at, note: 'MCP last_used_at updates on every authenticated tool call.' },
+  next_actions: [
+    { kind: 'copy_readiness', title: 'Copy readiness prompt', detail: 'Tell the Agent to call get_project_options.' },
+    { kind: 'register_node', title: 'Register a Cloud SSH host', detail: 'Have the Agent call register_ssh_cloud_node.' },
+  ],
+  instructions: {
+    inspect_tool: 'get_project_options', monitor_tool: 'get_experiment',
+    heartbeat: 'MCP last_used_at updates on every authenticated tool call.',
+    binding: 'Agents are Project-scoped.',
+  },
+}
 const attemptHistory = [{
   id: 'attempt-live-1', number: 1, state: 'running', provider_resource_id: 'deployment-live-1',
   estimated_cost_milli: 0, log_tail: 'epoch 3 loss=0.42\n', metrics: { loss: 0.42 },
@@ -143,12 +164,25 @@ const researchWorkspace = {
   }],
   generated_at: '2026-07-28T18:05:00Z',
 }
+const datasetBindings = [{
+  id: 'binding-scanobjectnn', project_id: project.id, name: 'scanobjectnn-objbg', backend: 'autodl_elastic',
+  canonical_root: '/root/autodl-fs/datasets/ScanObjectNN', environment_variable: 'GEMCP_DATASET_SCANOBJECTNN_OBJBG',
+  required_markers: ['main_split/train.h5'], status: 'active',
+}]
 const operationsFeed = {
   activities: [{
     id: 'activity-live-1', agent_label: 'training-agent', agent_token_prefix: 'gmc_abcd123', phase: 'monitoring',
     repository_remote: repositories[0].ssh_url, ref: 'main', proposal_id: 'proposal-live-1', experiment_id: experiments[0].id, at: '2026-07-28T18:05:00Z',
   }],
   proposals: [{
+    id: 'proposal-paid-1', status: 'prepared', eligible: true, agent_label: 'training-agent', agent_token_prefix: 'gmc_abcd123',
+    repository_name: repositories[0].name, requested_ref: 'autoresearch/m1-gapdelta-confirm-20260824', commit_sha: experiments[0].commit_sha,
+    display_command: experiments[0].command, backend: 'autodl_elastic', environment_name: 'public-elastic', image: 'base-image-1',
+    resource_profile_name: 'one-rtx-4090', gpu_models: ['RTX 4090'], gpu_num: 1, runtime_preset: 'train', max_runtime_seconds: 57600,
+    reserved_cost_milli: 20000, checks: [{ id: 'budget', status: 'pass', summary: 'Project budget can reserve the proposal' }],
+    confirmation_digest: `sha256:${'c'.repeat(64)}`, created_at: '2026-08-27T16:04:00Z', updated_at: '2026-08-27T16:04:00Z',
+    expires_at: '2026-08-27T18:04:00Z',
+  }, {
     id: 'proposal-live-1', status: 'submitted', eligible: true, agent_label: 'training-agent', agent_token_prefix: 'gmc_abcd123',
     repository_name: repositories[0].name, requested_ref: 'main', commit_sha: experiments[0].commit_sha,
     display_command: experiments[0].command, backend: 'autodl_private', environment_name: 'torch-cuda11.8', image: 'base-image-1',
@@ -185,7 +219,7 @@ const cachedProviderContainer = {
   started_at: '2026-07-16T10:00:00Z', stopped_at: '2026-07-16T10:30:00Z', created_at: '2026-07-16T09:59:00Z',
 }
 const runtimeStatus = {
-  scheduler_enabled: true, self_hosted_enabled: false, global_concurrency: 2, public_url_configured: true,
+  scheduler_enabled: true, self_hosted_enabled: false, ssh_cloud_enabled: false, global_concurrency: 2, public_url_configured: true, public_url_https: true,
   scheduler_healthy: true, watchdog_healthy: true, notification_worker_healthy: true,
   scheduler_heartbeat: { role: 'scheduler', instance_id: 'controlplane-test', status: 'running', last_seen_at: '2026-07-17T02:00:00Z' },
   watchdog_heartbeat: { role: 'watchdog', instance_id: 'watchdog-test', status: 'running', last_seen_at: '2026-07-17T02:00:00Z' },
@@ -375,7 +409,7 @@ async function mockLogin(page: Page) {
   })
 }
 
-async function mockConsole(page: Page, counters?: { providerQueries: number; selfHosted?: boolean }) {
+async function mockConsole(page: Page, counters?: { providerQueries?: number; selfHosted?: boolean; schedulerEnabled?: boolean }) {
   let submittedDiagnostic: typeof queuedDiagnostic | typeof cancelledDiagnostic = queuedDiagnostic
   await page.route('**/docs/*.md', async (route) => {
     const path = new URL(route.request().url()).pathname
@@ -390,7 +424,12 @@ async function mockConsole(page: Page, counters?: { providerQueries: number; sel
     if (path === '/api/v1/version') return fulfill(route, build)
     if (path === '/api/v1/setup/status') return fulfill(route, { initialized: true })
     if (path === '/api/v1/auth/me') return fulfill(route, { user_id: 'owner-id', tenant_id: 'tenant-id', email: 'owner@example.com', role: 'owner' })
-    if (path === '/api/v1/runtime/status') return fulfill(route, { ...runtimeStatus, self_hosted_enabled: Boolean(counters?.selfHosted) })
+    if (path === '/api/v1/runtime/status') return fulfill(route, {
+      ...runtimeStatus,
+      scheduler_enabled: counters?.schedulerEnabled ?? runtimeStatus.scheduler_enabled,
+      scheduler_healthy: counters?.schedulerEnabled === false ? false : runtimeStatus.scheduler_healthy,
+      self_hosted_enabled: Boolean(counters?.selfHosted),
+    })
     if (path === '/api/v1/finance' && route.request().method() === 'GET') return fulfill(route, financeDashboard)
     if (path === `/api/v1/projects/${project.id}/budget-adjustments` && route.request().method() === 'POST') {
       expect(route.request().postDataJSON()).toMatchObject({
@@ -418,7 +457,7 @@ async function mockConsole(page: Page, counters?: { providerQueries: number; sel
       })
     }
     if (path === `/api/v1/projects/${project.id}/self-hosted-runtimes` && counters?.selfHosted) return fulfill(route, selfHostedRuntimes)
-    if (path === '/api/v1/provider' && route.request().method() === 'GET') return fulfill(route, provider)
+    if (path === '/api/v1/provider' && route.request().method() === 'GET') return fulfill(route, { providers: [provider] })
     if (path === '/api/v1/provider' && route.request().method() === 'PUT') return fulfill(route, { provider, resources: providerResources })
     if (path === '/api/v1/provider/query') {
       if (counters) counters.providerQueries += 1
@@ -442,6 +481,32 @@ async function mockConsole(page: Page, counters?: { providerQueries: number; sel
       ],
     })
     if (path === '/api/v1/projects') return fulfill(route, [project])
+    if (path === `/api/v1/projects/${project.id}` && route.request().method() === 'PATCH') {
+      const body = route.request().postDataJSON()
+      expect(body).toEqual({ monthly_budget_milli: 120000, max_experiment_milli: 120000 })
+      return fulfill(route, { ...project, ...body })
+    }
+    if (path === `/api/v1/projects/${project.id}/dataset-bindings` && route.request().method() === 'GET') {
+      return fulfill(route, datasetBindings)
+    }
+    if (path === `/api/v1/projects/${project.id}/dataset-bindings` && route.request().method() === 'POST') {
+      const body = route.request().postDataJSON()
+      expect(body.canonical_root).toMatch(/^\/root\/autodl-fs\//)
+      return fulfill(route, {
+        id: 'binding-new', project_id: project.id, name: body.name, backend: body.backend || 'autodl_elastic',
+        canonical_root: body.canonical_root, environment_variable: 'GEMCP_DATASET_NEW_DATASET',
+        required_markers: body.required_markers || [], status: 'active',
+      }, 201)
+    }
+    if (path.startsWith(`/api/v1/projects/${project.id}/dataset-bindings/`) && route.request().method() === 'DELETE') {
+      return fulfill(route, { ...datasetBindings[0], status: 'disabled' })
+    }
+    if (path === `/api/v1/projects/${project.id}/experiment-proposals/proposal-paid-1/submit` && route.request().method() === 'POST') {
+      expect(route.request().postDataJSON()).toEqual({
+        confirmation_digest: operationsFeed.proposals[0].confirmation_digest, confirmed: true,
+      })
+      return fulfill(route, { experiment: experiments[0], idempotent: false })
+    }
     if (path === `/api/v1/projects/${project.id}/diagnostics/options`) return fulfill(route, diagnosticOptions)
     if (path === `/api/v1/projects/${project.id}/diagnostics/preflight` && route.request().method() === 'POST') {
       expect(route.request().postDataJSON()).toMatchObject({
@@ -469,6 +534,7 @@ async function mockConsole(page: Page, counters?: { providerQueries: number; sel
     }
     if (path === `/api/v1/projects/${project.id}/diagnostics/${queuedDiagnostic.id}`) return fulfill(route, submittedDiagnostic)
     if (path === `/api/v1/projects/${project.id}/agent-tokens` && route.request().method() === 'GET') return fulfill(route, agentTokenList)
+    if (path === `/api/v1/projects/${project.id}/agent-readiness` && route.request().method() === 'GET') return fulfill(route, agentReadiness)
     if (path === `/api/v1/projects/${project.id}/agent-enrollments` && route.request().method() === 'POST') {
       expect(route.request().postDataJSON()).toEqual({
         label: 'pi-integration-agent', scopes: ['read', 'submit', 'cancel'], expires_in_days: 30,
@@ -535,16 +601,23 @@ test('first-run setup fits desktop and mobile', async ({ page }) => {
   await page.getByLabel('Owner email').fill('owner@example.com')
   await page.getByLabel('Owner password').fill('correct horse battery staple')
   await page.getByRole('button', { name: 'Continue' }).click()
+  await expect(page.getByLabel('Configure AutoDL now')).toBeChecked()
   await expect(page.getByLabel('AutoDL service')).toHaveValue('private')
   await expect(page.getByLabel('API base URL')).toHaveValue('https://private.autodl.com')
+  await expect(page.getByLabel('API base URL')).toBeDisabled()
   await expectNoPageOverflow(page)
   await page.screenshot({ path: '/tmp/gemcp-setup-provider-desktop.png', fullPage: true })
   await page.setViewportSize({ width: 390, height: 844 })
   await expectNoPageOverflow(page)
   await page.screenshot({ path: '/tmp/gemcp-setup-provider-mobile.png', fullPage: true })
   await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.getByLabel('Configure AutoDL now').uncheck()
+  await expect(page.getByLabel('AutoDL service')).toHaveCount(0)
+  await expect(page.getByText('Continue without AutoDL for a Self-hosted or Cloud SSH deployment.')).toBeVisible()
+  await page.getByLabel('Configure AutoDL now').check()
   await page.getByLabel('AutoDL service').selectOption('public')
   await expect(page.getByLabel('API base URL')).toHaveValue('https://api.autodl.com')
+  await expect(page.getByLabel('Provider name')).toHaveValue('AutoDL Public Cloud')
   await page.getByLabel('AutoDL service').selectOption('private')
   await page.getByLabel('AutoDL API token').fill('test-provider-token')
   await page.getByRole('button', { name: 'Continue' }).click()
@@ -574,6 +647,8 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await expect(page.getByText('Record the current smoke-run accuracy as the first Graph result.')).toBeVisible()
   await expect(page.getByText('Record a hypothesis')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Research Graph' })).toBeVisible()
+  await expect(page.getByText('Agent Readiness')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Copy readiness', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Attach prompt' }).click()
   await expect(page.getByRole('dialog', { name: 'Attach prompt' })).toBeVisible()
   await expect(page.locator('.attach-prompt')).toHaveValue(/get_next_actions/)
@@ -602,6 +677,15 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await page.screenshot({ path: '/tmp/gemcp-console-desktop.png', fullPage: true })
 
   await page.getByRole('button', { name: 'Project', exact: true }).click()
+  await expect(page.getByText('Budget allocation')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Save budget' })).toBeVisible()
+  await expect(page.getByText('Maximum runtime (hours)')).toHaveCount(0)
+  await expect(page.getByText('AutoDL dataset bindings')).toBeVisible()
+  await expect(page.getByRole('cell', { name: 'scanobjectnn-objbg', exact: true })).toBeVisible()
+  await expect(page.getByText('/root/autodl-fs/datasets/ScanObjectNN')).toBeVisible()
+  await page.getByLabel('Monthly budget (CNY)').fill('120')
+  await page.getByRole('button', { name: 'Save budget' }).click()
+  await expect(page.getByRole('button', { name: 'Save budget' })).toBeEnabled()
   await expect(page.getByRole('cell', { name: 'dynamic-point-mamba', exact: true })).toBeVisible()
   await page.getByTitle('View Deploy public key').first().click()
   await expect(page.getByRole('heading', { name: 'Deploy public key' })).toBeVisible()
@@ -611,8 +695,25 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await page.getByTitle('Close').click()
 
   await page.getByRole('button', { name: 'Evidence', exact: true }).click()
+  await expect(page.getByText('train · 57600s')).toBeVisible()
+  await expect(page.getByText('Prepared', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Confirm and start' }).click()
+  const confirmationDialog = page.getByRole('dialog', { name: 'Confirm prepared proposal' })
+  await expect(confirmationDialog).toBeVisible()
+  await expect(confirmationDialog.getByText(operationsFeed.proposals[0].confirmation_digest, { exact: true })).toBeVisible()
+  await expect(confirmationDialog.getByText('CNY 20.000', { exact: true })).toBeVisible()
+  await expect(confirmationDialog.getByText(operationsFeed.proposals[0].display_command, { exact: true })).toBeVisible()
+  await expect(confirmationDialog.getByRole('button', { name: 'Confirm and start' })).toBeDisabled()
+  await page.screenshot({ path: '/tmp/gemcp-proposal-confirmation.png', fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expectNoPageOverflow(page)
+  await expect(confirmationDialog).toBeVisible()
+  await page.screenshot({ path: '/tmp/gemcp-proposal-confirmation-mobile.png', fullPage: true })
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await confirmationDialog.getByRole('checkbox').check()
+  await confirmationDialog.getByRole('button', { name: 'Confirm and start' }).click()
+  await expect(confirmationDialog).not.toBeVisible()
   await expect(page.getByText('Off-graph')).toBeVisible()
-  await page.getByText('ec29dc68').click()
   await expect(page.getByRole('dialog', { name: 'Experiment details' })).toBeVisible()
   await expect(page.getByText('source_extracted', { exact: true })).toBeVisible()
   await expect(page.getByText('Source downloads', { exact: true })).toBeVisible()
@@ -621,6 +722,18 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await expect(page.getByText('/gemcp/work/source', { exact: true })).toBeVisible()
   await expectNoPageOverflow(page)
   await page.screenshot({ path: '/tmp/gemcp-experiment-detail.png', fullPage: true })
+})
+
+test('scheduler-disabled Evidence keeps Owner confirmation available and explains queued execution', async ({ page }) => {
+  await mockConsole(page, { schedulerEnabled: false })
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Evidence', exact: true }).click()
+
+  await expect(page.getByText('Scheduler is disabled', { exact: true })).toBeVisible()
+  await expect(page.getByText(/Prepared proposals can still be confirmed, but their Experiments remain queued/)).toBeVisible()
+  await expect(page.getByText(/GEMCP_SCHEDULER_ENABLED=true/)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Confirm and start' })).toBeVisible()
 })
 
 test('backend diagnostics preflight, execution analysis and cancellation fit desktop and mobile', async ({ page }) => {
@@ -659,7 +772,7 @@ test('backend diagnostics preflight, execution analysis and cancellation fit des
   await page.screenshot({ path: '/tmp/gemcp-diagnostics-mobile.png', fullPage: true })
 })
 
-test('Owner finance analytics and budget adjustments fit desktop and mobile', async ({ page }) => {
+test('Owner finance analytics and Project budget changes fit desktop and mobile', async ({ page }) => {
   await mockConsole(page)
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.goto('/')
@@ -671,15 +784,15 @@ test('Owner finance analytics and budget adjustments fit desktop and mobile', as
   await expectNoPageOverflow(page)
   await page.screenshot({ path: '/tmp/gemcp-finance-desktop.png', fullPage: true })
 
-  await page.getByRole('button', { name: 'Adjust credit', exact: true }).click()
-  const adjustmentDialog = page.getByRole('dialog', { name: 'Record budget adjustment' })
+  await page.getByRole('button', { name: 'Add Project budget', exact: true }).click()
+  const adjustmentDialog = page.getByRole('dialog', { name: 'Add Project budget' })
   await expect(adjustmentDialog).toBeVisible()
   await adjustmentDialog.getByLabel('Amount (CNY)').fill('50')
   await adjustmentDialog.getByLabel('Reason').fill('Approved AutoDL integration test allocation')
   await adjustmentDialog.getByRole('checkbox').check()
   await expectNoPageOverflow(page)
   await page.screenshot({ path: '/tmp/gemcp-finance-adjustment-desktop.png', fullPage: true })
-  await adjustmentDialog.getByRole('button', { name: 'Record credit' }).click()
+  await adjustmentDialog.getByRole('button', { name: 'Add budget', exact: true }).click()
   await expect(adjustmentDialog).toHaveCount(0)
 
   await page.getByRole('button', { name: 'Audit', exact: true }).click()
@@ -689,7 +802,7 @@ test('Owner finance analytics and budget adjustments fit desktop and mobile', as
   await page.screenshot({ path: '/tmp/gemcp-finance-mobile.png', fullPage: true })
 
   await page.getByRole('button', { name: 'Ledger', exact: true }).click()
-  await page.getByRole('button', { name: 'Adjust credit', exact: true }).click()
+  await page.getByRole('button', { name: 'Add Project budget', exact: true }).click()
   await expect(adjustmentDialog).toBeVisible()
   await expectNoPageOverflow(page)
   await page.screenshot({ path: '/tmp/gemcp-finance-adjustment-mobile.png', fullPage: true })
@@ -826,14 +939,17 @@ test('MCP setup links, MCP guidance and advanced token controls fit desktop and 
   await page.goto('/')
   await page.getByRole('button', { name: 'Agents', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Agent access', level: 1 })).toBeVisible()
-  await expect(page.getByText('default-agent', { exact: true })).toBeVisible()
-  await expect(page.getByRole('row').filter({ hasText: 'default-agent' }).getByText('gmc_abcd123', { exact: true })).toBeVisible()
+  await expect(page.getByText('Agent Readiness')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Copy readiness', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Register Agent', exact: true }).first()).toBeVisible()
+  await expect(page.getByText('default-agent', { exact: true }).first()).toBeVisible()
+  await expect(page.locator('.agent-table').getByRole('row').filter({ hasText: 'default-agent' }).getByText('gmc_abcd123', { exact: true })).toBeVisible()
   await expect(page.getByText('pi-research-agent', { exact: true })).toBeVisible()
   await expectNoPageOverflow(page)
   await page.screenshot({ path: '/tmp/gemcp-agents-desktop.png', fullPage: true })
 
-  await page.getByRole('button', { name: 'MCP setup link', exact: true }).click()
-  const setupDialog = page.getByRole('dialog', { name: 'Create MCP setup link' })
+  await page.getByRole('button', { name: 'Register Agent', exact: true }).first().click()
+  const setupDialog = page.getByRole('dialog', { name: 'Register Agent' })
   await expect(setupDialog).toBeVisible()
   await setupDialog.getByLabel('Agent label').fill('pi-integration-agent')
   await setupDialog.getByLabel('Credential expiration').selectOption('30')
@@ -846,7 +962,8 @@ test('MCP setup links, MCP guidance and advanced token controls fit desktop and 
   const setupReveal = page.getByRole('dialog', { name: 'One-time MCP setup link' })
   await expect(setupReveal).toBeVisible()
   await expect(setupReveal.getByText(issuedSetupURL, { exact: true })).toBeVisible()
-  await expect(setupReveal.getByText('Give the Agent only this link', { exact: true })).toBeVisible()
+  await expect(setupReveal.getByText('Give the Agent this Project setup prompt', { exact: true })).toBeVisible()
+  await expect(setupReveal.getByText('Project setup prompt', { exact: true })).toBeVisible()
   await expectNoPageOverflow(page)
   await page.screenshot({ path: '/tmp/gemcp-agent-setup-link.png', fullPage: true })
   await setupReveal.getByTitle('Close MCP setup link').click()
@@ -916,7 +1033,7 @@ test('MCP setup links, MCP guidance and advanced token controls fit desktop and 
   await expectNoPageOverflow(page)
   await page.screenshot({ path: '/tmp/gemcp-agent-guide-mobile.png', fullPage: true })
   await guideDialog.getByTitle('Close MCP guide').click()
-  await page.getByRole('button', { name: 'MCP setup link', exact: true }).click()
+  await page.getByRole('button', { name: 'Register Agent', exact: true }).first().click()
   await expect(setupDialog).toBeVisible()
   await expectNoPageOverflow(page)
   await page.screenshot({ path: '/tmp/gemcp-agent-setup-form-mobile.png', fullPage: true })
@@ -930,7 +1047,7 @@ test('live Provider resources and details fit desktop and mobile', async ({ page
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.goto('/')
   await page.getByRole('button', { name: 'Provider', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Private Cloud resources' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'AutoDL resources' })).toBeVisible()
   await expect(page.getByText('2 / 9')).toBeVisible()
   await expect(page.getByText('NVIDIA GeForce RTX 3090')).toBeVisible()
   await expect.poll(() => counters.providerQueries).toBe(1)

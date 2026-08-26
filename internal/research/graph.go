@@ -2,6 +2,8 @@ package research
 
 import (
 	"context"
+	"encoding/json"
+	"math"
 	"strings"
 	"time"
 
@@ -34,14 +36,15 @@ type NextActionsView struct {
 }
 
 type CloseRunInput struct {
-	StudyID      string   `json:"study_id,omitempty" jsonschema:"Study ID; omit when the Project has exactly one Study"`
-	RunNodeID    string   `json:"run_node_id,omitempty" jsonschema:"Graph run node ID to close"`
-	ExperimentID string   `json:"experiment_id,omitempty" jsonschema:"same-Project Experiment ID when run_node_id is omitted"`
-	Title        string   `json:"title" jsonschema:"short result title"`
-	Summary      string   `json:"summary,omitempty" jsonschema:"bounded scientific claim"`
-	Status       string   `json:"status,omitempty" jsonschema:"succeeded or failed"`
-	MetricName   string   `json:"metric_name,omitempty" jsonschema:"optional scalar metric name"`
-	MetricValue  *float64 `json:"metric_value,omitempty" jsonschema:"optional scalar metric value"`
+	StudyID         string   `json:"study_id,omitempty" jsonschema:"Study ID; omit when the Project has exactly one Study"`
+	RunNodeID       string   `json:"run_node_id,omitempty" jsonschema:"Graph run node ID to close"`
+	ExperimentID    string   `json:"experiment_id,omitempty" jsonschema:"same-Project Experiment ID when run_node_id is omitted"`
+	Title           string   `json:"title" jsonschema:"short result title"`
+	Summary         string   `json:"summary,omitempty" jsonschema:"bounded scientific claim"`
+	Status          string   `json:"status,omitempty" jsonschema:"succeeded or failed"`
+	MetricName      string   `json:"metric_name,omitempty" jsonschema:"optional scalar metric name; omit to copy the prepared expected_metric from the terminal Experiment"`
+	MetricValue     *float64 `json:"metric_value,omitempty" jsonschema:"optional scalar metric value; omit to copy the matching Experiment metric"`
+	ResultCommitSHA string   `json:"result_commit_sha,omitempty" jsonschema:"optional full 40- or 64-character Git commit containing the durable result manifest"`
 }
 
 func legalEdge(fromKind, toKind researchnode.Kind, relation researchedge.Relation) bool {
@@ -140,7 +143,7 @@ func deriveNextActions(view *StudyView) []NextAction {
 		add(NextAction{
 			Kind: "record_observation", Tool: "update_research_workspace", FromNodeID: obsFrom,
 			Title:  "Record historical evidence",
-			Detail: "Hang README, paper, table, or commit evidence off a hypothesis with relation=leads_to. Do not leave observations unlinked. Do not invent metrics or free-write a result.",
+			Detail: "Hang README, paper, table, or commit evidence off a hypothesis with relation=leads_to. Set occurred_at from the git committer date. Do not leave observations unlinked. Do not invent metrics or free-write a result.",
 		})
 	}
 	for _, node := range append(append([]NodeView{}, plans...), hypotheses...) {
@@ -161,14 +164,14 @@ func deriveNextActions(view *StudyView) []NextAction {
 			add(NextAction{
 				Kind: "close_run", Tool: "close_run", FromNodeID: node.ID, ExperimentID: node.ExperimentID,
 				Title:  "Close " + node.Title,
-				Detail: "close_run is the only way to write a result on this run. Include the metric the Owner approved.",
+				Detail: "close_run is the only way to write a result on this run. Copy the metric from get_experiment; do not infer it from logs or SSH.",
 			})
 			continue
 		}
 		add(NextAction{
 			Kind: "wait_run", Tool: "get_experiment", FromNodeID: node.ID, ExperimentID: node.ExperimentID,
 			Title:  "Wait for " + node.Title,
-			Detail: "Do not invent a result while the Experiment is still running.",
+			Detail: "Poll get_experiment for state, log_tail, and metrics. Do not SSH, fetch remote files, or infer metrics from logs.",
 		})
 	}
 	for _, node := range append(append([]NodeView{}, results...), observations...) {
@@ -275,7 +278,9 @@ func (s *Service) BindPreparedRun(ctx context.Context, principal agentauth.Princ
 	create := tx.ResearchNode.Create().
 		SetTenantID(current.tenantID).SetProjectID(current.projectID).SetStudyID(selected.ID).
 		SetKind(researchnode.KindRun).SetTitle(runTitle).SetStatus(researchnode.StatusRunning).
-		SetExperimentID(experimentRecord.ID)
+		SetExperimentID(experimentRecord.ID).
+		SetOccurredAt(experimentEvidenceTime(experimentRecord)).
+		SetCommitSha(experimentRecord.CommitSha)
 	if current.tokenID != nil {
 		create.SetAgentTokenID(*current.tokenID)
 	}
@@ -319,6 +324,10 @@ func (s *Service) BindPreparedRun(ctx context.Context, principal agentauth.Princ
 func (s *Service) AgentCloseRun(ctx context.Context, principal agentauth.Principal, input CloseRunInput) (Workspace, error) {
 	if !principal.HasScope("submit") {
 		return Workspace{}, ErrForbidden
+	}
+	resultCommitSHA, err := normalizeResultCommit(input.ResultCommitSHA)
+	if err != nil {
+		return Workspace{}, err
 	}
 	tokenID := principal.TokenID
 	current := actor{
@@ -376,6 +385,15 @@ func (s *Service) AgentCloseRun(ctx context.Context, principal agentauth.Princip
 	} else if experimentRecord.State != "succeeded" {
 		status = researchnode.StatusFailed
 	}
+	if status == researchnode.StatusSucceeded && experimentRecord.State != "succeeded" {
+		return Workspace{}, invalid("a non-succeeded Experiment cannot be recorded as a succeeded result")
+	}
+	if err := fillCloseRunMetric(ctx, experimentRecord, &input); err != nil {
+		return Workspace{}, err
+	}
+	if err := validateCloseRunMetric(ctx, experimentRecord, status, input.MetricName, input.MetricValue); err != nil {
+		return Workspace{}, err
+	}
 	title := input.Title
 	if strings.TrimSpace(title) == "" {
 		title = run.Title + " result"
@@ -383,6 +401,8 @@ func (s *Service) AgentCloseRun(ctx context.Context, principal agentauth.Princip
 	if _, err := recordNode(ctx, tx, current, selected, NodeInput{
 		Kind: string(researchnode.KindResult), Title: title, Summary: input.Summary, Status: string(status),
 		MetricName: input.MetricName, MetricValue: input.MetricValue,
+		OccurredAt: experimentEvidenceTime(experimentRecord).Format(time.RFC3339),
+		CommitSHA:  resultCommitSHA,
 		FromNodeID: run.PublicID.String(), Relation: string(researchedge.RelationProduced),
 	}); err != nil {
 		return Workspace{}, err
@@ -394,6 +414,127 @@ func (s *Service) AgentCloseRun(ctx context.Context, principal agentauth.Princip
 		return Workspace{}, err
 	}
 	return s.workspace(ctx, current, selected.PublicID.String())
+}
+
+func normalizeResultCommit(value string) (string, error) {
+	sha := strings.ToLower(strings.TrimSpace(value))
+	if sha == "" {
+		return "", nil
+	}
+	if len(sha) != 40 && len(sha) != 64 {
+		return "", invalid("result_commit_sha must be a full 40- or 64-character hexadecimal Git commit SHA")
+	}
+	if !evidenceCommitPattern.MatchString(sha) {
+		return "", invalid("result_commit_sha must be a full 40- or 64-character hexadecimal Git commit SHA")
+	}
+	return sha, nil
+}
+
+func fillCloseRunMetric(ctx context.Context, experimentRecord *ent.Experiment, input *CloseRunInput) error {
+	if strings.TrimSpace(input.MetricName) != "" || input.MetricValue != nil {
+		return nil
+	}
+	expected, err := proposalExpectedMetric(ctx, experimentRecord)
+	if err != nil {
+		return err
+	}
+	if expected == "" {
+		return nil
+	}
+	observed, ok := scalarMetric(experimentRecord.Metrics[expected])
+	if !ok {
+		return nil
+	}
+	value := observed
+	input.MetricName = expected
+	input.MetricValue = &value
+	return nil
+}
+
+func validateCloseRunMetric(ctx context.Context, experimentRecord *ent.Experiment, status researchnode.Status, metricName string, metricValue *float64) error {
+	metricName = strings.TrimSpace(metricName)
+	if metricName == "" && metricValue != nil {
+		return invalid("metric_value requires metric_name")
+	}
+	if metricName != "" {
+		if !metricPattern.MatchString(metricName) {
+			return invalid("metric_name must use letters, numbers, dots, underscores, or hyphens")
+		}
+		if metricValue == nil || math.IsNaN(*metricValue) || math.IsInf(*metricValue, 0) {
+			return invalid("metric_value must be a finite scalar when metric_name is provided")
+		}
+		observed, ok := scalarMetric(experimentRecord.Metrics[metricName])
+		if !ok {
+			return invalid("metric_name was not reported by the terminal Experiment")
+		}
+		if !sameMetric(observed, *metricValue) {
+			return invalid("metric_value does not match the terminal Experiment metric")
+		}
+	}
+	expectedMetric, err := proposalExpectedMetric(ctx, experimentRecord)
+	if err != nil {
+		return err
+	}
+	if status == researchnode.StatusSucceeded && expectedMetric != "" && metricName != expectedMetric {
+		return invalid("a succeeded result must record the expected_metric from the prepared proposal")
+	}
+	return nil
+}
+
+func proposalExpectedMetric(ctx context.Context, experimentRecord *ent.Experiment) (string, error) {
+	proposal, err := experimentRecord.QueryProposal().Only(ctx)
+	if ent.IsNotFound(err) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	value, _ := proposal.ProjectSnapshot["expected_metric"].(string)
+	return strings.TrimSpace(value), nil
+}
+
+func scalarMetric(value any) (float64, bool) {
+	var result float64
+	switch value := value.(type) {
+	case float64:
+		result = value
+	case float32:
+		result = float64(value)
+	case int:
+		result = float64(value)
+	case int8:
+		result = float64(value)
+	case int16:
+		result = float64(value)
+	case int32:
+		result = float64(value)
+	case int64:
+		result = float64(value)
+	case uint:
+		result = float64(value)
+	case uint8:
+		result = float64(value)
+	case uint16:
+		result = float64(value)
+	case uint32:
+		result = float64(value)
+	case uint64:
+		result = float64(value)
+	case json.Number:
+		parsed, err := value.Float64()
+		if err != nil {
+			return 0, false
+		}
+		result = parsed
+	default:
+		return 0, false
+	}
+	return result, !math.IsNaN(result) && !math.IsInf(result, 0)
+}
+
+func sameMetric(observed, reported float64) bool {
+	scale := math.Max(1, math.Max(math.Abs(observed), math.Abs(reported)))
+	return math.Abs(observed-reported) <= scale*1e-12
 }
 
 func findCloseRunNode(ctx context.Context, tx *ent.Tx, projectID, studyID int, runNodeID, experimentID string) (*ent.ResearchNode, error) {

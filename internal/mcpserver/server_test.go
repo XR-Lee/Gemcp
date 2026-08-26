@@ -3,6 +3,7 @@ package mcpserver
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -13,10 +14,12 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/nodeprojectaccess"
 	"github.com/XR-Lee/Gemcp/guides"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
+	"github.com/XR-Lee/Gemcp/internal/datasetcatalog"
 	"github.com/XR-Lee/Gemcp/internal/experiment"
 	repositoryservice "github.com/XR-Lee/Gemcp/internal/repository"
 	"github.com/XR-Lee/Gemcp/internal/research"
 	"github.com/XR-Lee/Gemcp/internal/secrets"
+	"github.com/XR-Lee/Gemcp/internal/sshcloud"
 	"github.com/XR-Lee/Gemcp/internal/workspacecatalog"
 	"github.com/google/uuid"
 	_ "github.com/mattn/go-sqlite3"
@@ -88,7 +91,7 @@ func TestStreamableHTTPToolsWithAgentToken(t *testing.T) {
 	handler := New(
 		agentauth.NewService(client, box),
 		experiment.NewService(client, box, allowCommitVerifier{}),
-		"test", nil, WithConfiguration(repositoryservice.NewService(client, box, nil), workspacecatalog.NewService(client)),
+		"test", nil, WithConfiguration(repositoryservice.NewService(client, box, nil), workspacecatalog.NewService(client), datasetcatalog.NewService(client)),
 		WithResearch(research.NewService(client)),
 	).Handler()
 	httpServer := httptest.NewServer(handler)
@@ -118,8 +121,11 @@ func TestStreamableHTTPToolsWithAgentToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListTools() error = %v", err)
 	}
-	if len(tools.Tools) != 21 {
-		t.Fatalf("tool count = %d, want 21", len(tools.Tools))
+	if len(tools.Tools) != 26 {
+		t.Fatalf("tool count = %d, want 26", len(tools.Tools))
+	}
+	if !strings.Contains(serverInstructions, "never call submit_prepared_experiment until the Owner explicitly confirms that digest") || !strings.Contains(serverInstructions, "submit scope are limits and technical capabilities, not financial approval") {
+		t.Fatal("MCP server instructions omit the exact-digest Owner approval boundary")
 	}
 	toolNames := map[string]bool{}
 	for _, tool := range tools.Tools {
@@ -127,7 +133,8 @@ func TestStreamableHTTPToolsWithAgentToken(t *testing.T) {
 	}
 	if !toolNames["get_research_workspace"] || !toolNames["update_research_workspace"] || !toolNames["get_next_actions"] || !toolNames["close_run"] ||
 		!toolNames["report_agent_activity"] || !toolNames["prepare_experiment"] || !toolNames["submit_prepared_experiment"] || !toolNames["submit_experiment"] ||
-		!toolNames["register_repository"] || !toolNames["verify_repository"] || !toolNames["register_workspace_dataset"] {
+		!toolNames["register_repository"] || !toolNames["verify_repository"] || !toolNames["register_workspace_dataset"] ||
+		!toolNames["list_dataset_bindings"] || !toolNames["register_dataset_binding"] || !toolNames["remove_dataset_binding"] {
 		t.Fatalf("prepared and Advanced tools are not all registered: %+v", toolNames)
 	}
 	usage, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "get_usage_guide", Arguments: map[string]any{}})
@@ -205,6 +212,79 @@ func TestStreamableHTTPToolsWithAgentToken(t *testing.T) {
 	decodeStructured(t, submitted.StructuredContent, &submitOutput)
 	if submitOutput.Experiment.State != "queued" || submitOutput.Experiment.ReservedCostMilli != 6575 {
 		t.Fatalf("unexpected submit output: %+v", submitOutput)
+	}
+
+	forbidden, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "register_ssh_cloud_node", Arguments: map[string]any{
+		"ssh": "ssh ubuntu@203.0.113.10", "auth_method": "password", "password": "super-secret-password",
+	}})
+	if err != nil {
+		t.Fatalf("register_ssh_cloud_node without operate_nodes err=%v", err)
+	}
+	encodedForbidden, _ := json.Marshal(forbidden)
+	if !forbidden.IsError || !strings.Contains(strings.ToLower(string(encodedForbidden)), "scope") {
+		t.Fatalf("register_ssh_cloud_node without operate_nodes = %s", encodedForbidden)
+	}
+	if strings.Contains(string(encodedForbidden), "super-secret-password") {
+		t.Fatal("forbidden tool result leaked the password")
+	}
+}
+
+func TestRegisterSSHCloudNodeRequiresOperateNodesAndNeverReturnsSecret(t *testing.T) {
+	client := enttest.Open(t, dialect.SQLite, "file:mcp-ssh?mode=memory&cache=shared&_fk=1")
+	defer client.Close()
+	ctx := context.Background()
+	tenant, _ := client.Tenant.Create().SetName("Test").Save(ctx)
+	project, _ := client.Project.Create().
+		SetTenantID(tenant.ID).SetName("Project").SetSlug("project").
+		SetMonthlyBudgetMilli(100000).SetMaxExperimentMilli(20000).SetMaxRuntimeSeconds(3600).
+		Save(ctx)
+	key, _ := secrets.GenerateMasterKey()
+	box, _ := secrets.New(key)
+	rawToken, prefix, _ := secrets.RandomToken("gmc", 32)
+	_, _ = client.AgentToken.Create().
+		SetProjectID(project.ID).SetLabel("node-agent").SetPrefix(prefix).
+		SetTokenHash(box.Digest("agent-token", rawToken)).SetScopes([]string{"read", "submit", "operate_nodes"}).Save(ctx)
+	config := sshcloud.DefaultConfig()
+	config.Enabled = true
+	config.InstanceID = "test"
+	sshService, err := sshcloud.NewService(client, box, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sshService.WithDial(func(context.Context, sshcloud.Target, sshcloud.Credential, string) (sshcloud.Conn, string, error) {
+		return nil, "", errors.New("probe should stay in the background")
+	})
+
+	handler := New(
+		agentauth.NewService(client, box),
+		experiment.NewService(client, box, allowCommitVerifier{}),
+		"test", nil, WithSSHCloud(sshService),
+	).Handler()
+	httpServer := httptest.NewServer(handler)
+	defer httpServer.Close()
+
+	httpClient := &http.Client{Transport: bearerTransport{token: rawToken, base: http.DefaultTransport}}
+	mcpClient := mcp.NewClient(&mcp.Implementation{Name: "gemcp-test", Version: "test"}, nil)
+	session, err := mcpClient.Connect(ctx, &mcp.StreamableClientTransport{
+		Endpoint: httpServer.URL, HTTPClient: httpClient,
+	}, nil)
+	if err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	defer session.Close()
+
+	registered, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "register_ssh_cloud_node", Arguments: map[string]any{
+		"ssh": "ssh ubuntu@203.0.113.10", "auth_method": "password", "password": "super-secret-password", "label": "lab",
+	}})
+	if err != nil || registered.IsError {
+		t.Fatalf("register_ssh_cloud_node = %+v, %v", registered, err)
+	}
+	encoded, _ := json.Marshal(registered.StructuredContent)
+	if !strings.Contains(string(encoded), "203.0.113.10") || !strings.Contains(string(encoded), "ubuntu") {
+		t.Fatalf("registered node = %s", encoded)
+	}
+	if strings.Contains(string(encoded), "super-secret-password") || strings.Contains(strings.ToLower(string(encoded)), "ciphertext") {
+		t.Fatalf("register leaked credential: %s", encoded)
 	}
 }
 

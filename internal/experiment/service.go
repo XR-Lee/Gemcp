@@ -23,6 +23,8 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
 	"github.com/XR-Lee/Gemcp/internal/secrets"
+	"github.com/XR-Lee/Gemcp/internal/sshcloud"
+	"github.com/XR-Lee/Gemcp/internal/validation"
 	"github.com/google/uuid"
 )
 
@@ -46,9 +48,9 @@ const (
 	shutdownObservationReserveSeconds = int64(30)
 )
 
-type ValidationError struct{ Message string }
+type validationDomain struct{}
 
-func (e *ValidationError) Error() string { return e.Message }
+type ValidationError = validation.Error[validationDomain]
 
 type CommitVerifier interface {
 	VerifyCommit(context.Context, int, string) error
@@ -64,7 +66,12 @@ type Service struct {
 	runtimeReader  ProposalRuntimeReader
 	proposalConfig ProposalConfig
 	graphBinder    GraphBinder
+	sshCloud       SSHCloudController
 	now            func() time.Time
+}
+
+type SSHCloudController interface {
+	EnsureForProject(ctx context.Context, tenantID int, actorID, projectPublicID, image string) (sshcloud.EnsureResult, error)
 }
 
 type GraphBinder interface {
@@ -82,6 +89,12 @@ func (s *Service) SetGraphBinder(binder GraphBinder) {
 }
 
 type ServiceOption func(*Service)
+
+func WithSSHCloud(controller SSHCloudController) ServiceOption {
+	return func(service *Service) {
+		service.sshCloud = controller
+	}
+}
 
 func WithPreparedExperiments(refResolver ProposalRefResolver, archiver ProposalArchiveReader, providerReader ProposalProviderReader, runtimeReader ProposalRuntimeReader, config ProposalConfig) ServiceOption {
 	return func(service *Service) {
@@ -217,7 +230,7 @@ func (s *Service) createSubmission(ctx context.Context, principal agentauth.Prin
 	if runtimeSeconds <= 0 || runtimeSeconds > projectRecord.MaxRuntimeSeconds {
 		return result, &ValidationError{Message: fmt.Sprintf("max_runtime_seconds must be between 1 and %d", projectRecord.MaxRuntimeSeconds)}
 	}
-	selfHosted := profileRecord.Backend == resourceprofile.BackendSelfHosted
+	selfHosted := unmeteredBackend(profileRecord.Backend)
 	reservation := int64(0)
 	if !selfHosted {
 		billableSeconds, err := billableRuntimeSeconds(runtimeSeconds, projectRecord.TimeoutExtensionSeconds, projectRecord.TerminationGraceSeconds)
@@ -503,6 +516,9 @@ func isRetryableTransaction(err error) bool {
 }
 
 func repositorySnapshot(record *ent.Repository, projectID string) map[string]any {
+	if record == nil {
+		return map[string]any{"project_id": projectID, "source": "host"}
+	}
 	return map[string]any{
 		"id": record.PublicID.String(), "project_id": projectID, "name": record.Name, "ssh_url": record.SSHURL,
 		"default_branch": record.DefaultBranch, "host_key_fingerprint": record.HostKeyFingerprint,
@@ -531,6 +547,14 @@ func makeView(record *ent.Experiment) View {
 		workspacePolicy = "container_fixed"
 		workspacePath = "/workspace"
 		containerOutputPath = "/outputs"
+	}
+	if backend == "ssh_cloud" {
+		workspacePolicy = "host_process"
+		workspacePath = snapshotString(record.EnvironmentSnapshot, "working_directory")
+		if workspacePath == "" {
+			workspacePath = "$HOME"
+		}
+		containerOutputPath = "GEMCP_OUTPUT_DIR"
 	}
 	return View{
 		ID: record.PublicID.String(), ProjectID: snapshotString(record.RepositorySnapshot, "project_id"),
@@ -573,6 +597,10 @@ func snapshotStrings(snapshot map[string]any, key string) []string {
 	default:
 		return []string{}
 	}
+}
+
+func unmeteredBackend(backend resourceprofile.Backend) bool {
+	return backend == resourceprofile.BackendSelfHosted || backend == resourceprofile.BackendSSHCloud
 }
 
 func snapshotInt(snapshot map[string]any, key string) int {

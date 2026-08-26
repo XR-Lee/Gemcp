@@ -2,10 +2,11 @@
 import { computed, ref } from 'vue'
 import { Bot, Check, Clipboard, FlaskConical, GitBranch, Network, Plus, Sparkles } from '@lucide/vue'
 import { motion } from 'motion-v'
-import type { Experiment, Project, Repository, ResearchWorkspace } from '../api'
+import type { AgentReadiness, Experiment, Project, Repository, ResearchWorkspace, RuntimeStatus } from '../api'
 import { localizedState, useI18n } from '../i18n'
 import { buildResearchAttachPrompt } from '../researchAttachPrompt'
 import { layoutResearchGraph } from '../researchGraphLayout'
+import AgentReadinessPanel from './AgentReadinessPanel.vue'
 import ResearchGraphCanvas from './ResearchGraphCanvas.vue'
 import WorkbenchDialog from './WorkbenchDialog.vue'
 import WorkbenchSelect from './WorkbenchSelect.vue'
@@ -18,12 +19,17 @@ const props = defineProps<{
   repositories?: Repository[]
   experiments?: Experiment[]
   hasActiveAgent?: boolean
+  readiness?: AgentReadiness | null
+  readinessLoading?: boolean
+  runtime?: RuntimeStatus | null
 }>()
 const emit = defineEmits<{
   selectStudy: [studyID: string]
   openExperiment: [experimentID: string]
   createStudy: []
   openAgents: []
+  openNodes: []
+  handshake: []
 }>()
 const { locale, languageTag, t } = useI18n()
 const attachOpen = ref(false)
@@ -100,6 +106,16 @@ function dateTime(value?: string) {
       </div>
     </motion.div>
 
+    <AgentReadinessPanel
+      :readiness="readiness ?? null"
+      :loading="readinessLoading"
+      compact
+      :runtime="runtime"
+      @open-agents="emit('openAgents')"
+      @handshake="emit('handshake')"
+      @open-nodes="emit('openNodes')"
+    />
+
     <div v-if="loading && !workspace" class="research-loading">{{ t('Loading research workspace...', '正在加载研究工作区...') }}</div>
 
     <template v-else-if="study">
@@ -154,7 +170,7 @@ function dateTime(value?: string) {
         <div class="section-heading">
           <div>
             <h2>{{ t('Research Graph', '研究 Graph') }}</h2>
-            <p>{{ t('The top axis is exploration time. The bright trail ends at the newest record. Green and red marks are successes and failures.', '顶轴是探索时间。亮的轨迹停在最新一条记录。绿是成功，红是失败。') }}</p>
+            <p>{{ t('The top axis is evidence time: git commit dates for historical nodes, Experiment time for Gemcp runs. It is not the moment the Agent wrote the node. The bright trail ends at the newest evidence. Green and red marks are successes and failures.', '顶轴是证据时间：历史节点用 git commit 时间，Gemcp run 用作业时间，不是 Agent 写入节点的时刻。亮的轨迹停在最新一条证据。绿是成功，红是失败。') }}</p>
           </div>
           <span class="live-label"><Network :size="13" />{{ nodes.length }} {{ t('nodes', '个节点') }} · {{ graphLayout.activeNodeIDs.length }} {{ t('on active path', '条在 active path') }}</span>
         </div>

@@ -36,6 +36,18 @@ provide('researchGraphSelectedID', selectedID)
 const selected = computed(() => props.nodes.find((node) => node.id === selectedID.value) ?? null)
 const layoutByID = computed(() => new Map(props.layout.nodes.map((item) => [item.id, item])))
 const nodeByID = computed(() => new Map(props.nodes.map((node) => [node.id, node])))
+const missingEvidenceTime = computed(() => {
+  const scientific = props.nodes.filter((node) => node.kind !== 'question')
+  return scientific.length > 0 && scientific.every((node) => !node.occurred_at)
+})
+const axisLabel = computed(() => {
+  if (missingEvidenceTime.value) {
+    return t('Showing Graph write time — attach again to stamp commit dates', '现在是写入时间 — 再 Attach 一次才能标上 commit 日期')
+  }
+  return props.layout.axis === 'time'
+    ? t('Evidence time left to right (commit or Experiment)', '证据时间从左到右（commit 或 Experiment）')
+    : t('Lineage left to right; evidence dates are too close to spread', '谱系从左到右；证据日期太近，还不能拉开')
+})
 
 const graphNodes = computed<Node[]>(() => {
   const ticks: Node[] = props.layout.ticks.map((tick) => ({
@@ -180,11 +192,7 @@ onUnmounted(() => {
   <Teleport to="body" :disabled="!fullscreen">
   <div class="graph-shell" :class="{ 'is-fullscreen': fullscreen }" :style="fullscreen ? undefined : { maxHeight: `${CANVAS_MAX_HEIGHT}px` }">
     <div class="graph-toolbar">
-      <span class="graph-axis-label"><Clock3 :size="13" />{{
-        layout.axis === 'time'
-          ? t('Exploration time left to right', '探索时间从左到右')
-          : t('Exploration sequence left to right; times are clustered in one session', '探索序从左到右；这次写入挤在同一时段')
-      }}</span>
+      <span class="graph-axis-label" :class="{ 'is-fallback': missingEvidenceTime }"><Clock3 :size="13" />{{ axisLabel }}</span>
       <div class="graph-toolbar-actions">
         <button class="secondary-button small-button" type="button" :aria-label="t('Fit graph', '适配窗口')" @click="fitGraph">
           <Scan :size="15" />{{ t('Fit', '适配') }}
@@ -243,7 +251,15 @@ onUnmounted(() => {
             <dd>{{ selected.metric_name }} {{ selected.metric_value }}</dd>
           </div>
           <div>
-            <dt>{{ t('Recorded', '记录于') }}</dt>
+            <dt>{{ t('Evidence time', '证据时间') }}</dt>
+            <dd>{{ dateTime(selected.occurred_at || selected.created_at) }}</dd>
+          </div>
+          <div v-if="selected.commit_sha">
+            <dt>{{ t('Commit', 'Commit') }}</dt>
+            <dd><code>{{ selected.commit_sha.slice(0, 12) }}</code></dd>
+          </div>
+          <div>
+            <dt>{{ t('Recorded on Graph', '写入 Graph') }}</dt>
             <dd>{{ dateTime(selected.created_at) }}</dd>
           </div>
           <div>

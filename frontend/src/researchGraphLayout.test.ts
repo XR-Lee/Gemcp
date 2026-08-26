@@ -67,6 +67,28 @@ describe('layoutResearchGraph', () => {
     expect(layout.ticks).toHaveLength(3)
   })
 
+  it('places nodes by commit/evidence time, not the MCP write burst', () => {
+    const written = { created_at: '2026-08-22T02:19:00Z', updated_at: '2026-08-22T02:19:30Z' }
+    const layout = layoutResearchGraph({
+      nodes: [
+        node('q', 'question', { ...written, occurred_at: '2024-03-12T00:00:00Z' }),
+        node('old', 'hypothesis', { ...written, occurred_at: '2024-06-01T00:00:00Z' }),
+        node('new', 'observation', { ...written, occurred_at: '2025-11-02T18:04:00Z' }),
+      ],
+      edges: [
+        edge('e1', 'q', 'old'),
+        edge('e2', 'old', 'new'),
+      ],
+    })
+    const byID = Object.fromEntries(layout.nodes.map((item) => [item.id, item]))
+    expect(layout.axis).toBe('time')
+    expect(byID.q.x).toBeLessThan(byID.old.x)
+    expect(byID.old.x).toBeLessThan(byID.new.x)
+    expect(layout.ticks.some((tick) => /2024|2025/.test(tick.label))).toBe(true)
+    expect(byID.new.active).toBe(true)
+    expect(byID.old.active).toBe(true)
+  })
+
   it('keeps competing hypotheses on the same rank and marks orphans', () => {
     const layout = layoutResearchGraph({
       nodes: [

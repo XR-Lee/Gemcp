@@ -15,6 +15,7 @@ const error = ref('')
 const result = ref<SetupResult | null>(null)
 const copied = ref(false)
 const slugEdited = ref(false)
+const configureAutoDL = ref(true)
 const providerMode = ref<'private' | 'public'>('private')
 const { t } = useI18n()
 
@@ -49,7 +50,7 @@ const form = reactive({
   reuseContainer: false,
 })
 
-const stepLabel = computed(() => [t('Owner', 'Owner'), t('Provider', 'Provider'), t('Project', 'Project')][step.value - 1])
+const stepLabel = computed(() => [t('Owner', 'Owner'), t('Compute', '计算资源'), t('Project', 'Project')][step.value - 1])
 
 function slugify(value: string) {
   return value
@@ -75,7 +76,7 @@ function applyProviderMode() {
     form.priceToCNY = 9
     return
   }
-  form.providerName = 'AutoDL'
+  form.providerName = 'AutoDL Public Cloud'
   form.providerBaseURL = 'https://api.autodl.com'
   form.region = 'westDC2'
   form.gpuNames = 'RTX 4090'
@@ -91,7 +92,7 @@ function validate(current: number): string {
     if (!/^\S+@\S+\.\S+$/.test(form.ownerEmail)) return t('Enter a valid Owner email.', '请输入有效的 Owner 邮箱。')
     if (form.ownerPassword.length < 12) return t('Owner password must contain at least 12 characters.', 'Owner 密码至少需要 12 个字符。')
   }
-  if (current === 2) {
+  if (current === 2 && configureAutoDL.value) {
     if (!form.providerName.trim() || !form.providerToken.trim()) return t('Provider name and AutoDL token are required.', '必须填写 Provider 名称和 AutoDL Token。')
     if (!form.providerBaseURL.startsWith('https://')) return t('Provider API URL must use HTTPS.', 'Provider API URL 必须使用 HTTPS。')
   }
@@ -102,8 +103,8 @@ function validate(current: number): string {
     if (form.monthlyBudgetCNY <= 0 || form.maxExperimentCNY <= 0 || form.maxExperimentCNY > form.monthlyBudgetCNY) {
       return t('Experiment cap must be positive and no greater than the monthly budget.', 'Experiment 上限必须为正数且不能超过月度预算。')
     }
-    if (!form.imageUUID.trim()) return t('AutoDL image UUID is required.', '必须填写 AutoDL 镜像 UUID。')
-    if (!form.region.trim() || !form.gpuNames.trim() || form.priceToCNY <= 0) return t('Resource region, GPU candidates, and price ceiling are required.', '必须填写资源区域、候选 GPU 和价格上限。')
+    if (configureAutoDL.value && !form.imageUUID.trim()) return t('AutoDL image UUID is required.', '必须填写 AutoDL 镜像 UUID。')
+    if (configureAutoDL.value && (!form.region.trim() || !form.gpuNames.trim() || form.priceToCNY <= 0)) return t('Resource region, GPU candidates, and price ceiling are required.', '必须填写资源区域、候选 GPU 和价格上限。')
   }
   return ''
 }
@@ -122,9 +123,11 @@ async function submit() {
       {
         organization_name: form.organizationName.trim(),
         owner: { email: form.ownerEmail.trim(), password: form.ownerPassword },
+        skip_provider: !configureAutoDL.value,
         provider: {
           name: form.providerName.trim(),
           base_url: form.providerBaseURL.trim(),
+          backend: providerMode.value === 'public' ? 'elastic' : 'private',
           token: form.providerToken.trim(),
         },
         project: {
@@ -206,7 +209,7 @@ async function copyToken() {
     <template v-else>
       <div class="setup-progress" :aria-label="t('Setup progress', '设置进度')">
         <button v-for="item in 3" :key="item" type="button" :class="{ active: step === item, complete: step > item }" @click="item < step && (step = item)">
-          <span><Check v-if="step > item" :size="13" /><template v-else>{{ item }}</template></span>{{ [t('Owner', 'Owner'), t('Provider', 'Provider'), t('Project', 'Project')][item - 1] }}
+          <span><Check v-if="step > item" :size="13" /><template v-else>{{ item }}</template></span>{{ [t('Owner', 'Owner'), t('Compute', '计算资源'), t('Project', 'Project')][item - 1] }}
         </button>
       </div>
 
@@ -222,14 +225,21 @@ async function copyToken() {
         </section>
 
         <section v-else-if="step === 2" class="form-section">
-          <div class="form-heading"><p class="eyebrow">{{ t('Credential custody', '凭据托管') }}</p><h1>{{ t('Connect AutoDL', '连接 AutoDL') }}</h1></div>
-          <div class="form-grid two-columns">
-            <label>{{ t('AutoDL service', 'AutoDL 服务') }}<select v-model="providerMode" @change="applyProviderMode"><option value="private">{{ t('Private Cloud', '私有云') }}</option><option value="public">{{ t('Public Cloud', '公共云') }}</option></select></label>
-            <label>{{ t('Provider name', 'Provider 名称') }}<input v-model="form.providerName" /></label>
-            <label class="full-field">API base URL<input v-model="form.providerBaseURL" type="url" spellcheck="false" /></label>
-            <label class="full-field">AutoDL API Token<input v-model="form.providerToken" type="password" autocomplete="off" spellcheck="false" /></label>
-          </div>
-          <p class="form-note">{{ t('The token is encrypted before it is written to PostgreSQL. The selected service controls which official API host receives it.', 'Token 在写入 PostgreSQL 前会被加密；所选服务决定将其发送到哪个官方 API 主机。') }}</p>
+          <div class="form-heading"><p class="eyebrow">{{ t('Compute setup', '计算资源设置') }}</p><h1>{{ t('Choose the first backend', '选择首个执行后端') }}</h1></div>
+          <label class="checkbox-field provider-choice"><input v-model="configureAutoDL" type="checkbox" /><span>{{ t('Configure AutoDL now', '现在配置 AutoDL') }}</span></label>
+          <template v-if="configureAutoDL">
+            <div class="form-grid two-columns">
+              <label>{{ t('AutoDL service', 'AutoDL 服务') }}<select v-model="providerMode" @change="applyProviderMode"><option value="private">{{ t('Private Cloud', '私有云') }}</option><option value="public">{{ t('Public Cloud', '公有云') }}</option></select></label>
+              <label>{{ t('Provider name', 'Provider 名称') }}<input v-model="form.providerName" /></label>
+              <label class="full-field">API base URL<input :value="form.providerBaseURL" type="url" spellcheck="false" disabled /></label>
+              <label class="full-field">AutoDL API Token<input v-model="form.providerToken" type="password" autocomplete="off" spellcheck="false" /></label>
+            </div>
+            <p class="form-note">{{ providerMode === 'public'
+              ? t('The token is encrypted before it is written to PostgreSQL. Public Elastic requires an enterprise-verified AutoDL account and uses https://api.autodl.com. Public Pro instances are not a production backend.', 'Token 在写入 PostgreSQL 前会被加密。公有云弹性部署需要企业认证账号，并使用 https://api.autodl.com。普通公有云实例（Pro）不是生产执行后端。')
+              : t('The token is encrypted before it is written to PostgreSQL. The selected service controls which official API host receives it.', 'Token 在写入 PostgreSQL 前会被加密；所选服务决定将其发送到哪个官方 API 主机。')
+            }}</p>
+          </template>
+          <p v-else class="form-note">{{ t('Continue without AutoDL for a Self-hosted or Cloud SSH deployment. You can add and validate an AutoDL credential later from Lab → Provider.', '若只使用 Self-hosted 或 Cloud SSH，可不配置 AutoDL。之后可在“实验室 → Provider”中添加并实时验证 AutoDL 凭据。') }}</p>
         </section>
 
         <section v-else class="form-section wide-form-section">
@@ -245,7 +255,7 @@ async function copyToken() {
               <label>{{ t('Max runtime (hours)', '最长运行时间（小时）') }}<input v-model.number="form.maxRuntimeHours" type="number" min="0.1" max="168" step="0.1" /></label>
             </div>
           </div>
-          <div class="form-subsection">
+          <div v-if="configureAutoDL" class="form-subsection">
             <h2>{{ t('Environment and resources', '环境与资源') }}</h2>
             <div class="form-grid four-columns">
               <label>{{ t('Environment name', 'Environment 名称') }}<input v-model="form.environmentName" /></label>
@@ -278,3 +288,7 @@ async function copyToken() {
     </template>
   </main>
 </template>
+
+<style scoped>
+.provider-choice { margin-bottom: 18px; }
+</style>

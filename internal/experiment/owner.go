@@ -6,7 +6,10 @@ import (
 	"strings"
 
 	"github.com/XR-Lee/Gemcp/ent"
+	"github.com/XR-Lee/Gemcp/ent/agenttoken"
 	"github.com/XR-Lee/Gemcp/ent/attempt"
+	"github.com/XR-Lee/Gemcp/ent/auditevent"
+	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
 	"github.com/google/uuid"
@@ -75,6 +78,67 @@ func (s *Service) OwnerAttempts(ctx context.Context, tenantID int, projectPublic
 			LogTail: record.LogTail, Metrics: record.Metrics, LastHeartbeatAt: record.LastHeartbeatAt,
 			CreatedAt: record.CreatedAt, UpdatedAt: record.UpdatedAt,
 		})
+	}
+	return result, nil
+}
+
+func (s *Service) OwnerSubmitPrepared(ctx context.Context, tenantID int, actorID, projectPublicID, proposalPublicID string, input OwnerSubmitPreparedInput) (SubmitPreparedResult, error) {
+	if !input.Confirmed {
+		return SubmitPreparedResult{}, ErrConfirmationRequired
+	}
+	projectID, err := uuid.Parse(strings.TrimSpace(projectPublicID))
+	if err != nil {
+		return SubmitPreparedResult{}, ErrNotFound
+	}
+	projectRecord, err := s.client.Project.Query().Where(
+		project.PublicIDEQ(projectID), project.TenantIDEQ(tenantID),
+	).Only(ctx)
+	if ent.IsNotFound(err) {
+		return SubmitPreparedResult{}, ErrNotFound
+	}
+	if err != nil {
+		return SubmitPreparedResult{}, err
+	}
+	proposalID, err := uuid.Parse(strings.TrimSpace(proposalPublicID))
+	if err != nil {
+		return SubmitPreparedResult{}, ErrProposalNotFound
+	}
+	record, err := s.client.ExperimentProposal.Query().Where(
+		experimentproposal.PublicIDEQ(proposalID), experimentproposal.ProjectIDEQ(projectRecord.ID),
+	).WithAgentToken().Only(ctx)
+	if ent.IsNotFound(err) {
+		return SubmitPreparedResult{}, ErrProposalNotFound
+	}
+	if err != nil {
+		return SubmitPreparedResult{}, err
+	}
+	token, err := record.Edges.AgentTokenOrErr()
+	if err != nil {
+		token, err = s.client.AgentToken.Query().Where(agenttoken.IDEQ(record.AgentTokenID)).Only(ctx)
+		if err != nil {
+			return SubmitPreparedResult{}, err
+		}
+	}
+	principal := agentauth.Principal{
+		TenantID: tenantID, ProjectID: projectRecord.ID, ProjectPublicID: projectRecord.PublicID.String(),
+		TokenID: token.ID, TokenPublicID: token.PublicID.String(), Scopes: []string{"submit", "read"},
+	}
+	result, err := s.SubmitPrepared(ctx, principal, SubmitPreparedInput{
+		ProposalID: proposalPublicID, ConfirmationDigest: input.ConfirmationDigest,
+	})
+	if err != nil {
+		return result, err
+	}
+	if _, auditErr := s.client.AuditEvent.Create().
+		SetTenantID(tenantID).SetActorType(auditevent.ActorTypeUser).SetActorID(strings.TrimSpace(actorID)).
+		SetAction("experiment.proposal_owner_confirmed").SetTargetType("experiment").
+		SetTargetID(result.Experiment.ID).
+		SetMetadata(map[string]any{
+			"project_id": projectRecord.PublicID.String(), "proposal_id": record.PublicID.String(),
+			"confirmation_digest": strings.ToLower(strings.TrimSpace(input.ConfirmationDigest)),
+			"idempotent":          result.Idempotent,
+		}).Save(ctx); auditErr != nil {
+		return result, auditErr
 	}
 	return result, nil
 }

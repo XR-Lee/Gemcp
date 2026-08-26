@@ -22,7 +22,7 @@ import (
 const (
 	maxActiveEnrollmentsPerProject = 20
 	maxListedEnrollments           = 50
-	defaultSetupExpiresInMinutes   = 30
+	defaultSetupExpiresInMinutes   = 240
 	minSetupExpiresInMinutes       = 5
 	maxSetupExpiresInMinutes       = 24 * 60
 )
@@ -41,6 +41,9 @@ var piDirectTools = []string{
 	"list_workspace_datasets",
 	"register_workspace_dataset",
 	"remove_workspace_dataset",
+	"list_dataset_bindings",
+	"register_dataset_binding",
+	"remove_dataset_binding",
 	"get_research_workspace",
 	"update_research_workspace",
 	"get_next_actions",
@@ -55,6 +58,8 @@ var piDirectTools = []string{
 	"list_experiments",
 	"cancel_experiment",
 	"list_artifacts",
+	"register_ssh_cloud_node",
+	"rotate_ssh_cloud_node_credential",
 }
 
 type EnrollmentIssueInput struct {

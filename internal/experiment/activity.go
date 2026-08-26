@@ -61,6 +61,8 @@ type ProposalActivityView struct {
 	ResourceProfileName string          `json:"resource_profile_name"`
 	GPUModels           []string        `json:"gpu_models"`
 	GPUNum              int             `json:"gpu_num"`
+	RuntimePreset       string          `json:"runtime_preset"`
+	MaxRuntimeSeconds   int             `json:"max_runtime_seconds"`
 	ReservedCostMilli   int64           `json:"reserved_cost_milli"`
 	Checks              []ProposalCheck `json:"checks"`
 	ConfirmationDigest  string          `json:"confirmation_digest"`
@@ -206,6 +208,7 @@ func (s *Service) OwnerOperations(ctx context.Context, tenantID int, projectID s
 			RepositoryName: snapshotString(proposal.RepositorySnapshot, "name"), EnvironmentName: snapshotString(proposal.EnvironmentSnapshot, "name"),
 			Image: snapshotString(proposal.EnvironmentSnapshot, "image_uuid"), ResourceProfileName: snapshotString(proposal.ResourceSnapshot, "name"),
 			GPUModels: snapshotStrings(proposal.ResourceSnapshot, "gpu_names"), GPUNum: snapshotInt(proposal.ResourceSnapshot, "gpu_num"),
+			RuntimePreset: proposal.RuntimePreset, MaxRuntimeSeconds: proposal.MaxRuntimeSeconds,
 			ReservedCostMilli: proposal.ReservedCostMilli, Checks: checks, ConfirmationDigest: proposal.ConfirmationDigest,
 			CreatedAt: proposal.CreatedAt, UpdatedAt: proposal.UpdatedAt, ExpiresAt: proposal.ExpiresAt,
 		}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"regexp"
@@ -13,6 +14,10 @@ import (
 
 	"github.com/XR-Lee/Gemcp/ent"
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
+	"github.com/XR-Lee/Gemcp/ent/cloudsshassignment"
+	"github.com/XR-Lee/Gemcp/ent/cloudsshnode"
+	"github.com/XR-Lee/Gemcp/ent/cloudsshprojectaccess"
+	"github.com/XR-Lee/Gemcp/ent/datasetbinding"
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	entexperiment "github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
@@ -23,24 +28,32 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/selfhostednode"
 	"github.com/XR-Lee/Gemcp/ent/workspacedataset"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
+	"github.com/XR-Lee/Gemcp/internal/datasetcatalog"
 	"github.com/XR-Lee/Gemcp/internal/executioncmd"
 	"github.com/XR-Lee/Gemcp/internal/nodeprotocol"
 	"github.com/XR-Lee/Gemcp/internal/provider"
 	"github.com/XR-Lee/Gemcp/internal/sourcearchive"
+	"github.com/XR-Lee/Gemcp/internal/sshcloud"
 	"github.com/google/uuid"
 )
 
 const (
 	defaultProposalSourceMaxBytes = int64(256 << 20)
-	defaultProposalLifetime       = 30 * time.Minute
+	defaultProposalLifetime       = 2 * time.Hour
 	defaultProposalNodeStaleAfter = time.Minute
 	smokeRuntimeSeconds           = 300
+	probeRuntimeSeconds           = 3600
+	trainRuntimeDefaultSeconds    = 10800
+	sshCloudAgentWarning          = "Cloud SSH is experimental. The control plane holds host login credentials and starts the command as a host process. There is no container isolation. Emergency Stop only kills the Gemcp-started process group."
 )
 
 var proposalPinnedImage = regexp.MustCompile(`^[^[:space:]@]+@sha256:[0-9a-f]{64}$`)
 var proposalWorkspaceImage = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/-]*(?:@sha256:[0-9a-f]{64})?$`)
 
-const proposalWorkspaceRecipePrefix = "trusted-workspace:"
+const (
+	proposalWorkspaceRecipePrefix = "trusted-workspace:"
+	sshCloudRecipePrefix          = "ssh-cloud:"
+)
 
 type proposalWorkspace struct {
 	nodeID    string
@@ -67,6 +80,12 @@ type proposalResolved struct {
 	checks         []ProposalCheck
 	fromNodeID     string
 	expectedMetric string
+	cwd            string
+	sshHost        string
+	sshUser        string
+	sshNodeID      string
+	sshNodeLabel   string
+	bindings       []datasetcatalog.View
 }
 
 type proposalPair struct {
@@ -123,12 +142,11 @@ func (s *Service) Prepare(ctx context.Context, principal agentauth.Principal, in
 		return PrepareResult{}, err
 	}
 	defer tx.Rollback()
-	record, err := tx.ExperimentProposal.Create().
+	create := tx.ExperimentProposal.Create().
 		SetPublicID(resolved.id).
 		SetTenantID(principal.TenantID).
 		SetProjectID(resolved.project.ID).
 		SetAgentTokenID(principal.TokenID).
-		SetRepositoryID(resolved.repository.ID).
 		SetEnvironmentID(resolved.environment.ID).
 		SetResourceProfileID(resolved.profile.ID).
 		SetRequestedRef(resolved.ref).
@@ -147,10 +165,21 @@ func (s *Service) Prepare(ctx context.Context, principal agentauth.Principal, in
 		SetChecks(checkMaps).
 		SetReservedCostMilli(resolved.reservation).
 		SetConfirmationDigest(digest).
-		SetExpiresAt(resolved.expiresAt).
-		Save(ctx)
+		SetExpiresAt(resolved.expiresAt)
+	if resolved.repository != nil {
+		create.SetRepositoryID(resolved.repository.ID)
+	}
+	record, err := create.Save(ctx)
 	if err != nil {
 		return PrepareResult{}, err
+	}
+	auditMeta := map[string]any{
+		"project_id": resolved.project.PublicID.String(), "commit_sha": resolved.commitSHA,
+		"backend": resolved.profile.Backend, "reserved_cost_milli": resolved.reservation,
+		"eligible": proposalChecksEligible(resolved.checks), "confirmation_digest": digest,
+	}
+	if resolved.repository != nil {
+		auditMeta["repository_id"] = resolved.repository.PublicID.String()
 	}
 	if _, err := tx.AuditEvent.Create().
 		SetTenantID(principal.TenantID).
@@ -159,19 +188,19 @@ func (s *Service) Prepare(ctx context.Context, principal agentauth.Principal, in
 		SetAction("experiment.proposal_prepared").
 		SetTargetType("experiment_proposal").
 		SetTargetID(record.PublicID.String()).
-		SetMetadata(map[string]any{
-			"project_id": resolved.project.PublicID.String(), "repository_id": resolved.repository.PublicID.String(),
-			"commit_sha": resolved.commitSHA, "backend": resolved.profile.Backend, "reserved_cost_milli": resolved.reservation,
-			"eligible": proposalChecksEligible(resolved.checks), "confirmation_digest": digest,
-		}).Save(ctx); err != nil {
+		SetMetadata(auditMeta).Save(ctx); err != nil {
 		return PrepareResult{}, err
+	}
+	activityMeta := map[string]any{
+		"project_id": principal.ProjectPublicID, "phase": "awaiting_confirmation", "proposal_id": record.PublicID.String(),
+		"ref": resolved.ref,
+	}
+	if resolved.repository != nil {
+		activityMeta["repository_remote"] = resolved.repository.SSHURL
 	}
 	if _, err := tx.AuditEvent.Create().SetTenantID(principal.TenantID).SetActorType("agent_token").SetActorID(principal.TokenPublicID).
 		SetAction("agent.activity").SetTargetType("project").SetTargetID(principal.ProjectPublicID).
-		SetMetadata(map[string]any{
-			"project_id": principal.ProjectPublicID, "phase": "awaiting_confirmation", "proposal_id": record.PublicID.String(),
-			"repository_remote": resolved.repository.SSHURL, "ref": resolved.ref,
-		}).Save(ctx); err != nil {
+		SetMetadata(activityMeta).Save(ctx); err != nil {
 		return PrepareResult{}, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -198,9 +227,13 @@ func (s *Service) resolveProposal(ctx context.Context, principal agentauth.Princ
 	if err != nil {
 		return result, nil, err
 	}
-	repositoryRecord, choices, err := chooseProposalRepository(repositories, input.Repository, input.RepositoryRemote)
-	if err != nil || len(choices) > 0 {
-		return result, choices, err
+	if ensured, ensureErr := s.ensureSSHCloudForPrepare(ctx, principal, &input); ensureErr != nil {
+		return result, nil, ensureErr
+	} else if ensured.EnvironmentName != "" && strings.TrimSpace(input.Environment) == "" {
+		input.Environment = ensured.EnvironmentName
+		if strings.TrimSpace(input.ResourceProfile) == "" {
+			input.ResourceProfile = ensured.ProfileName
+		}
 	}
 	environments, err := s.client.Environment.Query().Where(
 		environment.ProjectIDEQ(projectRecord.ID), environment.StatusEQ(environment.StatusApproved),
@@ -221,43 +254,51 @@ func (s *Service) resolveProposal(ctx context.Context, principal agentauth.Princ
 	if err := validateProposalResource(profileRecord); err != nil {
 		return result, nil, err
 	}
+	sshCloud := profileRecord.Backend == resourceprofile.BackendSSHCloud
+	var repositoryRecord *ent.Repository
+	if !sshCloud || strings.TrimSpace(input.Repository) != "" || strings.TrimSpace(input.RepositoryRemote) != "" {
+		chosen, repoChoices, repoErr := chooseProposalRepository(repositories, input.Repository, input.RepositoryRemote)
+		if repoErr != nil || len(repoChoices) > 0 {
+			return result, repoChoices, repoErr
+		}
+		repositoryRecord = chosen
+	}
+	if !sshCloud && repositoryRecord == nil {
+		return result, nil, ErrOptionNotFound
+	}
 	image, workspace, err := s.resolveProposalRuntime(ctx, projectRecord, environmentRecord, profileRecord, input.Image, false)
 	if err != nil {
 		return result, nil, err
 	}
-	preset := strings.ToLower(strings.TrimSpace(input.RuntimePreset))
-	if preset == "" {
-		preset = "smoke"
+	preset, runtimeSeconds, err := resolveProposalRuntimeLimit(input.RuntimePreset, input.MaxRuntimeSeconds, projectRecord.MaxRuntimeSeconds)
+	if err != nil {
+		return result, nil, err
 	}
-	if preset != "smoke" {
-		return result, nil, &ValidationError{Message: "runtime_preset must be smoke in the prepared experiment phase-one interface"}
-	}
-	runtimeSeconds := input.MaxRuntimeSeconds
-	if runtimeSeconds == 0 {
-		runtimeSeconds = smokeRuntimeSeconds
-		if projectRecord.MaxRuntimeSeconds < runtimeSeconds {
-			runtimeSeconds = projectRecord.MaxRuntimeSeconds
-		}
-	}
-	if runtimeSeconds <= 0 || runtimeSeconds > smokeRuntimeSeconds || runtimeSeconds > projectRecord.MaxRuntimeSeconds {
-		return result, nil, &ValidationError{Message: fmt.Sprintf("max_runtime_seconds must be between 1 and %d for the smoke preset", minInt(smokeRuntimeSeconds, projectRecord.MaxRuntimeSeconds))}
+	cwd, err := normalizeProposalCwd(input.Cwd)
+	if err != nil {
+		return result, nil, err
 	}
 	ref := strings.TrimSpace(input.Ref)
-	if ref == "" {
-		ref = repositoryRecord.DefaultBranch
-	}
-	resolveCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
-	commitSHA, err := s.refResolver.ResolveRef(resolveCtx, repositoryRecord.ID, ref)
-	cancel()
-	if err != nil {
-		return result, nil, fmt.Errorf("%w: resolve ref %q: %v", ErrCommitVerification, ref, err)
-	}
-	commitSHA = strings.ToLower(strings.TrimSpace(commitSHA))
-	if !commitPattern.MatchString(commitSHA) {
-		return result, nil, fmt.Errorf("%w: resolved ref did not return a full commit SHA", ErrCommitVerification)
+	commitSHA := sshcloud.HostCommit
+	if repositoryRecord != nil {
+		if ref == "" {
+			ref = repositoryRecord.DefaultBranch
+		}
+		resolveCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
+		commitSHA, err = s.refResolver.ResolveRef(resolveCtx, repositoryRecord.ID, ref)
+		cancel()
+		if err != nil {
+			return result, nil, fmt.Errorf("%w: resolve ref %q: %v", ErrCommitVerification, ref, err)
+		}
+		commitSHA = strings.ToLower(strings.TrimSpace(commitSHA))
+		if !commitPattern.MatchString(commitSHA) {
+			return result, nil, fmt.Errorf("%w: resolved ref did not return a full commit SHA", ErrCommitVerification)
+		}
+	} else {
+		ref = sshcloud.HostRef
 	}
 	reservation := int64(0)
-	if profileRecord.Backend != resourceprofile.BackendSelfHosted {
+	if !unmeteredBackend(profileRecord.Backend) {
 		billable, err := billableRuntimeSeconds(runtimeSeconds, projectRecord.TimeoutExtensionSeconds, projectRecord.TerminationGraceSeconds)
 		if err != nil {
 			return result, nil, err
@@ -272,13 +313,55 @@ func (s *Service) resolveProposal(ctx context.Context, principal agentauth.Princ
 		return result, nil, err
 	}
 	now := s.now().UTC().Truncate(time.Microsecond)
-	return proposalResolved{
+	resolved := proposalResolved{
 		id: uuid.New(), project: projectRecord, repository: repositoryRecord, environment: environmentRecord, profile: profileRecord,
-		image: image, workspace: workspace,
+		image: image, workspace: workspace, cwd: cwd,
 		ref: ref, commitSHA: commitSHA, execution: executionSpec, preset: preset, runtime: runtimeSeconds,
 		reservation: reservation, expiresAt: now.Add(s.proposalConfig.Lifetime).Truncate(time.Microsecond),
 		fromNodeID: fromNodeID, expectedMetric: expectedMetric,
-	}, nil, nil
+	}
+	if sshCloud {
+		if err := s.attachSSHCloudTarget(ctx, projectRecord, environmentRecord, &resolved); err != nil {
+			return result, nil, err
+		}
+	}
+	if err := s.attachProposalBindings(ctx, &resolved); err != nil {
+		return result, nil, err
+	}
+	return resolved, nil, nil
+}
+
+func resolveProposalRuntimeLimit(preset string, requested, projectMax int) (string, int, error) {
+	preset = strings.ToLower(strings.TrimSpace(preset))
+	if preset == "" {
+		preset = "smoke"
+	}
+	var ceiling, defaultRuntime int
+	switch preset {
+	case "smoke":
+		ceiling, defaultRuntime = smokeRuntimeSeconds, smokeRuntimeSeconds
+	case "probe":
+		ceiling, defaultRuntime = probeRuntimeSeconds, probeRuntimeSeconds
+	case "train":
+		ceiling = projectMax
+		defaultRuntime = trainRuntimeDefaultSeconds
+		if defaultRuntime > projectMax {
+			defaultRuntime = projectMax
+		}
+	default:
+		return "", 0, &ValidationError{Message: "runtime_preset must be smoke, probe, or train"}
+	}
+	if ceiling > projectMax {
+		ceiling = projectMax
+	}
+	runtimeSeconds := requested
+	if runtimeSeconds == 0 {
+		runtimeSeconds = defaultRuntime
+	}
+	if runtimeSeconds <= 0 || runtimeSeconds > ceiling {
+		return "", 0, &ValidationError{Message: fmt.Sprintf("max_runtime_seconds must be between 1 and %d for the %s preset", ceiling, preset)}
+	}
+	return preset, runtimeSeconds, nil
 }
 
 func chooseProposalRepository(records []*ent.Repository, selector, remote string) (*ent.Repository, []ProposalChoice, error) {
@@ -399,11 +482,83 @@ func normalizedGitRemote(value string) string {
 	}
 }
 
+func (s *Service) ensureSSHCloudForPrepare(ctx context.Context, principal agentauth.Principal, input *PrepareInput) (sshcloud.EnsureResult, error) {
+	var empty sshcloud.EnsureResult
+	if !s.proposalConfig.SSHCloudEnabled || s.sshCloud == nil || input == nil {
+		return empty, nil
+	}
+	sshSelector := looksLikeSSHCloudSelector(input.Environment) || looksLikeSSHCloudSelector(input.ResourceProfile)
+	hasNodes, err := s.client.CloudSSHNode.Query().Where(
+		cloudsshnode.TenantIDEQ(principal.TenantID),
+		cloudsshnode.StatusIn(cloudsshnode.StatusPendingProbe, cloudsshnode.StatusActive),
+	).Exist(ctx)
+	if err != nil {
+		return empty, err
+	}
+	selectedOther := (strings.TrimSpace(input.Environment) != "" && !looksLikeSSHCloudSelector(input.Environment)) ||
+		(strings.TrimSpace(input.ResourceProfile) != "" && !looksLikeSSHCloudSelector(input.ResourceProfile))
+	if selectedOther && !sshSelector {
+		return empty, nil
+	}
+	if !sshSelector && !hasNodes {
+		return empty, nil
+	}
+	input.Image = ""
+	result, err := s.sshCloud.EnsureForProject(ctx, principal.TenantID, "agent:"+principal.TokenPublicID, principal.ProjectPublicID, sshcloud.HostImage)
+	if err != nil {
+		return empty, publicCloudSSHPrepareError(err)
+	}
+	return result, nil
+}
+
+func publicCloudSSHPrepareError(err error) error {
+	if err == nil {
+		return nil
+	}
+	var validation *sshcloud.ValidationError
+	if errors.As(err, &validation) {
+		return &ValidationError{Message: validation.Message}
+	}
+	message := strings.TrimSpace(err.Error())
+	if message == "" {
+		return err
+	}
+	if strings.Contains(message, "resolve Cloud SSH") || strings.Contains(message, "pull workload") ||
+		strings.Contains(message, "still pulling") || strings.Contains(message, "runtime stays unlocked") {
+		if len(message) > 1500 {
+			message = strings.TrimSpace(message[:1500]) + "…"
+		}
+		return &ValidationError{Message: message}
+	}
+	return err
+}
+
+func looksLikeSSHCloudSelector(value string) bool {
+	text := strings.ToLower(strings.TrimSpace(value))
+	return strings.Contains(text, "ssh_cloud") || strings.Contains(text, "ssh-cloud")
+}
+
 func validateProposalResource(profileRecord *ent.ResourceProfile) error {
+	if profileRecord.Backend == resourceprofile.BackendSSHCloud {
+		if profileRecord.Region != "ssh_cloud" || profileRecord.PriceToMilli != 0 {
+			return &ValidationError{Message: "Cloud SSH resource profile must use region ssh_cloud and a zero-CNY price"}
+		}
+		return nil
+	}
 	if len(profileRecord.GpuNames) == 0 || profileRecord.GpuNum <= 0 || profileRecord.CudaFrom > profileRecord.CudaTo ||
 		profileRecord.CPUFrom > profileRecord.CPUTo || profileRecord.MemoryFromGB > profileRecord.MemoryToGB ||
 		profileRecord.PriceFromMilli > profileRecord.PriceToMilli {
 		return &ValidationError{Message: "resource profile has invalid or empty execution bounds"}
+	}
+	switch profileRecord.Backend {
+	case resourceprofile.BackendAutodlPrivate:
+		if profileRecord.Region != "private" || profileRecord.CudaFrom != profileRecord.CudaTo {
+			return &ValidationError{Message: "Private Cloud resource profile must use region private and one CUDA version"}
+		}
+	case resourceprofile.BackendAutodlElastic:
+		if strings.TrimSpace(profileRecord.Region) == "" || profileRecord.Region == "private" {
+			return &ValidationError{Message: "Public Elastic resource profile must use a public region"}
+		}
 	}
 	return nil
 }
@@ -412,6 +567,9 @@ func (s *Service) resolveProposalRuntime(ctx context.Context, projectRecord *ent
 	requestedImage = strings.TrimSpace(requestedImage)
 	recipeRef := strings.TrimSpace(environmentRecord.RecipeRef)
 	if !strings.HasPrefix(recipeRef, proposalWorkspaceRecipePrefix) {
+		if environmentRecord.Backend == environment.BackendSSHCloud {
+			return sshcloud.HostImage, nil, nil
+		}
 		if requestedImage != "" && (!persisted || requestedImage != environmentRecord.ImageUUID) {
 			return "", nil, &ValidationError{Message: "image can be selected only for an Owner-approved trusted Self-hosted workspace"}
 		}
@@ -467,25 +625,36 @@ func (s *Service) proposalChecks(ctx context.Context, resolved proposalResolved)
 	if err != nil {
 		add("runtime", ProposalCheckFail, "Runtime status query failed", proposalBounded(err.Error(), 240))
 	} else {
-		if !status.SchedulerEnabled || !status.SchedulerHealthy {
-			add("scheduler", ProposalCheckFail, "Scheduler is not ready", "Dispatch must be enabled and the scheduler heartbeat must be current.")
+		if !status.SchedulerEnabled {
+			add("scheduler", ProposalCheckWarn, "Scheduler dispatch is disabled", "The Experiment will remain queued until GEMCP_SCHEDULER_ENABLED=true is set and Gemcp is restarted.")
+		} else if !status.SchedulerHealthy {
+			add("scheduler", ProposalCheckFail, "Scheduler heartbeat is stale", "Dispatch is enabled, but the scheduler worker heartbeat is not current. Restart Gemcp and verify the scheduler worker is running.")
 		} else {
 			add("scheduler", ProposalCheckPass, "Scheduler is healthy", fmt.Sprintf("Global concurrency is %d.", status.GlobalConcurrency))
 		}
-		if !status.PublicURLConfigured {
+		if resolved.profile.Backend == resourceprofile.BackendSSHCloud {
+			add("public_url", ProposalCheckPass, "Cloud SSH does not require inbound callbacks", "The control plane opens outbound SSH and observes the host process it starts.")
+			if !s.proposalConfig.SSHCloudEnabled || !status.SSHCloudEnabled {
+				add("ssh_cloud", ProposalCheckFail, "Cloud SSH execution is disabled", "")
+			} else {
+				add("ssh_cloud", ProposalCheckWarn, "Cloud SSH is experimental", sshCloudAgentWarning)
+			}
+		} else if !status.PublicURLConfigured {
 			add("public_url", ProposalCheckFail, "Public callback URL is not configured", "Runner and Node callbacks require the configured HTTPS public URL.")
+		} else if !unmeteredBackend(resolved.profile.Backend) && !status.PublicURLHTTPS {
+			add("public_url", ProposalCheckFail, "AutoDL requires an HTTPS public URL", "Loopback HTTP is enough for Cloud SSH dispatch, but AutoDL Runner callbacks still need HTTPS.")
 		} else {
 			add("public_url", ProposalCheckPass, "Public callback URL is configured", "")
 		}
-		if resolved.profile.Backend == resourceprofile.BackendAutodlPrivate {
+		if !unmeteredBackend(resolved.profile.Backend) {
 			if !status.WatchdogHealthy {
 				add("watchdog", ProposalCheckFail, "Watchdog heartbeat is stale", "Paid AutoDL cleanup enforcement must be healthy.")
 			} else {
 				add("watchdog", ProposalCheckPass, "Watchdog is healthy", "")
 			}
-		} else if !s.proposalConfig.SelfHostedEnabled || !status.SelfHostedEnabled {
+		} else if resolved.profile.Backend == resourceprofile.BackendSelfHosted && (!s.proposalConfig.SelfHostedEnabled || !status.SelfHostedEnabled) {
 			add("self_hosted", ProposalCheckFail, "Self-hosted execution is disabled", "")
-		} else {
+		} else if resolved.profile.Backend == resourceprofile.BackendSelfHosted {
 			add("self_hosted", ProposalCheckPass, "Self-hosted execution is enabled", "")
 		}
 	}
@@ -497,35 +666,42 @@ func (s *Service) proposalChecks(ctx context.Context, resolved proposalResolved)
 	} else {
 		add("concurrency", ProposalCheckPass, "Project has an available concurrency slot", fmt.Sprintf("%d of %d slots are active.", active, resolved.project.MaxConcurrency))
 	}
-	archiveCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
-	archive, archiveErr := s.archiver.ArchiveCommit(archiveCtx, resolved.repository.ID, resolved.commitSHA, s.proposalConfig.SourceMaxBytes)
-	cancel()
-	if archiveErr != nil {
-		add("source_archive", ProposalCheckFail, "Commit archive could not be generated", proposalBounded(archiveErr.Error(), 320))
+	if resolved.repository == nil || resolved.profile.Backend == resourceprofile.BackendSSHCloud {
+		add("source_archive", ProposalCheckPass, "Cloud SSH does not upload a Git archive", "The Agent prepares the host working directory outside Gemcp.")
 	} else {
-		inspection, inspectErr := sourcearchive.Inspect(archive, s.proposalConfig.SourceMaxBytes)
-		closeErr := archive.Close()
-		if inspectErr != nil {
-			add("source_archive", ProposalCheckFail, "Commit archive failed safety validation", proposalBounded(inspectErr.Error(), 320))
+		archiveCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
+		archive, archiveErr := s.archiver.ArchiveCommit(archiveCtx, resolved.repository.ID, resolved.commitSHA, s.proposalConfig.SourceMaxBytes)
+		cancel()
+		if archiveErr != nil {
+			add("source_archive", ProposalCheckFail, "Commit archive could not be generated", proposalBounded(archiveErr.Error(), 320))
 		} else {
-			add("source_archive", ProposalCheckPass, "Commit archive is readable and safe", fmt.Sprintf("%d entries, %d compressed bytes, %d payload bytes.", inspection.Entries, inspection.CompressedBytes, inspection.PayloadBytes))
-		}
-		if closeErr != nil {
-			add("source_cleanup", ProposalCheckWarn, "Temporary archive cleanup reported an error", proposalBounded(closeErr.Error(), 240))
+			inspection, inspectErr := sourcearchive.Inspect(archive, s.proposalConfig.SourceMaxBytes)
+			closeErr := archive.Close()
+			if inspectErr != nil {
+				add("source_archive", ProposalCheckFail, "Commit archive failed safety validation", proposalBounded(inspectErr.Error(), 320))
+			} else {
+				add("source_archive", ProposalCheckPass, "Commit archive is readable and safe", fmt.Sprintf("%d entries, %d compressed bytes, %d payload bytes.", inspection.Entries, inspection.CompressedBytes, inspection.PayloadBytes))
+			}
+			if closeErr != nil {
+				add("source_cleanup", ProposalCheckWarn, "Temporary archive cleanup reported an error", proposalBounded(closeErr.Error(), 240))
+			}
 		}
 	}
 	s.proposalBudgetCheck(ctx, resolved, add)
-	if resolved.profile.Backend == resourceprofile.BackendAutodlPrivate {
-		s.proposalAutoDLCheck(ctx, resolved, add)
-	} else {
+	switch resolved.profile.Backend {
+	case resourceprofile.BackendSelfHosted:
 		s.proposalSelfHostedCheck(ctx, resolved, add)
+	case resourceprofile.BackendSSHCloud:
+		s.proposalSSHCloudCheck(ctx, resolved, add)
+	default:
+		s.proposalAutoDLCheck(ctx, resolved, add)
 	}
 	return checks
 }
 
 func (s *Service) proposalBudgetCheck(ctx context.Context, resolved proposalResolved, add func(string, string, string, string)) {
-	if resolved.profile.Backend == resourceprofile.BackendSelfHosted {
-		add("budget", ProposalCheckPass, "Self-hosted execution is unmetered", "Gemcp records a zero-CNY reservation.")
+	if unmeteredBackend(resolved.profile.Backend) {
+		add("budget", ProposalCheckPass, "This execution backend is unmetered", "Gemcp records a zero-CNY reservation.")
 		return
 	}
 	if resolved.reservation > resolved.project.MaxExperimentMilli {
@@ -564,16 +740,27 @@ func (s *Service) proposalAutoDLCheck(ctx context.Context, resolved proposalReso
 		return
 	}
 	queryCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
-	snapshot, err := s.providerReader.QueryResources(queryCtx, resolved.project.TenantID)
+	expectedBackend := "private"
+	if resolved.profile.Backend == resourceprofile.BackendAutodlElastic {
+		expectedBackend = "elastic"
+	}
+	snapshot, err := s.providerReader.QueryResources(queryCtx, resolved.project.TenantID, expectedBackend)
 	cancel()
 	if err != nil {
 		add("provider", ProposalCheckFail, "AutoDL Provider query failed", proposalBounded(err.Error(), 320))
+		return
+	}
+	if snapshot.Provider.Backend != expectedBackend {
+		add("provider", ProposalCheckFail, "AutoDL Provider backend does not match the selected resource", fmt.Sprintf("Configured Provider is %s; selected resource requires %s.", snapshot.Provider.Backend, expectedBackend))
 		return
 	}
 	add("provider", ProposalCheckPass, "AutoDL Provider is reachable", snapshot.Provider.Name)
 	idle := 0
 	details := []string{}
 	for _, stock := range snapshot.GPUStock {
+		if resolved.profile.Backend == resourceprofile.BackendAutodlElastic && stock.Region != resolved.profile.Region {
+			continue
+		}
 		for _, accepted := range resolved.profile.GpuNames {
 			if strings.EqualFold(strings.TrimSpace(stock.Name), strings.TrimSpace(accepted)) {
 				idle += stock.Idle
@@ -584,6 +771,8 @@ func (s *Service) proposalAutoDLCheck(ctx context.Context, resolved proposalReso
 	}
 	if idle < resolved.profile.GpuNum {
 		add("gpu_capacity", ProposalCheckFail, "Selected AutoDL GPU capacity is unavailable", strings.Join(details, ", "))
+	} else if resolved.profile.Backend == resourceprofile.BackendAutodlElastic && resolved.profile.GpuNum > 1 {
+		add("gpu_capacity", ProposalCheckWarn, "Public Elastic reports enough individual GPUs", strings.Join(details, ", ")+"; inventory does not guarantee that multiple GPUs are available on one machine.")
 	} else {
 		add("gpu_capacity", ProposalCheckPass, "Selected AutoDL GPU capacity is available", strings.Join(details, ", "))
 	}
@@ -599,6 +788,19 @@ func (s *Service) proposalAutoDLCheck(ctx context.Context, resolved proposalReso
 	} else {
 		add("image", ProposalCheckWarn, "Selected AutoDL image was not visible in discovery", "Provider create remains authoritative for public base images not returned by image-list endpoints.")
 	}
+	if len(resolved.bindings) == 0 {
+		if resolved.preset == "smoke" {
+			add("dataset_bindings", ProposalCheckWarn, "No AutoDL dataset binding is registered", "Identity smoke can proceed. Probe and train require a Project dataset binding under /root/autodl-fs/.")
+			return
+		}
+		add("dataset_bindings", ProposalCheckFail, "No AutoDL dataset binding is registered", "Register a Project dataset binding before probe or train on Public Elastic or Private Cloud.")
+		return
+	}
+	bindingDetails := make([]string, 0, len(resolved.bindings))
+	for _, binding := range resolved.bindings {
+		bindingDetails = append(bindingDetails, binding.EnvironmentVariable+"="+binding.CanonicalRoot)
+	}
+	add("dataset_bindings", ProposalCheckWarn, "Registered AutoDL dataset bindings will be injected", strings.Join(bindingDetails, ", ")+". AutoDL does not provide a mount sandbox; the Runner fails closed if a root or marker is missing.")
 }
 
 func (s *Service) proposalSelfHostedCheck(ctx context.Context, resolved proposalResolved, add func(string, string, string, string)) {
@@ -659,6 +861,36 @@ func (s *Service) proposalSelfHostedCheck(ctx context.Context, resolved proposal
 		}
 	}
 	add("node", ProposalCheckFail, "No compatible authorized Node matches the profile", "Upgrade gemcp-node when trusted workspace capability is required, verify heartbeat and Project access, and confirm the GPU is idle.")
+}
+
+func (s *Service) proposalSSHCloudCheck(ctx context.Context, resolved proposalResolved, add func(string, string, string, string)) {
+	add("isolation", ProposalCheckWarn, "Cloud SSH has no container isolation", "The command runs as a host process in the login environment. Gemcp does not lock an image, dataset, or conda prefix.")
+	if resolved.sshHost != "" {
+		add("host", ProposalCheckPass, "Command will start on the registered host", fmt.Sprintf("%s@%s cwd=%s", resolved.sshUser, resolved.sshHost, proposalWorkingDirectory(resolved)))
+	}
+	nodes, err := s.client.CloudSSHNode.Query().Where(
+		cloudsshnode.TenantIDEQ(resolved.project.TenantID), cloudsshnode.StatusEQ(cloudsshnode.StatusActive),
+		cloudsshnode.HasProjectAccessWith(cloudsshprojectaccess.ProjectIDEQ(resolved.project.ID), cloudsshprojectaccess.StatusEQ(cloudsshprojectaccess.StatusActive)),
+	).Order(ent.Asc(cloudsshnode.FieldID)).All(ctx)
+	if err != nil {
+		add("node", ProposalCheckFail, "Cloud SSH nodes could not be queried", proposalBounded(err.Error(), 240))
+		return
+	}
+	for _, node := range nodes {
+		busy, busyErr := s.client.CloudSSHAssignment.Query().Where(
+			cloudsshassignment.NodeIDEQ(node.ID),
+			cloudsshassignment.StateIn(cloudsshassignment.StateStarting, cloudsshassignment.StateRunning, cloudsshassignment.StateStopping, cloudsshassignment.StateCollecting),
+		).Exist(ctx)
+		if busyErr != nil {
+			add("node", ProposalCheckFail, "Cloud SSH Assignment state could not be queried", proposalBounded(busyErr.Error(), 240))
+			return
+		}
+		if !busy {
+			add("node", ProposalCheckPass, "An authorized Cloud SSH node is ready", fmt.Sprintf("%s (%s).", node.Label, node.PublicID.String()))
+			return
+		}
+	}
+	add("node", ProposalCheckFail, "No authorized Cloud SSH node is idle", "Register or probe a host and wait for the current Assignment to finish.")
 }
 
 func proposalNodeSupportsArgv(capabilities map[string]any) bool {
@@ -764,6 +996,10 @@ func proposalDigest(resolved proposalResolved) string {
 		FromNodeID       string            `json:"from_node_id,omitempty"`
 		ExpectedMetric   string            `json:"expected_metric,omitempty"`
 		ExpiresAt        time.Time         `json:"expires_at"`
+		Host             string            `json:"host,omitempty"`
+		User             string            `json:"user,omitempty"`
+		WorkingDirectory string            `json:"working_directory,omitempty"`
+		Isolation        string            `json:"isolation,omitempty"`
 	}{
 		ProposalID: resolved.id.String(), Project: proposalProjectSnapshot(resolved.project),
 		Repository:  repositorySnapshot(resolved.repository, resolved.project.PublicID.String()),
@@ -772,6 +1008,8 @@ func proposalDigest(resolved proposalResolved) string {
 		RuntimePreset: resolved.preset, RuntimeSeconds: resolved.runtime, ReservationMilli: resolved.reservation,
 		FromNodeID: resolved.fromNodeID, ExpectedMetric: resolved.expectedMetric,
 		ExpiresAt: resolved.expiresAt.UTC().Truncate(time.Microsecond),
+		Host:      resolved.sshHost, User: resolved.sshUser, WorkingDirectory: proposalWorkingDirectory(resolved),
+		Isolation: proposalIsolation(resolved),
 	}
 	encoded, _ := json.Marshal(material)
 	digest := sha256.Sum256(encoded)
@@ -788,14 +1026,18 @@ func proposalProjectSnapshot(record *ent.Project) map[string]any {
 }
 
 func preparedProposal(resolved proposalResolved, digest string, createdAt time.Time) PreparedProposal {
-	return PreparedProposal{
-		ID: resolved.id.String(), ProjectID: resolved.project.PublicID.String(), Eligible: proposalChecksEligible(resolved.checks), RequiresConfirmation: true,
-		Repository: ProposalRepository{
+	repo := ProposalRepository{RequestedRef: resolved.ref, CommitSHA: resolved.commitSHA}
+	if resolved.repository != nil {
+		repo = ProposalRepository{
 			ID: resolved.repository.PublicID.String(), Name: resolved.repository.Name, SSHURL: resolved.repository.SSHURL,
 			HostKeyFingerprint: resolved.repository.HostKeyFingerprint, RequestedRef: resolved.ref,
 			CommitSHA: resolved.commitSHA, DefaultBranch: resolved.repository.DefaultBranch,
-		},
-		Execution: ProposalExecution{Mode: executioncmd.ModeArgv, Argv: append([]string(nil), resolved.execution.Argv...), DisplayCommand: executioncmd.DisplayArgv(resolved.execution.Argv)},
+		}
+	}
+	return PreparedProposal{
+		ID: resolved.id.String(), ProjectID: resolved.project.PublicID.String(), Eligible: proposalChecksEligible(resolved.checks), RequiresConfirmation: true,
+		Repository: repo,
+		Execution:  ProposalExecution{Mode: executioncmd.ModeArgv, Argv: append([]string(nil), resolved.execution.Argv...), DisplayCommand: executioncmd.DisplayArgv(resolved.execution.Argv)},
 		Resource: ProposalResource{
 			EnvironmentID: resolved.environment.PublicID.String(), EnvironmentName: resolved.environment.Name,
 			ResourceProfileID: resolved.profile.PublicID.String(), ResourceProfileName: resolved.profile.Name,
@@ -805,11 +1047,14 @@ func preparedProposal(resolved proposalResolved, digest string, createdAt time.T
 			CPUFrom: resolved.profile.CPUFrom, CPUTo: resolved.profile.CPUTo,
 			MemoryFromGB: resolved.profile.MemoryFromGB, MemoryToGB: resolved.profile.MemoryToGB,
 			PriceFromMilli: resolved.profile.PriceFromMilli, PriceToMilli: resolved.profile.PriceToMilli,
-			ReuseContainer: resolved.profile.ReuseContainer, Billable: resolved.profile.Backend != resourceprofile.BackendSelfHosted,
+			ReuseContainer: resolved.profile.ReuseContainer, Billable: !unmeteredBackend(resolved.profile.Backend),
 			ExecutionPolicy: proposalExecutionPolicy(resolved), WorkspacePath: proposalWorkspacePath(resolved),
 			NodeID: proposalWorkspaceNodeID(resolved), NodeLabel: proposalWorkspaceNodeLabel(resolved),
+			Host: resolved.sshHost, User: resolved.sshUser, WorkingDirectory: proposalWorkingDirectory(resolved),
+			Isolation:         proposalIsolation(resolved),
 			ImageMutable:      resolved.workspace != nil && !proposalPinnedImage.MatchString(resolved.image),
 			WorkspaceDatasets: proposalWorkspaceDatasetsCopy(resolved.workspace),
+			DatasetBindings:   proposalDatasetBindingsCopy(resolved.bindings),
 		},
 		RuntimePreset: resolved.preset, MaxRuntimeSeconds: resolved.runtime,
 		TimeoutExtensionSeconds: resolved.project.TimeoutExtensionSeconds, TerminationGraceSeconds: resolved.project.TerminationGraceSeconds,
@@ -822,6 +1067,16 @@ func preparedProposal(resolved proposalResolved, digest string, createdAt time.T
 func proposalEnvironmentSnapshot(resolved proposalResolved) map[string]any {
 	snapshot := environmentSnapshot(resolved.environment)
 	snapshot["image_uuid"] = resolved.image
+	if resolved.cwd != "" {
+		snapshot["working_directory"] = resolved.cwd
+	}
+	if resolved.sshHost != "" {
+		snapshot["ssh_host"] = resolved.sshHost
+		snapshot["ssh_user"] = resolved.sshUser
+		snapshot["ssh_node_id"] = resolved.sshNodeID
+		snapshot["ssh_node_label"] = resolved.sshNodeLabel
+		snapshot["isolation"] = "none"
+	}
 	if resolved.workspace != nil {
 		snapshot["execution_policy"] = "trusted_workspace"
 		snapshot["workspace_path"] = resolved.workspace.path
@@ -829,7 +1084,101 @@ func proposalEnvironmentSnapshot(resolved proposalResolved) map[string]any {
 		snapshot["workspace_node_label"] = resolved.workspace.nodeLabel
 		snapshot["workspace_datasets"] = proposalWorkspaceDatasetsCopy(resolved.workspace)
 	}
+	if resolved.profile != nil && (resolved.profile.Backend == resourceprofile.BackendAutodlElastic || resolved.profile.Backend == resourceprofile.BackendAutodlPrivate) {
+		snapshot["dataset_bindings"] = datasetcatalog.Snapshot(resolved.bindings)
+	}
 	return snapshot
+}
+
+func (s *Service) attachProposalBindings(ctx context.Context, resolved *proposalResolved) error {
+	bindings, err := queryActiveDatasetBindings(ctx, s.client.DatasetBinding.Query(), resolved.project.ID, string(resolved.profile.Backend))
+	if err != nil {
+		return err
+	}
+	resolved.bindings = bindings
+	return nil
+}
+
+func queryActiveDatasetBindings(ctx context.Context, query *ent.DatasetBindingQuery, projectID int, backend string) ([]datasetcatalog.View, error) {
+	if backend != string(resourceprofile.BackendAutodlElastic) && backend != string(resourceprofile.BackendAutodlPrivate) {
+		return nil, nil
+	}
+	records, err := query.Where(
+		datasetbinding.ProjectIDEQ(projectID),
+		datasetbinding.BackendEQ(datasetbinding.Backend(backend)),
+		datasetbinding.StatusEQ(datasetbinding.StatusActive),
+	).Order(ent.Asc(datasetbinding.FieldName)).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return datasetcatalog.ViewsFromRecords(records, ""), nil
+}
+
+func proposalDatasetBindingsCopy(views []datasetcatalog.View) []ProposalDatasetBinding {
+	if len(views) == 0 {
+		return nil
+	}
+	result := make([]ProposalDatasetBinding, 0, len(views))
+	for _, view := range views {
+		result = append(result, ProposalDatasetBinding{
+			ID: view.ID, Name: view.Name, Backend: view.Backend, CanonicalRoot: view.CanonicalRoot,
+			EnvironmentVariable: view.EnvironmentVariable, RequiredMarkers: append([]string(nil), view.RequiredMarkers...),
+		})
+	}
+	return result
+}
+
+func normalizeProposalCwd(value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", nil
+	}
+	if !strings.HasPrefix(value, "/") || strings.ContainsAny(value, "\x00") {
+		return "", &ValidationError{Message: "cwd must be an absolute remote path"}
+	}
+	return value, nil
+}
+
+func (s *Service) attachSSHCloudTarget(ctx context.Context, projectRecord *ent.Project, environmentRecord *ent.Environment, resolved *proposalResolved) error {
+	recipe := strings.TrimSpace(environmentRecord.RecipeRef)
+	if !strings.HasPrefix(recipe, sshCloudRecipePrefix) {
+		return nil
+	}
+	id, err := uuid.Parse(strings.TrimPrefix(recipe, sshCloudRecipePrefix))
+	if err != nil {
+		return nil
+	}
+	node, err := s.client.CloudSSHNode.Query().Where(
+		cloudsshnode.PublicIDEQ(id), cloudsshnode.TenantIDEQ(projectRecord.TenantID),
+	).Only(ctx)
+	if ent.IsNotFound(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	resolved.sshHost = node.SSHHost
+	resolved.sshUser = node.SSHUser
+	resolved.sshNodeID = node.PublicID.String()
+	resolved.sshNodeLabel = node.Label
+	return nil
+}
+
+func proposalWorkingDirectory(resolved proposalResolved) string {
+	if resolved.cwd != "" {
+		return resolved.cwd
+	}
+	if resolved.profile != nil && resolved.profile.Backend == resourceprofile.BackendSSHCloud {
+		return "$HOME"
+	}
+	return ""
+}
+
+func proposalIsolation(resolved proposalResolved) string {
+	if resolved.profile != nil && resolved.profile.Backend == resourceprofile.BackendSSHCloud {
+		return "none"
+	}
+	return ""
 }
 
 func proposalWorkspaceDatasets(records []*ent.WorkspaceDataset) []nodeprotocol.WorkspaceDataset {
@@ -860,21 +1209,21 @@ func proposalWorkspacePath(resolved proposalResolved) string {
 	if resolved.workspace != nil {
 		return resolved.workspace.path
 	}
-	return ""
+	return proposalWorkingDirectory(resolved)
 }
 
 func proposalWorkspaceNodeID(resolved proposalResolved) string {
 	if resolved.workspace != nil {
 		return resolved.workspace.nodeID
 	}
-	return ""
+	return resolved.sshNodeID
 }
 
 func proposalWorkspaceNodeLabel(resolved proposalResolved) string {
 	if resolved.workspace != nil {
 		return resolved.workspace.nodeLabel
 	}
-	return ""
+	return resolved.sshNodeLabel
 }
 
 func proposalChecksEligible(checks []ProposalCheck) bool {

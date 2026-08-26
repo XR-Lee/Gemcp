@@ -58,11 +58,53 @@ describe('ResearchView', () => {
     expect(wrapper.find('.graph-shell').exists()).toBe(true)
     expect(wrapper.find('.vue-flow').exists()).toBe(true)
     expect(wrapper.find('button[aria-label="Fullscreen graph"]').exists()).toBe(true)
-    expect(wrapper.text()).toContain('exploration time')
+    expect(wrapper.text()).toContain('evidence time')
     expect(wrapper.text()).toContain('OBJ-BG smoke accuracy')
     expect(wrapper.text()).toContain('Record a hypothesis')
     expect(wrapper.find('button[aria-label="Attach prompt"]').exists()).toBe(true)
     expect(wrapper.find('.research-mcp-banner').exists()).toBe(false)
+    expect(wrapper.find('.agent-readiness').exists()).toBe(false)
+  })
+
+  it('shows compact Agent Readiness on the research home', () => {
+    useI18n().setLocale('en')
+    const wrapper = mount(ResearchView, {
+      props: {
+        workspace,
+        loading: false,
+        selectedStudyId: 'study-1',
+        readiness: {
+          project_id: 'project-id', project_name: 'Point Models', status: 'ready',
+          summary: '1 Agent(s) and 1 ready compute target(s). Binding is Project-scoped, not exclusive to one node.',
+          generated_at: '2026-08-24T18:00:00Z',
+          agents: [{
+            id: 'agent-1', label: 'train-agent', prefix: 'gmc_abcd123',
+            scopes: ['read', 'submit'], status: 'active', last_used_at: '2026-08-24T17:58:00Z',
+            can_read: true, can_submit: true, can_operate_nodes: false, bound_node_ids: [],
+          }],
+          compute: {
+            ssh_cloud_enabled: true,
+            ssh_cloud: [{
+              id: 'ssh-1', label: 'cloud-4090', status: 'active', host: '203.0.113.10', user: 'ubuntu',
+              gpus: [{ name: 'NVIDIA GeForce RTX 4090', memory_bytes: 1 }],
+              ready: true, readiness: 'ready', blockers: [], bound_to_project: true, runtime_configured: true,
+            }],
+            self_hosted: [],
+          },
+          heartbeats: { agent_last_used_at: '2026-08-24T17:58:00Z', note: 'MCP last_used_at updates on every authenticated tool call.' },
+          next_actions: [{ kind: 'copy_readiness', title: 'Copy readiness prompt', detail: 'Tell the Agent.' }],
+          instructions: {
+            inspect_tool: 'get_project_options', monitor_tool: 'get_experiment',
+            heartbeat: 'MCP last_used_at updates on every authenticated tool call.',
+            binding: 'Agents are Project-scoped.',
+          },
+        },
+      },
+      global: { stubs: flowStubs },
+    })
+    expect(wrapper.find('.agent-readiness').text()).toContain('Ready')
+    expect(wrapper.text()).toContain('cloud-4090')
+    expect(wrapper.findAll('button').some((button) => button.text().includes('Copy readiness'))).toBe(true)
   })
 
   it('reminds the Owner to bind an Agent over MCP after a Study is registered', async () => {

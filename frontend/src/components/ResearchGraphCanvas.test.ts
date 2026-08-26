@@ -8,13 +8,14 @@ const nodes = [
   {
     id: 'node-question-1', kind: 'question', title: 'Can a cleaner OBJ-BG traversal raise ScanObjectNN accuracy?',
     summary: 'Start from the published OBJ-BG protocol.', status: 'open',
-    created_at: '2026-07-28T18:00:00Z', updated_at: '2026-07-28T18:00:00Z',
+    occurred_at: '2026-07-28T18:00:00Z', created_at: '2026-07-28T18:00:00Z', updated_at: '2026-07-28T18:00:00Z',
   },
   {
     id: 'node-result-1', kind: 'result', title: 'OBJ-BG smoke accuracy',
     summary: 'The existing smoke Experiment reached 86.4 overall accuracy.',
     status: 'succeeded', metric_name: 'overall_accuracy', metric_value: 86.4,
     experiment_id: 'experiment-1', experiment_state: 'succeeded',
+    occurred_at: '2026-07-28T18:05:00Z', commit_sha: '0123456789ab',
     created_at: '2026-07-28T18:05:00Z', updated_at: '2026-07-28T18:05:00Z',
   },
 ]
@@ -56,7 +57,8 @@ describe('ResearchGraphCanvas', () => {
       global: { stubs: flowStubs },
     })
     expect(wrapper.find('.graph-shell').attributes('style')).toContain('560px')
-    expect(wrapper.find('.graph-axis-label').text()).toMatch(/Exploration/)
+    expect(wrapper.find('.graph-axis-label').text()).toMatch(/Evidence|Lineage/)
+    expect(wrapper.find('.graph-axis-label').classes()).not.toContain('is-fallback')
     expect(wrapper.find('button[aria-label="Fit graph"]').exists()).toBe(true)
     expect(layout.nodes.find((item) => item.id === 'node-result-1')?.outcome).toBe('success')
     await wrapper.get('.flow-node').trigger('dblclick')

@@ -9,9 +9,11 @@ import (
 
 	"github.com/XR-Lee/Gemcp/guides"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
+	"github.com/XR-Lee/Gemcp/internal/datasetcatalog"
 	"github.com/XR-Lee/Gemcp/internal/experiment"
 	gitrepository "github.com/XR-Lee/Gemcp/internal/repository"
 	"github.com/XR-Lee/Gemcp/internal/research"
+	"github.com/XR-Lee/Gemcp/internal/sshcloud"
 	"github.com/XR-Lee/Gemcp/internal/workspacecatalog"
 	mcpauth "github.com/modelcontextprotocol/go-sdk/auth"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -27,7 +29,9 @@ type Server struct {
 	experiments  *experiment.Service
 	repositories *gitrepository.Service
 	datasets     *workspacecatalog.Service
+	bindings     *datasetcatalog.Service
 	research     *research.Service
+	sshCloud     *sshcloud.Service
 	logger       *slog.Logger
 	handler      http.Handler
 }
@@ -42,20 +46,27 @@ type UsageGuide struct {
 	Markdown    string   `json:"markdown"`
 }
 
-const serverInstructions = "Treat the research Graph as the execution contract. Call get_next_actions before spending. Keep the Owner-facing Study current with get_research_workspace. Never include prompts, private reasoning, credentials, or environment dumps in research text. prepare_experiment requires from_node_id when a Study exists; that node is bound into the confirmation digest. submit_prepared_experiment writes the run node. close_run is the only way to record a result after a terminal Experiment. Linking a Graph node never starts a workload. Use submit_experiment only as the Advanced shell-command compatibility path."
+const serverInstructions = "Treat the research Graph as the execution contract. Call get_next_actions before spending. Keep the Owner-facing Study current with get_research_workspace. Never include prompts, private reasoning, credentials, or environment dumps in research text. prepare_experiment requires from_node_id when a Study exists; that node is bound into the confirmation digest. Project budget and submit scope are limits and technical capabilities, not financial approval. Show the immutable proposal and exact confirmation digest to the Owner, and never call submit_prepared_experiment until the Owner explicitly confirms that digest. submit_prepared_experiment writes the run node. Poll get_experiment for state, log_tail, and metrics; never SSH, fetch remote files, or infer metrics from logs. close_run is the only way to record a result after a terminal Experiment; omit metric_name to copy the prepared expected_metric from the Experiment; result_commit_sha may attach the full Git commit containing its durable result manifest. Linking a Graph node never starts a workload. Use submit_experiment only as the Advanced shell-command compatibility path."
 
 type Option func(*Server)
 
-func WithConfiguration(repositories *gitrepository.Service, datasets *workspacecatalog.Service) Option {
+func WithConfiguration(repositories *gitrepository.Service, datasets *workspacecatalog.Service, bindings *datasetcatalog.Service) Option {
 	return func(server *Server) {
 		server.repositories = repositories
 		server.datasets = datasets
+		server.bindings = bindings
 	}
 }
 
 func WithResearch(service *research.Service) Option {
 	return func(server *Server) {
 		server.research = service
+	}
+}
+
+func WithSSHCloud(service *sshcloud.Service) Option {
+	return func(server *Server) {
+		server.sshCloud = service
 	}
 }
 
@@ -74,7 +85,7 @@ func New(agentAuth *agentauth.Service, experiments *experiment.Service, version 
 		Name: "get_usage_guide", Description: "Return the mandatory Gemcp operating guide, approval boundary, and safe submission workflow.",
 	}, server.getUsageGuide)
 	mcp.AddTool(mcpServer, &mcp.Tool{
-		Name: "get_project_options", Description: "List project policy, approved execution options, and automatically discovered authorized Self-hosted Node readiness.",
+		Name: "get_project_options", Description: "List project policy, approved execution options, automatically discovered authorized Self-hosted Node readiness, and experimental Cloud SSH node readiness. Includes a readiness summary and heartbeat contract. Cloud SSH nodes are listed before Project authorization; the control plane probes them. Agents are Project-scoped and not exclusively bound to one node.",
 	}, server.getProjectOptions)
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "list_repository_registrations", Description: "List active and pending Git repositories for the authenticated Project, including public deploy keys.",
@@ -95,6 +106,15 @@ func New(agentAuth *agentauth.Service, experiments *experiment.Service, version 
 		Name: "remove_workspace_dataset", Description: "Disable one Project workspace dataset declaration. Requires configure scope.",
 	}, server.removeWorkspaceDataset)
 	mcp.AddTool(mcpServer, &mcp.Tool{
+		Name: "list_dataset_bindings", Description: "List Project AutoDL dataset bindings for Public Elastic and Private Cloud. These inject GEMCP_DATASET_* environment variables at Runner start.",
+	}, server.listDatasetBindings)
+	mcp.AddTool(mcpServer, &mcp.Tool{
+		Name: "register_dataset_binding", Description: "Register an AutoDL file-storage dataset root under /root/autodl-fs/ for this Project. Requires configure scope. This never uploads data.",
+	}, server.registerDatasetBinding)
+	mcp.AddTool(mcpServer, &mcp.Tool{
+		Name: "remove_dataset_binding", Description: "Disable one Project AutoDL dataset binding. Requires configure scope.",
+	}, server.removeDatasetBinding)
+	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "get_research_workspace", Description: "Return Studies, the selected iteration plan, and the research Graph for the authenticated Project. This never starts a workload.",
 	}, server.getResearchWorkspace)
 	mcp.AddTool(mcpServer, &mcp.Tool{
@@ -104,14 +124,20 @@ func New(agentAuth *agentauth.Service, experiments *experiment.Service, version 
 		Name: "get_next_actions", Description: "Return the only Graph-legal next actions for the selected Study. Call this before prepare_experiment or close_run.",
 	}, server.getNextActions)
 	mcp.AddTool(mcpServer, &mcp.Tool{
-		Name: "close_run", Description: "Record a result node on a terminal Experiment that already has a Graph run. This is the only way to write a result for that run. Requires submit scope.",
+		Name: "close_run", Description: "Record a result node on a terminal Experiment that already has a Graph run. Copy the metric from get_experiment or omit it to use the prepared expected_metric. Do not infer metrics from logs. An optional full result_commit_sha can attach its durable Git manifest commit. Requires submit scope.",
 	}, server.closeRun)
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "report_agent_activity", Description: "Report a controlled workflow phase so the Owner console can show what the Agent is doing without collecting prompts or reasoning.",
 	}, server.reportAgentActivity)
 	mcp.AddTool(mcpServer, &mcp.Tool{
-		Name: "prepare_experiment", Description: "Prepare a zero-cost immutable argv proposal. When the Project has an active Study, from_node_id must be a hypothesis or plan node and is bound into the confirmation digest.",
+		Name: "prepare_experiment", Description: "Prepare a zero-cost immutable argv proposal. runtime_preset may be smoke (300s), probe (3600s), or train (up to the Project max runtime). When the Project has an active Study, from_node_id must be a hypothesis or plan node and is bound into the confirmation digest. For Cloud SSH, omit image and repository; pass argv and optional cwd. The confirmation digest pins host, user, cwd, and argv. The control plane starts that command over SSH and observes logs and exit status. Do not invent SSH credentials.",
 	}, server.prepareExperiment)
+	mcp.AddTool(mcpServer, &mcp.Tool{
+		Name: "register_ssh_cloud_node", Description: "Register a Cloud SSH host for this Project. Accepts an ssh command line or host/port/user plus a password or private key. Credentials are write-only and never returned. Probe only checks connectivity and pins the host key. Requires operate_nodes scope.",
+	}, server.registerSSHCloudNode)
+	mcp.AddTool(mcpServer, &mcp.Tool{
+		Name: "rotate_ssh_cloud_node_credential", Description: "Replace the encrypted SSH password or private key for one Cloud SSH node. Credentials are write-only. Requires operate_nodes scope.",
+	}, server.rotateSSHCloudNodeCredential)
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "submit_prepared_experiment", Description: "Submit one confirmed prepared proposal by ID and exact confirmation digest. Identical retries return the same Experiment and bind its Graph run node.",
 	}, server.submitPreparedExperiment)
@@ -119,7 +145,7 @@ func New(agentAuth *agentauth.Service, experiments *experiment.Service, version 
 		Name: "submit_experiment", Description: "Advanced compatibility path: verify a full commit and enqueue an arbitrary shell command using a caller-managed idempotency key.",
 	}, server.submitExperiment)
 	mcp.AddTool(mcpServer, &mcp.Tool{
-		Name: "get_experiment", Description: "Get the current state and immutable specification of one project experiment.",
+		Name: "get_experiment", Description: "Get the current state, immutable specification, bounded log_tail, and metrics.json projection for one project experiment. This is the monitoring surface; it never exposes SSH or remote files.",
 	}, server.getExperiment)
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "list_experiments", Description: "List recent project experiments, optionally filtered by state.",
@@ -322,6 +348,42 @@ func (s *Server) removeWorkspaceDataset(ctx context.Context, request *mcp.CallTo
 	return nil, view, s.configurationToolError("remove_workspace_dataset", err)
 }
 
+func (s *Server) listDatasetBindings(ctx context.Context, request *mcp.CallToolRequest, _ emptyInput) (*mcp.CallToolResult, datasetcatalog.ListResult, error) {
+	principal, err := principalFrom(request)
+	if err != nil {
+		return nil, datasetcatalog.ListResult{}, err
+	}
+	if s.bindings == nil {
+		return nil, datasetcatalog.ListResult{}, errors.New("dataset binding service is unavailable")
+	}
+	result, err := s.bindings.List(ctx, principal)
+	return nil, result, s.configurationToolError("list_dataset_bindings", err)
+}
+
+func (s *Server) registerDatasetBinding(ctx context.Context, request *mcp.CallToolRequest, input datasetcatalog.RegisterInput) (*mcp.CallToolResult, datasetcatalog.View, error) {
+	principal, err := principalFrom(request)
+	if err != nil {
+		return nil, datasetcatalog.View{}, err
+	}
+	if s.bindings == nil {
+		return nil, datasetcatalog.View{}, errors.New("dataset binding service is unavailable")
+	}
+	view, err := s.bindings.Register(ctx, principal, input)
+	return nil, view, s.configurationToolError("register_dataset_binding", err)
+}
+
+func (s *Server) removeDatasetBinding(ctx context.Context, request *mcp.CallToolRequest, input datasetcatalog.RemoveInput) (*mcp.CallToolResult, datasetcatalog.View, error) {
+	principal, err := principalFrom(request)
+	if err != nil {
+		return nil, datasetcatalog.View{}, err
+	}
+	if s.bindings == nil {
+		return nil, datasetcatalog.View{}, errors.New("dataset binding service is unavailable")
+	}
+	view, err := s.bindings.Remove(ctx, principal, input)
+	return nil, view, s.configurationToolError("remove_dataset_binding", err)
+}
+
 func (s *Server) getResearchWorkspace(ctx context.Context, request *mcp.CallToolRequest, input research.WorkspaceInput) (*mcp.CallToolResult, research.Workspace, error) {
 	principal, err := principalFrom(request)
 	if err != nil {
@@ -442,6 +504,50 @@ func (s *Server) listArtifacts(ctx context.Context, request *mcp.CallToolRequest
 	return nil, output, s.toolError("list_artifacts", err)
 }
 
+func (s *Server) registerSSHCloudNode(ctx context.Context, request *mcp.CallToolRequest, input sshcloud.CreateInput) (*mcp.CallToolResult, sshcloud.NodeView, error) {
+	principal, err := principalFrom(request)
+	if err != nil {
+		return nil, sshcloud.NodeView{}, err
+	}
+	if !principal.HasScope("operate_nodes") {
+		return nil, sshcloud.NodeView{}, experiment.ErrForbidden
+	}
+	if s.sshCloud == nil {
+		return nil, sshcloud.NodeView{}, sshcloud.ErrDisabled
+	}
+	probe := false
+	input.Probe = &probe
+	input.ProjectID = principal.ProjectPublicID
+	view, err := s.sshCloud.Create(ctx, principal.TenantID, "agent:"+principal.TokenPublicID, input)
+	return nil, view, s.sshCloudToolError("register_ssh_cloud_node", err)
+}
+
+func (s *Server) rotateSSHCloudNodeCredential(ctx context.Context, request *mcp.CallToolRequest, input sshCloudRotateToolInput) (*mcp.CallToolResult, sshcloud.NodeView, error) {
+	principal, err := principalFrom(request)
+	if err != nil {
+		return nil, sshcloud.NodeView{}, err
+	}
+	if !principal.HasScope("operate_nodes") {
+		return nil, sshcloud.NodeView{}, experiment.ErrForbidden
+	}
+	if s.sshCloud == nil {
+		return nil, sshcloud.NodeView{}, sshcloud.ErrDisabled
+	}
+	probe := false
+	view, err := s.sshCloud.Rotate(ctx, principal.TenantID, "agent:"+principal.TokenPublicID, input.NodeID, sshcloud.RotateInput{
+		AuthMethod: input.AuthMethod, Password: input.Password, PrivateKey: input.PrivateKey, Passphrase: input.Passphrase, Probe: &probe,
+	})
+	return nil, view, s.sshCloudToolError("rotate_ssh_cloud_node_credential", err)
+}
+
+type sshCloudRotateToolInput struct {
+	NodeID     string `json:"node_id" jsonschema:"Cloud SSH node ID"`
+	AuthMethod string `json:"auth_method,omitempty" jsonschema:"password or private_key"`
+	Password   string `json:"password,omitempty" jsonschema:"replacement SSH password; write-only"`
+	PrivateKey string `json:"private_key,omitempty" jsonschema:"replacement SSH private key; write-only"`
+	Passphrase string `json:"passphrase,omitempty" jsonschema:"optional private-key passphrase; write-only"`
+}
+
 func (s *Server) getProjectCost(ctx context.Context, request *mcp.CallToolRequest, _ emptyInput) (*mcp.CallToolResult, experiment.CostView, error) {
 	principal, err := principalFrom(request)
 	if err != nil {
@@ -504,6 +610,26 @@ func (s *Server) researchToolError(tool string, err error) error {
 	return errors.New("internal control-plane error")
 }
 
+func (s *Server) sshCloudToolError(tool string, err error) error {
+	if err == nil {
+		return nil
+	}
+	var validation *sshcloud.ValidationError
+	if errors.As(err, &validation) {
+		return errors.New(validation.Message)
+	}
+	for _, public := range []error{
+		experiment.ErrForbidden, sshcloud.ErrDisabled, sshcloud.ErrNotFound, sshcloud.ErrProject,
+		sshcloud.ErrHostKeyChanged, sshcloud.ErrBusy, sshcloud.ErrNodeLimit,
+	} {
+		if errors.Is(err, public) {
+			return public
+		}
+	}
+	s.logger.Error("MCP Cloud SSH tool failed", "tool", tool, "error", err)
+	return errors.New("internal control-plane error")
+}
+
 func (s *Server) configurationToolError(tool string, err error) error {
 	if err == nil {
 		return nil
@@ -516,11 +642,16 @@ func (s *Server) configurationToolError(tool string, err error) error {
 	if errors.As(err, &datasetValidation) {
 		return errors.New(datasetValidation.Message)
 	}
+	var bindingValidation *datasetcatalog.ValidationError
+	if errors.As(err, &bindingValidation) {
+		return errors.New(bindingValidation.Message)
+	}
 	for _, public := range []error{
 		experiment.ErrForbidden,
 		gitrepository.ErrNotFound, gitrepository.ErrNotActive, gitrepository.ErrVerificationFailed, gitrepository.ErrConflict,
 		workspacecatalog.ErrForbidden, workspacecatalog.ErrNotFound, workspacecatalog.ErrTrustedWorkspace,
 		workspacecatalog.ErrWorkspaceChoice, workspacecatalog.ErrDatasetConflict, workspacecatalog.ErrDatasetLimit,
+		datasetcatalog.ErrForbidden, datasetcatalog.ErrNotFound, datasetcatalog.ErrProject, datasetcatalog.ErrConflict, datasetcatalog.ErrLimit,
 	} {
 		if errors.Is(err, public) {
 			return public

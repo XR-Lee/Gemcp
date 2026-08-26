@@ -18,6 +18,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/workspacedataset"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
 	"github.com/XR-Lee/Gemcp/internal/executioncmd"
+	"github.com/XR-Lee/Gemcp/internal/sshcloud"
 	"github.com/google/uuid"
 )
 
@@ -104,11 +105,14 @@ func (s *Service) currentProposal(ctx context.Context, principal agentauth.Princ
 	if err != nil {
 		return result, proposalDriftError(err)
 	}
-	repositoryRecord, err := s.client.Repository.Query().Where(
-		repository.IDEQ(record.RepositoryID), repository.ProjectIDEQ(projectRecord.ID), repository.StatusEQ(repository.StatusActive),
-	).Only(ctx)
-	if err != nil {
-		return result, proposalDriftError(err)
+	var repositoryRecord *ent.Repository
+	if record.RepositoryID != nil {
+		repositoryRecord, err = s.client.Repository.Query().Where(
+			repository.IDEQ(*record.RepositoryID), repository.ProjectIDEQ(projectRecord.ID), repository.StatusEQ(repository.StatusActive),
+		).Only(ctx)
+		if err != nil {
+			return result, proposalDriftError(err)
+		}
 	}
 	environmentRecord, err := s.client.Environment.Query().Where(
 		environment.IDEQ(record.EnvironmentID), environment.ProjectIDEQ(projectRecord.ID), environment.StatusEQ(environment.StatusApproved),
@@ -134,13 +138,21 @@ func (s *Service) currentProposal(ctx context.Context, principal agentauth.Princ
 	if err != nil {
 		return result, ErrProposalChanged
 	}
-	return proposalResolved{
+	resolved := proposalResolved{
 		id: record.PublicID, project: projectRecord, repository: repositoryRecord, environment: environmentRecord, profile: profileRecord,
-		image: image, workspace: workspace,
+		image: image, workspace: workspace, cwd: snapshotString(record.EnvironmentSnapshot, "working_directory"),
+		sshHost: snapshotString(record.EnvironmentSnapshot, "ssh_host"), sshUser: snapshotString(record.EnvironmentSnapshot, "ssh_user"),
+		sshNodeID: snapshotString(record.EnvironmentSnapshot, "ssh_node_id"), sshNodeLabel: snapshotString(record.EnvironmentSnapshot, "ssh_node_label"),
 		ref: record.RequestedRef, commitSHA: record.CommitSha, execution: executionSpec, preset: record.RuntimePreset,
 		runtime: record.MaxRuntimeSeconds, reservation: reservation, expiresAt: record.ExpiresAt,
 		fromNodeID: snapshotString(record.ProjectSnapshot, "from_node_id"), expectedMetric: snapshotString(record.ProjectSnapshot, "expected_metric"),
-	}, nil
+	}
+	bindings, err := queryActiveDatasetBindings(ctx, s.client.DatasetBinding.Query(), projectRecord.ID, string(profileRecord.Backend))
+	if err != nil {
+		return result, err
+	}
+	resolved.bindings = bindings
+	return resolved, nil
 }
 
 func (s *Service) createPreparedExperiment(ctx context.Context, principal agentauth.Principal, proposalDatabaseID int, digest string) (SubmitPreparedResult, error) {
@@ -182,11 +194,14 @@ func (s *Service) createPreparedExperiment(ctx context.Context, principal agenta
 	if err != nil {
 		return result, proposalDriftError(err)
 	}
-	repositoryRecord, err := tx.Repository.Query().Where(
-		repository.IDEQ(proposalRecord.RepositoryID), repository.ProjectIDEQ(projectRecord.ID), repository.StatusEQ(repository.StatusActive),
-	).Only(ctx)
-	if err != nil {
-		return result, proposalDriftError(err)
+	var repositoryRecord *ent.Repository
+	if proposalRecord.RepositoryID != nil {
+		repositoryRecord, err = tx.Repository.Query().Where(
+			repository.IDEQ(*proposalRecord.RepositoryID), repository.ProjectIDEQ(projectRecord.ID), repository.StatusEQ(repository.StatusActive),
+		).Only(ctx)
+		if err != nil {
+			return result, proposalDriftError(err)
+		}
 	}
 	environmentRecord, err := tx.Environment.Query().Where(
 		environment.IDEQ(proposalRecord.EnvironmentID), environment.ProjectIDEQ(projectRecord.ID), environment.StatusEQ(environment.StatusApproved),
@@ -219,6 +234,11 @@ func (s *Service) createPreparedExperiment(ctx context.Context, principal agenta
 		runtime: proposalRecord.MaxRuntimeSeconds, reservation: reservation, expiresAt: proposalRecord.ExpiresAt,
 		fromNodeID: snapshotString(proposalRecord.ProjectSnapshot, "from_node_id"), expectedMetric: snapshotString(proposalRecord.ProjectSnapshot, "expected_metric"),
 	}
+	bindings, err := queryActiveDatasetBindings(ctx, tx.DatasetBinding.Query(), projectRecord.ID, string(profileRecord.Backend))
+	if err != nil {
+		return result, err
+	}
+	current.bindings = bindings
 	if !hmac.Equal([]byte(proposalDigest(current)), []byte(proposalRecord.ConfirmationDigest)) {
 		return result, ErrProposalChanged
 	}
@@ -229,7 +249,7 @@ func (s *Service) createPreparedExperiment(ctx context.Context, principal agenta
 	if err != nil {
 		return result, err
 	}
-	if profileRecord.Backend != resourceprofile.BackendSelfHosted {
+	if !unmeteredBackend(profileRecord.Backend) {
 		committed, err := ledgerTotal(ctx, tx, projectRecord.ID, period)
 		if err != nil {
 			return result, err
@@ -240,16 +260,15 @@ func (s *Service) createPreparedExperiment(ctx context.Context, principal agenta
 	}
 	experimentID := uuid.New()
 	outputPath := "/root/autodl-fs/projects/" + projectRecord.PublicID.String() + "/experiments/" + experimentID.String() + "/"
-	selfHosted := profileRecord.Backend == resourceprofile.BackendSelfHosted
+	selfHosted := unmeteredBackend(profileRecord.Backend)
 	if selfHosted {
 		outputPath = "managed://experiments/" + experimentID.String() + "/outputs"
 	}
-	experimentRecord, err := tx.Experiment.Create().
+	create := tx.Experiment.Create().
 		SetPublicID(experimentID).
 		SetTenantID(principal.TenantID).
 		SetProjectID(projectRecord.ID).
 		SetAgentTokenID(principal.TokenID).
-		SetRepositoryID(repositoryRecord.ID).
 		SetEnvironmentID(environmentRecord.ID).
 		SetResourceProfileID(profileRecord.ID).
 		SetCommitSha(proposalRecord.CommitSha).
@@ -264,14 +283,17 @@ func (s *Service) createPreparedExperiment(ctx context.Context, principal agenta
 		SetResourceSnapshot(resourceSnapshot(profileRecord)).
 		SetSecretNames([]string{}).
 		SetOutputPath(outputPath).
-		SetReservedCostMilli(reservation).
-		Save(ctx)
+		SetReservedCostMilli(reservation)
+	if repositoryRecord != nil {
+		create.SetRepositoryID(repositoryRecord.ID)
+	}
+	experimentRecord, err := create.Save(ctx)
 	if err != nil {
 		return result, err
 	}
 	description := "prepared experiment budget reservation"
 	if selfHosted {
-		description = "unmetered Self-hosted prepared experiment reservation"
+		description = "unmetered prepared experiment reservation"
 	}
 	if _, err := tx.BudgetEntry.Create().
 		SetTenantID(principal.TenantID).SetProjectID(projectRecord.ID).SetExperimentID(experimentRecord.ID).
@@ -302,7 +324,7 @@ func (s *Service) createPreparedExperiment(ctx context.Context, principal agenta
 		SetAction("agent.activity").SetTargetType("project").SetTargetID(principal.ProjectPublicID).
 		SetMetadata(map[string]any{
 			"project_id": principal.ProjectPublicID, "phase": "monitoring", "proposal_id": proposalRecord.PublicID.String(),
-			"experiment_id": experimentID.String(), "repository_remote": repositoryRecord.SSHURL, "ref": proposalRecord.RequestedRef,
+			"experiment_id": experimentID.String(), "repository_remote": repositoryRemote(repositoryRecord), "ref": proposalRecord.RequestedRef,
 		}).Save(ctx); err != nil {
 		return result, err
 	}
@@ -316,6 +338,9 @@ func proposalRuntimeInTransaction(ctx context.Context, tx *ent.Tx, projectRecord
 	image := snapshotString(snapshot, "image_uuid")
 	recipeRef := strings.TrimSpace(environmentRecord.RecipeRef)
 	if !strings.HasPrefix(recipeRef, proposalWorkspaceRecipePrefix) {
+		if environmentRecord.Backend == environment.BackendSSHCloud {
+			return sshcloud.HostImage, nil, nil
+		}
 		if image == "" || image != environmentRecord.ImageUUID {
 			return "", nil, ErrProposalChanged
 		}
@@ -356,7 +381,7 @@ func proposalReservation(projectRecord *ent.Project, profileRecord *ent.Resource
 	if runtimeSeconds <= 0 || runtimeSeconds > projectRecord.MaxRuntimeSeconds {
 		return 0, ErrProposalChanged
 	}
-	if profileRecord.Backend == resourceprofile.BackendSelfHosted {
+	if unmeteredBackend(profileRecord.Backend) {
 		return 0, nil
 	}
 	billable, err := billableRuntimeSeconds(runtimeSeconds, projectRecord.TimeoutExtensionSeconds, projectRecord.TerminationGraceSeconds)
@@ -377,6 +402,13 @@ func storedProposalEligible(checks []map[string]any) bool {
 		}
 	}
 	return true
+}
+
+func repositoryRemote(record *ent.Repository) string {
+	if record == nil {
+		return ""
+	}
+	return record.SSHURL
 }
 
 func proposalDriftError(err error) error {

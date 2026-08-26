@@ -12,8 +12,12 @@ import (
 	"time"
 
 	"github.com/XR-Lee/Gemcp/ent"
+	"github.com/XR-Lee/Gemcp/ent/environment"
+	"github.com/XR-Lee/Gemcp/ent/provideraccount"
+	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
 	"github.com/XR-Lee/Gemcp/internal/auth"
 	"github.com/XR-Lee/Gemcp/internal/autodl"
+	"github.com/XR-Lee/Gemcp/internal/projectpolicy"
 	providerservice "github.com/XR-Lee/Gemcp/internal/provider"
 	"github.com/XR-Lee/Gemcp/internal/secrets"
 )
@@ -39,6 +43,7 @@ type Service struct {
 type Input struct {
 	OrganizationName string               `json:"organization_name"`
 	Owner            OwnerInput           `json:"owner"`
+	SkipProvider     bool                 `json:"skip_provider,omitempty"`
 	Provider         ProviderInput        `json:"provider"`
 	Project          ProjectInput         `json:"project"`
 	Environment      EnvironmentInput     `json:"environment"`
@@ -54,6 +59,7 @@ type OwnerInput struct {
 type ProviderInput struct {
 	Name    string `json:"name"`
 	BaseURL string `json:"base_url"`
+	Backend string `json:"backend,omitempty"`
 	Token   string `json:"token"`
 }
 
@@ -92,10 +98,10 @@ type ResourceProfileInput struct {
 type Result struct {
 	TenantID          string `json:"tenant_id"`
 	OwnerID           string `json:"owner_id"`
-	ProviderID        string `json:"provider_id"`
+	ProviderID        string `json:"provider_id,omitempty"`
 	ProjectID         string `json:"project_id"`
-	EnvironmentID     string `json:"environment_id"`
-	ResourceProfileID string `json:"resource_profile_id"`
+	EnvironmentID     string `json:"environment_id,omitempty"`
+	ResourceProfileID string `json:"resource_profile_id,omitempty"`
 	AgentToken        string `json:"agent_token"`
 	AgentTokenPrefix  string `json:"agent_token_prefix"`
 }
@@ -119,14 +125,22 @@ func (s *Service) Initialize(ctx context.Context, input Input) (Result, error) {
 	if s == nil || s.client == nil || s.box == nil {
 		return result, fmt.Errorf("setup service is not initialized")
 	}
-
 	passwordHash, err := auth.HashPassword(input.Owner.Password)
 	if err != nil {
 		return result, err
 	}
-	encryptedToken, err := providerservice.EncryptCredential(s.box, input.Provider.Token)
-	if err != nil {
-		return result, err
+	var providerBackend provideraccount.Backend
+	var executionBackend environment.Backend
+	var encryptedToken string
+	if !input.SkipProvider {
+		providerBackend, executionBackend, err = backendsForProvider(input.Provider.BaseURL, input.Provider.Backend)
+		if err != nil {
+			return result, err
+		}
+		encryptedToken, err = providerservice.EncryptCredential(s.box, input.Provider.Token)
+		if err != nil {
+			return result, err
+		}
 	}
 	agentToken, tokenPrefix, err := secrets.RandomToken("gmc", 32)
 	if err != nil {
@@ -161,15 +175,6 @@ func (s *Service) Initialize(ctx context.Context, input Input) (Result, error) {
 	if err != nil {
 		return result, fmt.Errorf("create owner: %w", err)
 	}
-	provider, err := tx.ProviderAccount.Create().
-		SetTenantID(tenant.ID).
-		SetName(strings.TrimSpace(input.Provider.Name)).
-		SetBaseURL(strings.TrimRight(strings.TrimSpace(input.Provider.BaseURL), "/")).
-		SetCredentialCiphertext(encryptedToken).
-		Save(ctx)
-	if err != nil {
-		return result, fmt.Errorf("create provider account: %w", err)
-	}
 	project, err := tx.Project.Create().
 		SetTenantID(tenant.ID).
 		SetName(strings.TrimSpace(input.Project.Name)).
@@ -184,35 +189,52 @@ func (s *Service) Initialize(ctx context.Context, input Input) (Result, error) {
 	if err != nil {
 		return result, fmt.Errorf("create project: %w", err)
 	}
-	environment, err := tx.Environment.Create().
-		SetProjectID(project.ID).
-		SetName(strings.TrimSpace(input.Environment.Name)).
-		SetImageUUID(strings.TrimSpace(input.Environment.ImageUUID)).
-		SetIsDefault(true).
-		Save(ctx)
-	if err != nil {
-		return result, fmt.Errorf("create environment: %w", err)
-	}
-	profile := input.ResourceProfile
-	resourceProfile, err := tx.ResourceProfile.Create().
-		SetProjectID(project.ID).
-		SetName(strings.TrimSpace(profile.Name)).
-		SetRegion(strings.TrimSpace(profile.Region)).
-		SetGpuNames(profile.GPUNames).
-		SetGpuNum(profile.GPUNum).
-		SetCudaFrom(profile.CUDAFrom).
-		SetCudaTo(profile.CUDATo).
-		SetCPUFrom(profile.CPUFrom).
-		SetCPUTo(profile.CPUTo).
-		SetMemoryFromGB(profile.MemoryFromGB).
-		SetMemoryToGB(profile.MemoryToGB).
-		SetPriceFromMilli(profile.PriceFromMilli).
-		SetPriceToMilli(profile.PriceToMilli).
-		SetReuseContainer(profile.ReuseContainer).
-		SetIsDefault(true).
-		Save(ctx)
-	if err != nil {
-		return result, fmt.Errorf("create resource profile: %w", err)
+	var provider *ent.ProviderAccount
+	var environmentRecord *ent.Environment
+	var resourceProfile *ent.ResourceProfile
+	if !input.SkipProvider {
+		provider, err = tx.ProviderAccount.Create().
+			SetTenantID(tenant.ID).
+			SetName(strings.TrimSpace(input.Provider.Name)).
+			SetBaseURL(strings.TrimRight(strings.TrimSpace(input.Provider.BaseURL), "/")).
+			SetBackend(providerBackend).
+			SetCredentialCiphertext(encryptedToken).
+			Save(ctx)
+		if err != nil {
+			return result, fmt.Errorf("create provider account: %w", err)
+		}
+		environmentRecord, err = tx.Environment.Create().
+			SetProjectID(project.ID).
+			SetBackend(executionBackend).
+			SetName(strings.TrimSpace(input.Environment.Name)).
+			SetImageUUID(strings.TrimSpace(input.Environment.ImageUUID)).
+			SetIsDefault(true).
+			Save(ctx)
+		if err != nil {
+			return result, fmt.Errorf("create environment: %w", err)
+		}
+		profile := input.ResourceProfile
+		resourceProfile, err = tx.ResourceProfile.Create().
+			SetProjectID(project.ID).
+			SetBackend(resourceprofile.Backend(executionBackend)).
+			SetName(strings.TrimSpace(profile.Name)).
+			SetRegion(strings.TrimSpace(profile.Region)).
+			SetGpuNames(profile.GPUNames).
+			SetGpuNum(profile.GPUNum).
+			SetCudaFrom(profile.CUDAFrom).
+			SetCudaTo(profile.CUDATo).
+			SetCPUFrom(profile.CPUFrom).
+			SetCPUTo(profile.CPUTo).
+			SetMemoryFromGB(profile.MemoryFromGB).
+			SetMemoryToGB(profile.MemoryToGB).
+			SetPriceFromMilli(profile.PriceFromMilli).
+			SetPriceToMilli(profile.PriceToMilli).
+			SetReuseContainer(profile.ReuseContainer).
+			SetIsDefault(true).
+			Save(ctx)
+		if err != nil {
+			return result, fmt.Errorf("create resource profile: %w", err)
+		}
 	}
 	label := strings.TrimSpace(input.AgentTokenLabel)
 	if label == "" {
@@ -227,6 +249,10 @@ func (s *Service) Initialize(ctx context.Context, input Input) (Result, error) {
 	if err != nil {
 		return result, fmt.Errorf("create Agent token: %w", err)
 	}
+	metadata := map[string]any{"project_id": project.PublicID.String(), "provider_skipped": input.SkipProvider}
+	if provider != nil {
+		metadata["provider_id"] = provider.PublicID.String()
+	}
 	_, err = tx.AuditEvent.Create().
 		SetTenantID(tenant.ID).
 		SetActorType("user").
@@ -234,7 +260,7 @@ func (s *Service) Initialize(ctx context.Context, input Input) (Result, error) {
 		SetAction("system.initialized").
 		SetTargetType("tenant").
 		SetTargetID(tenant.PublicID.String()).
-		SetMetadata(map[string]any{"project_id": project.PublicID.String(), "provider_id": provider.PublicID.String()}).
+		SetMetadata(metadata).
 		Save(ctx)
 	if err != nil {
 		return result, fmt.Errorf("write setup audit event: %w", err)
@@ -243,16 +269,23 @@ func (s *Service) Initialize(ctx context.Context, input Input) (Result, error) {
 	if err := tx.Commit(); err != nil {
 		return result, fmt.Errorf("commit setup transaction: %w", err)
 	}
-	return Result{
-		TenantID:          tenant.PublicID.String(),
-		OwnerID:           owner.PublicID.String(),
-		ProviderID:        provider.PublicID.String(),
-		ProjectID:         project.PublicID.String(),
-		EnvironmentID:     environment.PublicID.String(),
-		ResourceProfileID: resourceProfile.PublicID.String(),
-		AgentToken:        agentToken,
-		AgentTokenPrefix:  tokenRecord.Prefix,
-	}, nil
+	result = Result{
+		TenantID:         tenant.PublicID.String(),
+		OwnerID:          owner.PublicID.String(),
+		ProjectID:        project.PublicID.String(),
+		AgentToken:       agentToken,
+		AgentTokenPrefix: tokenRecord.Prefix,
+	}
+	if provider != nil {
+		result.ProviderID = provider.PublicID.String()
+	}
+	if environmentRecord != nil {
+		result.EnvironmentID = environmentRecord.PublicID.String()
+	}
+	if resourceProfile != nil {
+		result.ResourceProfileID = resourceProfile.PublicID.String()
+	}
+	return result, nil
 }
 
 func validateInput(input Input) error {
@@ -266,6 +299,23 @@ func validateInput(input Input) error {
 	if _, err := auth.HashPassword(input.Owner.Password); err != nil {
 		return invalid(err.Error())
 	}
+	if strings.TrimSpace(input.Project.Name) == "" || !slugPattern.MatchString(strings.ToLower(strings.TrimSpace(input.Project.Slug))) {
+		return invalid("project name and a 3-64 character lowercase slug are required")
+	}
+	if err := projectpolicy.Validate(projectpolicy.Limits{
+		MonthlyBudgetMilli: input.Project.MonthlyBudgetMilli, MaxExperimentMilli: input.Project.MaxExperimentMilli,
+		MaxConcurrency: input.Project.MaxConcurrency, MaxRuntimeSeconds: input.Project.MaxRuntimeSeconds,
+		TimeoutExtensionSeconds: input.Project.TimeoutExtensionSeconds, TerminationGraceSeconds: input.Project.TerminationGraceSeconds,
+	}); err != nil {
+		var validation *projectpolicy.ValidationError
+		if errors.As(err, &validation) {
+			return invalid(validation.Message)
+		}
+		return err
+	}
+	if input.SkipProvider {
+		return nil
+	}
 	providerURL, err := url.Parse(strings.TrimSpace(input.Provider.BaseURL))
 	if err != nil || providerURL.Scheme != "https" || providerURL.Host == "" || providerURL.User != nil || providerURL.RawQuery != "" || providerURL.Fragment != "" {
 		return invalid("provider base URL must be a credential-free HTTPS URL")
@@ -274,21 +324,11 @@ func validateInput(input Input) error {
 	if normalizedProviderURL != autodl.DefaultBaseURL && normalizedProviderURL != autodl.PrivateBaseURL {
 		return invalid("provider base URL must be an official AutoDL API URL")
 	}
+	if _, _, err := backendsForProvider(normalizedProviderURL, input.Provider.Backend); err != nil {
+		return err
+	}
 	if strings.TrimSpace(input.Provider.Name) == "" || strings.TrimSpace(input.Provider.Token) == "" {
 		return invalid("provider name and token are required")
-	}
-	if strings.TrimSpace(input.Project.Name) == "" || !slugPattern.MatchString(strings.ToLower(strings.TrimSpace(input.Project.Slug))) {
-		return invalid("project name and a 3-64 character lowercase slug are required")
-	}
-	if input.Project.MonthlyBudgetMilli <= 0 || input.Project.MaxExperimentMilli <= 0 || input.Project.MaxExperimentMilli > input.Project.MonthlyBudgetMilli {
-		return invalid("project budgets must be positive and the experiment cap cannot exceed the monthly budget")
-	}
-	if input.Project.MaxConcurrency <= 0 || input.Project.MaxRuntimeSeconds <= 0 || input.Project.TimeoutExtensionSeconds < 0 || input.Project.TerminationGraceSeconds < 0 {
-		return invalid("project concurrency and runtime limits are invalid")
-	}
-	totalRuntime := int64(input.Project.MaxRuntimeSeconds) + int64(input.Project.TimeoutExtensionSeconds) + int64(input.Project.TerminationGraceSeconds)
-	if totalRuntime > int64((30*24*time.Hour)/time.Second) || input.Project.TerminationGraceSeconds > 3600 {
-		return invalid("project runtime, extension, and grace must fit within 30 days and grace must not exceed one hour")
 	}
 	if strings.TrimSpace(input.Environment.Name) == "" || strings.TrimSpace(input.Environment.ImageUUID) == "" {
 		return invalid("default environment name and image UUID are required")
@@ -303,5 +343,38 @@ func validateInput(input Input) error {
 	if profile.PriceFromMilli < 0 || profile.PriceToMilli <= 0 || profile.PriceToMilli < profile.PriceFromMilli {
 		return invalid("resource profile price range is invalid")
 	}
+	if normalizedProviderURL == autodl.PrivateBaseURL {
+		if profile.Region != "private" || profile.CUDAFrom != profile.CUDATo {
+			return invalid("AutoDL Private Cloud requires region private and one CUDA version")
+		}
+	} else if profile.Region == "private" {
+		return invalid("AutoDL Public Elastic requires a public region")
+	}
 	return nil
+}
+
+func backendsForProvider(baseURL, requestedBackend string) (provideraccount.Backend, environment.Backend, error) {
+	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	requestedBackend = strings.ToLower(strings.TrimSpace(requestedBackend))
+	if requestedBackend == "" {
+		if baseURL == autodl.PrivateBaseURL {
+			requestedBackend = "private"
+		} else {
+			requestedBackend = "elastic"
+		}
+	}
+	switch requestedBackend {
+	case "private":
+		if baseURL != autodl.PrivateBaseURL {
+			return "", "", invalid("AutoDL Private Cloud must use https://private.autodl.com")
+		}
+		return provideraccount.BackendPrivate, environment.BackendAutodlPrivate, nil
+	case "elastic":
+		if baseURL != autodl.DefaultBaseURL {
+			return "", "", invalid("AutoDL Public Elastic must use https://api.autodl.com")
+		}
+		return provideraccount.BackendElastic, environment.BackendAutodlElastic, nil
+	default:
+		return "", "", invalid("provider backend must be private or elastic")
+	}
 }

@@ -59,6 +59,31 @@ describe('run observability', () => {
     expect(openExperiment).toHaveBeenCalledWith(experiment.id)
   })
 
+  it('requires an Owner confirmation action for a paid prepared proposal', async () => {
+    const prepared: OperationsFeed = {
+      ...feed,
+      proposals: [{
+        ...feed.proposals[0],
+        id: 'proposal-paid',
+        status: 'prepared',
+        experiment_id: undefined,
+        runtime_preset: 'train',
+        max_runtime_seconds: 57600,
+        reserved_cost_milli: 20000,
+      }],
+    }
+    const confirmProposal = vi.fn()
+    const wrapper = mount(RunActivityPanel, { props: { feed: prepared, onConfirmProposal: confirmProposal } })
+
+    expect(wrapper.text()).toContain('train · 57600s')
+    expect(wrapper.text()).toContain('Prepared')
+    expect(wrapper.text()).toContain('CNY 20.000')
+    expect(wrapper.find('input[type="checkbox"]').exists()).toBe(false)
+    await wrapper.get('.proposal-confirm-button').trigger('click')
+    expect(confirmProposal).toHaveBeenCalledWith(prepared.proposals[0])
+    expect(wrapper.emitted('confirmProposal')?.[0]).toEqual([prepared.proposals[0]])
+  })
+
   it('distinguishes requested configuration from observed paths and GPU binding', () => {
     const wrapper = mount(ExperimentDetail, { props: { experiment, attempts, loading: false, error: '' } })
 

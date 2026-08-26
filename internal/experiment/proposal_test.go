@@ -11,11 +11,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/XR-Lee/Gemcp/ent"
 	"github.com/XR-Lee/Gemcp/ent/nodeprojectaccess"
 	"github.com/XR-Lee/Gemcp/internal/execution"
 	"github.com/XR-Lee/Gemcp/internal/provider"
 	gitrepository "github.com/XR-Lee/Gemcp/internal/repository"
 	"github.com/XR-Lee/Gemcp/internal/research"
+	"github.com/XR-Lee/Gemcp/internal/sshcloud"
 	"github.com/google/uuid"
 )
 
@@ -52,17 +54,23 @@ func (a *memoryProposalArchive) Close() error     { return nil }
 func (a *memoryProposalArchive) SizeBytes() int64 { return int64(len(a.data)) }
 
 type proposalProvider struct {
-	idle int
-	err  error
+	idle    int
+	err     error
+	backend string
+	region  string
 }
 
-func (p proposalProvider) QueryResources(context.Context, int) (provider.ResourceSnapshot, error) {
+func (p proposalProvider) QueryResources(context.Context, int, string) (provider.ResourceSnapshot, error) {
 	if p.err != nil {
 		return provider.ResourceSnapshot{}, p.err
 	}
+	backend := p.backend
+	if backend == "" {
+		backend = "private"
+	}
 	return provider.ResourceSnapshot{
-		Provider:      provider.Summary{Name: "private", Status: "active"},
-		GPUStock:      []provider.GPUStock{{Name: "RTX 4090", Idle: p.idle, Total: 2}},
+		Provider:      provider.Summary{Name: backend, Backend: backend, Status: "active"},
+		GPUStock:      []provider.GPUStock{{Name: "RTX 4090", Region: p.region, Idle: p.idle, Total: 2}},
 		PrivateImages: []provider.Image{{UUID: "image-uuid", Name: "image", Source: "private"}},
 	}, nil
 }
@@ -70,12 +78,14 @@ func (p proposalProvider) QueryResources(context.Context, int) (provider.Resourc
 type proposalRuntime struct {
 	healthy    bool
 	selfHosted bool
+	sshCloud   bool
 }
 
 func (r proposalRuntime) Status(context.Context) (execution.RuntimeStatus, error) {
 	return execution.RuntimeStatus{
 		SchedulerEnabled: r.healthy, SchedulerHealthy: r.healthy, WatchdogHealthy: r.healthy,
-		PublicURLConfigured: r.healthy, SelfHostedEnabled: r.selfHosted, GlobalConcurrency: 2,
+		PublicURLConfigured: r.healthy, PublicURLHTTPS: r.healthy, SelfHostedEnabled: r.selfHosted,
+		SSHCloudEnabled: r.sshCloud, GlobalConcurrency: 2,
 	}, nil
 }
 
@@ -117,6 +127,44 @@ func proposalArchive(t *testing.T) []byte {
 
 func validPrepare() PrepareInput {
 	return PrepareInput{Argv: []string{"python", "smoke.py", "--label", "value with spaces"}, RuntimePreset: "smoke", MaxRuntimeSeconds: 300}
+}
+
+func TestPreparedExperimentPublicElasticRequiresMatchingRegion(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	ctx := context.Background()
+	environment, err := f.client.Environment.Create().
+		SetProjectID(f.project.ID).SetName("elastic-default").SetBackend("autodl_elastic").
+		SetImageUUID("image-uuid").SetIsDefault(false).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	profile, err := f.client.ResourceProfile.Create().
+		SetProjectID(f.project.ID).SetName("elastic-default").SetBackend("autodl_elastic").
+		SetRegion("westDC2").SetGpuNames([]string{"RTX 4090"}).SetGpuNum(1).
+		SetCudaFrom(118).SetCudaTo(128).SetCPUFrom(1).SetCPUTo(128).
+		SetMemoryFromGB(1).SetMemoryToGB(512).SetPriceFromMilli(10).SetPriceToMilli(3000).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	input := validPrepare()
+	input.Environment = environment.Name
+	input.ResourceProfile = profile.Name
+	git := &proposalGit{resolved: proposalCommit, archive: proposalArchive(t)}
+	wrongRegion := NewService(f.client, f.box, git, WithPreparedExperiments(
+		git, git, proposalProvider{idle: 2, backend: "elastic", region: "eastDC1"}, proposalRuntime{healthy: true}, ProposalConfig{SourceMaxBytes: 1 << 20},
+	))
+	blocked, err := wrongRegion.Prepare(ctx, f.principal, input)
+	if err != nil || blocked.Proposal == nil || blocked.Proposal.Eligible {
+		t.Fatalf("wrong-region Prepare() = %+v, %v", blocked, err)
+	}
+
+	service := NewService(f.client, f.box, git, WithPreparedExperiments(
+		git, git, proposalProvider{idle: 2, backend: "elastic", region: "westDC2"}, proposalRuntime{healthy: true}, ProposalConfig{SourceMaxBytes: 1 << 20},
+	))
+	prepared, err := service.Prepare(ctx, f.principal, input)
+	if err != nil || prepared.Proposal == nil || !prepared.Proposal.Eligible || prepared.Proposal.Resource.Backend != "autodl_elastic" || prepared.Proposal.Resource.Region != "westDC2" {
+		t.Fatalf("public Elastic Prepare() = %+v, %v", prepared, err)
+	}
 }
 
 func TestPreparedExperimentIsZeroCostUntilConfirmedAndServerIdempotent(t *testing.T) {
@@ -204,7 +252,7 @@ func TestPreparedExperimentRejectsDriftBlockedAndExpiredProposals(t *testing.T) 
 			t.Fatalf("blocked submit error = %v", err)
 		}
 	})
-	t.Run("expired", func(t *testing.T) {
+	t.Run("valid immediately before expiry", func(t *testing.T) {
 		f := newFixture(t, 100000, 20000)
 		service := preparedService(t, f, 2)
 		base := time.Date(2026, 7, 23, 0, 0, 0, 0, time.UTC)
@@ -213,7 +261,21 @@ func TestPreparedExperimentRejectsDriftBlockedAndExpiredProposals(t *testing.T) 
 		if err != nil {
 			t.Fatal(err)
 		}
-		service.now = func() time.Time { return base.Add(31 * time.Minute) }
+		service.now = func() time.Time { return base.Add(2*time.Hour - time.Microsecond) }
+		if _, err := service.SubmitPrepared(context.Background(), f.principal, SubmitPreparedInput{ProposalID: prepared.Proposal.ID, ConfirmationDigest: prepared.Proposal.ConfirmationDigest}); err != nil {
+			t.Fatalf("submit before expiry error = %v", err)
+		}
+	})
+	t.Run("expired at deadline", func(t *testing.T) {
+		f := newFixture(t, 100000, 20000)
+		service := preparedService(t, f, 2)
+		base := time.Date(2026, 7, 23, 0, 0, 0, 0, time.UTC)
+		service.now = func() time.Time { return base }
+		prepared, err := service.Prepare(context.Background(), f.principal, validPrepare())
+		if err != nil {
+			t.Fatal(err)
+		}
+		service.now = func() time.Time { return base.Add(2 * time.Hour) }
 		_, err = service.SubmitPrepared(context.Background(), f.principal, SubmitPreparedInput{ProposalID: prepared.Proposal.ID, ConfirmationDigest: prepared.Proposal.ConfirmationDigest})
 		if !errors.Is(err, ErrProposalExpired) {
 			t.Fatalf("expired submit error = %v", err)
@@ -450,4 +512,262 @@ func researchUpdate(_ fixture, name, question string) research.UpdateInput {
 func mustResearchService(t *testing.T, f fixture) *research.Service {
 	t.Helper()
 	return research.NewService(f.client)
+}
+
+func TestPreparedSSHCloudPassesOnLoopbackWhileAutoDLRequiresHTTPS(t *testing.T) {
+	f := newFixture(t, 1, 1)
+	ctx := context.Background()
+	node := createSSHCloudHost(t, f, nil)
+	environmentName, profileName := createSSHCloudRuntime(t, f, node)
+	git := &proposalGit{resolved: proposalCommit, archive: proposalArchive(t)}
+	loopbackStatus := func() execution.RuntimeStatus {
+		return execution.RuntimeStatus{
+			SchedulerEnabled: true, SchedulerHealthy: true, WatchdogHealthy: false, PublicURLConfigured: true,
+			PublicURLHTTPS: false, SSHCloudEnabled: true, GlobalConcurrency: 2,
+		}
+	}
+	sshService := NewService(f.client, f.box, git, WithPreparedExperiments(
+		git, git, nil, proposalStatusRuntime{status: loopbackStatus()}, ProposalConfig{SourceMaxBytes: 1 << 20, SSHCloudEnabled: true},
+	))
+	input := validPrepare()
+	input.Environment, input.ResourceProfile = environmentName, profileName
+	prepared, err := sshService.Prepare(ctx, f.principal, input)
+	if err != nil || prepared.Proposal == nil || !prepared.Proposal.Eligible {
+		t.Fatalf("Cloud SSH Prepare()=%+v err=%v", prepared, err)
+	}
+	autodlService := NewService(f.client, f.box, git, WithPreparedExperiments(
+		git, git, proposalProvider{idle: 2}, proposalStatusRuntime{status: loopbackStatus()}, ProposalConfig{SourceMaxBytes: 1 << 20},
+	))
+	autodlInput := validPrepare()
+	autodlPrepared, err := autodlService.Prepare(ctx, f.principal, autodlInput)
+	if err != nil || autodlPrepared.Proposal == nil || autodlPrepared.Proposal.Eligible {
+		t.Fatalf("AutoDL loopback Prepare()=%+v err=%v", autodlPrepared, err)
+	}
+	failed := false
+	for _, check := range autodlPrepared.Proposal.Checks {
+		if check.ID == "public_url" && check.Status == ProposalCheckFail {
+			failed = true
+		}
+	}
+	if !failed {
+		t.Fatalf("AutoDL proposal did not fail public_url on loopback HTTP: %+v", autodlPrepared.Proposal.Checks)
+	}
+}
+
+func TestPrepareSSHCloudWithoutImageOrRepository(t *testing.T) {
+	f := newFixture(t, 1, 1)
+	ctx := context.Background()
+	node := createSSHCloudHost(t, f, map[string]any{"os": "Linux"})
+	environmentName, profileName := createSSHCloudRuntime(t, f, node)
+	controller := &fakeSSHCloudController{result: sshcloud.EnsureResult{
+		EnvironmentName: environmentName, ProfileName: profileName, ResolvedImage: sshcloud.HostImage,
+	}}
+	git := &proposalGit{resolved: proposalCommit, archive: proposalArchive(t)}
+	service := NewService(f.client, f.box, git, WithSSHCloud(controller), WithPreparedExperiments(
+		git, git, nil, proposalStatusRuntime{status: execution.RuntimeStatus{
+			SchedulerEnabled: true, SchedulerHealthy: true, PublicURLConfigured: true, SSHCloudEnabled: true, GlobalConcurrency: 2,
+		}}, ProposalConfig{SourceMaxBytes: 1 << 20, SSHCloudEnabled: true},
+	))
+	prepared, err := service.Prepare(ctx, f.principal, validPrepare())
+	if err != nil || prepared.Proposal == nil || !prepared.Proposal.Eligible || prepared.Proposal.Resource.Backend != "ssh_cloud" {
+		t.Fatalf("Prepare()=%+v err=%v", prepared, err)
+	}
+	if controller.calls != 1 || controller.lastImage != sshcloud.HostImage || prepared.Proposal.Resource.Image != sshcloud.HostImage {
+		t.Fatalf("controller=%+v image=%s", controller, prepared.Proposal.Resource.Image)
+	}
+	if prepared.Proposal.Repository.ID != "" || prepared.Proposal.Resource.Host != "203.0.113.10" ||
+		prepared.Proposal.Resource.User != "ubuntu" || prepared.Proposal.Resource.WorkingDirectory != "$HOME" ||
+		prepared.Proposal.Resource.Isolation != "none" {
+		t.Fatalf("resource=%+v repository=%+v", prepared.Proposal.Resource, prepared.Proposal.Repository)
+	}
+}
+
+func TestPrepareSSHCloudPinsHostUserCwdArgv(t *testing.T) {
+	f := newFixture(t, 1, 1)
+	ctx := context.Background()
+	node := createSSHCloudHost(t, f, nil)
+	environmentName, profileName := createSSHCloudRuntime(t, f, node)
+	controller := &fakeSSHCloudController{result: sshcloud.EnsureResult{
+		EnvironmentName: environmentName, ProfileName: profileName, ResolvedImage: sshcloud.HostImage,
+	}}
+	git := &proposalGit{resolved: proposalCommit, archive: proposalArchive(t)}
+	service := NewService(f.client, f.box, git, WithSSHCloud(controller), WithPreparedExperiments(
+		git, git, nil, proposalStatusRuntime{status: execution.RuntimeStatus{
+			SchedulerEnabled: true, SchedulerHealthy: true, PublicURLConfigured: true, SSHCloudEnabled: true, GlobalConcurrency: 2,
+		}}, ProposalConfig{SourceMaxBytes: 1 << 20, SSHCloudEnabled: true},
+	))
+	home := validPrepare()
+	homePrepared, err := service.Prepare(ctx, f.principal, home)
+	if err != nil || homePrepared.Proposal == nil || !homePrepared.Proposal.Eligible {
+		t.Fatalf("home Prepare()=%+v err=%v", homePrepared, err)
+	}
+	cwd := validPrepare()
+	cwd.Cwd = "/opt/exp"
+	cwd.Image = "pytorch/pytorch@sha256:" + strings.Repeat("e", 64)
+	cwdPrepared, err := service.Prepare(ctx, f.principal, cwd)
+	if err != nil || cwdPrepared.Proposal == nil || !cwdPrepared.Proposal.Eligible {
+		t.Fatalf("cwd Prepare()=%+v err=%v", cwdPrepared, err)
+	}
+	if cwdPrepared.Proposal.Resource.WorkingDirectory != "/opt/exp" || cwdPrepared.Proposal.Resource.Image != sshcloud.HostImage {
+		t.Fatalf("cwd resource=%+v", cwdPrepared.Proposal.Resource)
+	}
+	if cwdPrepared.Proposal.ConfirmationDigest == homePrepared.Proposal.ConfirmationDigest {
+		t.Fatal("cwd did not change the confirmation digest")
+	}
+}
+
+func TestPrepareSSHCloudSucceedsWithoutGPU(t *testing.T) {
+	f := newFixture(t, 1, 1)
+	ctx := context.Background()
+	node := createSSHCloudHost(t, f, map[string]any{"os": "Linux", "nvidia_ready": false})
+	environmentName, profileName := createSSHCloudRuntime(t, f, node)
+	controller := &fakeSSHCloudController{result: sshcloud.EnsureResult{
+		EnvironmentName: environmentName, ProfileName: profileName, ResolvedImage: sshcloud.HostImage, NvidiaReady: false,
+	}}
+	git := &proposalGit{resolved: proposalCommit, archive: proposalArchive(t)}
+	service := NewService(f.client, f.box, git, WithSSHCloud(controller), WithPreparedExperiments(
+		git, git, nil, proposalStatusRuntime{status: execution.RuntimeStatus{
+			SchedulerEnabled: true, SchedulerHealthy: true, PublicURLConfigured: true, SSHCloudEnabled: true, GlobalConcurrency: 2,
+		}}, ProposalConfig{SourceMaxBytes: 1 << 20, SSHCloudEnabled: true},
+	))
+	prepared, err := service.Prepare(ctx, f.principal, validPrepare())
+	if err != nil || prepared.Proposal == nil || !prepared.Proposal.Eligible {
+		t.Fatalf("Prepare()=%+v err=%v", prepared, err)
+	}
+}
+
+func TestPrepareSSHCloudRejectsRelativeCwd(t *testing.T) {
+	f := newFixture(t, 1, 1)
+	ctx := context.Background()
+	node := createSSHCloudHost(t, f, nil)
+	environmentName, profileName := createSSHCloudRuntime(t, f, node)
+	controller := &fakeSSHCloudController{result: sshcloud.EnsureResult{
+		EnvironmentName: environmentName, ProfileName: profileName, ResolvedImage: sshcloud.HostImage,
+	}}
+	git := &proposalGit{resolved: proposalCommit, archive: proposalArchive(t)}
+	service := NewService(f.client, f.box, git, WithSSHCloud(controller), WithPreparedExperiments(
+		git, git, nil, proposalStatusRuntime{status: execution.RuntimeStatus{
+			SchedulerEnabled: true, SchedulerHealthy: true, PublicURLConfigured: true, SSHCloudEnabled: true, GlobalConcurrency: 2,
+		}}, ProposalConfig{SourceMaxBytes: 1 << 20, SSHCloudEnabled: true},
+	))
+	input := validPrepare()
+	input.Cwd = "relative/path"
+	_, err := service.Prepare(ctx, f.principal, input)
+	var validation *ValidationError
+	if err == nil || !errors.As(err, &validation) || !strings.Contains(validation.Message, "absolute") {
+		t.Fatalf("Prepare() err=%v", err)
+	}
+}
+
+func createSSHCloudHost(t *testing.T, f fixture, inventory map[string]any) *ent.CloudSSHNode {
+	t.Helper()
+	if inventory == nil {
+		inventory = map[string]any{"os": "Linux"}
+	}
+	node, err := f.client.CloudSSHNode.Create().SetTenantID(f.principal.TenantID).SetLabel("gpu-cloud-1").
+		SetSSHHost("203.0.113.10").SetSSHUser("ubuntu").SetAuthMethod("password").SetCredentialCiphertext("v1.not-used").
+		SetStatus("active").SetInventory(inventory).Save(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.client.CloudSSHProjectAccess.Create().SetTenantID(f.principal.TenantID).SetNodeID(node.ID).SetProjectID(f.project.ID).Save(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	return node
+}
+
+func createSSHCloudRuntime(t *testing.T, f fixture, node *ent.CloudSSHNode) (string, string) {
+	t.Helper()
+	name := "ssh-cloud-node"
+	if _, err := f.client.Environment.Create().SetProjectID(f.project.ID).SetBackend("ssh_cloud").SetName(name).
+		SetImageUUID(sshcloud.HostImage).SetRecipeRef("ssh-cloud:" + node.PublicID.String()).Save(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.client.ResourceProfile.Create().SetProjectID(f.project.ID).SetBackend("ssh_cloud").SetName(name).
+		SetRegion("ssh_cloud").SetGpuNames([]string{"NVIDIA GeForce RTX 4090"}).SetGpuNum(1).SetCudaFrom(1).SetCudaTo(1).
+		SetCPUFrom(1).SetCPUTo(8).SetMemoryFromGB(1).SetMemoryToGB(32).SetPriceFromMilli(0).SetPriceToMilli(0).Save(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	return name, name
+}
+
+type proposalStatusRuntime struct {
+	status execution.RuntimeStatus
+}
+
+func (r proposalStatusRuntime) Status(context.Context) (execution.RuntimeStatus, error) {
+	return r.status, nil
+}
+
+func TestPreparedExperimentRejectsUnknownAndOversizedPresets(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	service := preparedService(t, f, 2)
+	ctx := context.Background()
+	input := validPrepare()
+	input.RuntimePreset = "full"
+	if _, err := service.Prepare(ctx, f.principal, input); err == nil || !strings.Contains(err.Error(), "runtime_preset must be smoke, probe, or train") {
+		t.Fatalf("unknown preset error = %v", err)
+	}
+	input = validPrepare()
+	input.MaxRuntimeSeconds = 301
+	if _, err := service.Prepare(ctx, f.principal, input); err == nil || !strings.Contains(err.Error(), "max_runtime_seconds must be between 1 and 300") {
+		t.Fatalf("oversized smoke error = %v", err)
+	}
+}
+
+func TestPreparedTrainRequiresDatasetBindingAndOwnerCanConfirm(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	service := preparedService(t, f, 2)
+	ctx := context.Background()
+	input := validPrepare()
+	input.RuntimePreset = "train"
+	input.MaxRuntimeSeconds = 3600
+	blocked, err := service.Prepare(ctx, f.principal, input)
+	if err != nil || blocked.Proposal == nil || blocked.Proposal.Eligible {
+		t.Fatalf("train without binding Prepare() = %+v, %v", blocked, err)
+	}
+	if _, err := f.client.DatasetBinding.Create().
+		SetTenantID(f.principal.TenantID).SetProjectID(f.project.ID).
+		SetName("scanobjectnn-objbg").SetBackend("autodl_private").
+		SetCanonicalRoot("/root/autodl-fs/datasets/ScanObjectNN").
+		SetEnvironmentVariable("GEMCP_DATASET_SCANOBJECTNN_OBJBG").
+		SetRequiredMarkers([]string{"main_split/train.h5"}).
+		Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	prepared, err := service.Prepare(ctx, f.principal, input)
+	if err != nil || prepared.Proposal == nil || !prepared.Proposal.Eligible || prepared.Proposal.RuntimePreset != "train" ||
+		prepared.Proposal.MaxRuntimeSeconds != 3600 || len(prepared.Proposal.Resource.DatasetBindings) != 1 {
+		t.Fatalf("train with binding Prepare() = %+v, %v", prepared, err)
+	}
+	if _, err := service.OwnerSubmitPrepared(ctx, f.principal.TenantID, "owner-1", f.project.PublicID.String(), prepared.Proposal.ID, OwnerSubmitPreparedInput{
+		ConfirmationDigest: prepared.Proposal.ConfirmationDigest,
+	}); !errors.Is(err, ErrConfirmationRequired) {
+		t.Fatalf("unconfirmed owner submit error = %v", err)
+	}
+	result, err := service.OwnerSubmitPrepared(ctx, f.principal.TenantID, "owner-1", f.project.PublicID.String(), prepared.Proposal.ID, OwnerSubmitPreparedInput{
+		ConfirmationDigest: prepared.Proposal.ConfirmationDigest, Confirmed: true,
+	})
+	if err != nil || result.Experiment.ID == "" || result.Experiment.MaxRuntimeSeconds != 3600 {
+		t.Fatalf("OwnerSubmitPrepared() = %+v, %v", result, err)
+	}
+}
+
+func TestPreparedExperimentRejectsPolicyUpdateAfterPrepare(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	service := preparedService(t, f, 2)
+	ctx := context.Background()
+	prepared, err := service.Prepare(ctx, f.principal, validPrepare())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.project.Update().SetMaxRuntimeSeconds(7200).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	_, err = service.SubmitPrepared(ctx, f.principal, SubmitPreparedInput{
+		ProposalID: prepared.Proposal.ID, ConfirmationDigest: prepared.Proposal.ConfirmationDigest,
+	})
+	if !errors.Is(err, ErrProposalChanged) {
+		t.Fatalf("policy drift submit error = %v", err)
+	}
 }

@@ -20,6 +20,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/researchnode"
 	"github.com/XR-Lee/Gemcp/ent/study"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
+	"github.com/XR-Lee/Gemcp/internal/validation"
 	"github.com/google/uuid"
 )
 
@@ -37,21 +38,22 @@ const (
 )
 
 var (
-	ErrNotFound      = errors.New("research workspace was not found")
-	ErrForbidden     = errors.New("forbidden")
-	ErrStudyLimit    = errors.New("study limit reached")
-	ErrNodeLimit     = errors.New("research graph node limit reached")
-	ErrEdgeLimit     = errors.New("research graph edge limit reached")
-	ErrStudyConflict = errors.New("study name is already used in this Project")
-	ErrChoice        = errors.New("study selector is required")
-	namePattern      = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9 ._-]{0,79}$`)
-	metricPattern    = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9._-]{0,79}$`)
-	secretPattern    = regexp.MustCompile(`(?i)(authorization\s*:|bearer\s+[A-Za-z0-9._\-]+|api[_-]?key\s*=|private[_-]?key|BEGIN [A-Z ]+PRIVATE KEY|gmc_[A-Za-z0-9]+_|gne_[A-Za-z0-9]+_|password\s*=)`)
+	ErrNotFound           = errors.New("research workspace was not found")
+	ErrForbidden          = errors.New("forbidden")
+	ErrStudyLimit         = errors.New("study limit reached")
+	ErrNodeLimit          = errors.New("research graph node limit reached")
+	ErrEdgeLimit          = errors.New("research graph edge limit reached")
+	ErrStudyConflict      = errors.New("study name is already used in this Project")
+	ErrChoice             = errors.New("study selector is required")
+	namePattern           = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9 ._-]{0,79}$`)
+	metricPattern         = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9._-]{0,79}$`)
+	evidenceCommitPattern = regexp.MustCompile(`(?i)^[0-9a-f]{7,64}$`)
+	secretPattern         = regexp.MustCompile(`(?i)(authorization\s*:|bearer\s+[A-Za-z0-9._\-]+|api[_-]?key\s*=|private[_-]?key|BEGIN [A-Z ]+PRIVATE KEY|gmc_[A-Za-z0-9]+_|gne_[A-Za-z0-9]+_|password\s*=)`)
 )
 
-type ValidationError struct{ Message string }
+type validationDomain struct{}
 
-func (e *ValidationError) Error() string { return e.Message }
+type ValidationError = validation.Error[validationDomain]
 
 func invalid(message string) error { return &ValidationError{Message: message} }
 
@@ -91,6 +93,8 @@ type NodeInput struct {
 	MetricName   string   `json:"metric_name,omitempty" jsonschema:"optional scalar metric name"`
 	MetricValue  *float64 `json:"metric_value,omitempty" jsonschema:"optional scalar metric value"`
 	ExperimentID string   `json:"experiment_id,omitempty" jsonschema:"same-Project Experiment ID for a run or result"`
+	OccurredAt   string   `json:"occurred_at,omitempty" jsonschema:"RFC3339 or YYYY-MM-DD scientific time. For historical evidence use git committer date (git log -1 --format=%cI). Do not use the time you called this tool."`
+	CommitSHA    string   `json:"commit_sha,omitempty" jsonschema:"optional evidence commit SHA, 7 to 64 hex. The Graph stays claim-based, not one node per commit."`
 	FromNodeID   string   `json:"from_node_id,omitempty" jsonschema:"optional source Graph node ID"`
 	Relation     string   `json:"relation,omitempty" jsonschema:"leads_to, compares, supersedes, supports, contradicts, or produced"`
 }
@@ -121,17 +125,19 @@ type PlanView struct {
 }
 
 type NodeView struct {
-	ID              string    `json:"id"`
-	Kind            string    `json:"kind"`
-	Title           string    `json:"title"`
-	Summary         string    `json:"summary,omitempty"`
-	Status          string    `json:"status"`
-	MetricName      string    `json:"metric_name,omitempty"`
-	MetricValue     *float64  `json:"metric_value,omitempty"`
-	ExperimentID    string    `json:"experiment_id,omitempty"`
-	ExperimentState string    `json:"experiment_state,omitempty"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
+	ID              string     `json:"id"`
+	Kind            string     `json:"kind"`
+	Title           string     `json:"title"`
+	Summary         string     `json:"summary,omitempty"`
+	Status          string     `json:"status"`
+	MetricName      string     `json:"metric_name,omitempty"`
+	MetricValue     *float64   `json:"metric_value,omitempty"`
+	ExperimentID    string     `json:"experiment_id,omitempty"`
+	ExperimentState string     `json:"experiment_state,omitempty"`
+	OccurredAt      *time.Time `json:"occurred_at,omitempty"`
+	CommitSHA       string     `json:"commit_sha,omitempty"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
 }
 
 type EdgeView struct {
@@ -150,16 +156,16 @@ type StudyRepositoryView struct {
 }
 
 type StudyView struct {
-	ID         string                `json:"id"`
-	Name       string                `json:"name"`
-	Question   string                `json:"question"`
-	Summary    string                `json:"summary,omitempty"`
-	Status     string                `json:"status"`
-	Repository *StudyRepositoryView  `json:"repository,omitempty"`
-	Plan       *PlanView             `json:"plan,omitempty"`
-	Nodes      []NodeView            `json:"nodes"`
-	Edges      []EdgeView            `json:"edges"`
-	UpdatedAt  time.Time             `json:"updated_at"`
+	ID         string               `json:"id"`
+	Name       string               `json:"name"`
+	Question   string               `json:"question"`
+	Summary    string               `json:"summary,omitempty"`
+	Status     string               `json:"status"`
+	Repository *StudyRepositoryView `json:"repository,omitempty"`
+	Plan       *PlanView            `json:"plan,omitempty"`
+	Nodes      []NodeView           `json:"nodes"`
+	Edges      []EdgeView           `json:"edges"`
+	UpdatedAt  time.Time            `json:"updated_at"`
 }
 
 type Workspace struct {
@@ -306,6 +312,9 @@ func (s *Service) applyUpdate(ctx context.Context, tx *ent.Tx, current actor, in
 		}
 	}
 	if input.Node != nil {
+		if strings.TrimSpace(input.Node.Kind) == string(researchnode.KindResult) {
+			return "", invalid("result nodes can only be written with close_run after the Experiment is terminal")
+		}
 		if _, err := recordNode(ctx, tx, current, selected, *input.Node); err != nil {
 			return "", err
 		}
@@ -475,6 +484,14 @@ func recordNode(ctx context.Context, tx *ent.Tx, current actor, selected *ent.St
 	if metricName != "" && !metricPattern.MatchString(metricName) {
 		return nil, invalid("metric_name must use letters, numbers, dots, underscores, or hyphens")
 	}
+	occurredAt, err := parseOccurredAt(input.OccurredAt)
+	if err != nil {
+		return nil, err
+	}
+	commitSHA, err := normalizeEvidenceCommit(input.CommitSHA)
+	if err != nil {
+		return nil, err
+	}
 	var experimentRecord *ent.Experiment
 	if strings.TrimSpace(input.ExperimentID) != "" {
 		if kind != researchnode.KindRun && kind != researchnode.KindResult {
@@ -483,6 +500,15 @@ func recordNode(ctx context.Context, tx *ent.Tx, current actor, selected *ent.St
 		experimentRecord, err = findProjectExperiment(ctx, tx, current.projectID, input.ExperimentID)
 		if err != nil {
 			return nil, err
+		}
+	}
+	if experimentRecord != nil {
+		if occurredAt == nil {
+			stamp := experimentEvidenceTime(experimentRecord)
+			occurredAt = &stamp
+		}
+		if commitSHA == "" {
+			commitSHA = experimentRecord.CommitSha
 		}
 	}
 	nodes, err := tx.ResearchNode.Query().Where(researchnode.StudyIDEQ(selected.ID)).WithExperiment().All(ctx)
@@ -527,6 +553,12 @@ func recordNode(ctx context.Context, tx *ent.Tx, current actor, selected *ent.St
 		if experimentRecord != nil {
 			create.SetExperimentID(experimentRecord.ID)
 		}
+		if occurredAt != nil {
+			create.SetOccurredAt(*occurredAt)
+		}
+		if commitSHA != "" {
+			create.SetCommitSha(commitSHA)
+		}
 		if current.tokenID != nil {
 			create.SetAgentTokenID(*current.tokenID)
 		}
@@ -545,6 +577,12 @@ func recordNode(ctx context.Context, tx *ent.Tx, current actor, selected *ent.St
 			update.SetMetricValue(*input.MetricValue)
 		} else {
 			update.ClearMetricValue()
+		}
+		if strings.TrimSpace(input.OccurredAt) != "" || (record.OccurredAt == nil && occurredAt != nil) {
+			update.SetOccurredAt(*occurredAt)
+		}
+		if strings.TrimSpace(input.CommitSHA) != "" || ((record.CommitSha == nil || *record.CommitSha == "") && commitSHA != "") {
+			update.SetCommitSha(commitSHA)
 		}
 		record, err = update.Save(ctx)
 		if err != nil {
@@ -826,8 +864,63 @@ func makeNodeView(record *ent.ResearchNode) NodeView {
 	if experimentRecord, err := record.Edges.ExperimentOrErr(); err == nil && experimentRecord != nil {
 		view.ExperimentID = experimentRecord.PublicID.String()
 		view.ExperimentState = experimentRecord.State
+		if view.CommitSHA == "" {
+			view.CommitSHA = experimentRecord.CommitSha
+		}
+		if view.OccurredAt == nil {
+			stamp := experimentEvidenceTime(experimentRecord)
+			view.OccurredAt = &stamp
+		}
+	}
+	if record.OccurredAt != nil {
+		stamp := record.OccurredAt.UTC()
+		view.OccurredAt = &stamp
+	}
+	if record.CommitSha != nil && strings.TrimSpace(*record.CommitSha) != "" {
+		view.CommitSHA = *record.CommitSha
 	}
 	return view
+}
+
+func parseOccurredAt(value string) (*time.Time, error) {
+	text := strings.TrimSpace(value)
+	if text == "" {
+		return nil, nil
+	}
+	var parsed time.Time
+	var err error
+	for _, layout := range []string{time.RFC3339Nano, time.RFC3339, "2006-01-02"} {
+		parsed, err = time.Parse(layout, text)
+		if err == nil {
+			break
+		}
+	}
+	if err != nil {
+		return nil, invalid("occurred_at must be RFC3339 or YYYY-MM-DD")
+	}
+	parsed = parsed.UTC()
+	if parsed.After(time.Now().UTC().Add(24 * time.Hour)) {
+		return nil, invalid("occurred_at cannot be in the future")
+	}
+	return &parsed, nil
+}
+
+func normalizeEvidenceCommit(value string) (string, error) {
+	sha := strings.ToLower(strings.TrimSpace(value))
+	if sha == "" {
+		return "", nil
+	}
+	if !evidenceCommitPattern.MatchString(sha) {
+		return "", invalid("commit_sha must be a 7 to 64 character hexadecimal SHA")
+	}
+	return sha, nil
+}
+
+func experimentEvidenceTime(record *ent.Experiment) time.Time {
+	if record.StartedAt != nil {
+		return record.StartedAt.UTC()
+	}
+	return record.CreatedAt.UTC()
 }
 
 func normalizeName(value string) (string, error) {

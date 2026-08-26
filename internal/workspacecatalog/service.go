@@ -17,6 +17,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/selfhostednode"
 	"github.com/XR-Lee/Gemcp/ent/workspacedataset"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
+	"github.com/XR-Lee/Gemcp/internal/validation"
 	"github.com/google/uuid"
 )
 
@@ -31,9 +32,9 @@ var (
 	nonEnvironmentCharacter = regexp.MustCompile(`[^A-Z0-9]+`)
 )
 
-type ValidationError struct{ Message string }
+type validationDomain struct{}
 
-func (e *ValidationError) Error() string { return e.Message }
+type ValidationError = validation.Error[validationDomain]
 
 func invalid(message string) error { return &ValidationError{Message: message} }
 
@@ -289,6 +290,8 @@ func NormalizeRelativePath(value string) (string, error) {
 	}
 	return cleaned, nil
 }
+
+func ValidDatasetName(name string) bool { return datasetNamePattern.MatchString(name) }
 
 func DatasetEnvironmentVariable(name string) string {
 	value := strings.ToUpper(strings.TrimSpace(name))

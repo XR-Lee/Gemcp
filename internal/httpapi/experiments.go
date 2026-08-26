@@ -86,6 +86,39 @@ func (h *ExperimentHandlers) Cost(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": result})
 }
 
+func (h *ExperimentHandlers) AgentReadiness(c *gin.Context) {
+	principal, ok := ownerPrincipal(c)
+	if !ok {
+		return
+	}
+	result, err := h.service.OwnerReadiness(c.Request.Context(), principal.TenantID, c.Param("id"))
+	if err != nil {
+		h.writeError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": result})
+}
+
+func (h *ExperimentHandlers) SubmitPrepared(c *gin.Context) {
+	principal, ok := ownerPrincipal(c)
+	if !ok {
+		return
+	}
+	var input experiment.OwnerSubmitPreparedInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		writeError(c, http.StatusBadRequest, "INVALID_EXPERIMENT_CONFIRMATION", "confirmation_digest and confirmed are required")
+		return
+	}
+	result, err := h.service.OwnerSubmitPrepared(
+		c.Request.Context(), principal.TenantID, principal.UserPublicID, c.Param("id"), c.Param("proposalID"), input,
+	)
+	if err != nil {
+		h.writeError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": result})
+}
+
 func (h *ExperimentHandlers) Operations(c *gin.Context) {
 	principal, ok := currentPrincipal(c)
 	if !ok {
@@ -118,6 +151,18 @@ func (h *ExperimentHandlers) writeError(c *gin.Context, err error) {
 		writeError(c, http.StatusNotFound, "EXPERIMENT_NOT_FOUND", "experiment or project not found")
 	case errors.Is(err, experiment.ErrForbidden):
 		writeError(c, http.StatusForbidden, "FORBIDDEN", "operation is not allowed")
+	case errors.Is(err, experiment.ErrConfirmationRequired):
+		writeError(c, http.StatusConflict, "EXPERIMENT_CONFIRMATION_REQUIRED", "review and explicitly confirm the immutable experiment proposal")
+	case errors.Is(err, experiment.ErrProposalNotFound):
+		writeError(c, http.StatusNotFound, "EXPERIMENT_PROPOSAL_NOT_FOUND", "experiment proposal not found")
+	case errors.Is(err, experiment.ErrProposalExpired):
+		writeError(c, http.StatusConflict, "EXPERIMENT_PROPOSAL_EXPIRED", "experiment proposal expired; prepare again")
+	case errors.Is(err, experiment.ErrProposalChanged):
+		writeError(c, http.StatusConflict, "EXPERIMENT_PROPOSAL_CHANGED", "experiment proposal changed; prepare again and review the new digest")
+	case errors.Is(err, experiment.ErrProposalBlocked):
+		writeError(c, http.StatusConflict, "EXPERIMENT_PROPOSAL_BLOCKED", "experiment proposal preflight did not pass")
+	case errors.Is(err, experiment.ErrBudgetExceeded), errors.Is(err, experiment.ErrExperimentCap):
+		writeError(c, http.StatusConflict, "EXPERIMENT_BUDGET_REJECTED", err.Error())
 	default:
 		slog.Error("experiment API failed", "error", err)
 		writeError(c, http.StatusInternalServerError, "EXPERIMENT_API_FAILED", "experiment operation failed")

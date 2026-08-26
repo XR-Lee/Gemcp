@@ -145,7 +145,24 @@ type ProjectOptions struct {
 	Environments      []EnvironmentOption      `json:"environments"`
 	ResourceProfiles  []ResourceProfileOption  `json:"resource_profiles"`
 	SelfHostedNodes   []SelfHostedNodeOption   `json:"self_hosted_nodes"`
+	SSHCloudNodes     []SSHCloudNodeOption     `json:"ssh_cloud_nodes"`
 	WorkspaceDatasets []WorkspaceDatasetOption `json:"workspace_datasets"`
+	DatasetBindings   []DatasetBindingOption   `json:"dataset_bindings"`
+	Readiness         *OptionsReadiness        `json:"readiness,omitempty"`
+}
+
+type OptionsReadiness struct {
+	Status         string           `json:"status"`
+	Summary        string           `json:"summary"`
+	ReadyCompute   int              `json:"ready_compute"`
+	BlockedCompute int              `json:"blocked_compute"`
+	Heartbeat      OptionsHeartbeat `json:"heartbeat"`
+}
+
+type OptionsHeartbeat struct {
+	InspectTool string `json:"inspect_tool"`
+	MonitorTool string `json:"monitor_tool"`
+	Note        string `json:"note"`
 }
 
 type ProjectPolicy struct {
@@ -211,6 +228,92 @@ type SelfHostedNodeOption struct {
 type SelfHostedGPUOption struct {
 	Name        string `json:"name"`
 	MemoryBytes int64  `json:"memory_bytes"`
+}
+
+type SSHCloudNodeOption struct {
+	ID                string                `json:"id"`
+	Label             string                `json:"label"`
+	Status            string                `json:"status"`
+	Experimental      bool                  `json:"experimental"`
+	Warning           string                `json:"warning"`
+	Host              string                `json:"host"`
+	User              string                `json:"user"`
+	GPUs              []SelfHostedGPUOption `json:"gpus"`
+	RuntimeConfigured bool                  `json:"runtime_configured"`
+	Ready             bool                  `json:"ready"`
+	Readiness         string                `json:"readiness"`
+	Blockers          []string              `json:"blockers"`
+	LastProbedAt      *time.Time            `json:"last_probed_at,omitempty"`
+	BoundToProject    bool                  `json:"bound_to_project"`
+}
+
+type AgentReadiness struct {
+	ProjectID    string                     `json:"project_id"`
+	ProjectName  string                     `json:"project_name"`
+	Status       string                     `json:"status"`
+	Summary      string                     `json:"summary"`
+	GeneratedAt  time.Time                  `json:"generated_at"`
+	Agents       []AgentReadinessAgent      `json:"agents"`
+	Compute      AgentReadinessCompute      `json:"compute"`
+	Heartbeats   AgentReadinessHeartbeats   `json:"heartbeats"`
+	NextActions  []ReadinessAction          `json:"next_actions"`
+	Instructions AgentReadinessInstructions `json:"instructions"`
+}
+
+type AgentReadinessAgent struct {
+	ID              string     `json:"id"`
+	Label           string     `json:"label"`
+	Prefix          string     `json:"prefix"`
+	Scopes          []string   `json:"scopes"`
+	Status          string     `json:"status"`
+	LastUsedAt      *time.Time `json:"last_used_at,omitempty"`
+	CanRead         bool       `json:"can_read"`
+	CanSubmit       bool       `json:"can_submit"`
+	CanOperateNodes bool       `json:"can_operate_nodes"`
+	BoundNodeIDs    []string   `json:"bound_node_ids"`
+}
+
+type AgentReadinessCompute struct {
+	SSHCloudEnabled bool                    `json:"ssh_cloud_enabled"`
+	SSHCloud        []SSHCloudReadinessNode `json:"ssh_cloud"`
+	SelfHosted      []SelfHostedNodeOption  `json:"self_hosted"`
+}
+
+type SSHCloudReadinessNode struct {
+	SSHCloudNodeOption
+	RegisteredByKind  string `json:"registered_by_kind,omitempty"`
+	RegisteredByID    string `json:"registered_by_id,omitempty"`
+	RegisteredByLabel string `json:"registered_by_label,omitempty"`
+}
+
+type AgentReadinessHeartbeats struct {
+	AgentLastUsedAt      *time.Time `json:"agent_last_used_at,omitempty"`
+	SSHCloudLastProbedAt *time.Time `json:"ssh_cloud_last_probed_at,omitempty"`
+	SelfHostedLastSeenAt *time.Time `json:"self_hosted_last_seen_at,omitempty"`
+	Note                 string     `json:"note"`
+}
+
+type ReadinessAction struct {
+	Kind   string `json:"kind"`
+	Title  string `json:"title"`
+	Detail string `json:"detail"`
+}
+
+type AgentReadinessInstructions struct {
+	InspectTool string `json:"inspect_tool"`
+	MonitorTool string `json:"monitor_tool"`
+	Heartbeat   string `json:"heartbeat"`
+	Binding     string `json:"binding"`
+}
+
+type DatasetBindingOption struct {
+	ID                  string   `json:"id"`
+	Name                string   `json:"name"`
+	Backend             string   `json:"backend"`
+	CanonicalRoot       string   `json:"canonical_root"`
+	EnvironmentVariable string   `json:"environment_variable"`
+	RequiredMarkers     []string `json:"required_markers"`
+	Status              string   `json:"status"`
 }
 
 type WorkspaceDatasetOption struct {

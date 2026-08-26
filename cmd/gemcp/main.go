@@ -19,6 +19,7 @@ import (
 	"github.com/XR-Lee/Gemcp/internal/secrets"
 	"github.com/XR-Lee/Gemcp/internal/selfhosted"
 	"github.com/XR-Lee/Gemcp/internal/server"
+	"github.com/XR-Lee/Gemcp/internal/sshcloud"
 	"github.com/XR-Lee/Gemcp/internal/watchdog"
 )
 
@@ -115,10 +116,19 @@ func runServer() error {
 	if err != nil {
 		return fmt.Errorf("initialize Self-hosted execution: %w", err)
 	}
+	sshCloudConfig := sshcloud.DefaultConfig()
+	sshCloudConfig.Enabled = cfg.SSHCloudEnabled
+	sshCloudConfig.InstanceID = executionConfig.InstanceID
+	sshCloudConfig.ProvisionTimeout = cfg.ProvisionTimeout
+	sshCloudConfig.MaxAttempts = cfg.MaxAttempts
+	sshCloudService, err := sshcloud.NewService(store.Client, secretBox, sshCloudConfig)
+	if err != nil {
+		return fmt.Errorf("initialize Cloud SSH execution: %w", err)
+	}
 	httpServer := server.New(server.Dependencies{
-		Config: cfg, Build: info, DB: store, Ent: store.Client, Secrets: secretBox, SelfHosted: selfHostedService,
+		Config: cfg, Build: info, DB: store, Ent: store.Client, Secrets: secretBox, SelfHosted: selfHostedService, SSHCloud: sshCloudService,
 	})
-	engine, err := execution.NewEngine(store.Client, secretBox, provider, executionConfig, execution.WithSelfHostedService(selfHostedService))
+	engine, err := execution.NewEngine(store.Client, secretBox, provider, executionConfig, execution.WithSelfHostedService(selfHostedService), execution.WithSSHCloudService(sshCloudService))
 	if err != nil {
 		return fmt.Errorf("initialize execution scheduler: %w", err)
 	}

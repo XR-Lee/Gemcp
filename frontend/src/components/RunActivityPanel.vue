@@ -1,14 +1,23 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Bot, CheckCircle2, Clock3, Cpu, GitBranch, LoaderCircle, SquareTerminal, TriangleAlert } from '@lucide/vue'
+import { Bot, CheckCircle2, Clock3, Cpu, GitBranch, LoaderCircle, ShieldCheck, SquareTerminal, TriangleAlert } from '@lucide/vue'
 import type { AgentActivity, OperationsFeed, ProposalActivity } from '../api'
 import { useI18n } from '../i18n'
 
-const props = withDefaults(defineProps<{ feed: OperationsFeed | null; compact?: boolean; loading?: boolean }>(), {
+const props = withDefaults(defineProps<{
+  feed: OperationsFeed | null
+  compact?: boolean
+  loading?: boolean
+  confirmingProposalId?: string
+}>(), {
   compact: false,
   loading: false,
+  confirmingProposalId: '',
 })
-const emit = defineEmits<{ openExperiment: [experimentID: string] }>()
+const emit = defineEmits<{
+  openExperiment: [experimentID: string]
+  confirmProposal: [proposal: ProposalActivity]
+}>()
 const { languageTag, t } = useI18n()
 
 const activities = computed(() => {
@@ -30,7 +39,7 @@ function phaseLabel(value: string) {
     inspecting_repository: ['Inspecting repository', '检查仓库'],
     selecting_workload: ['Selecting workload', '选择运行入口'],
     preparing_proposal: ['Preparing proposal', '准备提案'],
-    awaiting_confirmation: ['Awaiting confirmation', '等待确认'],
+    awaiting_confirmation: ['Proposal prepared', '提案已准备'],
     submitting: ['Submitting', '正在提交'],
     monitoring: ['Monitoring run', '监控运行'],
     reviewing_results: ['Reviewing results', '分析结果'],
@@ -52,7 +61,7 @@ function activityStatus(activity: AgentActivity) {
   const tone = activityTone(activity)
   if (tone === 'active') return t('Updated recently', '刚刚更新')
   if (tone === 'stale') return t('No report for over 2 minutes', '超过 2 分钟未上报')
-  if (tone === 'waiting') return t('Waiting for approval', '等待批准')
+  if (tone === 'waiting') return t('Awaiting submission', '等待提交')
   if (tone === 'danger') return t('Blocked', '已阻塞')
   return t('Not active', '当前不活跃')
 }
@@ -68,7 +77,7 @@ function proposalLabel(proposal: ProposalActivity) {
   if (!proposal.eligible) return t('Preflight blocked', '预检阻塞')
   if (proposal.status === 'submitted') return t('Submitted', '已提交')
   if (proposal.status === 'expired') return t('Expired', '已过期')
-  return t('Approval required', '等待批准')
+  return t('Prepared', '已准备')
 }
 
 function formatTime(value: string) {
@@ -86,6 +95,7 @@ function checkSummary(proposal: ProposalActivity) {
   if (warnings) return t(`${warnings} warnings`, `${warnings} 项警告`)
   return t('All checks passed', '全部检查通过')
 }
+
 </script>
 
 <template>
@@ -108,16 +118,26 @@ function checkSummary(proposal: ProposalActivity) {
 
     <section class="activity-section proposal-section">
       <div class="activity-subheading">
-        <div><GitBranch :size="17" /><span><strong>{{ t('Prepared proposals', '准备中的提案') }}</strong><small>{{ t('Resolved source, environment, GPU and approval state', '已解析的源码、环境、GPU 与批准状态') }}</small></span></div>
+        <div><GitBranch :size="17" /><span><strong>{{ t('Prepared proposals', '准备中的提案') }}</strong><small>{{ t('Resolved source, environment, compute and submission state', '已解析的源码、环境、计算资源与提交状态') }}</small></span></div>
       </div>
       <div v-if="proposals.length" class="proposal-list">
-        <button v-for="proposal in proposals" :key="proposal.id" class="proposal-row" type="button" :disabled="!proposal.experiment_id" @click="proposal.experiment_id && emit('openExperiment', proposal.experiment_id)">
-          <span class="activity-indicator" :data-tone="proposalTone(proposal)"><CheckCircle2 v-if="proposalTone(proposal) === 'complete'" :size="14" /><TriangleAlert v-else-if="proposalTone(proposal) === 'danger'" :size="14" /><Clock3 v-else :size="14" /></span>
-          <span class="proposal-source"><strong>{{ proposal.repository_name }} · {{ proposal.requested_ref }}</strong><code>{{ proposal.commit_sha.slice(0, 12) }}</code></span>
-          <span class="proposal-command"><SquareTerminal :size="13" /><code>{{ proposal.display_command }}</code></span>
-          <span class="proposal-runtime"><Cpu :size="13" /><span>{{ proposal.environment_name }} · {{ proposal.gpu_num }}× {{ proposal.gpu_models.join(', ') }}</span></span>
-          <span class="proposal-result" :data-tone="proposalTone(proposal)"><strong>{{ proposalLabel(proposal) }}</strong><small>{{ checkSummary(proposal) }} · {{ money(proposal.reserved_cost_milli) }}</small></span>
-        </button>
+        <article v-for="proposal in proposals" :key="proposal.id" class="proposal-card">
+          <button class="proposal-row" type="button" :disabled="!proposal.experiment_id" @click="proposal.experiment_id && emit('openExperiment', proposal.experiment_id)">
+            <span class="activity-indicator" :data-tone="proposalTone(proposal)"><CheckCircle2 v-if="proposalTone(proposal) === 'complete'" :size="14" /><TriangleAlert v-else-if="proposalTone(proposal) === 'danger'" :size="14" /><Clock3 v-else :size="14" /></span>
+            <span class="proposal-source"><strong>{{ proposal.repository_name }} · {{ proposal.requested_ref }}</strong><code>{{ proposal.commit_sha.slice(0, 12) }}</code></span>
+            <span class="proposal-command"><SquareTerminal :size="13" /><code>{{ proposal.display_command }}</code></span>
+            <span class="proposal-runtime"><Cpu :size="13" /><span>{{ proposal.runtime_preset || 'smoke' }} · {{ proposal.max_runtime_seconds || '—' }}s · {{ proposal.environment_name }} · {{ proposal.gpu_num }}× {{ proposal.gpu_models.join(', ') }}</span></span>
+            <span class="proposal-result" :data-tone="proposalTone(proposal)"><strong>{{ proposalLabel(proposal) }}</strong><small>{{ checkSummary(proposal) }} · {{ money(proposal.reserved_cost_milli) }}</small></span>
+          </button>
+          <div v-if="proposal.status === 'prepared' && proposal.eligible" class="proposal-actions">
+            <span>{{ t('Owner confirmation is required for this exact digest.', '此提案必须由 Owner 确认当前精确摘要。') }}</span>
+            <button class="primary-button small-button proposal-confirm-button" type="button" :disabled="confirmingProposalId === proposal.id" @click="emit('confirmProposal', proposal)">
+              <LoaderCircle v-if="confirmingProposalId === proposal.id" :size="15" class="spinning" />
+              <ShieldCheck v-else :size="15" />
+              {{ t('Confirm and start', '确认并启动') }}
+            </button>
+          </div>
+        </article>
       </div>
       <div v-else class="activity-empty">{{ t('No prepared proposals.', '暂无准备中的提案。') }}</div>
     </section>
@@ -156,11 +176,18 @@ function checkSummary(proposal: ProposalActivity) {
 .proposal-result { text-align: right; }
 .proposal-result[data-tone='danger'] strong { color: #9a3f37; }
 .proposal-result[data-tone='waiting'] strong { color: #7b5c13; }
+.proposal-card { border-top: 1px solid #edf0ee; }
+.proposal-card .proposal-row { border-top: 0; }
+.proposal-actions { min-height: 48px; padding: 8px 16px 10px 56px; display: flex; align-items: center; justify-content: flex-end; gap: 14px; background: #fffdf7; border-top: 1px solid #f2ead3; }
+.proposal-actions > span { margin-right: auto; color: #756642; font-size: 10px; line-height: 15px; }
+.proposal-confirm-button { flex: 0 0 auto; }
 .activity-empty { padding: 22px 16px; color: #818b85; border-top: 1px solid #edf0ee; font-size: 11px; text-align: center; }
 @media (max-width: 820px) {
   .activity-row { grid-template-columns: 28px minmax(0, 1fr); }
   .activity-target, .activity-row time { grid-column: 2; text-align: left; }
   .proposal-row { grid-template-columns: 28px minmax(0, 1fr); }
   .proposal-command, .proposal-runtime, .proposal-result { grid-column: 2; text-align: left; }
+  .proposal-actions { padding-left: 16px; align-items: stretch; flex-direction: column; gap: 8px; }
+  .proposal-confirm-button { width: 100%; justify-content: center; }
 }
 </style>

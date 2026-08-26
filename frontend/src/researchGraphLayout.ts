@@ -8,7 +8,6 @@ export const ORIGIN_X = 36
 export const ORIGIN_Y = 72
 export const TICK_Y = 10
 export const CANVAS_MAX_HEIGHT = 560
-export const CANVAS_MIN_HEIGHT = 420
 
 export type NodeOutcome = 'success' | 'failure' | null
 
@@ -101,9 +100,16 @@ export function layoutResearchGraph(input: GraphLayoutInput): GraphLayout {
   }
 }
 
+export function nodeTimelineAt(node: ResearchNode) {
+  return node.occurred_at || node.created_at
+}
+
 export function assignTimeline(nodes: ResearchNode[], ranks: Map<string, number>) {
   const stamps = nodes
-    .map((node) => ({ id: node.id, at: Date.parse(node.created_at), iso: node.created_at, rank: ranks.get(node.id) ?? 0 }))
+    .map((node) => {
+      const iso = nodeTimelineAt(node)
+      return { id: node.id, at: Date.parse(iso), iso, rank: ranks.get(node.id) ?? 0 }
+    })
     .filter((item) => Number.isFinite(item.at))
     .sort((left, right) => left.at - right.at || left.rank - right.rank)
   if (!stamps.length) {
@@ -126,7 +132,7 @@ export function assignTimeline(nodes: ResearchNode[], ranks: Map<string, number>
         id: `tick-rank-${rank}`,
         x: ORIGIN_X + rank * COLUMN_WIDTH,
         at,
-        label: formatTick(at, 'lineage', rank),
+        label: formatTick(at, 'lineage', rank, span),
       })
     }
     return { axis, columns, buckets, ticks }
@@ -144,7 +150,7 @@ export function assignTimeline(nodes: ResearchNode[], ranks: Map<string, number>
       id: `tick-${key}`,
       x: ORIGIN_X + index * COLUMN_WIDTH,
       at: first?.iso ?? key,
-      label: formatTick(first?.iso ?? key, 'time'),
+      label: formatTick(first?.iso ?? key, 'time', 0, span),
     })
   }
   return { axis, columns, buckets, ticks }
@@ -157,13 +163,18 @@ function timeBucket(at: number, span: number) {
   return date.toISOString().slice(0, 16)
 }
 
-function formatTick(value: string, axis: 'time' | 'lineage', rank = 0) {
+function formatTick(value: string, axis: 'time' | 'lineage', rank = 0, span = 0) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return axis === 'lineage' ? `Step ${rank + 1}` : value
-  if (axis === 'lineage') {
-    return `${rank + 1} · ${date.toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit' })}`
-  }
-  return date.toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+  const stamp = date.toLocaleString('en-GB', tickOptions(span))
+  if (axis === 'lineage') return `${rank + 1} · ${stamp}`
+  return stamp
+}
+
+function tickOptions(span: number): Intl.DateTimeFormatOptions {
+  if (span > 300 * 24 * 60 * 60 * 1000) return { month: 'short', year: 'numeric' }
+  if (span > 36 * 60 * 60 * 1000) return { day: 'numeric', month: 'short', year: 'numeric' }
+  return { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }
 }
 
 function assignRanks(nodes: ResearchNode[], rankEdges: ResearchEdge[]) {
@@ -201,7 +212,7 @@ function assignLanes(nodes: ResearchNode[], ranks: Map<string, number>, incoming
   const ordered = [...nodes].sort((left, right) => {
     const rankDelta = (ranks.get(left.id) ?? 0) - (ranks.get(right.id) ?? 0)
     if (rankDelta !== 0) return rankDelta
-    return left.created_at.localeCompare(right.created_at)
+    return nodeTimelineAt(left).localeCompare(nodeTimelineAt(right))
   })
   const usedAtRank = new Map<number, Set<number>>()
   let nextRootLane = 0
@@ -237,14 +248,10 @@ export function pickActiveTip(nodes: ResearchNode[], incident: Set<string>) {
   const linked = nodes.filter((node) => incident.has(node.id) || node.kind === 'question')
   const pool = linked.length ? linked : nodes
   return [...pool].sort((left, right) => {
-    const created = right.created_at.localeCompare(left.created_at)
-    if (created !== 0) return created
+    const occurred = nodeTimelineAt(right).localeCompare(nodeTimelineAt(left))
+    if (occurred !== 0) return occurred
     return right.updated_at.localeCompare(left.updated_at)
   })[0]?.id
-}
-
-export function pickActiveSeed(nodes: ResearchNode[], focusNodeIDs: string[]) {
-  return pickActiveTip(nodes, new Set(focusNodeIDs.filter(Boolean))) ?? nodes.find((node) => node.kind === 'question')?.id
 }
 
 function collectActivePath(tip: string, incoming: Map<string, ResearchEdge[]>) {

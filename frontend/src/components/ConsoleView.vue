@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useIntervalFn } from '@vueuse/core'
 import {
   Bell,
@@ -19,10 +19,11 @@ import {
   Server,
   ShieldCheck,
   Stethoscope,
+  TriangleAlert,
   WalletCards,
   X,
 } from '@lucide/vue'
-import { APIError, api, type Attempt, type BuildInfo, type Experiment, type OperationsFeed, type Project, type Repository, type ResearchWorkspace, type RuntimeStatus, type User } from '../api'
+import { APIError, api, type AgentReadiness, type Attempt, type BuildInfo, type DatasetBinding, type Experiment, type OperationsFeed, type Project, type ProposalActivity, type Repository, type ResearchWorkspace, type RuntimeStatus, type User } from '../api'
 import { localizedState, useI18n } from '../i18n'
 import { pickDefaultProjectID } from '../projectSelect'
 import { draftStudyFromRepository, repositoryNameFromSSHURL } from '../studyImport'
@@ -55,6 +56,7 @@ const runtimeStatus = ref<RuntimeStatus | null>(null)
 const operationsFeed = ref<OperationsFeed | null>(null)
 const researchWorkspace = ref<ResearchWorkspace | null>(null)
 const hasActiveAgent = ref(false)
+const agentReadiness = ref<AgentReadiness | null>(null)
 const studyDialog = ref(false)
 const studyBusy = ref(false)
 const studyForm = reactive({ name: '', question: '', summary: '', importSource: 'url', sshURL: '', defaultBranch: 'main' })
@@ -73,6 +75,15 @@ const repositoryBusy = ref(false)
 const dialogError = ref('')
 const copied = ref('')
 const repositoryForm = reactive({ name: '', sshURL: '', defaultBranch: 'main' })
+const policyForm = reactive({ monthlyBudgetCNY: '' })
+const policyBusy = ref(false)
+const datasetBindings = ref<DatasetBinding[]>([])
+const datasetForm = reactive({ name: '', backend: 'autodl_elastic' as DatasetBinding['backend'], canonicalRoot: '/root/autodl-fs/datasets/', requiredMarkers: '' })
+const datasetBusy = ref(false)
+const confirmationTarget = ref<ProposalActivity | null>(null)
+const confirmationChecked = ref(false)
+const confirmationBusy = ref(false)
+const confirmationError = ref('')
 const attemptedVerify = new Set<string>()
 const { locale, languageTag, t } = useI18n()
 const studyImportOptions = computed(() => {
@@ -86,6 +97,12 @@ const studyImportOptions = computed(() => {
 })
 const importingExistingRepository = computed(() => studyForm.importSource !== 'url' && studyForm.importSource !== 'blank')
 const importingNewRepository = computed(() => studyForm.importSource === 'url')
+const confirmationDialogOpen = computed({
+  get: () => confirmationTarget.value !== null,
+  set: (open: boolean) => {
+    if (!open && !confirmationBusy.value) closeProposalConfirmation()
+  },
+})
 let liveRefreshInFlight = false
 let projectRefreshGeneration = 0
 const projectOptions = computed(() => projects.value.map((project) => ({ value: project.id, label: project.name })))
@@ -100,7 +117,7 @@ const viewTitle = computed(() => ({
   projects: t('Project configuration', 'Project 配置'),
   agents: t('Agent access', 'Agent 访问'),
   nodes: t('Self-hosted nodes', '自托管节点'),
-  provider: t('Private Cloud resources', '私有云资源'),
+  provider: t('AutoDL resources', 'AutoDL 资源'),
   notifications: t('Notifications', '通知'),
 })[activeView.value])
 const viewEyebrow = computed(() => ['research', 'experiments'].includes(activeView.value) ? t('Research', '研究') : t('Lab', '实验室'))
@@ -138,18 +155,26 @@ async function refreshProject(showSpinner = true) {
     operationsFeed.value = null
     researchWorkspace.value = null
     hasActiveAgent.value = false
+    agentReadiness.value = null
+    datasetBindings.value = []
     selectedStudyID.value = ''
     return
   }
   if (showSpinner) loading.value = true
   error.value = ''
   try {
-    const [loadedRepositories, loadedExperiments, loadedOperations, loadedResearch, loadedAgents] = await Promise.all([
+    const readinessRequest = api.agentReadiness(projectID).catch((caught) => {
+      if (caught instanceof APIError && caught.status === 401) throw caught
+      return null
+    })
+    const [loadedRepositories, loadedExperiments, loadedOperations, loadedResearch, loadedAgents, loadedReadiness, loadedBindings] = await Promise.all([
       api.repositories(projectID),
       api.experiments(projectID),
       api.operations(projectID),
       api.research(projectID, selectedStudyID.value),
       api.agentTokens(projectID),
+      readinessRequest,
+      api.datasetBindings(projectID),
     ])
     if (generation !== projectRefreshGeneration || selectedProjectID.value !== projectID) return
     repositories.value = loadedRepositories
@@ -157,6 +182,8 @@ async function refreshProject(showSpinner = true) {
     operationsFeed.value = loadedOperations
     researchWorkspace.value = loadedResearch
     hasActiveAgent.value = (loadedAgents.tokens ?? []).some((token) => token.status === 'active')
+    agentReadiness.value = loadedReadiness
+    datasetBindings.value = loadedBindings
     if (loadedResearch.study) selectedStudyID.value = loadedResearch.study.id
     else if (loadedResearch.studies.length) selectedStudyID.value = loadedResearch.studies[0].id
     if (showSpinner) await verifyPendingGitHubRepositories(generation, projectID)
@@ -232,6 +259,53 @@ function closeExperiment() {
 function openExperimentByID(experimentID: string) {
   const experiment = experiments.value.find((item) => item.id === experimentID)
   if (experiment) void openExperiment(experiment)
+}
+
+function openProposalConfirmation(proposal: ProposalActivity) {
+  confirmationTarget.value = proposal
+  confirmationChecked.value = false
+  confirmationError.value = ''
+}
+
+function closeProposalConfirmation() {
+  confirmationTarget.value = null
+  confirmationChecked.value = false
+  confirmationError.value = ''
+}
+
+async function submitProposalConfirmation() {
+  const projectID = selectedProjectID.value
+  const proposal = confirmationTarget.value
+  if (!projectID || !proposal || !confirmationChecked.value) return
+  confirmationBusy.value = true
+  confirmationError.value = ''
+  try {
+    const result = await api.submitPreparedProposal(projectID, proposal.id, {
+      confirmation_digest: proposal.confirmation_digest,
+      confirmed: true,
+    })
+    if (operationsFeed.value) {
+      operationsFeed.value = {
+        ...operationsFeed.value,
+        proposals: operationsFeed.value.proposals.map((item) => item.id === proposal.id ? {
+          ...item,
+          status: 'submitted',
+          experiment_id: result.experiment.id,
+          updated_at: result.experiment.updated_at,
+        } : item),
+      }
+    }
+    const existing = experiments.value.findIndex((item) => item.id === result.experiment.id)
+    if (existing >= 0) experiments.value.splice(existing, 1, result.experiment)
+    else experiments.value.unshift(result.experiment)
+    closeProposalConfirmation()
+    await openExperiment(result.experiment)
+  } catch (caught) {
+    if (caught instanceof APIError && caught.status === 401) emit('signedOut')
+    else confirmationError.value = caught instanceof APIError ? caught.message : t('Could not submit this prepared proposal.', '无法提交此准备提案。')
+  } finally {
+    confirmationBusy.value = false
+  }
 }
 
 async function signOut() {
@@ -430,8 +504,60 @@ async function copy(value: string, name: string) {
   window.setTimeout(() => (copied.value = ''), 1600)
 }
 
-function money(milli = 0) {
-  return `CNY ${(milli / 1000).toFixed(2)}`
+watch(selectedProject, (project) => {
+  if (!project) return
+  policyForm.monthlyBudgetCNY = (project.monthly_budget_milli / 1000).toString()
+}, { immediate: true })
+
+async function savePolicy() {
+  if (!selectedProject.value) return
+  policyBusy.value = true
+  error.value = ''
+  try {
+    const updated = await api.updateProject(selectedProject.value.id, {
+      monthly_budget_milli: Math.round(Number(policyForm.monthlyBudgetCNY) * 1000),
+      max_experiment_milli: Math.round(Number(policyForm.monthlyBudgetCNY) * 1000),
+    })
+    projects.value = projects.value.map((project) => project.id === updated.id ? updated : project)
+  } catch (caught) {
+    handleError(caught, t('Could not update the Project budget.', '无法更新 Project 预算。'))
+  } finally {
+    policyBusy.value = false
+  }
+}
+
+async function registerDatasetBinding() {
+  if (!selectedProject.value) return
+  datasetBusy.value = true
+  error.value = ''
+  try {
+    const markers = datasetForm.requiredMarkers.split(/[\n,]/).map((value) => value.trim()).filter(Boolean)
+    await api.createDatasetBinding(selectedProject.value.id, {
+      name: datasetForm.name, backend: datasetForm.backend, canonical_root: datasetForm.canonicalRoot,
+      required_markers: markers,
+    })
+    datasetForm.name = ''
+    datasetForm.requiredMarkers = ''
+    datasetBindings.value = await api.datasetBindings(selectedProject.value.id)
+  } catch (caught) {
+    handleError(caught, t('Could not register the dataset binding.', '无法注册数据集绑定。'))
+  } finally {
+    datasetBusy.value = false
+  }
+}
+
+async function removeDatasetBinding(binding: DatasetBinding) {
+  if (!selectedProject.value) return
+  datasetBusy.value = true
+  error.value = ''
+  try {
+    await api.removeDatasetBinding(selectedProject.value.id, binding.id)
+    datasetBindings.value = await api.datasetBindings(selectedProject.value.id)
+  } catch (caught) {
+    handleError(caught, t('Could not disable the dataset binding.', '无法停用数据集绑定。'))
+  } finally {
+    datasetBusy.value = false
+  }
 }
 
 function dateTime(value?: string) {
@@ -467,7 +593,7 @@ onMounted(async () => {
         <button class="nav-item" :class="{ active: activeView === 'finance' }" type="button" :aria-label="t('Finance', '财务')" :title="t('Finance', '财务')" @click="activeView = 'finance'"><WalletCards :size="17" /><span>{{ t('Finance', '财务') }}</span></button>
         <button class="nav-item" :class="{ active: activeView === 'projects' }" type="button" aria-label="Project" title="Project" @click="activeView = 'projects'"><Boxes :size="17" /><span>Project</span></button>
         <button class="nav-item" :class="{ active: activeView === 'agents' }" type="button" :aria-label="t('Agents', 'Agent')" :title="t('Agents', 'Agent')" @click="activeView = 'agents'"><Bot :size="17" /><span>Agent</span></button>
-        <button v-if="runtimeStatus?.self_hosted_enabled" class="nav-item" :class="{ active: activeView === 'nodes' }" type="button" :aria-label="t('Nodes', '节点')" :title="t('Nodes', '节点')" @click="activeView = 'nodes'"><Cpu :size="17" /><span>{{ t('Nodes', '节点') }}</span></button>
+        <button v-if="runtimeStatus?.self_hosted_enabled || runtimeStatus?.ssh_cloud_enabled" class="nav-item" :class="{ active: activeView === 'nodes' }" type="button" :aria-label="t('Nodes', '节点')" :title="t('Nodes', '节点')" @click="activeView = 'nodes'"><Cpu :size="17" /><span>{{ t('Nodes', '节点') }}</span></button>
         <button class="nav-item" :class="{ active: activeView === 'provider' }" type="button" aria-label="Provider" title="Provider" @click="activeView = 'provider'"><Server :size="17" /><span>Provider</span></button>
         <button class="nav-item" :class="{ active: activeView === 'notifications' }" type="button" :aria-label="t('Alerts', '告警')" :title="t('Alerts', '告警')" @click="activeView = 'notifications'"><Bell :size="17" /><span>{{ t('Alerts', '告警') }}</span></button>
         <button class="nav-item nav-bottom" type="button" :aria-label="t('Sign out', '退出登录')" :title="t('Sign out', '退出登录')" :disabled="signingOut" @click="signOut"><LogOut :size="17" /><span>{{ t('Sign out', '退出登录') }}</span></button>
@@ -491,11 +617,16 @@ onMounted(async () => {
 
       <div v-if="error" class="page-alert" role="alert">{{ error }}<button type="button" :title="t('Dismiss', '关闭')" @click="error = ''"><X :size="16" /></button></div>
 
-      <ResearchView v-if="activeView === 'research'" :workspace="researchWorkspace" :loading="loading" :selected-study-id="selectedStudyID" :project="selectedProject" :repositories="repositories" :experiments="experiments" :has-active-agent="hasActiveAgent" @select-study="selectStudy" @open-experiment="openExperimentByID" @create-study="openCreateStudy" @open-agents="activeView = 'agents'" />
+      <div v-if="activeView === 'experiments' && runtimeStatus && !runtimeStatus.scheduler_enabled" class="scheduler-guidance" role="status">
+        <TriangleAlert :size="17" />
+        <span><strong>{{ t('Scheduler is disabled', '调度器已关闭') }}</strong>{{ t('Prepared proposals can still be confirmed, but their Experiments remain queued. Set GEMCP_SCHEDULER_ENABLED=true and restart Gemcp when an execution backend is ready.', '准备好的提案仍可确认，但对应 Experiment 会保持 queued。执行后端就绪后，请设置 GEMCP_SCHEDULER_ENABLED=true 并重启 Gemcp。') }}</span>
+      </div>
+
+      <ResearchView v-if="activeView === 'research'" :workspace="researchWorkspace" :loading="loading" :selected-study-id="selectedStudyID" :project="selectedProject" :repositories="repositories" :experiments="experiments" :has-active-agent="hasActiveAgent" :readiness="agentReadiness" :readiness-loading="loading" :runtime="runtimeStatus" @select-study="selectStudy" @open-experiment="openExperimentByID" @create-study="openCreateStudy" @open-agents="activeView = 'agents'" @handshake="activeView = 'agents'" @open-nodes="activeView = 'nodes'" />
 
       <section v-else-if="activeView === 'experiments'" class="page-workspace">
         <div class="section-heading page-section-heading"><div><h2>{{ t('Evidence', '证据') }}</h2><p>{{ t('Linked Experiments remain the execution evidence behind the Graph.', '关联的 Experiment 仍是 Graph 背后的执行证据。') }}</p></div><div class="segmented-control" :aria-label="t('Experiment state filter', '实验状态筛选')"><button v-for="filter in ['all', 'queued', 'running', 'succeeded', 'failed']" :key="filter" type="button" :class="{ active: stateFilter === filter }" @click="stateFilter = filter">{{ filter === 'all' ? t('all', '全部') : stateLabel(filter) }}</button></div></div>
-        <div class="experiment-operations"><RunActivityPanel :feed="operationsFeed" :loading="operationsLoading" @open-experiment="openExperimentByID" /></div>
+        <div class="experiment-operations"><RunActivityPanel :feed="operationsFeed" :loading="operationsLoading" :confirming-proposal-id="confirmationBusy ? confirmationTarget?.id : ''" @open-experiment="openExperimentByID" @confirm-proposal="openProposalConfirmation" /></div>
         <ExperimentTable :experiments="filteredExperiments" @select="openExperiment" />
       </section>
 
@@ -503,12 +634,42 @@ onMounted(async () => {
 
       <section v-else-if="activeView === 'projects'" class="page-workspace project-workspace">
         <div class="section-heading page-section-heading"><div><h2>{{ selectedProject?.name ?? 'Project' }}</h2><p>{{ selectedProject?.slug }} / {{ selectedProject?.status }}</p></div><span class="version-chip">{{ selectedProject?.timezone }}</span></div>
-        <div v-if="selectedProject" class="policy-grid">
-          <div><span>{{ t('Monthly budget', '月度预算') }}</span><strong>{{ money(selectedProject.monthly_budget_milli) }}</strong></div>
-          <div><span>{{ t('Experiment cap', '实验上限') }}</span><strong>{{ money(selectedProject.max_experiment_milli) }}</strong></div>
-          <div><span>{{ t('Concurrency', '并发数') }}</span><strong>{{ selectedProject.max_concurrency }}</strong></div>
-          <div><span>{{ t('Maximum runtime', '最长运行时间') }}</span><strong>{{ Math.round(selectedProject.max_runtime_seconds / 3600) }} h</strong></div>
+        <form v-if="selectedProject" class="policy-form" @submit.prevent="savePolicy">
+          <div class="section-heading"><div><h2>{{ t('Budget allocation', '预算分配') }}</h2><p>{{ t('Assign the spending limit to the Project. Agent registration and compute selection are separate.', '只给 Project 分配费用预算；Agent 注册和计算资源选择彼此独立。') }}</p></div></div>
+          <div class="policy-grid">
+            <label><span>{{ t('Monthly budget (CNY)', '月度预算 (CNY)') }}</span><input v-model="policyForm.monthlyBudgetCNY" type="number" min="0.001" step="0.001" required /></label>
+          </div>
+          <div class="policy-actions"><button class="primary-button small-button" type="submit" :disabled="policyBusy"><LoaderCircle v-if="policyBusy" :size="16" class="spinning" />{{ t('Save budget', '保存预算') }}</button><p>{{ t('This one Project budget is also the per-run ceiling. Existing runtime configuration is unchanged.', '这一个 Project 预算同时作为单次运行上限；现有运行时配置保持不变。') }}</p></div>
+        </form>
+        <div class="subsection-heading"><div><h2>{{ t('AutoDL dataset bindings', 'AutoDL 数据集绑定') }}</h2><p>{{ t('Named /root/autodl-fs paths injected as GEMCP_DATASET_* on Public Elastic and Private Cloud.', '在公有云弹性和私有云上注入为 GEMCP_DATASET_* 的 /root/autodl-fs 路径。') }}</p></div></div>
+        <form class="dialog-form dataset-form" @submit.prevent="registerDatasetBinding">
+          <label>{{ t('Name', '名称') }}<input v-model="datasetForm.name" required maxlength="100" placeholder="scanobjectnn-objbg" spellcheck="false" /></label>
+          <label>{{ t('Backend', '后端') }}
+            <select v-model="datasetForm.backend">
+              <option value="autodl_elastic">{{ t('Public Elastic', '公有云弹性') }}</option>
+              <option value="autodl_private">{{ t('Private Cloud', '私有云') }}</option>
+            </select>
+          </label>
+          <label>{{ t('Canonical root', '规范根路径') }}<input v-model="datasetForm.canonicalRoot" required maxlength="1024" placeholder="/root/autodl-fs/datasets/ScanObjectNN" spellcheck="false" /></label>
+          <label>{{ t('Required markers', '必需文件') }}<textarea v-model="datasetForm.requiredMarkers" rows="2" maxlength="2000" :placeholder="t('Optional relative files, one per line', '可选相对文件，一行一个')"></textarea></label>
+          <button class="primary-button small-button" type="submit" :disabled="datasetBusy"><LoaderCircle v-if="datasetBusy" :size="16" class="spinning" /><Plus v-else :size="16" />{{ t('Register dataset', '注册数据集') }}</button>
+        </form>
+        <div v-if="datasetBindings.length" class="table-scroll">
+          <table class="data-table">
+            <thead><tr><th>{{ t('Status', '状态') }}</th><th>{{ t('Name', '名称') }}</th><th>{{ t('Backend', '后端') }}</th><th>{{ t('Root', '根路径') }}</th><th>{{ t('Variable', '变量') }}</th><th>{{ t('Actions', '操作') }}</th></tr></thead>
+            <tbody>
+              <tr v-for="binding in datasetBindings" :key="binding.id">
+                <td><span class="state-badge" :data-state="binding.status"><span />{{ stateLabel(binding.status) }}</span></td>
+                <td>{{ binding.name }}</td>
+                <td>{{ binding.backend }}</td>
+                <td><code>{{ binding.canonical_root }}</code></td>
+                <td><code>{{ binding.environment_variable }}</code></td>
+                <td><button v-if="binding.status === 'active'" class="icon-button" type="button" :title="t('Disable dataset binding', '停用数据集绑定')" :disabled="datasetBusy" @click="removeDatasetBinding(binding)"><X :size="16" /></button></td>
+              </tr>
+            </tbody>
+          </table>
         </div>
+        <div v-else class="empty-state compact-empty"><span class="empty-icon"><Boxes :size="21" /></span><h3>{{ t('No AutoDL dataset bindings', '尚未注册 AutoDL 数据集') }}</h3><p>{{ t('Register the /root/autodl-fs dataset root before probe or train on Public Elastic.', '在公有云弹性上跑 probe/train 之前，先注册 /root/autodl-fs 数据集根路径。') }}</p></div>
         <div class="subsection-heading"><div><h2>{{ t('Private repositories', '私有仓库') }}</h2><p>{{ t('Read-only Deploy Keys and pinned GitHub host identity.', '只读 Deploy Key 和固定的 GitHub 主机身份。') }}</p></div><button class="primary-button small-button" type="button" @click="openCreateRepository"><Plus :size="16" />{{ t('Register repository', '注册仓库') }}</button></div>
         <div v-if="repositories.length" class="table-scroll">
           <table class="data-table repository-table">
@@ -520,8 +681,8 @@ onMounted(async () => {
       </section>
 
       <FinanceView v-if="activeView === 'finance'" :active="true" :projects="projects" @unauthorized="emit('signedOut')" />
-      <AgentView v-if="activeView === 'agents'" :active="true" :project="selectedProject" @unauthorized="emit('signedOut')" />
-      <NodeView v-if="activeView === 'nodes'" :active="true" :projects="projects" :build="props.build" @unauthorized="emit('signedOut')" />
+      <AgentView v-if="activeView === 'agents'" :active="true" :project="selectedProject" :runtime="runtimeStatus" @unauthorized="emit('signedOut')" @open-nodes="activeView = 'nodes'" />
+      <NodeView v-if="activeView === 'nodes'" :active="true" :projects="projects" :build="props.build" :ssh-cloud-enabled="Boolean(runtimeStatus?.ssh_cloud_enabled)" @unauthorized="emit('signedOut')" @open-agents="activeView = 'agents'" />
       <div v-show="activeView === 'provider'" class="persistent-view"><ProviderView :active="activeView === 'provider'" @unauthorized="emit('signedOut')" /></div>
       <NotificationView v-if="activeView === 'notifications'" :active="true" @unauthorized="emit('signedOut')" />
 
@@ -530,6 +691,31 @@ onMounted(async () => {
   </div>
 
   <ExperimentDetail v-if="selectedExperiment" :experiment="selectedExperiment" :attempts="attempts" :loading="attemptsLoading" :error="attemptsError" @close="closeExperiment" />
+
+  <WorkbenchDialog v-model:open="confirmationDialogOpen" :title="t('Confirm prepared proposal', '确认准备提案')" :label="t('Confirm prepared proposal', '确认准备提案')" :description="t('Review the immutable execution request and authorize this exact digest before Gemcp creates the Experiment.', '请核对不可变执行请求，并授权当前精确摘要，然后 Gemcp 才会创建 Experiment。')">
+    <form v-if="confirmationTarget" class="dialog-form proposal-confirmation-form" @submit.prevent="submitProposalConfirmation">
+      <dl class="proposal-confirmation-grid">
+        <div class="span-two"><dt>{{ t('Repository and ref', '仓库与 ref') }}</dt><dd><strong>{{ confirmationTarget.repository_name }}</strong><code>{{ confirmationTarget.requested_ref }}</code></dd></div>
+        <div><dt>{{ t('Commit', '提交') }}</dt><dd><code>{{ confirmationTarget.commit_sha }}</code></dd></div>
+        <div class="wide"><dt>{{ t('Immutable command', '不可变命令') }}</dt><dd><code>{{ confirmationTarget.display_command }}</code></dd></div>
+        <div><dt>{{ t('Backend', '后端') }}</dt><dd>{{ confirmationTarget.backend }}</dd></div>
+        <div><dt>{{ t('Environment', '环境') }}</dt><dd>{{ confirmationTarget.environment_name }}</dd></div>
+        <div><dt>{{ t('Resource profile', '资源规格') }}</dt><dd>{{ confirmationTarget.resource_profile_name }}</dd></div>
+        <div><dt>GPU</dt><dd>{{ confirmationTarget.gpu_num }}× {{ confirmationTarget.gpu_models.join(', ') }}</dd></div>
+        <div><dt>{{ t('Runtime', '运行时间') }}</dt><dd>{{ confirmationTarget.runtime_preset || 'smoke' }} · {{ confirmationTarget.max_runtime_seconds || '—' }}s</dd></div>
+        <div><dt>{{ t('Worst-case reservation', '最坏情况预留') }}</dt><dd><strong>CNY {{ (confirmationTarget.reserved_cost_milli / 1000).toFixed(3) }}</strong></dd></div>
+        <div class="wide"><dt>{{ t('Expires', '过期时间') }}</dt><dd>{{ dateTime(confirmationTarget.expires_at) }}</dd></div>
+        <div class="wide digest"><dt>{{ t('Confirmation digest', '确认摘要') }}</dt><dd><code>{{ confirmationTarget.confirmation_digest }}</code></dd></div>
+      </dl>
+      <div class="proposal-checks">
+        <strong>{{ t('Preflight checks', '预检项') }}</strong>
+        <ul><li v-for="check in confirmationTarget.checks" :key="check.id" :data-status="check.status"><span>{{ check.status }}</span>{{ check.summary }}</li></ul>
+      </div>
+      <label class="proposal-confirmation-check"><input v-model="confirmationChecked" type="checkbox" :disabled="confirmationBusy" /><span>{{ t('I confirm this exact proposal and authorize its worst-case CNY reservation.', '我确认此精确提案，并授权其最坏情况 CNY 费用预留。') }}</span></label>
+      <div v-if="confirmationError" class="form-error" role="alert">{{ confirmationError }}</div>
+      <button class="primary-button" type="submit" :disabled="confirmationBusy || !confirmationChecked"><LoaderCircle v-if="confirmationBusy" :size="16" class="spinning" /><ShieldCheck v-else :size="16" />{{ t('Confirm and start', '确认并启动') }}</button>
+    </form>
+  </WorkbenchDialog>
 
   <WorkbenchDialog v-model:open="studyDialog" :title="t('Import study', '从仓库导入')" :label="t('Import study', '从仓库导入')" :description="t('Start from an existing research repository. This binds the Study to that repo and does not start a workload.', '从已有研究仓库开始。Study 会绑上该仓库，不会启动作业。')">
     <form class="dialog-form" @submit.prevent="createStudy">

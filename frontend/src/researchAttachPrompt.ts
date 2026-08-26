@@ -55,8 +55,8 @@ export function buildResearchAttachPrompt(input: ResearchAttachPromptInput) {
   lines.push('')
   add('## Goal', '## 任务')
   add(
-    'Walk the whole local repository. Collapse its experimental branches, methods, ablations, datasets, failed turns, and reported numbers into key exploration nodes. Put the important hypotheses, conclusions, and evidence on the Owner Graph so a later Agent can see what was already tried. Recording a Graph node never starts a workload.',
-    '通读整个本地仓库。把不同实验分支、方法、消融、数据集、失败转向和已报道数字收成关键探索节点。把重要假设、结论和证据画到 Owner 可见的 Graph 上，让后来的 Agent 看得出已经试过什么。记录 Graph 节点不会启动作业。',
+    'Walk the whole local repository. Collapse its experimental branches, methods, ablations, datasets, failed turns, and reported numbers into key exploration nodes. Put the important hypotheses, conclusions, and evidence on the Owner Graph so a later Agent can see what was already tried. Recording a Graph node never starts a workload. The Owner time axis uses `occurred_at` (git committer date or Experiment time), not the moment you called the tool.',
+    '通读整个本地仓库。把不同实验分支、方法、消融、数据集、失败转向和已报道数字收成关键探索节点。把重要假设、结论和证据画到 Owner 可见的 Graph 上，让后来的 Agent 看得出已经试过什么。记录 Graph 节点不会启动作业。Owner 顶轴用 `occurred_at`（git commit 时间或 Experiment 时间），不是你调用工具的时刻。',
   )
   lines.push('')
   add('## What the Graph is', '## Graph 是什么')
@@ -91,8 +91,8 @@ export function buildResearchAttachPrompt(input: ResearchAttachPromptInput) {
   lines.push('')
   add('## How to inspect the repository', '## 怎么检查仓库')
   add(
-    'Do not stop after README. Read papers, result tables, configs, training/eval scripts, experiment directories, named branches, ablation folders, and git history that changed methods or reported metrics. Group by scientific claim, not by every commit or file. One node per distinct claim, result, or decision. Compress near-duplicates into one observation that names the variants.',
-    '不要只看 README。还要读论文、结果表、配置、训练/评测脚本、实验目录、命名分支、消融目录，以及改过方法或报过指标的 git 历史。按科学主张分组，不要每个 commit 或每个文件一个节点。一条独立主张、结果或结论对应一个节点。相近变体收进同一条 observation，并写清变体。',
+    'Do not stop after README. Read papers, result tables, configs, training/eval scripts, experiment directories, named branches, ablation folders, and git history that changed methods or reported metrics. Group by scientific claim, not by every commit or file. One node per distinct claim, result, or decision. Compress near-duplicates into one observation that names the variants. For that node, set `occurred_at` from `git log -1 --format=%cI <sha>` of the evidence commit, and pass `commit_sha`. The Graph is still not a commit graph.',
+    '不要只看 README。还要读论文、结果表、配置、训练/评测脚本、实验目录、命名分支、消融目录，以及改过方法或报过指标的 git 历史。按科学主张分组，不要每个 commit 或每个文件一个节点。一条独立主张、结果或结论对应一个节点。相近变体收进同一条 observation，并写清变体。给该节点设 `occurred_at`：用证据 commit 的 `git log -1 --format=%cI <sha>`，并传 `commit_sha`。Graph 仍然不是 commit 图。',
   )
   lines.push('')
   add('## Coverage bar', '## 覆盖标准')
@@ -144,9 +144,18 @@ export function buildResearchAttachPrompt(input: ResearchAttachPromptInput) {
       add('- Graph nodes:', '- 图上节点：')
       for (const node of nodes) {
         const experiment = node.experiment_id ? ` experiment=${node.experiment_id}` : ''
+        const occurred = node.occurred_at ? ` occurred_at=${node.occurred_at}` : ' MISSING occurred_at'
+        const commit = node.commit_sha ? ` commit=${shortCommit(node.commit_sha)}` : ''
         const summary = node.summary ? ` — ${node.summary}` : ''
-        lines.push(`  - ${node.kind} ${node.id} ${node.title}${experiment}${summary}`)
+        lines.push(`  - ${node.kind} ${node.id} ${node.title}${experiment}${occurred}${commit}${summary}`)
       }
+    }
+    const missingTime = nodes.filter((node) => !node.occurred_at)
+    if (missingTime.length) {
+      add(
+        `- Evidence time missing on ${missingTime.length} node(s). Update each with its id, the same title, occurred_at from git committer date, and commit_sha. The Owner axis falls back to MCP write time until you do.`,
+        `- 有 ${missingTime.length} 个节点没有证据时间。用节点 id、原 title、git committer 日期的 occurred_at 和 commit_sha 更新它们。补上之前，Owner 顶轴会退回 MCP 写入时间。`,
+      )
     }
   } else if ((workspace?.studies.length ?? 0) > 1) {
     add('- Studies: choose one study_id before writing the Graph', '- Studies：写入 Graph 前先选定 study_id')
@@ -196,16 +205,16 @@ export function buildResearchAttachPrompt(input: ResearchAttachPromptInput) {
     '3. 若还没有 Study，用 `update_research_workspace` 按仓库目的创建。不要编造训练 flag。',
   )
   add(
-    '4. Reconstruct the lineage with many `update_research_workspace` node writes. Start each first-wave hypothesis from the question node (`from_node_id` + `relation=leads_to`). Hang every observation off its hypothesis the same way. Then add competing hypotheses (`compares`) and decisions for conclusions. Never create an unlinked observation. A paid run cannot start from the question node alone.',
-    '4. 用多次 `update_research_workspace` 写节点来重建谱系。第一波 hypothesis 从 question 出发（`from_node_id` + `relation=leads_to`）。每条 observation 也用同样方式挂到对应 hypothesis 上。再补互相竞争的 hypothesis（`compares`）和结论的 decision。不要创建没有边的 observation。付费 run 不能只从 question 出发。',
+    '4. Reconstruct the lineage with many `update_research_workspace` node writes. Start each first-wave hypothesis from the question node (`from_node_id` + `relation=leads_to`). Hang every observation off its hypothesis the same way. On every historical node set `occurred_at` and `commit_sha` from the evidence commit (`git log -1 --format=%cI <sha>`). Then add competing hypotheses (`compares`) and decisions for conclusions. Never create an unlinked observation. A paid run cannot start from the question node alone.',
+    '4. 用多次 `update_research_workspace` 写节点来重建谱系。第一波 hypothesis 从 question 出发（`from_node_id` + `relation=leads_to`）。每条 observation 也用同样方式挂到对应 hypothesis 上。每个历史节点都要带证据 commit 的 `occurred_at` 和 `commit_sha`（`git log -1 --format=%cI <sha>`）。再补互相竞争的 hypothesis（`compares`）和结论的 decision。不要创建没有边的 observation。付费 run 不能只从 question 出发。',
   )
   add(
     '5. To attach an existing Gemcp Experiment, call `update_research_workspace` with `kind=run`, that `experiment_id`, a hypothesis or plan `from_node_id`, and `relation=leads_to`. After the Experiment is terminal, `close_run` is the only way to write its result.',
     '5. 挂已有 Gemcp Experiment：调用 `update_research_workspace`，`kind=run`，带上该 `experiment_id`、hypothesis 或 plan 的 `from_node_id`，以及 `relation=leads_to`。Experiment 终态后，只能用 `close_run` 写 result。',
   )
   add(
-    '6. New spend uses `prepare_experiment` with `from_node_id` on a hypothesis or plan node, and only after the historical map is in place. Show the digest and wait for Owner confirmation before `submit_prepared_experiment`.',
-    '6. 新的花钱走 `prepare_experiment`，`from_node_id` 必须是 hypothesis 或 plan，而且要等历史谱系先上图。把 digest 给 Owner 确认后再 `submit_prepared_experiment`。',
+    '6. New spend uses `prepare_experiment` with `from_node_id` on a hypothesis or plan node, and only after the historical map is in place. The Project budget is a limit, not approval. Show the Owner the immutable proposal and exact confirmation digest, then wait for explicit confirmation of that digest before calling `submit_prepared_experiment`; report the submitted run in Evidence.',
+    '6. 新的花钱走 `prepare_experiment`，`from_node_id` 必须是 hypothesis 或 plan，而且要等历史谱系先上图。Project 预算只是上限，不是批准。向 Owner 原样展示不可变提案和精确 confirmation digest，并等待 Owner 明确确认该 digest 后才能调用 `submit_prepared_experiment`；提交后在 Evidence 中报告运行。',
   )
   add(
     '7. Do not free-write a result node. Do not invent metrics. Do not use `submit_experiment` for this attach path.',

@@ -15,6 +15,7 @@ import (
 	"github.com/XR-Lee/Gemcp/internal/auth"
 	"github.com/XR-Lee/Gemcp/internal/buildinfo"
 	"github.com/XR-Lee/Gemcp/internal/config"
+	"github.com/XR-Lee/Gemcp/internal/datasetcatalog"
 	"github.com/XR-Lee/Gemcp/internal/diagnostic"
 	"github.com/XR-Lee/Gemcp/internal/execution"
 	"github.com/XR-Lee/Gemcp/internal/experiment"
@@ -30,6 +31,7 @@ import (
 	"github.com/XR-Lee/Gemcp/internal/secrets"
 	"github.com/XR-Lee/Gemcp/internal/selfhosted"
 	setupservice "github.com/XR-Lee/Gemcp/internal/setup"
+	"github.com/XR-Lee/Gemcp/internal/sshcloud"
 	"github.com/XR-Lee/Gemcp/internal/web"
 	"github.com/XR-Lee/Gemcp/internal/workspacecatalog"
 	"github.com/gin-gonic/gin"
@@ -46,6 +48,7 @@ type Dependencies struct {
 	Ent        *ent.Client
 	Secrets    *secrets.Box
 	SelfHosted *selfhosted.Service
+	SSHCloud   *sshcloud.Service
 }
 
 func New(deps Dependencies) *http.Server {
@@ -107,6 +110,11 @@ func New(deps Dependencies) *http.Server {
 	protected.POST("/auth/logout", authHandlers.Logout)
 	projectHandlers := httpapi.NewProjectHandlers(deps.Ent)
 	protected.GET("/projects", projectHandlers.List)
+	protected.PATCH("/projects/:id", projectHandlers.Update)
+	datasetBindingHandlers := httpapi.NewDatasetBindingHandlers(datasetcatalog.NewService(deps.Ent))
+	protected.GET("/projects/:id/dataset-bindings", datasetBindingHandlers.List)
+	protected.POST("/projects/:id/dataset-bindings", datasetBindingHandlers.Create)
+	protected.DELETE("/projects/:id/dataset-bindings/:bindingID", datasetBindingHandlers.Remove)
 	financeHandlers := httpapi.NewFinanceHandlers(finance.NewService(deps.Ent))
 	protected.GET("/finance", financeHandlers.Dashboard)
 	protected.POST("/projects/:id/budget-adjustments", financeHandlers.Adjust)
@@ -124,6 +132,12 @@ func New(deps Dependencies) *http.Server {
 	protected.POST("/projects/:id/self-hosted-runtimes", nodeHandlers.CreateRuntimeConfig)
 	protected.PUT("/projects/:id/self-hosted-trusted-workspace", nodeHandlers.EnableTrustedWorkspace)
 	protected.DELETE("/projects/:id/self-hosted-trusted-workspace/:node_id", nodeHandlers.DisableTrustedWorkspace)
+	sshCloudHandlers := httpapi.NewSSHCloudHandlers(deps.SSHCloud)
+	protected.GET("/ssh-cloud-nodes", sshCloudHandlers.List)
+	protected.POST("/ssh-cloud-nodes", sshCloudHandlers.Create)
+	protected.POST("/ssh-cloud-nodes/:id/probe", sshCloudHandlers.Probe)
+	protected.POST("/ssh-cloud-nodes/:id/rotate-credential", sshCloudHandlers.Rotate)
+	protected.DELETE("/ssh-cloud-nodes/:id", sshCloudHandlers.Revoke)
 
 	providerService := providerservice.NewService(deps.Ent, deps.Secrets, deps.Build.Version)
 	providerHandlers := httpapi.NewProviderHandlers(providerService)
@@ -132,8 +146,9 @@ func New(deps Dependencies) *http.Server {
 	protected.PUT("/provider", providerHandlers.Configure)
 	protected.GET("/provider/deployments/:id", providerHandlers.Deployment)
 	runtimeOperations := execution.NewOperations(
-		deps.Ent, execution.WithRuntimeConfiguration(deps.Config.SchedulerEnabled, deps.Config.GlobalConcurrency, deps.Config.PublicURL != ""),
+		deps.Ent, execution.WithRuntimeConfiguration(deps.Config.SchedulerEnabled, deps.Config.GlobalConcurrency, deps.Config.PublicURL != "", config.HTTPSPublicOrigin(deps.Config.PublicURL)),
 		execution.WithSelfHostedEnabled(deps.Config.SelfHostedEnabled),
+		execution.WithSSHCloudEnabled(deps.Config.SSHCloudEnabled),
 	)
 	runtimeHandlers := httpapi.NewRuntimeHandlers(runtimeOperations)
 	protected.GET("/runtime/status", runtimeHandlers.Status)
@@ -152,21 +167,27 @@ func New(deps Dependencies) *http.Server {
 	protected.POST("/repositories", repositoryHandlers.Create)
 	protected.POST("/repositories/:id/verify", repositoryHandlers.Verify)
 
-	experimentService := experiment.NewService(
-		deps.Ent, deps.Secrets, repositoryService,
+	experimentOptions := []experiment.ServiceOption{
 		experiment.WithPreparedExperiments(
 			repositoryService, repositoryService, providerService, runtimeOperations,
 			experiment.ProposalConfig{
 				SourceMaxBytes: deps.Config.RunnerSourceMaxBytes, SelfHostedEnabled: deps.Config.SelfHostedEnabled,
+				SSHCloudEnabled: deps.Config.SSHCloudEnabled,
 			},
 		),
-	)
+	}
+	if deps.SSHCloud != nil {
+		experimentOptions = append(experimentOptions, experiment.WithSSHCloud(deps.SSHCloud))
+	}
+	experimentService := experiment.NewService(deps.Ent, deps.Secrets, repositoryService, experimentOptions...)
 	experimentHandlers := httpapi.NewExperimentHandlers(experimentService)
 	protected.GET("/experiments", experimentHandlers.List)
 	protected.GET("/experiments/:id", experimentHandlers.Get)
 	protected.GET("/experiments/:id/attempts", experimentHandlers.Attempts)
 	protected.GET("/projects/:id/cost", experimentHandlers.Cost)
 	protected.GET("/projects/:id/operations", experimentHandlers.Operations)
+	protected.POST("/projects/:id/experiment-proposals/:proposalID/submit", experimentHandlers.SubmitPrepared)
+	protected.GET("/projects/:id/agent-readiness", experimentHandlers.AgentReadiness)
 	researchService := research.NewService(deps.Ent)
 	experimentService.SetGraphBinder(researchService)
 	researchHandlers := httpapi.NewResearchHandlers(researchService)
@@ -187,8 +208,9 @@ func New(deps Dependencies) *http.Server {
 	agentAuthService := agentauth.NewService(deps.Ent, deps.Secrets)
 	mcpHandler := mcpserver.New(
 		agentAuthService, experimentService, deps.Build.Version, nil,
-		mcpserver.WithConfiguration(repositoryService, workspacecatalog.NewService(deps.Ent)),
+		mcpserver.WithConfiguration(repositoryService, workspacecatalog.NewService(deps.Ent), datasetcatalog.NewService(deps.Ent)),
 		mcpserver.WithResearch(researchService),
+		mcpserver.WithSSHCloud(deps.SSHCloud),
 	).Handler()
 	router.Any("/mcp", gin.WrapH(mcpHandler))
 

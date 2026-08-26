@@ -11,6 +11,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/agenttoken"
 	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/auditevent"
+	"github.com/XR-Lee/Gemcp/ent/cloudsshassignment"
 	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
@@ -75,6 +76,25 @@ func (s *Service) enrichExecutionObservation(ctx context.Context, record *ent.Ex
 }
 
 func (s *Service) enrichBackendObservation(ctx context.Context, record *ent.Experiment, view *View) error {
+	if view.ExecutionContext.Backend == "ssh_cloud" {
+		assignment, err := s.client.CloudSSHAssignment.Query().Where(cloudsshassignment.ExperimentIDEQ(record.ID)).WithNode().
+			Order(ent.Desc(cloudsshassignment.FieldID)).First(ctx)
+		if ent.IsNotFound(err) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		node, _ := assignment.Edges.NodeOrErr()
+		view.BackendObservation = &BackendObservationView{
+			Kind: "ssh_cloud", ID: assignment.PublicID.String(), State: string(assignment.State), StopReason: pointerString(assignment.StopReason),
+			LastError: pointerString(assignment.LastError), UpdatedAt: assignment.UpdatedAt, FinishedAt: assignment.FinishedAt,
+		}
+		if node != nil {
+			view.BackendObservation.NodeLabel = node.Label
+		}
+		return nil
+	}
 	if view.ExecutionContext.Backend == "self_hosted" {
 		assignment, err := s.client.NodeAssignment.Query().Where(nodeassignment.ExperimentIDEQ(record.ID)).WithNode().
 			Order(ent.Desc(nodeassignment.FieldID)).First(ctx)
@@ -119,7 +139,7 @@ func (s *Service) enrichBackendObservation(ctx context.Context, record *ent.Expe
 	}
 	cleanup := resource.State == providerresource.StateDeleted || (resource.State == providerresource.StateError && resource.ProviderID == nil)
 	view.BackendObservation = &BackendObservationView{
-		Kind: "autodl_private", ID: resource.PublicID.String(), ProviderID: pointerString(resource.ProviderID), State: string(resource.State),
+		Kind: view.ExecutionContext.Backend, ID: resource.PublicID.String(), ProviderID: pointerString(resource.ProviderID), State: string(resource.State),
 		Status: pointerString(resource.ProviderStatus), StopReason: pointerString(resource.StopReason), LastError: pointerString(resource.LastError),
 		CleanupComplete: cleanup, UpdatedAt: resource.UpdatedAt, FinishedAt: resource.DeletedAt,
 	}
