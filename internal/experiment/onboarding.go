@@ -2,6 +2,7 @@ package experiment
 
 import (
 	"context"
+	"time"
 
 	"github.com/XR-Lee/Gemcp/ent"
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"

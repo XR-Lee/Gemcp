@@ -114,7 +114,7 @@ function json(data: unknown, status = 200) {
 
 function match(url: URL, method: string, body?: unknown): Response | null {
   const path = url.pathname
-  if (path === '/api/v1/version') return json({ name: 'Gemcp', version: '0.19.0', commit: 'preview', built_at: '2026-08-25T00:00:00Z' })
+  if (path === '/api/v1/version') return json({ name: 'Gemcp', version: '0.20.0', commit: 'preview', built_at: '2026-08-27T00:00:00Z' })
   if (path === '/api/v1/setup/status') return json({ initialized: true })
   if (path === '/api/v1/auth/me') return json({ user_id: 'owner-id', tenant_id: 'tenant-id', email: 'owner@lab.local', role: 'owner' })
   if (path === '/api/v1/auth/logout' && method === 'POST') return json(undefined, 204)
