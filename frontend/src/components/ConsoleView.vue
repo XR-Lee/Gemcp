@@ -710,7 +710,7 @@ onMounted(async () => {
         </form>
         <div class="subsection-heading"><div><h2>{{ t('AutoDL dataset bindings', 'AutoDL 数据集绑定') }}</h2><p>{{ t('Register /root/autodl-fs roots and optional HTTPS sources. Agents then prepare_experiment with runtime_preset=provision. Do not use workspace datasets for Public Elastic.', '登记 /root/autodl-fs 根路径和可选 HTTPS 来源。Agent 再用 runtime_preset=provision 准备实验。公有云弹性不要用 workspace dataset。') }}</p></div></div>
         <form class="dialog-form dataset-form" @submit.prevent="registerDatasetBinding">
-          <label>{{ t('Catalog', '目录') }}
+          <label>{{ t('Catalog', '数据集目录') }}
             <select :value="datasetForm.catalog" @change="applyDatasetCatalog(($event.target as HTMLSelectElement).value)">
               <option value="">{{ t('Custom path', '自定义路径') }}</option>
               <option v-for="entry in datasetSources" :key="entry.name" :value="entry.name">{{ entry.display_name }}</option>

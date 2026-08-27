@@ -167,7 +167,9 @@ const researchWorkspace = {
 const datasetBindings = [{
   id: 'binding-scanobjectnn', project_id: project.id, name: 'scanobjectnn-objbg', backend: 'autodl_elastic',
   canonical_root: '/root/autodl-fs/datasets/ScanObjectNN', environment_variable: 'GEMCP_DATASET_SCANOBJECTNN_OBJBG',
-  required_markers: ['main_split/train.h5'], status: 'active',
+  required_markers: ['main_split/train.h5'],
+  sources: [{ url: 'https://huggingface.co/datasets/example/resolve/main/train.h5', relative_path: 'main_split/train.h5' }],
+  status: 'active',
 }]
 const operationsFeed = {
   activities: [{
@@ -708,6 +710,22 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await expect(page.getByText('AutoDL dataset bindings')).toBeVisible()
   await expect(page.getByRole('cell', { name: 'scanobjectnn-objbg', exact: true })).toBeVisible()
   await expect(page.getByText('/root/autodl-fs/datasets/ScanObjectNN')).toBeVisible()
+  await expect(page.getByLabel('Catalog')).toBeVisible()
+  await expect(page.getByRole('option', { name: 'ScanObjectNN OBJ-BG' })).toBeAttached()
+  await expect(page.getByLabel('HTTPS sources')).toBeVisible()
+  await page.getByLabel('Catalog').selectOption('scanobjectnn-objbg')
+  await expect(page.getByPlaceholder('scanobjectnn-objbg')).toHaveValue('scanobjectnn-objbg')
+  await expect(page.getByPlaceholder('/root/autodl-fs/datasets/ScanObjectNN')).toHaveValue('/root/autodl-fs/datasets/ScanObjectNN')
+  await page.getByLabel('HTTPS sources').fill('https://huggingface.co/datasets/example/resolve/main/train.h5 main_split/train.h5')
+  await page.getByRole('button', { name: 'Register dataset' }).click()
+  await expect(page.getByRole('button', { name: 'Register dataset' })).toBeEnabled()
+  await expect(page.getByText('AutoDL environments')).toBeVisible()
+  await expect(page.getByRole('cell', { name: 'public-elastic', exact: true })).toBeVisible()
+  await expect(page.getByText('image-6c15b8aad2')).toBeVisible()
+  await page.getByPlaceholder('torch-train').fill('torch-train')
+  await page.getByPlaceholder('image-6c15b8aad2').fill('image-visible1234')
+  await page.getByRole('button', { name: 'Register environment' }).click()
+  await expect(page.getByRole('button', { name: 'Register environment' })).toBeEnabled()
   await page.getByLabel('Monthly budget (CNY)').fill('120')
   await page.getByRole('button', { name: 'Save budget' }).click()
   await expect(page.getByRole('button', { name: 'Save budget' })).toBeEnabled()
