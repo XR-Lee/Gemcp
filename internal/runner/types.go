@@ -24,27 +24,44 @@ var (
 )
 
 type Spec struct {
-	ExperimentID                 string           `json:"experiment_id"`
-	AttemptID                    string           `json:"attempt_id"`
-	ExecutionMode                string           `json:"execution_mode"`
-	Command                      string           `json:"command,omitempty"`
-	Argv                         []string         `json:"argv,omitempty"`
-	OutputPath                   string           `json:"output_path"`
-	MaxRuntimeSeconds            int              `json:"max_runtime_seconds"`
-	TimeoutExtensionSeconds      int              `json:"timeout_extension_seconds"`
-	TerminationGraceSeconds      int              `json:"termination_grace_seconds"`
-	HeartbeatIntervalSeconds     int              `json:"heartbeat_interval_seconds"`
-	SourceMaxBytes               int64            `json:"source_max_bytes"`
-	ProvisioningSecondsRemaining int              `json:"provisioning_seconds_remaining,omitempty"`
-	TokenExpiresAt               time.Time        `json:"token_expires_at"`
-	DatasetBindings              []DatasetBinding `json:"dataset_bindings,omitempty"`
+	ExperimentID                 string               `json:"experiment_id"`
+	AttemptID                    string               `json:"attempt_id"`
+	ExecutionMode                string               `json:"execution_mode"`
+	Command                      string               `json:"command,omitempty"`
+	Argv                         []string             `json:"argv,omitempty"`
+	OutputPath                   string               `json:"output_path"`
+	MaxRuntimeSeconds            int                  `json:"max_runtime_seconds"`
+	TimeoutExtensionSeconds      int                  `json:"timeout_extension_seconds"`
+	TerminationGraceSeconds      int                  `json:"termination_grace_seconds"`
+	HeartbeatIntervalSeconds     int                  `json:"heartbeat_interval_seconds"`
+	SourceMaxBytes               int64                `json:"source_max_bytes"`
+	ProvisioningSecondsRemaining int                  `json:"provisioning_seconds_remaining,omitempty"`
+	TokenExpiresAt               time.Time            `json:"token_expires_at"`
+	DatasetBindings              []DatasetBinding     `json:"dataset_bindings,omitempty"`
+	DatasetProvision             *DatasetProvision    `json:"dataset_provision,omitempty"`
+	InstallDependencies          *InstallDependencies `json:"install_dependencies,omitempty"`
 }
 
 type DatasetBinding struct {
-	Name                string   `json:"name"`
-	CanonicalRoot       string   `json:"canonical_root"`
-	EnvironmentVariable string   `json:"environment_variable"`
-	RequiredMarkers     []string `json:"required_markers,omitempty"`
+	Name                string          `json:"name"`
+	CanonicalRoot       string          `json:"canonical_root"`
+	EnvironmentVariable string          `json:"environment_variable"`
+	RequiredMarkers     []string        `json:"required_markers,omitempty"`
+	Sources             []DatasetSource `json:"sources,omitempty"`
+}
+
+type DatasetSource struct {
+	URL          string `json:"url"`
+	RelativePath string `json:"relative_path"`
+	SHA256       string `json:"sha256,omitempty"`
+}
+
+type DatasetProvision struct {
+	Bindings []DatasetBinding `json:"bindings"`
+}
+
+type InstallDependencies struct {
+	RequirementsFile string `json:"requirements_file"`
 }
 
 type EventInput struct {

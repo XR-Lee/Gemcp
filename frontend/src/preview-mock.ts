@@ -8,6 +8,25 @@ const project = {
   timeout_extension_seconds: 3600, termination_grace_seconds: 60, timezone: 'Asia/Shanghai',
 }
 
+const datasetBindingRecords: Array<{
+  id: string; project_id: string; name: string; backend: string; canonical_root: string
+  environment_variable: string; required_markers: string[]; sources: Array<{ url: string; relative_path: string }>
+  status: string
+}> = [{
+  id: 'binding-scanobjectnn', project_id: projectID, name: 'scanobjectnn-objbg', backend: 'autodl_elastic',
+  canonical_root: '/root/autodl-fs/datasets/ScanObjectNN', environment_variable: 'GEMCP_DATASET_SCANOBJECTNN_OBJBG',
+  required_markers: ['main_split/train.h5'],
+  sources: [{ url: 'https://huggingface.co/datasets/example/resolve/main/train.h5', relative_path: 'main_split/train.h5' }],
+  status: 'active',
+}]
+
+const environmentRecords: Array<{
+  id: string; project_id: string; name: string; backend: string; image_uuid: string; is_default: boolean; status: string
+}> = [{
+  id: 'environment-elastic', project_id: projectID, name: 'public-elastic', backend: 'autodl_elastic',
+  image_uuid: 'image-6c15b8aad2', is_default: true, status: 'approved',
+}]
+
 const repositories = [
   {
     id: '558f97ca-b648-4e7e-a329-0e03bfd58155', project_id: projectID, name: 'dynamic-point-mamba',
@@ -114,7 +133,7 @@ function json(data: unknown, status = 200) {
 
 function match(url: URL, method: string, body?: unknown): Response | null {
   const path = url.pathname
-  if (path === '/api/v1/version') return json({ name: 'Gemcp', version: '0.19.0', commit: 'preview', built_at: '2026-08-25T00:00:00Z' })
+  if (path === '/api/v1/version') return json({ name: 'Gemcp', version: '0.20.0', commit: 'preview', built_at: '2026-08-27T00:00:00Z' })
   if (path === '/api/v1/setup/status') return json({ initialized: true })
   if (path === '/api/v1/auth/me') return json({ user_id: 'owner-id', tenant_id: 'tenant-id', email: 'owner@lab.local', role: 'owner' })
   if (path === '/api/v1/auth/logout' && method === 'POST') return json(undefined, 204)
@@ -132,21 +151,69 @@ function match(url: URL, method: string, body?: unknown): Response | null {
     return json({ ...project })
   }
   if (path === `/api/v1/projects/${projectID}/dataset-bindings` && method === 'GET') {
+    return json(datasetBindingRecords)
+  }
+  if (path === `/api/v1/projects/${projectID}/dataset-sources` && method === 'GET') {
     return json([{
-      id: 'binding-scanobjectnn', project_id: projectID, name: 'scanobjectnn-objbg', backend: 'autodl_elastic',
-      canonical_root: '/root/autodl-fs/datasets/ScanObjectNN', environment_variable: 'GEMCP_DATASET_SCANOBJECTNN_OBJBG',
-      required_markers: ['main_split/train.h5'], status: 'active',
+      name: 'scanobjectnn-objbg', display_name: 'ScanObjectNN OBJ-BG', backend: 'autodl_elastic',
+      canonical_root: '/root/autodl-fs/datasets/ScanObjectNN',
+      required_markers: ['main_split/training_objectdataset_augmentedrot_scale75.h5'],
+      notes: 'Register with HTTPS Hugging Face resolve URLs, then prepare_experiment with runtime_preset=provision.',
     }])
   }
+  if (path === `/api/v1/projects/${projectID}/environments` && method === 'GET') {
+    return json(environmentRecords)
+  }
+  if (path === `/api/v1/projects/${projectID}/environments` && method === 'POST') {
+    const input = body && typeof body === 'object' ? body as Record<string, unknown> : {}
+    const created = {
+      id: `environment-${environmentRecords.length + 1}`, project_id: projectID,
+      name: String(input.name || 'torch-train'), backend: String(input.backend || 'autodl_elastic'),
+      image_uuid: String(input.image_uuid || 'image-visible1234'), is_default: Boolean(input.set_default),
+      status: 'approved',
+    }
+    if (created.is_default) {
+      for (const record of environmentRecords) record.is_default = false
+    }
+    const existing = environmentRecords.find((item) => item.name === created.name)
+    if (existing) {
+      Object.assign(existing, created, { id: existing.id })
+      return json(existing)
+    }
+    environmentRecords.push(created)
+    return json(created, 201)
+  }
+  if (path.startsWith(`/api/v1/projects/${projectID}/environments/`) && method === 'DELETE') {
+    const id = path.split('/').pop()
+    const record = environmentRecords.find((item) => item.id === id)
+    if (record) record.status = 'disabled'
+    return json(record ?? environmentRecords[0])
+  }
   if (path === `/api/v1/projects/${projectID}/dataset-bindings` && method === 'POST') {
-    return json({
-      id: 'binding-new', project_id: projectID, name: 'new-dataset', backend: 'autodl_elastic',
-      canonical_root: '/root/autodl-fs/datasets/new', environment_variable: 'GEMCP_DATASET_NEW_DATASET',
-      required_markers: [], status: 'active',
-    }, 201)
+    const input = body && typeof body === 'object' ? body as Record<string, unknown> : {}
+    const name = String(input.name || input.catalog || 'new-dataset')
+    const created = {
+      id: `binding-${datasetBindingRecords.length + 1}`, project_id: projectID, name,
+      backend: String(input.backend || 'autodl_elastic'),
+      canonical_root: String(input.canonical_root || '/root/autodl-fs/datasets/new'),
+      environment_variable: `GEMCP_DATASET_${name.replace(/[^A-Za-z0-9]+/g, '_').toUpperCase()}`,
+      required_markers: Array.isArray(input.required_markers) ? input.required_markers as string[] : [],
+      sources: Array.isArray(input.sources) ? input.sources as Array<{ url: string; relative_path: string }> : [],
+      status: 'active',
+    }
+    const existing = datasetBindingRecords.find((item) => item.name === name)
+    if (existing) {
+      Object.assign(existing, created, { id: existing.id, environment_variable: existing.environment_variable })
+      return json(existing)
+    }
+    datasetBindingRecords.push(created)
+    return json(created, 201)
   }
   if (path.startsWith(`/api/v1/projects/${projectID}/dataset-bindings/`) && method === 'DELETE') {
-    return json({
+    const id = path.split('/').pop()
+    const record = datasetBindingRecords.find((item) => item.id === id)
+    if (record) record.status = 'disabled'
+    return json(record ?? {
       id: 'binding-scanobjectnn', project_id: projectID, name: 'scanobjectnn-objbg', backend: 'autodl_elastic',
       canonical_root: '/root/autodl-fs/datasets/ScanObjectNN', environment_variable: 'GEMCP_DATASET_SCANOBJECTNN_OBJBG',
       required_markers: ['main_split/train.h5'], status: 'disabled',

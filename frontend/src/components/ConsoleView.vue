@@ -23,7 +23,7 @@ import {
   WalletCards,
   X,
 } from '@lucide/vue'
-import { APIError, api, type AgentReadiness, type Attempt, type BuildInfo, type DatasetBinding, type Experiment, type OperationsFeed, type Project, type ProposalActivity, type Repository, type ResearchWorkspace, type RuntimeStatus, type User } from '../api'
+import { APIError, api, type AgentReadiness, type Attempt, type BuildInfo, type DatasetBinding, type DatasetCatalogEntry, type Experiment, type OperationsFeed, type Project, type ProjectEnvironment, type ProposalActivity, type Repository, type ResearchWorkspace, type RuntimeStatus, type User } from '../api'
 import { localizedState, useI18n } from '../i18n'
 import { pickDefaultProjectID } from '../projectSelect'
 import { draftStudyFromRepository, repositoryNameFromSSHURL } from '../studyImport'
@@ -78,8 +78,12 @@ const repositoryForm = reactive({ name: '', sshURL: '', defaultBranch: 'main' })
 const policyForm = reactive({ monthlyBudgetCNY: '' })
 const policyBusy = ref(false)
 const datasetBindings = ref<DatasetBinding[]>([])
-const datasetForm = reactive({ name: '', backend: 'autodl_elastic' as DatasetBinding['backend'], canonicalRoot: '/root/autodl-fs/datasets/', requiredMarkers: '' })
+const datasetSources = ref<DatasetCatalogEntry[]>([])
+const datasetForm = reactive({ catalog: '', name: '', backend: 'autodl_elastic' as DatasetBinding['backend'], canonicalRoot: '/root/autodl-fs/datasets/', requiredMarkers: '', sources: '' })
 const datasetBusy = ref(false)
+const environments = ref<ProjectEnvironment[]>([])
+const environmentForm = reactive({ name: '', backend: 'autodl_elastic', imageUUID: '', setDefault: false })
+const environmentBusy = ref(false)
 const confirmationTarget = ref<ProposalActivity | null>(null)
 const confirmationChecked = ref(false)
 const confirmationBusy = ref(false)
@@ -157,6 +161,8 @@ async function refreshProject(showSpinner = true) {
     hasActiveAgent.value = false
     agentReadiness.value = null
     datasetBindings.value = []
+    datasetSources.value = []
+    environments.value = []
     selectedStudyID.value = ''
     return
   }
@@ -167,7 +173,7 @@ async function refreshProject(showSpinner = true) {
       if (caught instanceof APIError && caught.status === 401) throw caught
       return null
     })
-    const [loadedRepositories, loadedExperiments, loadedOperations, loadedResearch, loadedAgents, loadedReadiness, loadedBindings] = await Promise.all([
+    const [loadedRepositories, loadedExperiments, loadedOperations, loadedResearch, loadedAgents, loadedReadiness, loadedBindings, loadedSources, loadedEnvironments] = await Promise.all([
       api.repositories(projectID),
       api.experiments(projectID),
       api.operations(projectID),
@@ -175,6 +181,8 @@ async function refreshProject(showSpinner = true) {
       api.agentTokens(projectID),
       readinessRequest,
       api.datasetBindings(projectID),
+      api.datasetSources(projectID).catch(() => []),
+      api.environments(projectID).catch(() => []),
     ])
     if (generation !== projectRefreshGeneration || selectedProjectID.value !== projectID) return
     repositories.value = loadedRepositories
@@ -184,6 +192,8 @@ async function refreshProject(showSpinner = true) {
     hasActiveAgent.value = (loadedAgents.tokens ?? []).some((token) => token.status === 'active')
     agentReadiness.value = loadedReadiness
     datasetBindings.value = loadedBindings
+    datasetSources.value = loadedSources
+    environments.value = loadedEnvironments
     if (loadedResearch.study) selectedStudyID.value = loadedResearch.study.id
     else if (loadedResearch.studies.length) selectedStudyID.value = loadedResearch.studies[0].id
     if (showSpinner) await verifyPendingGitHubRepositories(generation, projectID)
@@ -526,23 +536,80 @@ async function savePolicy() {
   }
 }
 
+function parseDatasetSources(raw: string) {
+  return raw.split('\n').map((line) => line.trim()).filter(Boolean).map((line) => {
+    const [url, relativePath, sha256] = line.split(/\s+/)
+    return { url, relative_path: relativePath || '', sha256 }
+  }).filter((source) => source.url && source.relative_path)
+}
+
+function applyDatasetCatalog(name: string) {
+  datasetForm.catalog = name
+  const entry = datasetSources.value.find((item) => item.name === name)
+  if (!entry) return
+  datasetForm.name = entry.name
+  datasetForm.backend = (entry.backend || 'autodl_elastic') as DatasetBinding['backend']
+  datasetForm.canonicalRoot = entry.canonical_root
+  datasetForm.requiredMarkers = entry.required_markers.join('\n')
+}
+
 async function registerDatasetBinding() {
   if (!selectedProject.value) return
   datasetBusy.value = true
   error.value = ''
   try {
     const markers = datasetForm.requiredMarkers.split(/[\n,]/).map((value) => value.trim()).filter(Boolean)
+    const sources = parseDatasetSources(datasetForm.sources)
     await api.createDatasetBinding(selectedProject.value.id, {
-      name: datasetForm.name, backend: datasetForm.backend, canonical_root: datasetForm.canonicalRoot,
+      name: datasetForm.name || undefined,
+      catalog: datasetForm.catalog || undefined,
+      backend: datasetForm.backend,
+      canonical_root: datasetForm.canonicalRoot || undefined,
       required_markers: markers,
+      sources,
     })
+    datasetForm.catalog = ''
     datasetForm.name = ''
     datasetForm.requiredMarkers = ''
+    datasetForm.sources = ''
     datasetBindings.value = await api.datasetBindings(selectedProject.value.id)
   } catch (caught) {
     handleError(caught, t('Could not register the dataset binding.', '无法注册数据集绑定。'))
   } finally {
     datasetBusy.value = false
+  }
+}
+
+async function registerEnvironment() {
+  if (!selectedProject.value) return
+  environmentBusy.value = true
+  error.value = ''
+  try {
+    await api.createEnvironment(selectedProject.value.id, {
+      name: environmentForm.name, backend: environmentForm.backend, image_uuid: environmentForm.imageUUID, set_default: environmentForm.setDefault,
+    })
+    environmentForm.name = ''
+    environmentForm.imageUUID = ''
+    environmentForm.setDefault = false
+    environments.value = await api.environments(selectedProject.value.id)
+  } catch (caught) {
+    handleError(caught, t('Could not register the Environment.', '无法注册 Environment。'))
+  } finally {
+    environmentBusy.value = false
+  }
+}
+
+async function removeEnvironment(record: ProjectEnvironment) {
+  if (!selectedProject.value) return
+  environmentBusy.value = true
+  error.value = ''
+  try {
+    await api.removeEnvironment(selectedProject.value.id, record.id)
+    environments.value = await api.environments(selectedProject.value.id)
+  } catch (caught) {
+    handleError(caught, t('Could not disable the Environment.', '无法停用 Environment。'))
+  } finally {
+    environmentBusy.value = false
   }
 }
 
@@ -641,22 +708,30 @@ onMounted(async () => {
           </div>
           <div class="policy-actions"><button class="primary-button small-button" type="submit" :disabled="policyBusy"><LoaderCircle v-if="policyBusy" :size="16" class="spinning" />{{ t('Save budget', '保存预算') }}</button><p>{{ t('This one Project budget is also the per-run ceiling. Existing runtime configuration is unchanged.', '这一个 Project 预算同时作为单次运行上限；现有运行时配置保持不变。') }}</p></div>
         </form>
-        <div class="subsection-heading"><div><h2>{{ t('AutoDL dataset bindings', 'AutoDL 数据集绑定') }}</h2><p>{{ t('Named /root/autodl-fs paths injected as GEMCP_DATASET_* on Public Elastic and Private Cloud.', '在公有云弹性和私有云上注入为 GEMCP_DATASET_* 的 /root/autodl-fs 路径。') }}</p></div></div>
+        <div class="subsection-heading"><div><h2>{{ t('AutoDL dataset bindings', 'AutoDL 数据集绑定') }}</h2><p>{{ t('Register /root/autodl-fs roots and optional HTTPS sources. Agents then prepare_experiment with runtime_preset=provision. Do not use workspace datasets for Public Elastic.', '登记 /root/autodl-fs 根路径和可选 HTTPS 来源。Agent 再用 runtime_preset=provision 准备实验。公有云弹性不要用 workspace dataset。') }}</p></div></div>
         <form class="dialog-form dataset-form" @submit.prevent="registerDatasetBinding">
-          <label>{{ t('Name', '名称') }}<input v-model="datasetForm.name" required maxlength="100" placeholder="scanobjectnn-objbg" spellcheck="false" /></label>
+          <label>{{ t('Catalog', '数据集目录') }}
+            <select :value="datasetForm.catalog" @change="applyDatasetCatalog(($event.target as HTMLSelectElement).value)">
+              <option value="">{{ t('Custom path', '自定义路径') }}</option>
+              <option v-for="entry in datasetSources" :key="entry.name" :value="entry.name">{{ entry.display_name }}</option>
+            </select>
+          </label>
+          <label>{{ t('Name', '名称') }}<input v-model="datasetForm.name" :required="!datasetForm.catalog" maxlength="100" placeholder="scanobjectnn-objbg" spellcheck="false" /></label>
           <label>{{ t('Backend', '后端') }}
             <select v-model="datasetForm.backend">
               <option value="autodl_elastic">{{ t('Public Elastic', '公有云弹性') }}</option>
               <option value="autodl_private">{{ t('Private Cloud', '私有云') }}</option>
+              <option value="ssh_cloud">Cloud SSH</option>
             </select>
           </label>
-          <label>{{ t('Canonical root', '规范根路径') }}<input v-model="datasetForm.canonicalRoot" required maxlength="1024" placeholder="/root/autodl-fs/datasets/ScanObjectNN" spellcheck="false" /></label>
+          <label>{{ t('Canonical root', '规范根路径') }}<input v-model="datasetForm.canonicalRoot" :required="!datasetForm.catalog" maxlength="1024" placeholder="/root/autodl-fs/datasets/ScanObjectNN" spellcheck="false" /></label>
           <label>{{ t('Required markers', '必需文件') }}<textarea v-model="datasetForm.requiredMarkers" rows="2" maxlength="2000" :placeholder="t('Optional relative files, one per line', '可选相对文件，一行一个')"></textarea></label>
+          <label>{{ t('HTTPS sources', 'HTTPS 来源') }}<textarea v-model="datasetForm.sources" rows="3" maxlength="8000" :placeholder="t('url relative_path [sha256], one file per line', 'url 相对路径 [sha256]，一行一个文件')"></textarea></label>
           <button class="primary-button small-button" type="submit" :disabled="datasetBusy"><LoaderCircle v-if="datasetBusy" :size="16" class="spinning" /><Plus v-else :size="16" />{{ t('Register dataset', '注册数据集') }}</button>
         </form>
         <div v-if="datasetBindings.length" class="table-scroll">
           <table class="data-table">
-            <thead><tr><th>{{ t('Status', '状态') }}</th><th>{{ t('Name', '名称') }}</th><th>{{ t('Backend', '后端') }}</th><th>{{ t('Root', '根路径') }}</th><th>{{ t('Variable', '变量') }}</th><th>{{ t('Actions', '操作') }}</th></tr></thead>
+            <thead><tr><th>{{ t('Status', '状态') }}</th><th>{{ t('Name', '名称') }}</th><th>{{ t('Backend', '后端') }}</th><th>{{ t('Root', '根路径') }}</th><th>{{ t('Variable', '变量') }}</th><th>{{ t('Sources', '来源') }}</th><th>{{ t('Actions', '操作') }}</th></tr></thead>
             <tbody>
               <tr v-for="binding in datasetBindings" :key="binding.id">
                 <td><span class="state-badge" :data-state="binding.status"><span />{{ stateLabel(binding.status) }}</span></td>
@@ -664,12 +739,41 @@ onMounted(async () => {
                 <td>{{ binding.backend }}</td>
                 <td><code>{{ binding.canonical_root }}</code></td>
                 <td><code>{{ binding.environment_variable }}</code></td>
+                <td>{{ binding.sources?.length || 0 }}</td>
                 <td><button v-if="binding.status === 'active'" class="icon-button" type="button" :title="t('Disable dataset binding', '停用数据集绑定')" :disabled="datasetBusy" @click="removeDatasetBinding(binding)"><X :size="16" /></button></td>
               </tr>
             </tbody>
           </table>
         </div>
-        <div v-else class="empty-state compact-empty"><span class="empty-icon"><Boxes :size="21" /></span><h3>{{ t('No AutoDL dataset bindings', '尚未注册 AutoDL 数据集') }}</h3><p>{{ t('Register the /root/autodl-fs dataset root before probe or train on Public Elastic.', '在公有云弹性上跑 probe/train 之前，先注册 /root/autodl-fs 数据集根路径。') }}</p></div>
+        <div v-else class="empty-state compact-empty"><span class="empty-icon"><Boxes :size="21" /></span><h3>{{ t('No AutoDL dataset bindings', '尚未注册 AutoDL 数据集') }}</h3><p>{{ t('Register a catalog or /root/autodl-fs root with HTTPS sources, then confirm a provision run before probe or train.', '先登记目录或 /root/autodl-fs 根路径及 HTTPS 来源，再确认一次 provision，然后才能 probe/train。') }}</p></div>
+        <div class="subsection-heading"><div><h2>{{ t('AutoDL environments', 'AutoDL 环境') }}</h2><p>{{ t('Register a Provider-visible image so Agents are not locked to the first-run UUID. Official image-* IDs can be entered here.', '登记 Provider 可见镜像，避免 Agent 被首次安装的 UUID 锁死。官方 image-* 可在此填写。') }}</p></div></div>
+        <form class="dialog-form dataset-form" @submit.prevent="registerEnvironment">
+          <label>{{ t('Name', '名称') }}<input v-model="environmentForm.name" required maxlength="100" placeholder="torch-train" spellcheck="false" /></label>
+          <label>{{ t('Backend', '后端') }}
+            <select v-model="environmentForm.backend">
+              <option value="autodl_elastic">{{ t('Public Elastic', '公有云弹性') }}</option>
+              <option value="autodl_private">{{ t('Private Cloud', '私有云') }}</option>
+            </select>
+          </label>
+          <label>Image UUID<input v-model="environmentForm.imageUUID" required maxlength="128" placeholder="image-6c15b8aad2" spellcheck="false" /></label>
+          <label class="checkbox-row"><input v-model="environmentForm.setDefault" type="checkbox" />{{ t('Set as default', '设为默认') }}</label>
+          <button class="primary-button small-button" type="submit" :disabled="environmentBusy"><LoaderCircle v-if="environmentBusy" :size="16" class="spinning" /><Plus v-else :size="16" />{{ t('Register environment', '注册环境') }}</button>
+        </form>
+        <div v-if="environments.length" class="table-scroll">
+          <table class="data-table">
+            <thead><tr><th>{{ t('Status', '状态') }}</th><th>{{ t('Name', '名称') }}</th><th>{{ t('Backend', '后端') }}</th><th>Image</th><th>{{ t('Default', '默认') }}</th><th>{{ t('Actions', '操作') }}</th></tr></thead>
+            <tbody>
+              <tr v-for="record in environments" :key="record.id">
+                <td><span class="state-badge" :data-state="record.status"><span />{{ stateLabel(record.status) }}</span></td>
+                <td>{{ record.name }}</td>
+                <td>{{ record.backend }}</td>
+                <td><code>{{ record.image_uuid }}</code></td>
+                <td>{{ record.is_default ? t('Yes', '是') : t('No', '否') }}</td>
+                <td><button v-if="record.status === 'approved'" class="icon-button" type="button" :title="t('Disable environment', '停用环境')" :disabled="environmentBusy" @click="removeEnvironment(record)"><X :size="16" /></button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
         <div class="subsection-heading"><div><h2>{{ t('Private repositories', '私有仓库') }}</h2><p>{{ t('Read-only Deploy Keys and pinned GitHub host identity.', '只读 Deploy Key 和固定的 GitHub 主机身份。') }}</p></div><button class="primary-button small-button" type="button" @click="openCreateRepository"><Plus :size="16" />{{ t('Register repository', '注册仓库') }}</button></div>
         <div v-if="repositories.length" class="table-scroll">
           <table class="data-table repository-table">

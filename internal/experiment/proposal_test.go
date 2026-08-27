@@ -705,7 +705,7 @@ func TestPreparedExperimentRejectsUnknownAndOversizedPresets(t *testing.T) {
 	ctx := context.Background()
 	input := validPrepare()
 	input.RuntimePreset = "full"
-	if _, err := service.Prepare(ctx, f.principal, input); err == nil || !strings.Contains(err.Error(), "runtime_preset must be smoke, probe, or train") {
+	if _, err := service.Prepare(ctx, f.principal, input); err == nil || !strings.Contains(err.Error(), "runtime_preset must be smoke, probe, train, or provision") {
 		t.Fatalf("unknown preset error = %v", err)
 	}
 	input = validPrepare()
@@ -750,6 +750,77 @@ func TestPreparedTrainRequiresDatasetBindingAndOwnerCanConfirm(t *testing.T) {
 	})
 	if err != nil || result.Experiment.ID == "" || result.Experiment.MaxRuntimeSeconds != 3600 {
 		t.Fatalf("OwnerSubmitPrepared() = %+v, %v", result, err)
+	}
+}
+
+func TestPreparedProvisionRequiresSourcesAndOmitsArgv(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	service := preparedService(t, f, 2)
+	ctx := context.Background()
+	input := PrepareInput{RuntimePreset: "provision"}
+	blocked, err := service.Prepare(ctx, f.principal, input)
+	if err != nil || blocked.Proposal == nil || blocked.Proposal.Eligible {
+		t.Fatalf("provision without binding Prepare() = %+v, %v", blocked, err)
+	}
+	binding, err := f.client.DatasetBinding.Create().
+		SetTenantID(f.principal.TenantID).SetProjectID(f.project.ID).
+		SetName("scanobjectnn-objbg").SetBackend("autodl_private").
+		SetCanonicalRoot("/root/autodl-fs/datasets/ScanObjectNN").
+		SetEnvironmentVariable("GEMCP_DATASET_SCANOBJECTNN_OBJBG").
+		SetRequiredMarkers([]string{"main_split/train.h5"}).
+		Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stillBlocked, err := service.Prepare(ctx, f.principal, input)
+	if err != nil || stillBlocked.Proposal == nil || stillBlocked.Proposal.Eligible {
+		t.Fatalf("provision without sources Prepare() = %+v, %v", stillBlocked, err)
+	}
+	if _, err := binding.Update().
+		SetSources([]map[string]string{{
+			"url": "https://huggingface.co/datasets/example/resolve/main/train.h5", "relative_path": "main_split/train.h5",
+		}}).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Prepare(ctx, f.principal, PrepareInput{RuntimePreset: "provision", Argv: []string{"python", "fetch.py"}}); err == nil || !strings.Contains(err.Error(), "omit argv") {
+		t.Fatalf("provision with argv error = %v", err)
+	}
+	prepared, err := service.Prepare(ctx, f.principal, input)
+	if err != nil || prepared.Proposal == nil || !prepared.Proposal.Eligible || prepared.Proposal.RuntimePreset != "provision" ||
+		len(prepared.Proposal.Execution.Argv) != 1 || prepared.Proposal.Execution.Argv[0] != "gemcp-dataset-provision" ||
+		len(prepared.Proposal.Resource.DatasetBindings) != 1 || len(prepared.Proposal.Resource.DatasetBindings[0].Sources) != 1 {
+		t.Fatalf("provision Prepare() = %+v, %v", prepared, err)
+	}
+}
+
+func TestPreparedSSHCloudInjectsDatasetBindings(t *testing.T) {
+	f := newFixture(t, 1, 1)
+	ctx := context.Background()
+	node := createSSHCloudHost(t, f, nil)
+	environmentName, profileName := createSSHCloudRuntime(t, f, node)
+	if _, err := f.client.DatasetBinding.Create().
+		SetTenantID(f.principal.TenantID).SetProjectID(f.project.ID).
+		SetName("scanobjectnn-objbg").SetBackend("ssh_cloud").
+		SetCanonicalRoot("/root/data/ScanObjectNN").
+		SetEnvironmentVariable("GEMCP_DATASET_SCANOBJECTNN_OBJBG").
+		Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	controller := &fakeSSHCloudController{result: sshcloud.EnsureResult{
+		EnvironmentName: environmentName, ProfileName: profileName, ResolvedImage: sshcloud.HostImage,
+	}}
+	git := &proposalGit{resolved: proposalCommit, archive: proposalArchive(t)}
+	service := NewService(f.client, f.box, git, WithSSHCloud(controller), WithPreparedExperiments(
+		git, git, nil, proposalStatusRuntime{status: execution.RuntimeStatus{
+			SchedulerEnabled: true, SchedulerHealthy: true, PublicURLConfigured: true, SSHCloudEnabled: true, GlobalConcurrency: 2,
+		}}, ProposalConfig{SourceMaxBytes: 1 << 20, SSHCloudEnabled: true},
+	))
+	prepared, err := service.Prepare(ctx, f.principal, validPrepare())
+	if err != nil || prepared.Proposal == nil || !prepared.Proposal.Eligible || len(prepared.Proposal.Resource.DatasetBindings) != 1 {
+		t.Fatalf("SSH Prepare() = %+v, %v", prepared, err)
+	}
+	if prepared.Proposal.Resource.DatasetBindings[0].CanonicalRoot != "/root/data/ScanObjectNN" {
+		t.Fatalf("SSH dataset binding = %+v", prepared.Proposal.Resource.DatasetBindings)
 	}
 }
 

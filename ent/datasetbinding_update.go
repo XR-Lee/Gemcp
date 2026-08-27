@@ -89,6 +89,24 @@ func (_u *DatasetBindingUpdate) AppendRequiredMarkers(v []string) *DatasetBindin
 	return _u
 }
 
+// SetSources sets the "sources" field.
+func (_u *DatasetBindingUpdate) SetSources(v []map[string]string) *DatasetBindingUpdate {
+	_u.mutation.SetSources(v)
+	return _u
+}
+
+// AppendSources appends value to the "sources" field.
+func (_u *DatasetBindingUpdate) AppendSources(v []map[string]string) *DatasetBindingUpdate {
+	_u.mutation.AppendSources(v)
+	return _u
+}
+
+// ClearSources clears the value of the "sources" field.
+func (_u *DatasetBindingUpdate) ClearSources() *DatasetBindingUpdate {
+	_u.mutation.ClearSources()
+	return _u
+}
+
 // SetStatus sets the "status" field.
 func (_u *DatasetBindingUpdate) SetStatus(v datasetbinding.Status) *DatasetBindingUpdate {
 	_u.mutation.SetStatus(v)
@@ -207,6 +225,17 @@ func (_u *DatasetBindingUpdate) sqlSave(ctx context.Context) (_node int, err err
 			sqljson.Append(u, datasetbinding.FieldRequiredMarkers, value)
 		})
 	}
+	if value, ok := _u.mutation.Sources(); ok {
+		_spec.SetField(datasetbinding.FieldSources, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedSources(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, datasetbinding.FieldSources, value)
+		})
+	}
+	if _u.mutation.SourcesCleared() {
+		_spec.ClearField(datasetbinding.FieldSources, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(datasetbinding.FieldStatus, field.TypeEnum, value)
 	}
@@ -287,6 +316,24 @@ func (_u *DatasetBindingUpdateOne) SetRequiredMarkers(v []string) *DatasetBindin
 // AppendRequiredMarkers appends value to the "required_markers" field.
 func (_u *DatasetBindingUpdateOne) AppendRequiredMarkers(v []string) *DatasetBindingUpdateOne {
 	_u.mutation.AppendRequiredMarkers(v)
+	return _u
+}
+
+// SetSources sets the "sources" field.
+func (_u *DatasetBindingUpdateOne) SetSources(v []map[string]string) *DatasetBindingUpdateOne {
+	_u.mutation.SetSources(v)
+	return _u
+}
+
+// AppendSources appends value to the "sources" field.
+func (_u *DatasetBindingUpdateOne) AppendSources(v []map[string]string) *DatasetBindingUpdateOne {
+	_u.mutation.AppendSources(v)
+	return _u
+}
+
+// ClearSources clears the value of the "sources" field.
+func (_u *DatasetBindingUpdateOne) ClearSources() *DatasetBindingUpdateOne {
+	_u.mutation.ClearSources()
 	return _u
 }
 
@@ -437,6 +484,17 @@ func (_u *DatasetBindingUpdateOne) sqlSave(ctx context.Context) (_node *DatasetB
 		_spec.AddModifier(func(u *sql.UpdateBuilder) {
 			sqljson.Append(u, datasetbinding.FieldRequiredMarkers, value)
 		})
+	}
+	if value, ok := _u.mutation.Sources(); ok {
+		_spec.SetField(datasetbinding.FieldSources, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedSources(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, datasetbinding.FieldSources, value)
+		})
+	}
+	if _u.mutation.SourcesCleared() {
+		_spec.ClearField(datasetbinding.FieldSources, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(datasetbinding.FieldStatus, field.TypeEnum, value)

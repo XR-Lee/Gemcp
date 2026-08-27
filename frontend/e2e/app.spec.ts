@@ -167,7 +167,9 @@ const researchWorkspace = {
 const datasetBindings = [{
   id: 'binding-scanobjectnn', project_id: project.id, name: 'scanobjectnn-objbg', backend: 'autodl_elastic',
   canonical_root: '/root/autodl-fs/datasets/ScanObjectNN', environment_variable: 'GEMCP_DATASET_SCANOBJECTNN_OBJBG',
-  required_markers: ['main_split/train.h5'], status: 'active',
+  required_markers: ['main_split/train.h5'],
+  sources: [{ url: 'https://huggingface.co/datasets/example/resolve/main/train.h5', relative_path: 'main_split/train.h5' }],
+  status: 'active',
 }]
 const operationsFeed = {
   activities: [{
@@ -489,13 +491,38 @@ async function mockConsole(page: Page, counters?: { providerQueries?: number; se
     if (path === `/api/v1/projects/${project.id}/dataset-bindings` && route.request().method() === 'GET') {
       return fulfill(route, datasetBindings)
     }
+    if (path === `/api/v1/projects/${project.id}/dataset-sources` && route.request().method() === 'GET') {
+      return fulfill(route, [{
+        name: 'scanobjectnn-objbg', display_name: 'ScanObjectNN OBJ-BG', backend: 'autodl_elastic',
+        canonical_root: '/root/autodl-fs/datasets/ScanObjectNN', required_markers: [], notes: '',
+      }])
+    }
+    if (path === `/api/v1/projects/${project.id}/environments` && route.request().method() === 'GET') {
+      return fulfill(route, [{
+        id: 'environment-elastic', project_id: project.id, name: 'public-elastic', backend: 'autodl_elastic',
+        image_uuid: 'image-6c15b8aad2', is_default: true, status: 'approved',
+      }])
+    }
+    if (path === `/api/v1/projects/${project.id}/environments` && route.request().method() === 'POST') {
+      const body = route.request().postDataJSON()
+      return fulfill(route, {
+        id: 'environment-new', project_id: project.id, name: body.name, backend: body.backend || 'autodl_elastic',
+        image_uuid: body.image_uuid, is_default: !!body.set_default, status: 'approved',
+      }, 201)
+    }
+    if (path.startsWith(`/api/v1/projects/${project.id}/environments/`) && route.request().method() === 'DELETE') {
+      return fulfill(route, {
+        id: 'environment-elastic', project_id: project.id, name: 'public-elastic', backend: 'autodl_elastic',
+        image_uuid: 'image-6c15b8aad2', is_default: false, status: 'disabled',
+      })
+    }
     if (path === `/api/v1/projects/${project.id}/dataset-bindings` && route.request().method() === 'POST') {
       const body = route.request().postDataJSON()
-      expect(body.canonical_root).toMatch(/^\/root\/autodl-fs\//)
+      expect(body.canonical_root || body.catalog).toBeTruthy()
       return fulfill(route, {
-        id: 'binding-new', project_id: project.id, name: body.name, backend: body.backend || 'autodl_elastic',
-        canonical_root: body.canonical_root, environment_variable: 'GEMCP_DATASET_NEW_DATASET',
-        required_markers: body.required_markers || [], status: 'active',
+        id: 'binding-new', project_id: project.id, name: body.name || body.catalog, backend: body.backend || 'autodl_elastic',
+        canonical_root: body.canonical_root || '/root/autodl-fs/datasets/ScanObjectNN', environment_variable: 'GEMCP_DATASET_NEW_DATASET',
+        required_markers: body.required_markers || [], sources: body.sources || [], status: 'active',
       }, 201)
     }
     if (path.startsWith(`/api/v1/projects/${project.id}/dataset-bindings/`) && route.request().method() === 'DELETE') {
@@ -683,6 +710,22 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await expect(page.getByText('AutoDL dataset bindings')).toBeVisible()
   await expect(page.getByRole('cell', { name: 'scanobjectnn-objbg', exact: true })).toBeVisible()
   await expect(page.getByText('/root/autodl-fs/datasets/ScanObjectNN')).toBeVisible()
+  await expect(page.getByLabel('Catalog')).toBeVisible()
+  await expect(page.getByRole('option', { name: 'ScanObjectNN OBJ-BG' })).toBeAttached()
+  await expect(page.getByLabel('HTTPS sources')).toBeVisible()
+  await page.getByLabel('Catalog').selectOption('scanobjectnn-objbg')
+  await expect(page.getByPlaceholder('scanobjectnn-objbg')).toHaveValue('scanobjectnn-objbg')
+  await expect(page.getByPlaceholder('/root/autodl-fs/datasets/ScanObjectNN')).toHaveValue('/root/autodl-fs/datasets/ScanObjectNN')
+  await page.getByLabel('HTTPS sources').fill('https://huggingface.co/datasets/example/resolve/main/train.h5 main_split/train.h5')
+  await page.getByRole('button', { name: 'Register dataset' }).click()
+  await expect(page.getByRole('button', { name: 'Register dataset' })).toBeEnabled()
+  await expect(page.getByText('AutoDL environments')).toBeVisible()
+  await expect(page.getByRole('cell', { name: 'public-elastic', exact: true })).toBeVisible()
+  await expect(page.getByText('image-6c15b8aad2')).toBeVisible()
+  await page.getByPlaceholder('torch-train').fill('torch-train')
+  await page.getByPlaceholder('image-6c15b8aad2').fill('image-visible1234')
+  await page.getByRole('button', { name: 'Register environment' }).click()
+  await expect(page.getByRole('button', { name: 'Register environment' })).toBeEnabled()
   await page.getByLabel('Monthly budget (CNY)').fill('120')
   await page.getByRole('button', { name: 'Save budget' }).click()
   await expect(page.getByRole('button', { name: 'Save budget' })).toBeEnabled()

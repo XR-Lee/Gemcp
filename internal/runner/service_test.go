@@ -74,10 +74,14 @@ type runnerFixture struct {
 }
 
 func newRunnerFixture(t *testing.T) *runnerFixture {
-	return newRunnerFixtureWithArgv(t, nil)
+	return newRunnerFixtureWith(t, nil, map[string]any{})
 }
 
 func newRunnerFixtureWithArgv(t *testing.T, argv []string) *runnerFixture {
+	return newRunnerFixtureWith(t, argv, map[string]any{})
+}
+
+func newRunnerFixtureWith(t *testing.T, argv []string, environmentSnapshot map[string]any) *runnerFixture {
 	t.Helper()
 	client := enttest.Open(t, dialect.SQLite, "file:"+t.Name()+"?mode=memory&cache=shared&_fk=1")
 	t.Cleanup(func() { _ = client.Close() })
@@ -100,7 +104,7 @@ func newRunnerFixtureWithArgv(t *testing.T, argv []string) *runnerFixture {
 		SetRepositoryID(repositoryRecord.ID).SetEnvironmentID(environment.ID).SetResourceProfileID(profile.ID).
 		SetState("provisioning").SetCommitSha("0123456789012345678901234567890123456789").SetCommand("python train.py").
 		SetMaxRuntimeSeconds(60).SetTimeoutExtensionSeconds(30).SetTerminationGraceSeconds(5).
-		SetRepositorySnapshot(map[string]any{}).SetEnvironmentSnapshot(map[string]any{}).SetResourceSnapshot(map[string]any{}).
+		SetRepositorySnapshot(map[string]any{}).SetEnvironmentSnapshot(environmentSnapshot).SetResourceSnapshot(map[string]any{}).
 		SetOutputPath("/root/autodl-fs/projects/p/experiments/e/").SetReservedCostMilli(1000)
 	if len(argv) > 0 {
 		experimentCreate.SetExecutionMode("argv").SetArgv(argv)
@@ -130,6 +134,27 @@ func TestSpecUsesExactlyOneExecutionAuthority(t *testing.T) {
 	}
 	if spec.ExecutionMode != "argv" || spec.Command != "" || strings.Join(spec.Argv, "|") != "python|train.py|--seed|2" {
 		t.Fatalf("argv Runner spec = %+v", spec)
+	}
+}
+
+func TestSpecIncludesDatasetProvisionAndInstall(t *testing.T) {
+	f := newRunnerFixtureWith(t, nil, map[string]any{
+		"dataset_bindings": []map[string]any{{
+			"name": "scanobjectnn-objbg", "canonical_root": "/root/autodl-fs/datasets/ScanObjectNN",
+			"environment_variable": "GEMCP_DATASET_SCANOBJECTNN_OBJBG",
+			"sources": []map[string]string{{"url": "https://huggingface.co/datasets/example/resolve/main/train.h5", "relative_path": "main_split/train.h5"}},
+		}},
+		"dataset_provision": []map[string]any{{
+			"name": "scanobjectnn-objbg", "canonical_root": "/root/autodl-fs/datasets/ScanObjectNN",
+			"environment_variable": "GEMCP_DATASET_SCANOBJECTNN_OBJBG",
+			"sources": []map[string]string{{"url": "https://huggingface.co/datasets/example/resolve/main/train.h5", "relative_path": "main_split/train.h5"}},
+		}},
+		"install_dependencies": map[string]any{"requirements_file": "requirements.gemcp.txt"},
+	})
+	spec, err := f.service.Spec(context.Background(), f.token)
+	if err != nil || spec.DatasetProvision == nil || len(spec.DatasetProvision.Bindings) != 1 ||
+		len(spec.DatasetBindings) != 1 || spec.InstallDependencies == nil || spec.InstallDependencies.RequirementsFile != "requirements.gemcp.txt" {
+		t.Fatalf("provision spec = %+v, %v", spec, err)
 	}
 }
 

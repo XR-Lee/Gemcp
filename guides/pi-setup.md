@@ -32,7 +32,7 @@ After the four checks pass:
 POST {{GEMCP_PUBLIC_URL}}/api/v1/agent-enrollments/complete
 Content-Type: application/json
 
-{"code":"<same fragment code>","client":"<pi|codex|opencode|claude-code|grok>","tool_count":26,"checks":["tools","guide","options","cost"]}
+{"code":"<same fragment code>","client":"<pi|codex|opencode|claude-code|grok>","tool_count":28,"checks":["tools","guide","options","cost"]}
 ```
 
 `client` is a short identifier for the MCP host you configured, for example `claude-code`, `codex`, `opencode`, `grok`, or `pi-mcp-adapter/<version>`.

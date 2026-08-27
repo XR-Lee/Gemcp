@@ -215,6 +215,7 @@ Names may be accepted only when they resolve unambiguously inside the authentica
 - omit `ref` to use that repository's default branch at preparation time;
 - omit Environment and Resource Profile to use compatible Project defaults;
 - omit `runtime_preset` to use the workload default, or the built-in `smoke` preset for one-shot preparation;
+- use `runtime_preset=provision` with no argv to download registered AutoDL HTTPS sources onto `/root/autodl-fs`;
 - return structured `choice_required` candidates when any omitted field is ambiguous;
 - never guess between multiple compatible options.
 

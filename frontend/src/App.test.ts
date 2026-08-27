@@ -77,6 +77,8 @@ describe('App', () => {
       if (path.endsWith('/api/v1/projects/project-id/research')) return response({ data: { project_id: project.id, studies: [], generated_at: '2026-07-17T00:00:00Z' } })
       if (path.endsWith('/api/v1/projects/project-id/agent-tokens')) return response({ data: { tokens: [], enrollments: [], config_file_name: 'mcp.json' } })
       if (path.endsWith('/api/v1/projects/project-id/dataset-bindings')) return response({ data: [] })
+      if (path.endsWith('/api/v1/projects/project-id/dataset-sources')) return response({ data: [] })
+      if (path.endsWith('/api/v1/projects/project-id/environments')) return response({ data: [] })
       if (path.endsWith('/api/v1/projects/project-id/agent-readiness')) return response({ error: {
         code: 'READINESS_UNAVAILABLE', message: 'compute readiness is temporarily unavailable',
       } }, 503)

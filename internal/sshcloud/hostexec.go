@@ -72,6 +72,11 @@ func validateHostSpec(spec remoteWorkload) error {
 	if spec.WorkingDir != "" && (!strings.HasPrefix(spec.WorkingDir, "/") || strings.ContainsAny(spec.WorkingDir, "\x00")) {
 		return fmt.Errorf("working directory must be an absolute path")
 	}
+	for _, env := range spec.DatasetEnv {
+		if _, ok := sanitizeDatasetEnv(env.Name, env.Value); !ok {
+			return fmt.Errorf("dataset environment variable is invalid")
+		}
+	}
 	return nil
 }
 
@@ -89,7 +94,7 @@ else
   cd "${HOME:-/}" || exit 127
 fi
 export GEMCP_OUTPUT_DIR="$dir/outputs"
-if command -v setsid >/dev/null 2>&1; then
+` + hostDatasetExports(spec) + `if command -v setsid >/dev/null 2>&1; then
   setsid sh -lc ` + shellQuote(command+`; echo $? > "$dir/exit"`) + ` </dev/null >"$dir/log" 2>&1 &
 else
   nohup sh -lc ` + shellQuote(command+`; echo $? > "$dir/exit"`) + ` </dev/null >"$dir/log" 2>&1 &
@@ -144,6 +149,17 @@ func hostCommand(spec remoteWorkload) string {
 		return joinQuoted(spec.Argv)
 	}
 	return spec.Command
+}
+
+func hostDatasetExports(spec remoteWorkload) string {
+	if len(spec.DatasetEnv) == 0 {
+		return ""
+	}
+	var builder strings.Builder
+	for _, env := range spec.DatasetEnv {
+		builder.WriteString("export " + env.Name + "=" + shellQuote(env.Value) + "\n")
+	}
+	return builder.String()
 }
 
 func parseHostPID(raw string) string {

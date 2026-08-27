@@ -11992,6 +11992,8 @@ type DatasetBindingMutation struct {
 	environment_variable   *string
 	required_markers       *[]string
 	appendrequired_markers []string
+	sources                *[]map[string]string
+	appendsources          []map[string]string
 	status                 *datasetbinding.Status
 	clearedFields          map[string]struct{}
 	tenant                 *int
@@ -12527,6 +12529,71 @@ func (m *DatasetBindingMutation) ResetRequiredMarkers() {
 	m.appendrequired_markers = nil
 }
 
+// SetSources sets the "sources" field.
+func (m *DatasetBindingMutation) SetSources(value []map[string]string) {
+	m.sources = &value
+	m.appendsources = nil
+}
+
+// Sources returns the value of the "sources" field in the mutation.
+func (m *DatasetBindingMutation) Sources() (r []map[string]string, exists bool) {
+	v := m.sources
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSources returns the old "sources" field's value of the DatasetBinding entity.
+// If the DatasetBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DatasetBindingMutation) OldSources(ctx context.Context) (v []map[string]string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSources is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSources requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSources: %w", err)
+	}
+	return oldValue.Sources, nil
+}
+
+// AppendSources adds value to the "sources" field.
+func (m *DatasetBindingMutation) AppendSources(value []map[string]string) {
+	m.appendsources = append(m.appendsources, value...)
+}
+
+// AppendedSources returns the list of values that were appended to the "sources" field in this mutation.
+func (m *DatasetBindingMutation) AppendedSources() ([]map[string]string, bool) {
+	if len(m.appendsources) == 0 {
+		return nil, false
+	}
+	return m.appendsources, true
+}
+
+// ClearSources clears the value of the "sources" field.
+func (m *DatasetBindingMutation) ClearSources() {
+	m.sources = nil
+	m.appendsources = nil
+	m.clearedFields[datasetbinding.FieldSources] = struct{}{}
+}
+
+// SourcesCleared returns if the "sources" field was cleared in this mutation.
+func (m *DatasetBindingMutation) SourcesCleared() bool {
+	_, ok := m.clearedFields[datasetbinding.FieldSources]
+	return ok
+}
+
+// ResetSources resets all changes to the "sources" field.
+func (m *DatasetBindingMutation) ResetSources() {
+	m.sources = nil
+	m.appendsources = nil
+	delete(m.clearedFields, datasetbinding.FieldSources)
+}
+
 // SetStatus sets the "status" field.
 func (m *DatasetBindingMutation) SetStatus(d datasetbinding.Status) {
 	m.status = &d
@@ -12678,7 +12745,7 @@ func (m *DatasetBindingMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *DatasetBindingMutation) Fields() []string {
-	fields := make([]string, 0, 12)
+	fields := make([]string, 0, 13)
 	if m.public_id != nil {
 		fields = append(fields, datasetbinding.FieldPublicID)
 	}
@@ -12711,6 +12778,9 @@ func (m *DatasetBindingMutation) Fields() []string {
 	}
 	if m.required_markers != nil {
 		fields = append(fields, datasetbinding.FieldRequiredMarkers)
+	}
+	if m.sources != nil {
+		fields = append(fields, datasetbinding.FieldSources)
 	}
 	if m.status != nil {
 		fields = append(fields, datasetbinding.FieldStatus)
@@ -12745,6 +12815,8 @@ func (m *DatasetBindingMutation) Field(name string) (ent.Value, bool) {
 		return m.EnvironmentVariable()
 	case datasetbinding.FieldRequiredMarkers:
 		return m.RequiredMarkers()
+	case datasetbinding.FieldSources:
+		return m.Sources()
 	case datasetbinding.FieldStatus:
 		return m.Status()
 	}
@@ -12778,6 +12850,8 @@ func (m *DatasetBindingMutation) OldField(ctx context.Context, name string) (ent
 		return m.OldEnvironmentVariable(ctx)
 	case datasetbinding.FieldRequiredMarkers:
 		return m.OldRequiredMarkers(ctx)
+	case datasetbinding.FieldSources:
+		return m.OldSources(ctx)
 	case datasetbinding.FieldStatus:
 		return m.OldStatus(ctx)
 	}
@@ -12866,6 +12940,13 @@ func (m *DatasetBindingMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetRequiredMarkers(v)
 		return nil
+	case datasetbinding.FieldSources:
+		v, ok := value.([]map[string]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSources(v)
+		return nil
 	case datasetbinding.FieldStatus:
 		v, ok := value.(datasetbinding.Status)
 		if !ok {
@@ -12909,6 +12990,9 @@ func (m *DatasetBindingMutation) ClearedFields() []string {
 	if m.FieldCleared(datasetbinding.FieldAgentTokenID) {
 		fields = append(fields, datasetbinding.FieldAgentTokenID)
 	}
+	if m.FieldCleared(datasetbinding.FieldSources) {
+		fields = append(fields, datasetbinding.FieldSources)
+	}
 	return fields
 }
 
@@ -12925,6 +13009,9 @@ func (m *DatasetBindingMutation) ClearField(name string) error {
 	switch name {
 	case datasetbinding.FieldAgentTokenID:
 		m.ClearAgentTokenID()
+		return nil
+	case datasetbinding.FieldSources:
+		m.ClearSources()
 		return nil
 	}
 	return fmt.Errorf("unknown DatasetBinding nullable field %s", name)
@@ -12966,6 +13053,9 @@ func (m *DatasetBindingMutation) ResetField(name string) error {
 		return nil
 	case datasetbinding.FieldRequiredMarkers:
 		m.ResetRequiredMarkers()
+		return nil
+	case datasetbinding.FieldSources:
+		m.ResetSources()
 		return nil
 	case datasetbinding.FieldStatus:
 		m.ResetStatus()

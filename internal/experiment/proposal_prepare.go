@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"path"
 	"regexp"
 	"sort"
 	"strings"
@@ -34,6 +35,7 @@ import (
 	"github.com/XR-Lee/Gemcp/internal/provider"
 	"github.com/XR-Lee/Gemcp/internal/sourcearchive"
 	"github.com/XR-Lee/Gemcp/internal/sshcloud"
+	"github.com/XR-Lee/Gemcp/internal/workspacecatalog"
 	"github.com/google/uuid"
 )
 
@@ -43,7 +45,9 @@ const (
 	defaultProposalNodeStaleAfter = time.Minute
 	smokeRuntimeSeconds           = 300
 	probeRuntimeSeconds           = 3600
+	provisionRuntimeSeconds       = 3600
 	trainRuntimeDefaultSeconds    = 10800
+	provisionProgram              = "gemcp-dataset-provision"
 	sshCloudAgentWarning          = "Cloud SSH is experimental. The control plane holds host login credentials and starts the command as a host process. There is no container isolation. Emergency Stop only kills the Gemcp-started process group."
 )
 
@@ -80,12 +84,14 @@ type proposalResolved struct {
 	checks         []ProposalCheck
 	fromNodeID     string
 	expectedMetric string
-	cwd            string
-	sshHost        string
-	sshUser        string
-	sshNodeID      string
-	sshNodeLabel   string
-	bindings       []datasetcatalog.View
+	cwd                 string
+	sshHost             string
+	sshUser             string
+	sshNodeID           string
+	sshNodeLabel        string
+	bindings            []datasetcatalog.View
+	installDependencies bool
+	requirementsFile    string
 }
 
 type proposalPair struct {
@@ -113,7 +119,7 @@ func (s *Service) Prepare(ctx context.Context, principal agentauth.Principal, in
 	if s.refResolver == nil || s.archiver == nil || s.runtimeReader == nil {
 		return PrepareResult{}, fmt.Errorf("prepared experiment service is unavailable")
 	}
-	executionSpec, err := executioncmd.Argv(input.Argv)
+	executionSpec, err := proposalExecutionSpec(input)
 	if err != nil {
 		return PrepareResult{}, &ValidationError{Message: err.Error()}
 	}
@@ -328,7 +334,63 @@ func (s *Service) resolveProposal(ctx context.Context, principal agentauth.Princ
 	if err := s.attachProposalBindings(ctx, &resolved); err != nil {
 		return result, nil, err
 	}
+	if err := filterProposalBindings(&resolved, input.Dataset); err != nil {
+		return result, nil, err
+	}
+	if input.InstallDependencies {
+		requirementsFile, reqErr := normalizeRequirementsFile(input.RequirementsFile)
+		if reqErr != nil {
+			return result, nil, reqErr
+		}
+		resolved.installDependencies = true
+		resolved.requirementsFile = requirementsFile
+	}
 	return resolved, nil, nil
+}
+
+func proposalExecutionSpec(input PrepareInput) (executioncmd.Spec, error) {
+	preset := strings.ToLower(strings.TrimSpace(input.RuntimePreset))
+	if preset == "provision" {
+		if len(input.Argv) > 0 {
+			return executioncmd.Spec{}, fmt.Errorf("provision uses a Gemcp-owned fetch; omit argv")
+		}
+		return executioncmd.Argv([]string{provisionProgram})
+	}
+	return executioncmd.Argv(input.Argv)
+}
+
+func normalizeRequirementsFile(value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "requirements.gemcp.txt", nil
+	}
+	normalized, err := workspacecatalog.NormalizeRelativePath(value)
+	if err != nil {
+		return "", &ValidationError{Message: "requirements_file must be a relative path inside the verified commit"}
+	}
+	base := path.Base(normalized)
+	if base != "requirements.gemcp.txt" && base != "requirements.txt" {
+		return "", &ValidationError{Message: "requirements_file must be requirements.gemcp.txt or requirements.txt"}
+	}
+	return normalized, nil
+}
+
+func filterProposalBindings(resolved *proposalResolved, dataset string) error {
+	dataset = strings.TrimSpace(dataset)
+	if dataset == "" || len(resolved.bindings) == 0 {
+		return nil
+	}
+	filtered := make([]datasetcatalog.View, 0, 1)
+	for _, binding := range resolved.bindings {
+		if strings.EqualFold(binding.Name, dataset) || strings.EqualFold(binding.ID, dataset) {
+			filtered = append(filtered, binding)
+		}
+	}
+	if len(filtered) == 0 {
+		return &ValidationError{Message: "dataset did not match an active Project dataset binding"}
+	}
+	resolved.bindings = filtered
+	return nil
 }
 
 func resolveProposalRuntimeLimit(preset string, requested, projectMax int) (string, int, error) {
@@ -342,6 +404,8 @@ func resolveProposalRuntimeLimit(preset string, requested, projectMax int) (stri
 		ceiling, defaultRuntime = smokeRuntimeSeconds, smokeRuntimeSeconds
 	case "probe":
 		ceiling, defaultRuntime = probeRuntimeSeconds, probeRuntimeSeconds
+	case "provision":
+		ceiling, defaultRuntime = provisionRuntimeSeconds, provisionRuntimeSeconds
 	case "train":
 		ceiling = projectMax
 		defaultRuntime = trainRuntimeDefaultSeconds
@@ -349,7 +413,7 @@ func resolveProposalRuntimeLimit(preset string, requested, projectMax int) (stri
 			defaultRuntime = projectMax
 		}
 	default:
-		return "", 0, &ValidationError{Message: "runtime_preset must be smoke, probe, or train"}
+		return "", 0, &ValidationError{Message: "runtime_preset must be smoke, probe, train, or provision"}
 	}
 	if ceiling > projectMax {
 		ceiling = projectMax
@@ -696,6 +760,10 @@ func (s *Service) proposalChecks(ctx context.Context, resolved proposalResolved)
 	default:
 		s.proposalAutoDLCheck(ctx, resolved, add)
 	}
+	if resolved.installDependencies {
+		add("install_dependencies", ProposalCheckWarn, "Runner will install Python requirements from the verified commit",
+			"python -m pip install --user -r "+resolved.requirementsFile+". This does not change the locked AutoDL image and does not run conda or compile mamba.")
+	}
 	return checks
 }
 
@@ -788,12 +856,16 @@ func (s *Service) proposalAutoDLCheck(ctx context.Context, resolved proposalReso
 	} else {
 		add("image", ProposalCheckWarn, "Selected AutoDL image was not visible in discovery", "Provider create remains authoritative for public base images not returned by image-list endpoints.")
 	}
+	if resolved.preset == "provision" {
+		s.proposalProvisionCheck(resolved, add)
+		return
+	}
 	if len(resolved.bindings) == 0 {
 		if resolved.preset == "smoke" {
-			add("dataset_bindings", ProposalCheckWarn, "No AutoDL dataset binding is registered", "Identity smoke can proceed. Probe and train require a Project dataset binding under /root/autodl-fs/.")
+			add("dataset_bindings", ProposalCheckWarn, "No AutoDL dataset binding is registered", "Identity smoke can proceed. Probe and train require a Project dataset binding under /root/autodl-fs/. Use register_dataset_binding, not register_workspace_dataset.")
 			return
 		}
-		add("dataset_bindings", ProposalCheckFail, "No AutoDL dataset binding is registered", "Register a Project dataset binding before probe or train on Public Elastic or Private Cloud.")
+		add("dataset_bindings", ProposalCheckFail, "No AutoDL dataset binding is registered", "Call register_dataset_binding with a /root/autodl-fs root, optionally catalog=scanobjectnn-objbg and HTTPS sources, then prepare_experiment with runtime_preset=provision before probe or train.")
 		return
 	}
 	bindingDetails := make([]string, 0, len(resolved.bindings))
@@ -801,6 +873,28 @@ func (s *Service) proposalAutoDLCheck(ctx context.Context, resolved proposalReso
 		bindingDetails = append(bindingDetails, binding.EnvironmentVariable+"="+binding.CanonicalRoot)
 	}
 	add("dataset_bindings", ProposalCheckWarn, "Registered AutoDL dataset bindings will be injected", strings.Join(bindingDetails, ", ")+". AutoDL does not provide a mount sandbox; the Runner fails closed if a root or marker is missing.")
+}
+
+func (s *Service) proposalProvisionCheck(resolved proposalResolved, add func(string, string, string, string)) {
+	if resolved.profile != nil && resolved.profile.Backend != resourceprofile.BackendAutodlElastic && resolved.profile.Backend != resourceprofile.BackendAutodlPrivate {
+		add("dataset_provision", ProposalCheckFail, "Dataset provision runs only on AutoDL", "Public Elastic and Private Cloud mount /root/autodl-fs. Cloud SSH injects GEMCP_DATASET_* for already present host paths.")
+		return
+	}
+	if len(resolved.bindings) == 0 {
+		add("dataset_provision", ProposalCheckFail, "No AutoDL dataset binding is registered", "Call register_dataset_binding with catalog=scanobjectnn-objbg or a /root/autodl-fs root and allowlisted HTTPS sources.")
+		return
+	}
+	details := make([]string, 0, len(resolved.bindings))
+	files := 0
+	for _, binding := range resolved.bindings {
+		files += len(binding.Sources)
+		details = append(details, fmt.Sprintf("%s (%d files) -> %s", binding.Name, len(binding.Sources), binding.CanonicalRoot))
+	}
+	if files == 0 {
+		add("dataset_provision", ProposalCheckFail, "Registered dataset bindings have no download sources", "Re-register the binding with allowlisted HTTPS sources. The Agent must not write wget or curl.")
+		return
+	}
+	add("dataset_provision", ProposalCheckWarn, "Gemcp will download registered sources onto AutoDL file storage", strings.Join(details, "; ")+". Confirmation authorizes those exact URLs and destinations.")
 }
 
 func (s *Service) proposalSelfHostedCheck(ctx context.Context, resolved proposalResolved, add func(string, string, string, string)) {
@@ -864,7 +958,14 @@ func (s *Service) proposalSelfHostedCheck(ctx context.Context, resolved proposal
 }
 
 func (s *Service) proposalSSHCloudCheck(ctx context.Context, resolved proposalResolved, add func(string, string, string, string)) {
-	add("isolation", ProposalCheckWarn, "Cloud SSH has no container isolation", "The command runs as a host process in the login environment. Gemcp does not lock an image, dataset, or conda prefix.")
+	add("isolation", ProposalCheckWarn, "Cloud SSH has no container isolation", "The command runs as a host process in the login environment. Gemcp does not lock an image or conda prefix.")
+	if len(resolved.bindings) > 0 {
+		paths := make([]string, 0, len(resolved.bindings))
+		for _, binding := range resolved.bindings {
+			paths = append(paths, binding.EnvironmentVariable+"="+binding.CanonicalRoot)
+		}
+		add("dataset_bindings", ProposalCheckWarn, "Registered dataset environment variables will be injected", strings.Join(paths, ", ")+". The host path must already exist; Cloud SSH does not download datasets.")
+	}
 	if resolved.sshHost != "" {
 		add("host", ProposalCheckPass, "Command will start on the registered host", fmt.Sprintf("%s@%s cwd=%s", resolved.sshUser, resolved.sshHost, proposalWorkingDirectory(resolved)))
 	}
@@ -1060,6 +1161,7 @@ func preparedProposal(resolved proposalResolved, digest string, createdAt time.T
 		TimeoutExtensionSeconds: resolved.project.TimeoutExtensionSeconds, TerminationGraceSeconds: resolved.project.TerminationGraceSeconds,
 		ReservedCostMilli: resolved.reservation, ReservedCostCNY: milliCNY(resolved.reservation), Checks: append([]ProposalCheck(nil), resolved.checks...),
 		ConfirmationDigest: digest, FromNodeID: resolved.fromNodeID, ExpectedMetric: resolved.expectedMetric,
+		InstallDependencies: resolved.installDependencies, RequirementsFile: resolved.requirementsFile,
 		ExpiresAt: resolved.expiresAt, CreatedAt: createdAt,
 	}
 }
@@ -1084,8 +1186,14 @@ func proposalEnvironmentSnapshot(resolved proposalResolved) map[string]any {
 		snapshot["workspace_node_label"] = resolved.workspace.nodeLabel
 		snapshot["workspace_datasets"] = proposalWorkspaceDatasetsCopy(resolved.workspace)
 	}
-	if resolved.profile != nil && (resolved.profile.Backend == resourceprofile.BackendAutodlElastic || resolved.profile.Backend == resourceprofile.BackendAutodlPrivate) {
+	if resolved.profile != nil && (resolved.profile.Backend == resourceprofile.BackendAutodlElastic || resolved.profile.Backend == resourceprofile.BackendAutodlPrivate || resolved.profile.Backend == resourceprofile.BackendSSHCloud) {
 		snapshot["dataset_bindings"] = datasetcatalog.Snapshot(resolved.bindings)
+	}
+	if resolved.preset == "provision" {
+		snapshot["dataset_provision"] = datasetcatalog.Snapshot(resolved.bindings)
+	}
+	if resolved.installDependencies {
+		snapshot["install_dependencies"] = map[string]any{"requirements_file": resolved.requirementsFile}
 	}
 	return snapshot
 }
@@ -1100,12 +1208,18 @@ func (s *Service) attachProposalBindings(ctx context.Context, resolved *proposal
 }
 
 func queryActiveDatasetBindings(ctx context.Context, query *ent.DatasetBindingQuery, projectID int, backend string) ([]datasetcatalog.View, error) {
-	if backend != string(resourceprofile.BackendAutodlElastic) && backend != string(resourceprofile.BackendAutodlPrivate) {
+	backends := make([]datasetbinding.Backend, 0, 2)
+	switch backend {
+	case string(resourceprofile.BackendAutodlElastic), string(resourceprofile.BackendAutodlPrivate):
+		backends = append(backends, datasetbinding.Backend(backend))
+	case string(resourceprofile.BackendSSHCloud):
+		backends = append(backends, datasetbinding.BackendSSHCloud, datasetbinding.BackendAutodlElastic)
+	default:
 		return nil, nil
 	}
 	records, err := query.Where(
 		datasetbinding.ProjectIDEQ(projectID),
-		datasetbinding.BackendEQ(datasetbinding.Backend(backend)),
+		datasetbinding.BackendIn(backends...),
 		datasetbinding.StatusEQ(datasetbinding.StatusActive),
 	).Order(ent.Asc(datasetbinding.FieldName)).All(ctx)
 	if err != nil {
@@ -1123,6 +1237,7 @@ func proposalDatasetBindingsCopy(views []datasetcatalog.View) []ProposalDatasetB
 		result = append(result, ProposalDatasetBinding{
 			ID: view.ID, Name: view.Name, Backend: view.Backend, CanonicalRoot: view.CanonicalRoot,
 			EnvironmentVariable: view.EnvironmentVariable, RequiredMarkers: append([]string(nil), view.RequiredMarkers...),
+			Sources: append([]datasetcatalog.SourceFile(nil), view.Sources...),
 		})
 	}
 	return result

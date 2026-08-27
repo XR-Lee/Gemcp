@@ -451,6 +451,10 @@ label small { color: #858e88; font-size: 10px; font-weight: 500; }
 .policy-actions { padding: 12px 18px 18px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid #e1e6e2; }
 .policy-actions p { margin: 0; color: #7c857f; font-size: 11px; line-height: 16px; }
 .dataset-form { padding: 16px 18px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; border-bottom: 1px solid #e1e6e2; }
+.dataset-form > label { min-width: 0; display: grid; gap: 6px; color: #5d675f; font-size: 11px; }
+.dataset-form .checkbox-row { min-height: 38px; display: flex; flex-direction: row; align-items: center; gap: 8px; font-size: 12px; }
+.dataset-form textarea { width: 100%; min-height: 64px; }
+.dataset-form > button { align-self: end; justify-self: start; }
 .subsection-heading { min-height: 69px; padding: 13px 18px; display: flex; align-items: center; justify-content: space-between; gap: 14px; border-bottom: 1px solid #e4e8e5; }
 .repository-table td:nth-child(3) { max-width: 330px; overflow: hidden; text-overflow: ellipsis; }
 .table-actions { display: flex; gap: 6px; }
@@ -1033,7 +1037,7 @@ label small { color: #858e88; font-size: 10px; font-weight: 500; }
   .project-select > span, .status { display: none; }
   .project-select select { width: 132px; }
   .content-band { padding: 14px 14px 0; }
-  .metric-grid, .policy-grid { grid-template-columns: 1fr; }
+  .metric-grid, .policy-grid, .dataset-form { grid-template-columns: 1fr; }
   .metric, .policy-grid > div { min-height: 96px; border-right: 0; border-bottom: 1px solid #e5e9e5; }
   .metric:last-child, .policy-grid > div:last-child { border-bottom: 0; }
   .workspace, .page-workspace { margin: 14px; }

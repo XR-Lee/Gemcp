@@ -38,6 +38,8 @@ const (
 	FieldEnvironmentVariable = "environment_variable"
 	// FieldRequiredMarkers holds the string denoting the required_markers field in the database.
 	FieldRequiredMarkers = "required_markers"
+	// FieldSources holds the string denoting the sources field in the database.
+	FieldSources = "sources"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
 	// EdgeTenant holds the string denoting the tenant edge name in mutations.
@@ -85,6 +87,7 @@ var Columns = []string{
 	FieldCanonicalRoot,
 	FieldEnvironmentVariable,
 	FieldRequiredMarkers,
+	FieldSources,
 	FieldStatus,
 }
 
@@ -124,6 +127,7 @@ type Backend string
 const (
 	BackendAutodlElastic Backend = "autodl_elastic"
 	BackendAutodlPrivate Backend = "autodl_private"
+	BackendSSHCloud      Backend = "ssh_cloud"
 )
 
 func (b Backend) String() string {
@@ -133,7 +137,7 @@ func (b Backend) String() string {
 // BackendValidator is a validator for the "backend" field enum values. It is called by the builders before save.
 func BackendValidator(b Backend) error {
 	switch b {
-	case BackendAutodlElastic, BackendAutodlPrivate:
+	case BackendAutodlElastic, BackendAutodlPrivate, BackendSSHCloud:
 		return nil
 	default:
 		return fmt.Errorf("datasetbinding: invalid enum value for backend field: %q", b)
