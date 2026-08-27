@@ -329,15 +329,34 @@ export type ProposalActivity = {
   expires_at: string
 }
 
+export type DatasetBindingSource = { url: string; relative_path: string; sha256?: string }
 export type DatasetBinding = {
   id: string
   project_id: string
   name: string
-  backend: 'autodl_elastic' | 'autodl_private'
+  backend: 'autodl_elastic' | 'autodl_private' | 'ssh_cloud'
   canonical_root: string
   environment_variable: string
   required_markers: string[]
+  sources?: DatasetBindingSource[]
   status: 'active' | 'disabled'
+}
+export type DatasetCatalogEntry = {
+  name: string
+  display_name: string
+  backend: string
+  canonical_root: string
+  required_markers: string[]
+  notes: string
+}
+export type ProjectEnvironment = {
+  id: string
+  project_id: string
+  name: string
+  backend: string
+  image_uuid: string
+  is_default: boolean
+  status: string
 }
 export type OperationsFeed = { activities: AgentActivity[]; proposals: ProposalActivity[]; generated_at: string }
 
@@ -1046,13 +1065,26 @@ export const api = {
   }),
   datasetBindings: (projectID: string) =>
     request<DatasetBinding[]>(`/api/v1/projects/${encodeURIComponent(projectID)}/dataset-bindings`),
+  datasetSources: (projectID: string) =>
+    request<DatasetCatalogEntry[]>(`/api/v1/projects/${encodeURIComponent(projectID)}/dataset-sources`),
   createDatasetBinding: (projectID: string, payload: {
-    name: string; backend?: 'autodl_elastic' | 'autodl_private'; canonical_root: string; required_markers?: string[]
+    name?: string; catalog?: string; backend?: DatasetBinding['backend']; canonical_root?: string; required_markers?: string[]; sources?: DatasetBindingSource[]
   }) => request<DatasetBinding>(`/api/v1/projects/${encodeURIComponent(projectID)}/dataset-bindings`, {
     method: 'POST', body: JSON.stringify(payload),
   }),
   removeDatasetBinding: (projectID: string, bindingID: string) =>
     request<DatasetBinding>(`/api/v1/projects/${encodeURIComponent(projectID)}/dataset-bindings/${encodeURIComponent(bindingID)}`, {
+      method: 'DELETE',
+    }),
+  environments: (projectID: string) =>
+    request<ProjectEnvironment[]>(`/api/v1/projects/${encodeURIComponent(projectID)}/environments`),
+  createEnvironment: (projectID: string, payload: {
+    name: string; backend?: string; image_uuid: string; set_default?: boolean
+  }) => request<ProjectEnvironment>(`/api/v1/projects/${encodeURIComponent(projectID)}/environments`, {
+    method: 'POST', body: JSON.stringify(payload),
+  }),
+  removeEnvironment: (projectID: string, environmentID: string) =>
+    request<ProjectEnvironment>(`/api/v1/projects/${encodeURIComponent(projectID)}/environments/${encodeURIComponent(environmentID)}`, {
       method: 'DELETE',
     }),
   submitPreparedProposal: (projectID: string, proposalID: string, payload: { confirmation_digest: string; confirmed: boolean }) =>

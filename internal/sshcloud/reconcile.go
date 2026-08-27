@@ -319,7 +319,7 @@ func workloadSpec(assignment *ent.CloudSSHAssignment, experiment *ent.Experiment
 		Command: command, Argv: argv, WorkingDir: snapshotString(experiment.EnvironmentSnapshot, "working_directory"),
 		GPUUUID: inventoryGPUUUID(node.Inventory), CPULimit: cpuLimit,
 		MemoryLimitBytes: int64(memoryGB) << 30, RemoteDir: assignment.RemoteDir, GraceSeconds: experiment.TerminationGraceSeconds,
-		Network: inventoryDockerNetwork(node.Inventory),
+		Network: inventoryDockerNetwork(node.Inventory), DatasetEnv: snapshotDatasetEnv(experiment.EnvironmentSnapshot),
 	}
 }
 

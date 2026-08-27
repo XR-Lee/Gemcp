@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/XR-Lee/Gemcp/internal/datasetcatalog"
 	"github.com/XR-Lee/Gemcp/internal/execution"
 	"github.com/XR-Lee/Gemcp/internal/nodeprotocol"
 	"github.com/XR-Lee/Gemcp/internal/provider"
@@ -53,15 +54,18 @@ type PrepareInput struct {
 	Repository        string   `json:"repository,omitempty" jsonschema:"repository name or ID; omit when the Project has exactly one active repository"`
 	RepositoryRemote  string   `json:"repository_remote,omitempty" jsonschema:"registered Git remote; omit when the Project has exactly one active repository"`
 	Ref               string   `json:"ref,omitempty" jsonschema:"branch, tag, or full commit; omit to use the repository default branch"`
-	Argv              []string `json:"argv" jsonschema:"ordered program argument vector; shell interpreters are rejected"`
-	RuntimePreset     string   `json:"runtime_preset,omitempty" jsonschema:"runtime preset: smoke (300s), probe (3600s), or train (up to the Project max runtime)"`
-	MaxRuntimeSeconds int      `json:"max_runtime_seconds,omitempty" jsonschema:"requested runtime; must stay within the selected preset and Project max_runtime_seconds"`
-	Environment       string   `json:"environment,omitempty" jsonschema:"approved environment name or ID; omit to resolve a compatible default"`
-	ResourceProfile   string   `json:"resource_profile,omitempty" jsonschema:"active resource profile name or ID; omit to resolve a compatible default"`
-	Image             string   `json:"image,omitempty" jsonschema:"omit for Cloud SSH. Trusted Self-hosted workspace may pass a public name, tag, or digest"`
-	Cwd               string   `json:"cwd,omitempty" jsonschema:"optional remote absolute working directory for Cloud SSH; defaults to the login home"`
-	FromNodeID        string   `json:"from_node_id,omitempty" jsonschema:"Graph hypothesis or plan node ID; required when the Project has an active Study"`
-	ExpectedMetric    string   `json:"expected_metric,omitempty" jsonschema:"optional metric name the Owner should expect after close_run"`
+	Argv                 []string `json:"argv,omitempty" jsonschema:"ordered program argument vector; omit for the provision preset. Shell interpreters are rejected"`
+	RuntimePreset        string   `json:"runtime_preset,omitempty" jsonschema:"runtime preset: smoke (300s), probe (3600s), train, or provision"`
+	MaxRuntimeSeconds    int      `json:"max_runtime_seconds,omitempty" jsonschema:"requested runtime; must stay within the selected preset and Project max_runtime_seconds"`
+	Environment          string   `json:"environment,omitempty" jsonschema:"approved environment name or ID; omit to resolve a compatible default"`
+	ResourceProfile      string   `json:"resource_profile,omitempty" jsonschema:"active resource profile name or ID; omit to resolve a compatible default"`
+	Image                string   `json:"image,omitempty" jsonschema:"omit for Cloud SSH. Trusted Self-hosted workspace may pass a public name, tag, or digest"`
+	Cwd                  string   `json:"cwd,omitempty" jsonschema:"optional remote absolute working directory for Cloud SSH; defaults to the login home"`
+	Dataset              string   `json:"dataset,omitempty" jsonschema:"optional dataset binding or catalog name to provision or inject"`
+	InstallDependencies  bool     `json:"install_dependencies,omitempty" jsonschema:"install requirements.gemcp.txt or requirements.txt from the verified commit with python -m pip install --user"`
+	RequirementsFile     string   `json:"requirements_file,omitempty" jsonschema:"optional relative requirements file; defaults to requirements.gemcp.txt"`
+	FromNodeID           string   `json:"from_node_id,omitempty" jsonschema:"Graph hypothesis or plan node ID; required when the Project has an active Study"`
+	ExpectedMetric       string   `json:"expected_metric,omitempty" jsonschema:"optional metric name the Owner should expect after close_run"`
 }
 
 type ProposalChoice struct {
@@ -129,12 +133,13 @@ type ProposalResource struct {
 }
 
 type ProposalDatasetBinding struct {
-	ID                  string   `json:"id"`
-	Name                string   `json:"name"`
-	Backend             string   `json:"backend"`
-	CanonicalRoot       string   `json:"canonical_root"`
-	EnvironmentVariable string   `json:"environment_variable"`
-	RequiredMarkers     []string `json:"required_markers,omitempty"`
+	ID                  string                    `json:"id"`
+	Name                string                    `json:"name"`
+	Backend             string                    `json:"backend"`
+	CanonicalRoot       string                    `json:"canonical_root"`
+	EnvironmentVariable string                    `json:"environment_variable"`
+	RequiredMarkers     []string                  `json:"required_markers,omitempty"`
+	Sources             []datasetcatalog.SourceFile `json:"sources,omitempty"`
 }
 
 type PreparedProposal struct {
@@ -155,6 +160,8 @@ type PreparedProposal struct {
 	ConfirmationDigest      string             `json:"confirmation_digest"`
 	FromNodeID              string             `json:"from_node_id,omitempty"`
 	ExpectedMetric          string             `json:"expected_metric,omitempty"`
+	InstallDependencies     bool               `json:"install_dependencies,omitempty"`
+	RequirementsFile        string             `json:"requirements_file,omitempty"`
 	ExpiresAt               time.Time          `json:"expires_at"`
 	CreatedAt               time.Time          `json:"created_at"`
 }

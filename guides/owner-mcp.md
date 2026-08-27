@@ -11,7 +11,7 @@ An Agent Token is bound to one project and a selected set of scopes:
 | `read` | Read project options, costs, experiments, artifacts, and the Agent guide |
 | `submit` | Report controlled Agent phases and prepare or enqueue immutable experiments |
 | `cancel` | Request cancellation of queued or active experiments |
-| `configure` | Register and verify repositories in this Project, and declare dataset paths below an already approved trusted workspace root |
+| `configure` | Register and verify repositories, register AutoDL dataset bindings and HTTPS sources, register Provider-visible Environments, and declare dataset paths below an already approved trusted workspace root |
 | `operate_nodes` | Register Cloud SSH hosts and rotate their credentials. Off by default. Not included in `configure`. |
 
 The Token does not expose AutoDL credentials, repository deploy private keys, Runner Tokens, arbitrary machines, or arbitrary Provider operations. A `configure` Agent receives only the generated deploy public key so a repository administrator can install it read-only.

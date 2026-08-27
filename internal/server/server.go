@@ -16,6 +16,7 @@ import (
 	"github.com/XR-Lee/Gemcp/internal/buildinfo"
 	"github.com/XR-Lee/Gemcp/internal/config"
 	"github.com/XR-Lee/Gemcp/internal/datasetcatalog"
+	"github.com/XR-Lee/Gemcp/internal/environmentcatalog"
 	"github.com/XR-Lee/Gemcp/internal/diagnostic"
 	"github.com/XR-Lee/Gemcp/internal/execution"
 	"github.com/XR-Lee/Gemcp/internal/experiment"
@@ -114,6 +115,7 @@ func New(deps Dependencies) *http.Server {
 	datasetBindingHandlers := httpapi.NewDatasetBindingHandlers(datasetcatalog.NewService(deps.Ent))
 	protected.GET("/projects/:id/dataset-bindings", datasetBindingHandlers.List)
 	protected.POST("/projects/:id/dataset-bindings", datasetBindingHandlers.Create)
+	protected.GET("/projects/:id/dataset-sources", datasetBindingHandlers.Sources)
 	protected.DELETE("/projects/:id/dataset-bindings/:bindingID", datasetBindingHandlers.Remove)
 	financeHandlers := httpapi.NewFinanceHandlers(finance.NewService(deps.Ent))
 	protected.GET("/finance", financeHandlers.Dashboard)
@@ -140,6 +142,11 @@ func New(deps Dependencies) *http.Server {
 	protected.DELETE("/ssh-cloud-nodes/:id", sshCloudHandlers.Revoke)
 
 	providerService := providerservice.NewService(deps.Ent, deps.Secrets, deps.Build.Version)
+	environmentService := environmentcatalog.NewService(deps.Ent, providerService)
+	environmentHandlers := httpapi.NewEnvironmentHandlers(environmentService)
+	protected.GET("/projects/:id/environments", environmentHandlers.List)
+	protected.POST("/projects/:id/environments", environmentHandlers.Create)
+	protected.DELETE("/projects/:id/environments/:environmentID", environmentHandlers.Remove)
 	providerHandlers := httpapi.NewProviderHandlers(providerService)
 	protected.GET("/provider", providerHandlers.Summary)
 	protected.POST("/provider/query", providerHandlers.Query)
@@ -209,6 +216,7 @@ func New(deps Dependencies) *http.Server {
 	mcpHandler := mcpserver.New(
 		agentAuthService, experimentService, deps.Build.Version, nil,
 		mcpserver.WithConfiguration(repositoryService, workspacecatalog.NewService(deps.Ent), datasetcatalog.NewService(deps.Ent)),
+		mcpserver.WithEnvironments(environmentService),
 		mcpserver.WithResearch(researchService),
 		mcpserver.WithSSHCloud(deps.SSHCloud),
 	).Handler()

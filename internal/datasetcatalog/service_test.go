@@ -37,8 +37,14 @@ func TestRegisterRejectsForeignRootsAndRequiresConfigure(t *testing.T) {
 	if _, err := service.Register(ctx, principal, RegisterInput{Name: "scanobjectnn-objbg", CanonicalRoot: "/root/autodl-tmp/data"}); err == nil {
 		t.Fatal("expected foreign root to fail")
 	}
-	view, err := service.OwnerRegister(ctx, tenant.ID, "owner-1", project.PublicID.String(), input)
-	if err != nil || view.EnvironmentVariable != "GEMCP_DATASET_SCANOBJECTNN_OBJBG" || view.Backend != BackendElastic {
+	view, err := service.OwnerRegister(ctx, tenant.ID, "owner-1", project.PublicID.String(), RegisterInput{
+		Catalog: "scanobjectnn-objbg",
+		Sources: []SourceFile{{
+			URL: "https://huggingface.co/datasets/example/resolve/main/train.h5", RelativePath: "main_split/train.h5",
+		}},
+	})
+	if err != nil || view.EnvironmentVariable != "GEMCP_DATASET_SCANOBJECTNN_OBJBG" || view.Backend != BackendElastic ||
+		view.CanonicalRoot != "/root/autodl-fs/datasets/ScanObjectNN" || len(view.Sources) != 1 {
 		t.Fatalf("OwnerRegister() = %+v, %v", view, err)
 	}
 	listed, err := service.OwnerList(ctx, tenant.ID, project.PublicID.String())

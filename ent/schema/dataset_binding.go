@@ -18,10 +18,11 @@ func (DatasetBinding) Fields() []ent.Field {
 		field.Int("project_id").Immutable(),
 		field.Int("agent_token_id").Optional().Nillable().Immutable(),
 		field.String("name").NotEmpty().MaxLen(120),
-		field.Enum("backend").Values("autodl_elastic", "autodl_private"),
+		field.Enum("backend").Values("autodl_elastic", "autodl_private", "ssh_cloud"),
 		field.String("canonical_root").NotEmpty().MaxLen(1024),
 		field.String("environment_variable").NotEmpty().MaxLen(128).Immutable(),
 		field.JSON("required_markers", []string{}).Default([]string{}),
+		field.JSON("sources", []map[string]string{}).Optional(),
 		field.Enum("status").Values("active", "disabled").Default("active"),
 	}
 }

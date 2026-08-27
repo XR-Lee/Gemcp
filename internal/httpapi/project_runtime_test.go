@@ -13,6 +13,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/enttest"
 	"github.com/XR-Lee/Gemcp/internal/auth"
 	"github.com/XR-Lee/Gemcp/internal/datasetcatalog"
+	"github.com/XR-Lee/Gemcp/internal/environmentcatalog"
 	"github.com/XR-Lee/Gemcp/internal/experiment"
 	"github.com/XR-Lee/Gemcp/internal/secrets"
 	"github.com/gin-gonic/gin"
@@ -46,7 +47,12 @@ func TestOwnerCanUpdateProjectPolicyAndDatasetBindings(t *testing.T) {
 	bindings := NewDatasetBindingHandlers(datasetcatalog.NewService(client))
 	router.GET("/projects/:id/dataset-bindings", bindings.List)
 	router.POST("/projects/:id/dataset-bindings", bindings.Create)
+	router.GET("/projects/:id/dataset-sources", bindings.Sources)
 	router.DELETE("/projects/:id/dataset-bindings/:bindingID", bindings.Remove)
+	environments := NewEnvironmentHandlers(environmentcatalog.NewService(client, nil))
+	router.GET("/projects/:id/environments", environments.List)
+	router.POST("/projects/:id/environments", environments.Create)
+	router.DELETE("/projects/:id/environments/:environmentID", environments.Remove)
 
 	patch := httptest.NewRecorder()
 	patchRequest := httptest.NewRequest(http.MethodPatch, "/projects/"+project.PublicID.String(), strings.NewReader(
@@ -69,7 +75,7 @@ func TestOwnerCanUpdateProjectPolicyAndDatasetBindings(t *testing.T) {
 
 	create := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodPost, "/projects/"+project.PublicID.String()+"/dataset-bindings", bytes.NewReader([]byte(
-		`{"name":"scanobjectnn-objbg","backend":"autodl_elastic","canonical_root":"/root/autodl-fs/datasets/ScanObjectNN","required_markers":["main_split/train.h5"]}`,
+		`{"catalog":"scanobjectnn-objbg","sources":[{"url":"https://huggingface.co/datasets/example/resolve/main/train.h5","relative_path":"main_split/train.h5"}]}`,
 	)))
 	request.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(create, request)
@@ -82,7 +88,8 @@ func TestOwnerCanUpdateProjectPolicyAndDatasetBindings(t *testing.T) {
 	if err := json.Unmarshal(create.Body.Bytes(), &created); err != nil {
 		t.Fatal(err)
 	}
-	if created.Data.EnvironmentVariable != "GEMCP_DATASET_SCANOBJECTNN_OBJBG" || created.Data.Backend != datasetcatalog.BackendElastic {
+	if created.Data.EnvironmentVariable != "GEMCP_DATASET_SCANOBJECTNN_OBJBG" || created.Data.Backend != datasetcatalog.BackendElastic ||
+		len(created.Data.Sources) != 1 {
 		t.Fatalf("created binding = %+v", created.Data)
 	}
 
@@ -96,6 +103,41 @@ func TestOwnerCanUpdateProjectPolicyAndDatasetBindings(t *testing.T) {
 	router.ServeHTTP(remove, httptest.NewRequest(http.MethodDelete, "/projects/"+project.PublicID.String()+"/dataset-bindings/"+created.Data.ID, nil))
 	if remove.Code != http.StatusOK || !bytes.Contains(remove.Body.Bytes(), []byte(`"status":"disabled"`)) {
 		t.Fatalf("remove binding status=%d body=%s", remove.Code, remove.Body.String())
+	}
+
+	sources := httptest.NewRecorder()
+	router.ServeHTTP(sources, httptest.NewRequest(http.MethodGet, "/projects/"+project.PublicID.String()+"/dataset-sources", nil))
+	if sources.Code != http.StatusOK || !bytes.Contains(sources.Body.Bytes(), []byte("scanobjectnn-objbg")) {
+		t.Fatalf("dataset sources status=%d body=%s", sources.Code, sources.Body.String())
+	}
+
+	createEnv := httptest.NewRecorder()
+	envRequest := httptest.NewRequest(http.MethodPost, "/projects/"+project.PublicID.String()+"/environments", bytes.NewReader([]byte(
+		`{"name":"official-base","backend":"autodl_elastic","image_uuid":"image-6c15b8aad2","set_default":true}`,
+	)))
+	envRequest.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(createEnv, envRequest)
+	if createEnv.Code != http.StatusCreated {
+		t.Fatalf("create environment status=%d body=%s", createEnv.Code, createEnv.Body.String())
+	}
+	var createdEnv struct {
+		Data environmentcatalog.View `json:"data"`
+	}
+	if err := json.Unmarshal(createEnv.Body.Bytes(), &createdEnv); err != nil {
+		t.Fatal(err)
+	}
+	if createdEnv.Data.ImageUUID != "image-6c15b8aad2" || createdEnv.Data.Backend != environmentcatalog.BackendElastic {
+		t.Fatalf("created environment = %+v", createdEnv.Data)
+	}
+	listEnv := httptest.NewRecorder()
+	router.ServeHTTP(listEnv, httptest.NewRequest(http.MethodGet, "/projects/"+project.PublicID.String()+"/environments", nil))
+	if listEnv.Code != http.StatusOK || !bytes.Contains(listEnv.Body.Bytes(), []byte(createdEnv.Data.ID)) {
+		t.Fatalf("list environments status=%d body=%s", listEnv.Code, listEnv.Body.String())
+	}
+	removeEnv := httptest.NewRecorder()
+	router.ServeHTTP(removeEnv, httptest.NewRequest(http.MethodDelete, "/projects/"+project.PublicID.String()+"/environments/"+createdEnv.Data.ID, nil))
+	if removeEnv.Code != http.StatusOK || !bytes.Contains(removeEnv.Body.Bytes(), []byte(`"status":"disabled"`)) {
+		t.Fatalf("remove environment status=%d body=%s", removeEnv.Code, removeEnv.Body.String())
 	}
 }
 

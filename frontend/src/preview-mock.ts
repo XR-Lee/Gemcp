@@ -135,8 +135,36 @@ function match(url: URL, method: string, body?: unknown): Response | null {
     return json([{
       id: 'binding-scanobjectnn', project_id: projectID, name: 'scanobjectnn-objbg', backend: 'autodl_elastic',
       canonical_root: '/root/autodl-fs/datasets/ScanObjectNN', environment_variable: 'GEMCP_DATASET_SCANOBJECTNN_OBJBG',
-      required_markers: ['main_split/train.h5'], status: 'active',
+      required_markers: ['main_split/train.h5'],
+      sources: [{ url: 'https://huggingface.co/datasets/example/resolve/main/train.h5', relative_path: 'main_split/train.h5' }],
+      status: 'active',
     }])
+  }
+  if (path === `/api/v1/projects/${projectID}/dataset-sources` && method === 'GET') {
+    return json([{
+      name: 'scanobjectnn-objbg', display_name: 'ScanObjectNN OBJ-BG', backend: 'autodl_elastic',
+      canonical_root: '/root/autodl-fs/datasets/ScanObjectNN',
+      required_markers: ['main_split/training_objectdataset_augmentedrot_scale75.h5'],
+      notes: 'Register with HTTPS Hugging Face resolve URLs, then prepare_experiment with runtime_preset=provision.',
+    }])
+  }
+  if (path === `/api/v1/projects/${projectID}/environments` && method === 'GET') {
+    return json([{
+      id: 'environment-elastic', project_id: projectID, name: 'public-elastic', backend: 'autodl_elastic',
+      image_uuid: 'image-6c15b8aad2', is_default: true, status: 'approved',
+    }])
+  }
+  if (path === `/api/v1/projects/${projectID}/environments` && method === 'POST') {
+    return json({
+      id: 'environment-new', project_id: projectID, name: 'torch-train', backend: 'autodl_elastic',
+      image_uuid: 'image-visible1234', is_default: false, status: 'approved',
+    }, 201)
+  }
+  if (path.startsWith(`/api/v1/projects/${projectID}/environments/`) && method === 'DELETE') {
+    return json({
+      id: 'environment-elastic', project_id: projectID, name: 'public-elastic', backend: 'autodl_elastic',
+      image_uuid: 'image-6c15b8aad2', is_default: false, status: 'disabled',
+    })
   }
   if (path === `/api/v1/projects/${projectID}/dataset-bindings` && method === 'POST') {
     return json({

@@ -148,6 +148,9 @@ type ProjectOptions struct {
 	SSHCloudNodes     []SSHCloudNodeOption     `json:"ssh_cloud_nodes"`
 	WorkspaceDatasets []WorkspaceDatasetOption `json:"workspace_datasets"`
 	DatasetBindings   []DatasetBindingOption   `json:"dataset_bindings"`
+	DatasetSources    []DatasetSourceOption    `json:"dataset_sources"`
+	ProviderImages    []ProviderImageOption    `json:"provider_images"`
+	Onboarding        *ExecutionOnboarding     `json:"onboarding,omitempty"`
 	Readiness         *OptionsReadiness        `json:"readiness,omitempty"`
 }
 
@@ -307,13 +310,55 @@ type AgentReadinessInstructions struct {
 }
 
 type DatasetBindingOption struct {
-	ID                  string   `json:"id"`
-	Name                string   `json:"name"`
-	Backend             string   `json:"backend"`
-	CanonicalRoot       string   `json:"canonical_root"`
-	EnvironmentVariable string   `json:"environment_variable"`
-	RequiredMarkers     []string `json:"required_markers"`
-	Status              string   `json:"status"`
+	ID                  string                    `json:"id"`
+	Name                string                    `json:"name"`
+	Backend             string                    `json:"backend"`
+	CanonicalRoot       string                    `json:"canonical_root"`
+	EnvironmentVariable string                    `json:"environment_variable"`
+	RequiredMarkers     []string                  `json:"required_markers"`
+	Sources             []DatasetBindingSource    `json:"sources"`
+	Status              string                    `json:"status"`
+}
+
+type DatasetBindingSource struct {
+	URL          string `json:"url"`
+	RelativePath string `json:"relative_path"`
+	SHA256       string `json:"sha256,omitempty"`
+}
+
+type DatasetSourceOption struct {
+	Name            string   `json:"name"`
+	DisplayName     string   `json:"display_name"`
+	Backend         string   `json:"backend"`
+	CanonicalRoot   string   `json:"canonical_root"`
+	RequiredMarkers []string `json:"required_markers"`
+	Notes           string   `json:"notes"`
+}
+
+type ProviderImageOption struct {
+	UUID        string `json:"uuid"`
+	Name        string `json:"name"`
+	Source      string `json:"source"`
+	CUDAVersion string `json:"cuda_version,omitempty"`
+}
+
+type ExecutionOnboarding struct {
+	PublicCloud PublicCloudOnboarding `json:"public_cloud"`
+}
+
+type PublicCloudOnboarding struct {
+	Backend               string           `json:"backend"`
+	DatasetBindings       int              `json:"dataset_bindings"`
+	ProvisionableBindings int              `json:"provisionable_bindings"`
+	Environments          int              `json:"environments"`
+	LockedImage           string           `json:"locked_image,omitempty"`
+	NextSteps             []OnboardingStep `json:"next_steps"`
+}
+
+type OnboardingStep struct {
+	Tool    string         `json:"tool"`
+	Reason  string         `json:"reason"`
+	Example map[string]any `json:"example,omitempty"`
 }
 
 type WorkspaceDatasetOption struct {

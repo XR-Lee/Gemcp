@@ -10,6 +10,7 @@ import (
 	"github.com/XR-Lee/Gemcp/guides"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
 	"github.com/XR-Lee/Gemcp/internal/datasetcatalog"
+	"github.com/XR-Lee/Gemcp/internal/environmentcatalog"
 	"github.com/XR-Lee/Gemcp/internal/experiment"
 	gitrepository "github.com/XR-Lee/Gemcp/internal/repository"
 	"github.com/XR-Lee/Gemcp/internal/research"
@@ -30,6 +31,7 @@ type Server struct {
 	repositories *gitrepository.Service
 	datasets     *workspacecatalog.Service
 	bindings     *datasetcatalog.Service
+	environments *environmentcatalog.Service
 	research     *research.Service
 	sshCloud     *sshcloud.Service
 	logger       *slog.Logger
@@ -70,6 +72,12 @@ func WithSSHCloud(service *sshcloud.Service) Option {
 	}
 }
 
+func WithEnvironments(service *environmentcatalog.Service) Option {
+	return func(server *Server) {
+		server.environments = service
+	}
+}
+
 func New(agentAuth *agentauth.Service, experiments *experiment.Service, version string, logger *slog.Logger, options ...Option) *Server {
 	if logger == nil {
 		logger = slog.Default()
@@ -85,7 +93,7 @@ func New(agentAuth *agentauth.Service, experiments *experiment.Service, version 
 		Name: "get_usage_guide", Description: "Return the mandatory Gemcp operating guide, approval boundary, and safe submission workflow.",
 	}, server.getUsageGuide)
 	mcp.AddTool(mcpServer, &mcp.Tool{
-		Name: "get_project_options", Description: "List project policy, approved execution options, automatically discovered authorized Self-hosted Node readiness, and experimental Cloud SSH node readiness. Includes a readiness summary and heartbeat contract. Cloud SSH nodes are listed before Project authorization; the control plane probes them. Agents are Project-scoped and not exclusively bound to one node.",
+		Name: "get_project_options", Description: "List project policy, approved execution options, dataset bindings, dataset source catalog, Provider-visible images, public-cloud onboarding next steps, automatically discovered authorized Self-hosted Node readiness, and experimental Cloud SSH node readiness. Includes a readiness summary and heartbeat contract. Cloud SSH nodes are listed before Project authorization; the control plane probes them. Agents are Project-scoped and not exclusively bound to one node.",
 	}, server.getProjectOptions)
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "list_repository_registrations", Description: "List active and pending Git repositories for the authenticated Project, including public deploy keys.",
@@ -106,14 +114,20 @@ func New(agentAuth *agentauth.Service, experiments *experiment.Service, version 
 		Name: "remove_workspace_dataset", Description: "Disable one Project workspace dataset declaration. Requires configure scope.",
 	}, server.removeWorkspaceDataset)
 	mcp.AddTool(mcpServer, &mcp.Tool{
-		Name: "list_dataset_bindings", Description: "List Project AutoDL dataset bindings for Public Elastic and Private Cloud. These inject GEMCP_DATASET_* environment variables at Runner start.",
+		Name: "list_dataset_bindings", Description: "List Project dataset bindings for Public Elastic, Private Cloud, and Cloud SSH. These inject GEMCP_DATASET_* at start. Public Elastic bindings live under /root/autodl-fs/.",
 	}, server.listDatasetBindings)
 	mcp.AddTool(mcpServer, &mcp.Tool{
-		Name: "register_dataset_binding", Description: "Register an AutoDL file-storage dataset root under /root/autodl-fs/ for this Project. Requires configure scope. This never uploads data.",
+		Name: "register_dataset_binding", Description: "Register a dataset root for this Project. For Public Elastic use /root/autodl-fs/ plus optional catalog=scanobjectnn-objbg and allowlisted HTTPS sources. Requires configure scope. This never uploads data; prepare_experiment with runtime_preset=provision downloads the sources.",
 	}, server.registerDatasetBinding)
 	mcp.AddTool(mcpServer, &mcp.Tool{
-		Name: "remove_dataset_binding", Description: "Disable one Project AutoDL dataset binding. Requires configure scope.",
+		Name: "remove_dataset_binding", Description: "Disable one Project dataset binding. Requires configure scope.",
 	}, server.removeDatasetBinding)
+	mcp.AddTool(mcpServer, &mcp.Tool{
+		Name: "register_environment", Description: "Register a Provider-visible AutoDL image as a Project Environment. Requires configure scope. Official image-* UUIDs remain Owner-only unless already used on the Project.",
+	}, server.registerEnvironment)
+	mcp.AddTool(mcpServer, &mcp.Tool{
+		Name: "remove_environment", Description: "Disable one Project Environment. Requires configure scope.",
+	}, server.removeEnvironment)
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "get_research_workspace", Description: "Return Studies, the selected iteration plan, and the research Graph for the authenticated Project. This never starts a workload.",
 	}, server.getResearchWorkspace)
@@ -130,7 +144,7 @@ func New(agentAuth *agentauth.Service, experiments *experiment.Service, version 
 		Name: "report_agent_activity", Description: "Report a controlled workflow phase so the Owner console can show what the Agent is doing without collecting prompts or reasoning.",
 	}, server.reportAgentActivity)
 	mcp.AddTool(mcpServer, &mcp.Tool{
-		Name: "prepare_experiment", Description: "Prepare a zero-cost immutable argv proposal. runtime_preset may be smoke (300s), probe (3600s), or train (up to the Project max runtime). When the Project has an active Study, from_node_id must be a hypothesis or plan node and is bound into the confirmation digest. For Cloud SSH, omit image and repository; pass argv and optional cwd. The confirmation digest pins host, user, cwd, and argv. The control plane starts that command over SSH and observes logs and exit status. Do not invent SSH credentials.",
+		Name: "prepare_experiment", Description: "Prepare a zero-cost immutable argv proposal. runtime_preset may be smoke (300s), probe (3600s), train (up to the Project max runtime), or provision (Gemcp-owned AutoDL dataset fetch; omit argv). Optional install_dependencies runs python -m pip install --user from the verified commit. When the Project has an active Study, from_node_id must be a hypothesis or plan node and is bound into the confirmation digest. For Cloud SSH, omit image and repository; pass argv and optional cwd. Do not invent SSH credentials, wrap argv in a shell, or write wget/curl/conda.",
 	}, server.prepareExperiment)
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "register_ssh_cloud_node", Description: "Register a Cloud SSH host for this Project. Accepts an ssh command line or host/port/user plus a password or private key. Credentials are write-only and never returned. Probe only checks connectivity and pins the host key. Requires operate_nodes scope.",
@@ -382,6 +396,30 @@ func (s *Server) removeDatasetBinding(ctx context.Context, request *mcp.CallTool
 	}
 	view, err := s.bindings.Remove(ctx, principal, input)
 	return nil, view, s.configurationToolError("remove_dataset_binding", err)
+}
+
+func (s *Server) registerEnvironment(ctx context.Context, request *mcp.CallToolRequest, input environmentcatalog.RegisterInput) (*mcp.CallToolResult, environmentcatalog.View, error) {
+	principal, err := principalFrom(request)
+	if err != nil {
+		return nil, environmentcatalog.View{}, err
+	}
+	if s.environments == nil {
+		return nil, environmentcatalog.View{}, errors.New("environment service is unavailable")
+	}
+	view, err := s.environments.Register(ctx, principal, input)
+	return nil, view, s.configurationToolError("register_environment", err)
+}
+
+func (s *Server) removeEnvironment(ctx context.Context, request *mcp.CallToolRequest, input environmentcatalog.RemoveInput) (*mcp.CallToolResult, environmentcatalog.View, error) {
+	principal, err := principalFrom(request)
+	if err != nil {
+		return nil, environmentcatalog.View{}, err
+	}
+	if s.environments == nil {
+		return nil, environmentcatalog.View{}, errors.New("environment service is unavailable")
+	}
+	view, err := s.environments.Remove(ctx, principal, input)
+	return nil, view, s.configurationToolError("remove_environment", err)
 }
 
 func (s *Server) getResearchWorkspace(ctx context.Context, request *mcp.CallToolRequest, input research.WorkspaceInput) (*mcp.CallToolResult, research.Workspace, error) {
@@ -646,12 +684,18 @@ func (s *Server) configurationToolError(tool string, err error) error {
 	if errors.As(err, &bindingValidation) {
 		return errors.New(bindingValidation.Message)
 	}
+	var environmentValidation *environmentcatalog.ValidationError
+	if errors.As(err, &environmentValidation) {
+		return errors.New(environmentValidation.Message)
+	}
 	for _, public := range []error{
 		experiment.ErrForbidden,
 		gitrepository.ErrNotFound, gitrepository.ErrNotActive, gitrepository.ErrVerificationFailed, gitrepository.ErrConflict,
 		workspacecatalog.ErrForbidden, workspacecatalog.ErrNotFound, workspacecatalog.ErrTrustedWorkspace,
 		workspacecatalog.ErrWorkspaceChoice, workspacecatalog.ErrDatasetConflict, workspacecatalog.ErrDatasetLimit,
 		datasetcatalog.ErrForbidden, datasetcatalog.ErrNotFound, datasetcatalog.ErrProject, datasetcatalog.ErrConflict, datasetcatalog.ErrLimit,
+		environmentcatalog.ErrForbidden, environmentcatalog.ErrNotFound, environmentcatalog.ErrProject, environmentcatalog.ErrConflict,
+		environmentcatalog.ErrLimit, environmentcatalog.ErrImage,
 	} {
 		if errors.Is(err, public) {
 			return public

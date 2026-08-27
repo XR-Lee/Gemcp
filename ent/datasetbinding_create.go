@@ -122,6 +122,12 @@ func (_c *DatasetBindingCreate) SetRequiredMarkers(v []string) *DatasetBindingCr
 	return _c
 }
 
+// SetSources sets the "sources" field.
+func (_c *DatasetBindingCreate) SetSources(v []map[string]string) *DatasetBindingCreate {
+	_c.mutation.SetSources(v)
+	return _c
+}
+
 // SetStatus sets the "status" field.
 func (_c *DatasetBindingCreate) SetStatus(v datasetbinding.Status) *DatasetBindingCreate {
 	_c.mutation.SetStatus(v)
@@ -331,6 +337,10 @@ func (_c *DatasetBindingCreate) createSpec() (*DatasetBinding, *sqlgraph.CreateS
 	if value, ok := _c.mutation.RequiredMarkers(); ok {
 		_spec.SetField(datasetbinding.FieldRequiredMarkers, field.TypeJSON, value)
 		_node.RequiredMarkers = value
+	}
+	if value, ok := _c.mutation.Sources(); ok {
+		_spec.SetField(datasetbinding.FieldSources, field.TypeJSON, value)
+		_node.Sources = value
 	}
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(datasetbinding.FieldStatus, field.TypeEnum, value)

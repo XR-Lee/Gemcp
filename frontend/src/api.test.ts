@@ -258,6 +258,12 @@ describe('API security headers', () => {
         ok: true, status: 200, json: async () => ({ data: { id: 'binding/id', status: 'disabled' } }),
       })
       .mockResolvedValueOnce({
+        ok: true, status: 201, json: async () => ({ data: { id: 'environment/id', status: 'approved' } }),
+      })
+      .mockResolvedValueOnce({
+        ok: true, status: 200, json: async () => ({ data: { id: 'environment/id', status: 'disabled' } }),
+      })
+      .mockResolvedValueOnce({
         ok: true, status: 200, json: async () => ({ data: { experiment: { id: 'experiment-id' }, idempotent: false } }),
       })
     vi.stubGlobal('fetch', fetchMock)
@@ -265,10 +271,13 @@ describe('API security headers', () => {
 
     await api.updateProject('project/id', { max_runtime_seconds: 57600, max_experiment_milli: 40000 })
     await api.createDatasetBinding('project/id', {
-      name: 'scanobjectnn-objbg', backend: 'autodl_elastic',
+      name: 'scanobjectnn-objbg', catalog: 'scanobjectnn-objbg', backend: 'autodl_elastic',
       canonical_root: '/root/autodl-fs/datasets/ScanObjectNN', required_markers: ['main_split/train.h5'],
+      sources: [{ url: 'https://huggingface.co/datasets/example/resolve/main/train.h5', relative_path: 'main_split/train.h5' }],
     })
     await api.removeDatasetBinding('project/id', 'binding/id')
+    await api.createEnvironment('project/id', { name: 'torch-train', backend: 'autodl_elastic', image_uuid: 'image-visible1234' })
+    await api.removeEnvironment('project/id', 'environment/id')
     await api.submitPreparedProposal('project/id', 'proposal/id', {
       confirmation_digest: `sha256:${'ab'.repeat(32)}`, confirmed: true,
     })
@@ -277,6 +286,8 @@ describe('API security headers', () => {
       ['/api/v1/projects/project%2Fid', 'PATCH'],
       ['/api/v1/projects/project%2Fid/dataset-bindings', 'POST'],
       ['/api/v1/projects/project%2Fid/dataset-bindings/binding%2Fid', 'DELETE'],
+      ['/api/v1/projects/project%2Fid/environments', 'POST'],
+      ['/api/v1/projects/project%2Fid/environments/environment%2Fid', 'DELETE'],
       ['/api/v1/projects/project%2Fid/experiment-proposals/proposal%2Fid/submit', 'POST'],
     ])
     for (const [, options] of fetchMock.mock.calls) {
@@ -285,7 +296,7 @@ describe('API security headers', () => {
     expect(JSON.parse(String(fetchMock.mock.calls[0][1].body))).toEqual({
       max_runtime_seconds: 57600, max_experiment_milli: 40000,
     })
-    expect(JSON.parse(String(fetchMock.mock.calls[3][1].body))).toEqual({
+    expect(JSON.parse(String(fetchMock.mock.calls[5][1].body))).toEqual({
       confirmation_digest: `sha256:${'ab'.repeat(32)}`, confirmed: true,
     })
   })

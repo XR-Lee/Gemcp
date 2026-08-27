@@ -42,10 +42,12 @@ type ValidationError = validation.Error[validationDomain]
 func invalid(message string) error { return &ValidationError{Message: message} }
 
 type RegisterInput struct {
-	Name            string   `json:"name" jsonschema:"stable dataset name using letters, numbers, dot, underscore, or hyphen"`
-	Backend         string   `json:"backend,omitempty" jsonschema:"autodl_elastic or autodl_private; defaults to autodl_elastic"`
-	CanonicalRoot   string   `json:"canonical_root" jsonschema:"absolute AutoDL file-storage path under /root/autodl-fs/"`
-	RequiredMarkers []string `json:"required_markers,omitempty" jsonschema:"optional relative files that must exist under the canonical root"`
+	Name            string       `json:"name,omitempty" jsonschema:"stable dataset name using letters, numbers, dot, underscore, or hyphen; may be omitted when catalog is set"`
+	Catalog         string       `json:"catalog,omitempty" jsonschema:"optional built-in catalog name such as scanobjectnn-objbg; fills defaults without uploading data"`
+	Backend         string       `json:"backend,omitempty" jsonschema:"autodl_elastic, autodl_private, or ssh_cloud; defaults to autodl_elastic"`
+	CanonicalRoot   string       `json:"canonical_root,omitempty" jsonschema:"absolute AutoDL path under /root/autodl-fs/, or an approved Cloud SSH host path"`
+	RequiredMarkers []string     `json:"required_markers,omitempty" jsonschema:"optional relative files that must exist under the canonical root"`
+	Sources         []SourceFile `json:"sources,omitempty" jsonschema:"optional allowlisted HTTPS files the provision preset may download into the canonical root"`
 }
 
 type RemoveInput struct {
@@ -53,14 +55,15 @@ type RemoveInput struct {
 }
 
 type View struct {
-	ID                  string   `json:"id"`
-	ProjectID           string   `json:"project_id"`
-	Name                string   `json:"name"`
-	Backend             string   `json:"backend"`
-	CanonicalRoot       string   `json:"canonical_root"`
-	EnvironmentVariable string   `json:"environment_variable"`
-	RequiredMarkers     []string `json:"required_markers"`
-	Status              string   `json:"status"`
+	ID                  string       `json:"id"`
+	ProjectID           string       `json:"project_id"`
+	Name                string       `json:"name"`
+	Backend             string       `json:"backend"`
+	CanonicalRoot       string       `json:"canonical_root"`
+	EnvironmentVariable string       `json:"environment_variable"`
+	RequiredMarkers     []string     `json:"required_markers"`
+	Sources             []SourceFile `json:"sources"`
+	Status              string       `json:"status"`
 }
 
 type ListResult struct {
@@ -117,6 +120,10 @@ func (s *Service) OwnerRemove(ctx context.Context, tenantID int, actorID, projec
 }
 
 func (s *Service) register(ctx context.Context, tenantID, projectID int, projectPublicID string, tokenID *int, actorID string, actorType auditevent.ActorType, input RegisterInput) (View, error) {
+	input, err := applyCatalogDefaults(input)
+	if err != nil {
+		return View{}, err
+	}
 	name := strings.TrimSpace(input.Name)
 	if !workspacecatalog.ValidDatasetName(name) {
 		return View{}, invalid("name must use 1 to 100 letters, numbers, dots, underscores, or hyphens")
@@ -125,7 +132,7 @@ func (s *Service) register(ctx context.Context, tenantID, projectID int, project
 	if err != nil {
 		return View{}, err
 	}
-	canonicalRoot, err := NormalizeCanonicalRoot(input.CanonicalRoot)
+	canonicalRoot, err := NormalizeCanonicalRootForBackend(input.CanonicalRoot, backend)
 	if err != nil {
 		return View{}, err
 	}
@@ -133,6 +140,11 @@ func (s *Service) register(ctx context.Context, tenantID, projectID int, project
 	if err != nil {
 		return View{}, err
 	}
+	sources, err := NormalizeSources(input.Sources)
+	if err != nil {
+		return View{}, err
+	}
+	sourceMaps := SourceMaps(sources)
 	environmentVariable := workspacecatalog.DatasetEnvironmentVariable(name)
 	tx, err := s.client.Tx(ctx)
 	if err != nil {
@@ -154,6 +166,7 @@ func (s *Service) register(ctx context.Context, tenantID, projectID int, project
 		record, err = existing[0].Update().
 			SetCanonicalRoot(canonicalRoot).
 			SetRequiredMarkers(markers).
+			SetSources(sourceMaps).
 			SetStatus(datasetbinding.StatusActive).
 			Save(ctx)
 		if err != nil {
@@ -177,7 +190,8 @@ func (s *Service) register(ctx context.Context, tenantID, projectID int, project
 			SetBackend(datasetbinding.Backend(backend)).
 			SetCanonicalRoot(canonicalRoot).
 			SetEnvironmentVariable(environmentVariable).
-			SetRequiredMarkers(markers)
+			SetRequiredMarkers(markers).
+			SetSources(sourceMaps)
 		if tokenID != nil {
 			create.SetAgentTokenID(*tokenID)
 		}
@@ -198,7 +212,7 @@ func (s *Service) register(ctx context.Context, tenantID, projectID int, project
 		SetTargetID(record.PublicID.String()).
 		SetMetadata(map[string]any{
 			"project_id": projectPublicID, "name": name, "backend": backend,
-			"canonical_root": canonicalRoot, "required_markers": markers,
+			"canonical_root": canonicalRoot, "required_markers": markers, "source_count": len(sources),
 		}).Save(ctx); err != nil {
 		return View{}, err
 	}
@@ -274,9 +288,40 @@ func (s *Service) activeProject(ctx context.Context, tenantID int, projectPublic
 	return record, err
 }
 
+func applyCatalogDefaults(input RegisterInput) (RegisterInput, error) {
+	catalogName := strings.ToLower(strings.TrimSpace(input.Catalog))
+	if catalogName == "" {
+		return input, nil
+	}
+	entry, ok := LookupCatalog(catalogName)
+	if !ok {
+		return RegisterInput{}, invalid("catalog must be a built-in dataset source such as scanobjectnn-objbg")
+	}
+	if strings.TrimSpace(input.Name) == "" {
+		input.Name = entry.Name
+	}
+	if strings.TrimSpace(input.Backend) == "" {
+		input.Backend = entry.Backend
+	}
+	if strings.TrimSpace(input.CanonicalRoot) == "" {
+		input.CanonicalRoot = entry.CanonicalRoot
+	}
+	if len(input.RequiredMarkers) == 0 {
+		input.RequiredMarkers = append([]string(nil), entry.RequiredMarkers...)
+	}
+	return input, nil
+}
+
 func NormalizeCanonicalRoot(value string) (string, error) {
+	return NormalizeCanonicalRootForBackend(value, BackendElastic)
+}
+
+func NormalizeCanonicalRootForBackend(value, backend string) (string, error) {
 	value = strings.TrimSpace(value)
 	if value == "" || len(value) > 1024 || !utf8.ValidString(value) || strings.Contains(value, "\\") || !path.IsAbs(value) {
+		if backend == BackendSSHCloud {
+			return "", invalid("canonical_root must be an absolute UTF-8 host path under an approved prefix")
+		}
 		return "", invalid("canonical_root must be an absolute UTF-8 path under /root/autodl-fs/")
 	}
 	for _, character := range value {
@@ -285,7 +330,18 @@ func NormalizeCanonicalRoot(value string) (string, error) {
 		}
 	}
 	cleaned := path.Clean(value)
-	if cleaned != value || cleaned == "/root/autodl-fs" || !strings.HasPrefix(cleaned, autoDLRoot) {
+	if cleaned != value {
+		return "", invalid("canonical_root must be a normalized path")
+	}
+	if backend == BackendSSHCloud {
+		for _, prefix := range sshAllowedPrefixes {
+			if strings.HasPrefix(cleaned, prefix) && cleaned != strings.TrimSuffix(prefix, "/") {
+				return cleaned, nil
+			}
+		}
+		return "", invalid("canonical_root must be a normalized host path under /root, /data, /home, /opt, /mnt, or /gemcp")
+	}
+	if cleaned == "/root/autodl-fs" || !strings.HasPrefix(cleaned, autoDLRoot) {
 		return "", invalid("canonical_root must be a normalized path below /root/autodl-fs/")
 	}
 	return cleaned, nil
@@ -317,8 +373,10 @@ func NormalizeBackend(value string) (string, error) {
 		return BackendElastic, nil
 	case BackendPrivate, "private":
 		return BackendPrivate, nil
+	case BackendSSHCloud, "ssh-cloud", "cloud-ssh":
+		return BackendSSHCloud, nil
 	default:
-		return "", invalid("backend must be autodl_elastic or autodl_private")
+		return "", invalid("backend must be autodl_elastic, autodl_private, or ssh_cloud")
 	}
 }
 
@@ -327,10 +385,14 @@ func MakeView(record *ent.DatasetBinding, projectID string) View {
 	if markers == nil {
 		markers = []string{}
 	}
+	sources := SourcesFromRecord(record.Sources)
+	if sources == nil {
+		sources = []SourceFile{}
+	}
 	return View{
 		ID: record.PublicID.String(), ProjectID: projectID, Name: record.Name, Backend: string(record.Backend),
 		CanonicalRoot: record.CanonicalRoot, EnvironmentVariable: record.EnvironmentVariable,
-		RequiredMarkers: markers, Status: string(record.Status),
+		RequiredMarkers: markers, Sources: sources, Status: string(record.Status),
 	}
 }
 
@@ -349,10 +411,18 @@ func Snapshot(views []View) []map[string]any {
 		if markers == nil {
 			markers = []string{}
 		}
+		sources := make([]map[string]string, 0, len(view.Sources))
+		for _, source := range view.Sources {
+			item := map[string]string{"url": source.URL, "relative_path": source.RelativePath}
+			if source.SHA256 != "" {
+				item["sha256"] = source.SHA256
+			}
+			sources = append(sources, item)
+		}
 		result = append(result, map[string]any{
 			"id": view.ID, "name": view.Name, "backend": view.Backend,
 			"canonical_root": view.CanonicalRoot, "environment_variable": view.EnvironmentVariable,
-			"required_markers": markers,
+			"required_markers": markers, "sources": sources,
 		})
 	}
 	return result

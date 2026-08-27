@@ -467,10 +467,11 @@ var (
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "name", Type: field.TypeString, Size: 120},
-		{Name: "backend", Type: field.TypeEnum, Enums: []string{"autodl_elastic", "autodl_private"}},
+		{Name: "backend", Type: field.TypeEnum, Enums: []string{"autodl_elastic", "autodl_private", "ssh_cloud"}},
 		{Name: "canonical_root", Type: field.TypeString, Size: 1024},
 		{Name: "environment_variable", Type: field.TypeString, Size: 128},
 		{Name: "required_markers", Type: field.TypeJSON},
+		{Name: "sources", Type: field.TypeJSON, Nullable: true},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "disabled"}, Default: "active"},
 		{Name: "agent_token_id", Type: field.TypeInt, Nullable: true},
 		{Name: "project_id", Type: field.TypeInt},
@@ -484,19 +485,19 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "dataset_bindings_agent_tokens_dataset_bindings",
-				Columns:    []*schema.Column{DatasetBindingsColumns[10]},
+				Columns:    []*schema.Column{DatasetBindingsColumns[11]},
 				RefColumns: []*schema.Column{AgentTokensColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "dataset_bindings_projects_dataset_bindings",
-				Columns:    []*schema.Column{DatasetBindingsColumns[11]},
+				Columns:    []*schema.Column{DatasetBindingsColumns[12]},
 				RefColumns: []*schema.Column{ProjectsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "dataset_bindings_tenants_dataset_bindings",
-				Columns:    []*schema.Column{DatasetBindingsColumns[12]},
+				Columns:    []*schema.Column{DatasetBindingsColumns[13]},
 				RefColumns: []*schema.Column{TenantsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -505,17 +506,17 @@ var (
 			{
 				Name:    "datasetbinding_project_id_backend_name",
 				Unique:  true,
-				Columns: []*schema.Column{DatasetBindingsColumns[11], DatasetBindingsColumns[5], DatasetBindingsColumns[4]},
+				Columns: []*schema.Column{DatasetBindingsColumns[12], DatasetBindingsColumns[5], DatasetBindingsColumns[4]},
 			},
 			{
 				Name:    "datasetbinding_project_id_backend_environment_variable",
 				Unique:  true,
-				Columns: []*schema.Column{DatasetBindingsColumns[11], DatasetBindingsColumns[5], DatasetBindingsColumns[7]},
+				Columns: []*schema.Column{DatasetBindingsColumns[12], DatasetBindingsColumns[5], DatasetBindingsColumns[7]},
 			},
 			{
 				Name:    "datasetbinding_project_id_backend_status",
 				Unique:  false,
-				Columns: []*schema.Column{DatasetBindingsColumns[11], DatasetBindingsColumns[5], DatasetBindingsColumns[9]},
+				Columns: []*schema.Column{DatasetBindingsColumns[12], DatasetBindingsColumns[5], DatasetBindingsColumns[10]},
 			},
 		},
 	}

@@ -3,10 +3,18 @@ package sshcloud
 import (
 	"context"
 	"encoding/json"
+	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
 )
+
+var datasetEnvironmentVariable = regexp.MustCompile(`^GEMCP_DATASET_[A-Z0-9_]{1,112}$`)
+
+type datasetEnv struct {
+	Name  string
+	Value string
+}
 
 type remoteWorkload struct {
 	AssignmentID     string
@@ -21,6 +29,7 @@ type remoteWorkload struct {
 	RemoteDir        string
 	GraceSeconds     int
 	Network          string
+	DatasetEnv       []datasetEnv
 }
 
 type remoteState struct {
@@ -75,4 +84,41 @@ func joinQuoted(args []string) string {
 		quoted[i] = shellQuote(arg)
 	}
 	return strings.Join(quoted, " ")
+}
+
+func snapshotDatasetEnv(snapshot map[string]any) []datasetEnv {
+	raw, ok := snapshot["dataset_bindings"]
+	if !ok || raw == nil {
+		return nil
+	}
+	encoded, err := json.Marshal(raw)
+	if err != nil {
+		return nil
+	}
+	var bindings []struct {
+		EnvironmentVariable string `json:"environment_variable"`
+		CanonicalRoot       string `json:"canonical_root"`
+	}
+	if json.Unmarshal(encoded, &bindings) != nil {
+		return nil
+	}
+	result := make([]datasetEnv, 0, len(bindings))
+	for _, binding := range bindings {
+		if env, ok := sanitizeDatasetEnv(binding.EnvironmentVariable, binding.CanonicalRoot); ok {
+			result = append(result, env)
+		}
+	}
+	return result
+}
+
+func sanitizeDatasetEnv(name, value string) (datasetEnv, bool) {
+	name = strings.TrimSpace(name)
+	value = strings.TrimSpace(value)
+	if !datasetEnvironmentVariable.MatchString(name) {
+		return datasetEnv{}, false
+	}
+	if value == "" || !strings.HasPrefix(value, "/") || strings.ContainsAny(value, "\x00\n\r") || len(value) > 1024 {
+		return datasetEnv{}, false
+	}
+	return datasetEnv{Name: name, Value: value}, true
 }

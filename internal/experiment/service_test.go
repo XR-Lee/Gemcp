@@ -462,6 +462,10 @@ func TestOptionsAndList(t *testing.T) {
 	if options.Readiness == nil || options.Readiness.Heartbeat.InspectTool != "get_project_options" || options.Readiness.Heartbeat.MonitorTool != "get_experiment" {
 		t.Fatalf("readiness = %+v", options.Readiness)
 	}
+	if len(options.DatasetSources) == 0 || options.Onboarding == nil || options.Onboarding.PublicCloud.DatasetBindings != 0 ||
+		len(options.Onboarding.PublicCloud.NextSteps) == 0 || options.Onboarding.PublicCloud.NextSteps[0].Tool != "register_dataset_binding" {
+		t.Fatalf("public-cloud onboarding = %+v sources=%+v", options.Onboarding, options.DatasetSources)
+	}
 	if _, err := f.service.Submit(ctx, f.principal, validSubmit(f, "request-0001")); err != nil {
 		t.Fatal(err)
 	}

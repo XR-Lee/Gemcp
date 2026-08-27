@@ -64,6 +64,18 @@ Use this environment variable in a reviewed repository script instead of searchi
 
 Host Conda environments are not container environments and must not be registered as datasets. Select a public OCI image through trusted-workspace `prepare_experiment`, then keep dependency setup reproducible in that image or the verified repository.
 
+## Public Elastic onboarding
+
+Public Elastic does not mount a host disk and does not inject workspace datasets. Do not call `register_workspace_dataset` for AutoDL. Do not write `wget`, `curl`, conda, or a shell wrapper into `argv`.
+
+1. Call `get_project_options` and follow `onboarding.public_cloud.next_steps`.
+2. Call `register_dataset_binding` with `catalog=scanobjectnn-objbg` (or another `/root/autodl-fs/` root) and allowlisted HTTPS `sources`. This only declares the destination; it never uploads data.
+3. Call `prepare_experiment` with `runtime_preset=provision` and omit `argv`. Confirm the digest. The Runner downloads those exact URLs onto `/root/autodl-fs`.
+4. If the locked image lacks Python packages, call `register_environment` with a Provider-visible `image_uuid` from `provider_images`, or set `install_dependencies=true` so the Runner runs `python -m pip install --user -r requirements.gemcp.txt` from the verified commit. Do not compile mamba or change the image from inside the workload.
+5. Then prepare `smoke`, `probe`, or `train` as usual. Probe and train still fail closed if the bound root or markers are missing.
+
+Cloud SSH injects `GEMCP_DATASET_*` for already-present host paths. It does not download datasets.
+
 ## Research workspace
 
 The Owner console starts from a Study, an iteration plan, and a research Graph. Infrastructure remains in a separate Lab layer. Call `get_next_actions` and `get_research_workspace` before preparing work. After a terminal Experiment, call `close_run` instead of free-form result nodes.
@@ -263,8 +275,10 @@ The optional context is limited to repository remote, ref, and Experiment ID. `m
 | `register_workspace_dataset` | Declare a normalized relative dataset path | `configure` |
 | `remove_workspace_dataset` | Disable a dataset declaration without deleting data | `configure` |
 | `list_dataset_bindings` | List AutoDL dataset bindings for Public Elastic and Private Cloud | `read` |
-| `register_dataset_binding` | Register a `/root/autodl-fs/` dataset root and `GEMCP_DATASET_*` variable | `configure` |
-| `remove_dataset_binding` | Disable an AutoDL dataset binding without deleting data | `configure` |
+| `register_dataset_binding` | Register a `/root/autodl-fs/` or approved Cloud SSH root, optional catalog, and HTTPS sources | `configure` |
+| `remove_dataset_binding` | Disable a dataset binding without deleting data | `configure` |
+| `register_environment` | Register a Provider-visible AutoDL image as a Project Environment | `configure` |
+| `remove_environment` | Disable a Project Environment | `configure` |
 | `get_research_workspace` | Return Studies, the selected plan, Graph, and legal next actions | `read` |
 | `update_research_workspace` | Create or update a Study, plan, or Graph node without starting a workload | `submit` |
 | `get_next_actions` | Return the only Graph-legal next actions for the selected Study | `read` |

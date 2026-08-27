@@ -380,7 +380,8 @@ func (s *Service) projectOptions(ctx context.Context, principal agentauth.Princi
 		result.DatasetBindings = append(result.DatasetBindings, DatasetBindingOption{
 			ID: record.PublicID.String(), Name: record.Name, Backend: string(record.Backend),
 			CanonicalRoot: record.CanonicalRoot, EnvironmentVariable: record.EnvironmentVariable,
-			RequiredMarkers: append([]string(nil), record.RequiredMarkers...), Status: string(record.Status),
+			RequiredMarkers: append([]string(nil), record.RequiredMarkers...), Sources: datasetBindingSources(record),
+			Status: string(record.Status),
 		})
 	}
 	result.WorkspaceDatasets = make([]WorkspaceDatasetOption, 0, len(datasets))
@@ -496,6 +497,9 @@ func (s *Service) projectOptions(ctx context.Context, principal agentauth.Princi
 	if err := s.appendSSHCloudOptions(ctx, principal, environments, profiles, &result); err != nil {
 		return result, err
 	}
+	result.DatasetSources = catalogSourceOptions()
+	s.appendProviderImages(ctx, principal.TenantID, environments, profiles, &result)
+	result.Onboarding = publicCloudOnboarding(result)
 	result.Readiness = projectOptionsReadiness(result)
 	return result, nil
 }

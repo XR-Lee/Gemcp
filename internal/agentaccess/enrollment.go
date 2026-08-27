@@ -44,6 +44,8 @@ var piDirectTools = []string{
 	"list_dataset_bindings",
 	"register_dataset_binding",
 	"remove_dataset_binding",
+	"register_environment",
+	"remove_environment",
 	"get_research_workspace",
 	"update_research_workspace",
 	"get_next_actions",

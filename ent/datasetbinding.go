@@ -44,6 +44,8 @@ type DatasetBinding struct {
 	EnvironmentVariable string `json:"environment_variable,omitempty"`
 	// RequiredMarkers holds the value of the "required_markers" field.
 	RequiredMarkers []string `json:"required_markers,omitempty"`
+	// Sources holds the value of the "sources" field.
+	Sources []map[string]string `json:"sources,omitempty"`
 	// Status holds the value of the "status" field.
 	Status datasetbinding.Status `json:"status,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -103,7 +105,7 @@ func (*DatasetBinding) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case datasetbinding.FieldRequiredMarkers:
+		case datasetbinding.FieldRequiredMarkers, datasetbinding.FieldSources:
 			values[i] = new([]byte)
 		case datasetbinding.FieldID, datasetbinding.FieldTenantID, datasetbinding.FieldProjectID, datasetbinding.FieldAgentTokenID:
 			values[i] = new(sql.NullInt64)
@@ -203,6 +205,14 @@ func (_m *DatasetBinding) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field required_markers: %w", err)
 				}
 			}
+		case datasetbinding.FieldSources:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field sources", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Sources); err != nil {
+					return fmt.Errorf("unmarshal field sources: %w", err)
+				}
+			}
 		case datasetbinding.FieldStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
@@ -294,6 +304,9 @@ func (_m *DatasetBinding) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("required_markers=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RequiredMarkers))
+	builder.WriteString(", ")
+	builder.WriteString("sources=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Sources))
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Status))

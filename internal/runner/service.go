@@ -99,6 +99,8 @@ func (s *Service) Spec(ctx context.Context, token string) (Spec, error) {
 		ProvisioningSecondsRemaining: provisioningSecondsRemaining,
 		TokenExpiresAt:               *session.attempt.RunnerTokenExpiresAt,
 		DatasetBindings:              runnerDatasetBindings(session.experiment.EnvironmentSnapshot),
+		DatasetProvision:             runnerDatasetProvision(session.experiment.EnvironmentSnapshot),
+		InstallDependencies:          runnerInstallDependencies(session.experiment.EnvironmentSnapshot),
 	}, nil
 }
 
@@ -545,4 +547,39 @@ func runnerDatasetBindings(snapshot map[string]any) []DatasetBinding {
 		return nil
 	}
 	return bindings
+}
+
+func runnerDatasetProvision(snapshot map[string]any) *DatasetProvision {
+	raw, ok := snapshot["dataset_provision"]
+	if !ok || raw == nil {
+		return nil
+	}
+	encoded, err := json.Marshal(raw)
+	if err != nil {
+		return nil
+	}
+	var bindings []DatasetBinding
+	if err := json.Unmarshal(encoded, &bindings); err != nil {
+		return nil
+	}
+	if len(bindings) == 0 {
+		return nil
+	}
+	return &DatasetProvision{Bindings: bindings}
+}
+
+func runnerInstallDependencies(snapshot map[string]any) *InstallDependencies {
+	raw, ok := snapshot["install_dependencies"]
+	if !ok || raw == nil {
+		return nil
+	}
+	encoded, err := json.Marshal(raw)
+	if err != nil {
+		return nil
+	}
+	var install InstallDependencies
+	if err := json.Unmarshal(encoded, &install); err != nil || strings.TrimSpace(install.RequirementsFile) == "" {
+		return nil
+	}
+	return &install
 }

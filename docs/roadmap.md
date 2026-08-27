@@ -156,6 +156,10 @@ Schedule AutoDL Public Elastic Jobs through the same immutable Experiment, Attem
 
 Add an opt-in Cloud SSH laboratory. An Agent with `operate_nodes`, or the Owner as a fallback, stores an encrypted SSH password or private key; the control plane opens outbound SSH, pins the host key, and starts the Agent's argv as a host process. Agents keep prepare/submit tools and never receive SSH material. Loopback HTTP may start the scheduler, while AutoDL dispatch still requires HTTPS. The three backends do not fall back to one another.
 
+### v0.20.0 - Agent public-cloud onboarding
+
+Let a `configure` Agent finish Public Elastic setup without an Owner-baked image or trusted workspace. `register_dataset_binding` accepts a built-in catalog and allowlisted HTTPS sources. `prepare_experiment` gains `runtime_preset=provision` for a Gemcp-owned fetch onto `/root/autodl-fs`, plus optional `pip install --user` from the verified commit. `register_environment` / `remove_environment` register Provider-visible AutoDL images. Cloud SSH injects `GEMCP_DATASET_*`. `get_project_options` returns `dataset_sources`, `provider_images`, and `onboarding.public_cloud.next_steps`.
+
 ## In progress
 
 ### Repository readiness and Owner prepared experiments

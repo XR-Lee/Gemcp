@@ -17,6 +17,7 @@ const (
 )
 
 const bootstrapScript = `import ctypes
+import hashlib
 import http.client
 import json
 import os
@@ -28,6 +29,7 @@ import tarfile
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 BASE_URL = os.environ.pop("GEMCP_RUNNER_URL", "").rstrip("/")
@@ -310,6 +312,74 @@ def apply_dataset_bindings(spec, environment):
         seen_vars.add(variable)
         environment[variable] = root
 
+def source_host_ok(host):
+    host = (host or "").lower()
+    allowed = {"huggingface.co", "cdn-lfs.huggingface.co", "objects.githubusercontent.com", "github.com", "release-assets.githubusercontent.com"}
+    return host in allowed or (host.endswith(".huggingface.co") and host.startswith("cdn-lfs"))
+
+def download_source_file(url, dest, digest):
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme != "https" or parsed.username or parsed.query or parsed.fragment or not source_host_ok(parsed.hostname):
+        raise RuntimeError("dataset source URL is not approved")
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "*/*"})
+    hasher = hashlib.sha256()
+    written = 0
+    with OPENER.open(request, timeout=60) as response, open(dest + ".part", "wb") as output:
+        while True:
+            chunk = response.read(1024 * 1024)
+            if not chunk:
+                break
+            written += len(chunk)
+            if written > 32 * 1024 * 1024 * 1024:
+                raise RuntimeError("dataset source exceeded 32 GiB")
+            hasher.update(chunk)
+            output.write(chunk)
+    if digest and hasher.hexdigest() != digest.lower():
+        raise RuntimeError("dataset source digest mismatch")
+    os.replace(dest + ".part", dest)
+
+def provision_datasets(spec, environment):
+    provision = spec.get("dataset_provision") or {}
+    bindings = provision.get("bindings") or spec.get("dataset_bindings") or []
+    if not isinstance(bindings, list) or not bindings:
+        raise RuntimeError("dataset provision has no bindings")
+    files = 0
+    for binding in bindings:
+        if not isinstance(binding, dict):
+            raise RuntimeError("dataset provision binding is invalid")
+        root = str(binding.get("canonical_root") or "")
+        variable = str(binding.get("environment_variable") or "")
+        sources = binding.get("sources") or []
+        if not root.startswith("/root/autodl-fs/") or ".." in root.split("/") or not variable:
+            raise RuntimeError("dataset provision root is not an approved AutoDL path")
+        if not isinstance(sources, list) or not sources:
+            raise RuntimeError("dataset provision sources are missing")
+        os.makedirs(root, mode=0o755, exist_ok=True)
+        for source in sources:
+            if not isinstance(source, dict):
+                raise RuntimeError("dataset source is invalid")
+            rel = str(source.get("relative_path") or "")
+            if not rel or rel.startswith("/") or ".." in rel.split("/"):
+                raise RuntimeError("dataset source path is invalid")
+            download_source_file(str(source.get("url") or ""), os.path.join(root, rel), str(source.get("sha256") or ""))
+            files += 1
+        environment[variable] = root
+    environment["GEMCP_DATASET_PROVISIONED"] = str(files)
+
+def install_requirements(source_path, spec, log):
+    install = spec.get("install_dependencies") or {}
+    rel = str(install.get("requirements_file") or "requirements.gemcp.txt")
+    if rel.startswith("/") or ".." in rel.split("/"):
+        raise RuntimeError("requirements file is invalid")
+    path = os.path.join(source_path, rel)
+    if not os.path.isfile(path):
+        raise RuntimeError("requirements file is missing: " + rel)
+    subprocess.check_call(
+        [sys.executable, "-m", "pip", "install", "--user", "-r", path],
+        cwd=source_path, stdout=log, stderr=subprocess.STDOUT,
+    )
+
 def write_result(output_path, result):
     temporary = os.path.join(output_path, ".gemcp-result.json.tmp")
     final = os.path.join(output_path, "gemcp-result.json")
@@ -358,36 +428,44 @@ def main():
             environment.pop("GEMCP_RUNNER_TOKEN", None)
             environment.pop("GEMCP_LAUNCH_LOG", None)
             environment["GEMCP_OUTPUT_DIR"] = output_path
-            apply_dataset_bindings(spec, environment)
-            process_argv = execution_argv(spec)
-            with open(log_path, "ab", buffering=0) as log:
-                process = subprocess.Popen(
-                    process_argv, cwd=source_path,
-                    stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
-                    env=environment, start_new_session=True,
-                )
-                interval = max(5, int(spec["heartbeat_interval_seconds"]))
-                local_limit = int(spec["max_runtime_seconds"]) + int(spec["timeout_extension_seconds"])
-                while process.poll() is None:
-                    time.sleep(interval)
-                    if time.monotonic() - started_mono >= local_limit:
-                        reason = "timeout"
-                        terminate(process, int(spec["termination_grace_seconds"]))
-                        break
-                    try:
-                        control = post_event({
-                            "type": "heartbeat", "log_tail": log_tail(log_path, 60000), "metrics": metrics(output_path),
-                        }, retries=3)
-                    except Exception:
-                        control = {}
-                    if control.get("stop_requested"):
-                        reason = normalized_stop_reason(control.get("stop_reason"))
-                        terminate(process, int(spec["termination_grace_seconds"]))
-                        break
-                result = process.wait()
-                exit_code = result if result >= 0 else min(255, 128 - result)
-                if reason in ("timeout", "cancelled", "emergency") and exit_code == 0:
-                    exit_code = 143
+            if spec.get("dataset_provision"):
+                provision_datasets(spec, environment)
+                with open(os.path.join(output_path, "metrics.json"), "w", encoding="utf-8") as metrics_file:
+                    json.dump({"provisioned": True, "files": int(environment.get("GEMCP_DATASET_PROVISIONED") or 0)}, metrics_file)
+                exit_code = 0
+            else:
+                apply_dataset_bindings(spec, environment)
+                with open(log_path, "ab", buffering=0) as log:
+                    if spec.get("install_dependencies"):
+                        install_requirements(source_path, spec, log)
+                    process_argv = execution_argv(spec)
+                    process = subprocess.Popen(
+                        process_argv, cwd=source_path,
+                        stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
+                        env=environment, start_new_session=True,
+                    )
+                    interval = max(5, int(spec["heartbeat_interval_seconds"]))
+                    local_limit = int(spec["max_runtime_seconds"]) + int(spec["timeout_extension_seconds"])
+                    while process.poll() is None:
+                        time.sleep(interval)
+                        if time.monotonic() - started_mono >= local_limit:
+                            reason = "timeout"
+                            terminate(process, int(spec["termination_grace_seconds"]))
+                            break
+                        try:
+                            control = post_event({
+                                "type": "heartbeat", "log_tail": log_tail(log_path, 60000), "metrics": metrics(output_path),
+                            }, retries=3)
+                        except Exception:
+                            control = {}
+                        if control.get("stop_requested"):
+                            reason = normalized_stop_reason(control.get("stop_reason"))
+                            terminate(process, int(spec["termination_grace_seconds"]))
+                            break
+                    result = process.wait()
+                    exit_code = result if result >= 0 else min(255, 128 - result)
+                    if reason in ("timeout", "cancelled", "emergency") and exit_code == 0:
+                        exit_code = 143
     except Exception as error:
         reason = "runner_error"
         exit_code = 70

@@ -506,6 +506,16 @@ func EnvironmentVariableContainsFold(v string) predicate.DatasetBinding {
 	return predicate.DatasetBinding(sql.FieldContainsFold(FieldEnvironmentVariable, v))
 }
 
+// SourcesIsNil applies the IsNil predicate on the "sources" field.
+func SourcesIsNil() predicate.DatasetBinding {
+	return predicate.DatasetBinding(sql.FieldIsNull(FieldSources))
+}
+
+// SourcesNotNil applies the NotNil predicate on the "sources" field.
+func SourcesNotNil() predicate.DatasetBinding {
+	return predicate.DatasetBinding(sql.FieldNotNull(FieldSources))
+}
+
 // StatusEQ applies the EQ predicate on the "status" field.
 func StatusEQ(v Status) predicate.DatasetBinding {
 	return predicate.DatasetBinding(sql.FieldEQ(FieldStatus, v))

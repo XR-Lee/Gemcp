@@ -48,6 +48,13 @@ func (h *DatasetBindingHandlers) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"data": view})
 }
 
+func (h *DatasetBindingHandlers) Sources(c *gin.Context) {
+	if _, ok := ownerPrincipal(c); !ok {
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": datasetcatalog.Catalog()})
+}
+
 func (h *DatasetBindingHandlers) Remove(c *gin.Context) {
 	principal, ok := ownerPrincipal(c)
 	if !ok {

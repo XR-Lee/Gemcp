@@ -133,6 +133,32 @@ func TestSpecUsesExactlyOneExecutionAuthority(t *testing.T) {
 	}
 }
 
+func TestSpecIncludesDatasetProvisionAndInstall(t *testing.T) {
+	f := newRunnerFixture(t)
+	ctx := context.Background()
+	_, err := f.experiment.Update().SetEnvironmentSnapshot(map[string]any{
+		"dataset_bindings": []map[string]any{{
+			"name": "scanobjectnn-objbg", "canonical_root": "/root/autodl-fs/datasets/ScanObjectNN",
+			"environment_variable": "GEMCP_DATASET_SCANOBJECTNN_OBJBG",
+			"sources": []map[string]string{{"url": "https://huggingface.co/datasets/example/resolve/main/train.h5", "relative_path": "main_split/train.h5"}},
+		}},
+		"dataset_provision": []map[string]any{{
+			"name": "scanobjectnn-objbg", "canonical_root": "/root/autodl-fs/datasets/ScanObjectNN",
+			"environment_variable": "GEMCP_DATASET_SCANOBJECTNN_OBJBG",
+			"sources": []map[string]string{{"url": "https://huggingface.co/datasets/example/resolve/main/train.h5", "relative_path": "main_split/train.h5"}},
+		}},
+		"install_dependencies": map[string]any{"requirements_file": "requirements.gemcp.txt"},
+	}).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec, err := f.service.Spec(ctx, f.token)
+	if err != nil || spec.DatasetProvision == nil || len(spec.DatasetProvision.Bindings) != 1 ||
+		len(spec.DatasetBindings) != 1 || spec.InstallDependencies == nil || spec.InstallDependencies.RequirementsFile != "requirements.gemcp.txt" {
+		t.Fatalf("provision spec = %+v, %v", spec, err)
+	}
+}
+
 func TestSpecAndSourceAreScopedToRunnerToken(t *testing.T) {
 	f := newRunnerFixture(t)
 	ctx := context.Background()
