@@ -175,6 +175,11 @@ function match(url: URL, method: string, body?: unknown): Response | null {
     if (created.is_default) {
       for (const record of environmentRecords) record.is_default = false
     }
+    const existing = environmentRecords.find((item) => item.name === created.name)
+    if (existing) {
+      Object.assign(existing, created, { id: existing.id })
+      return json(existing)
+    }
     environmentRecords.push(created)
     return json(created, 201)
   }
@@ -195,6 +200,11 @@ function match(url: URL, method: string, body?: unknown): Response | null {
       required_markers: Array.isArray(input.required_markers) ? input.required_markers as string[] : [],
       sources: Array.isArray(input.sources) ? input.sources as Array<{ url: string; relative_path: string }> : [],
       status: 'active',
+    }
+    const existing = datasetBindingRecords.find((item) => item.name === name)
+    if (existing) {
+      Object.assign(existing, created, { id: existing.id, environment_variable: existing.environment_variable })
+      return json(existing)
     }
     datasetBindingRecords.push(created)
     return json(created, 201)
