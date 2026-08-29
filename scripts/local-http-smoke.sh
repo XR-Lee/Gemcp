@@ -116,17 +116,35 @@ agent_token=$(tr -d '\n' <"$token_file")
 python3 - "$origin" "$agent_token" <<'PY'
 import json, sys, urllib.error, urllib.request
 origin, token = sys.argv[1], sys.argv[2]
+session_id = ""
 
-def mcp(method, params, ident=1):
-    payload = {"jsonrpc": "2.0", "id": ident, "method": method, "params": params}
+def decode_body(raw, content_type):
+    if "text/event-stream" in content_type:
+        data_lines = []
+        for line in raw.splitlines():
+            if line.startswith("data:"):
+                data_lines.append(line[5:].lstrip())
+        raw = "\n".join(data_lines)
+    return json.loads(raw) if raw.strip() else {}
+
+def mcp(method, params=None, ident=1, notification=False):
+    global session_id
+    payload = {"jsonrpc": "2.0", "method": method}
+    if not notification:
+        payload["id"] = ident
+    if params is not None:
+        payload["params"] = params
+    headers = {
+        "Authorization": "Bearer " + token,
+        "Content-Type": "application/json",
+        "Accept": "application/json, text/event-stream",
+    }
+    if session_id:
+        headers["Mcp-Session-Id"] = session_id
     req = urllib.request.Request(
         origin + "/mcp",
         data=json.dumps(payload).encode(),
-        headers={
-            "Authorization": "Bearer " + token,
-            "Content-Type": "application/json",
-            "Accept": "application/json, text/event-stream",
-        },
+        headers=headers,
         method="POST",
     )
     try:
@@ -134,19 +152,17 @@ def mcp(method, params, ident=1):
             status = resp.status
             raw = resp.read().decode()
             content_type = resp.headers.get("Content-Type", "")
+            session_id = resp.headers.get("Mcp-Session-Id", session_id)
     except urllib.error.HTTPError as exc:
         sys.stderr.write(f"FAIL POST /mcp {method}: HTTP {exc.code}\n{exc.read().decode()}\n")
         sys.exit(1)
-    if status != 200:
+    allowed = (202, 204) if notification else (200,)
+    if status not in allowed:
         sys.stderr.write(f"FAIL POST /mcp {method}: HTTP {status}\n{raw}\n")
         sys.exit(1)
-    if "text/event-stream" in content_type:
-        data_lines = []
-        for line in raw.splitlines():
-            if line.startswith("data:"):
-                data_lines.append(line[5:].lstrip())
-        raw = "\n".join(data_lines)
-    body = json.loads(raw)
+    if notification:
+        return {}
+    body = decode_body(raw, content_type)
     if body.get("error"):
         sys.stderr.write(f"FAIL POST /mcp {method}: {body['error']}\n")
         sys.exit(1)
@@ -157,20 +173,14 @@ init = mcp("initialize", {
     "capabilities": {},
     "clientInfo": {"name": "gemcp-local-smoke", "version": "0"},
 })
-print("OK  POST /mcp initialize -> 200", init.get("result", {}).get("serverInfo", {}))
-
-# Some Streamable HTTP servers bind tools to the initialize session. A second
-# request without mcp-session-id may still answer tools/list; treat 28 as the
-# contract when the list is visible.
+print("OK  POST /mcp initialize -> 200", init.get("result", {}).get("serverInfo", {}), flush=True)
+mcp("notifications/initialized", {}, notification=True)
 tools = mcp("tools/list", {}, ident=2)
 names = [item["name"] for item in tools.get("result", {}).get("tools", [])]
-if names and len(names) != 28:
+if len(names) != 28:
     sys.stderr.write(f"FAIL tools/list count={len(names)} want 28: {names}\n")
     sys.exit(1)
-if names:
-    print(f"OK  POST /mcp tools/list -> 200 count={len(names)}")
-else:
-    print("OK  POST /mcp initialize completed; tools/list omitted session follow-up")
+print(f"OK  POST /mcp tools/list -> 200 count={len(names)}", flush=True)
 PY
 
 printf '\nLocal HTTP + skip_provider + MCP initialize succeeded against %s\n' "$origin"
