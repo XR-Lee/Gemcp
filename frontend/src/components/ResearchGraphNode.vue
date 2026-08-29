@@ -26,11 +26,20 @@ const outcomeLabel = computed(() => {
   if (props.data.outcome === 'failure') return t('Failure', '失败')
   return ''
 })
+
+function openRecord() {
+  const experimentID = props.data.node.experiment_id
+  if (experimentID) {
+    props.data.onOpenEvidence?.(experimentID)
+    return
+  }
+  props.data.onOpenDetail?.(props.data.node.id)
+}
 </script>
 
 <template>
   <article
-    class="flow-node"
+    class="flow-node nodrag nopan"
     :class="{
       'is-active-path': data.active,
       'is-unlinked': data.unlinked,
@@ -41,8 +50,11 @@ const outcomeLabel = computed(() => {
     :data-kind="data.node.kind"
     :data-state="data.node.status"
     :data-outcome="data.outcome || undefined"
-    :title="t('Double-click for detail', '双击展开细节')"
-    @dblclick.stop="data.onOpenDetail?.(data.node.id)"
+    data-testid="research-graph-node"
+    :title="data.node.experiment_id
+      ? t('Double-click to open the experiment record', '双击打开实验记录')
+      : t('Double-click for detail', '双击展开细节')"
+    @dblclick="openRecord"
   >
     <Handle id="target" type="target" :position="Position.Left" />
     <div class="flow-node-meta">
@@ -56,7 +68,8 @@ const outcomeLabel = computed(() => {
       v-if="data.node.experiment_id"
       class="text-button nodrag nopan"
       type="button"
-      @click="data.onOpenEvidence?.(data.node.experiment_id)"
+      @click.stop="data.onOpenEvidence?.(data.node.experiment_id)"
+      @dblclick.stop
     >
       {{ t('Evidence', '证据') }} {{ data.node.experiment_state ? localizedState(data.node.experiment_state) : '' }}
     </button>

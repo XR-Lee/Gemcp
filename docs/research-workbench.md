@@ -8,7 +8,7 @@ UI kits in `v0.16.1`: Vue Flow for the Graph, Reka UI for selectors and dialogs,
 
 The current Agent and Owner vocabulary is the single [Hypothesis–experiment Graph contract](graph-contract.md). MCP and the Owner console use the same words.
 
-`v0.17.0` makes an imported repository usable: Study import, directory-scoped MCP, a time-axis Graph with fullscreen and double-click detail, success/failure stamps, and default selection of the latest import.
+`v0.17.0` makes an imported repository usable: Study import, directory-scoped MCP, a time-axis Graph with fullscreen and double-click detail, success/failure stamps, and default selection of the latest import. Double-click the node body to open the same Experiment record as the Evidence link when the node is linked; otherwise the node-detail sidebar opens.
 
 The Graph time axis uses each node's `occurred_at` (git committer date for historical evidence, Experiment start/create time for Gemcp runs). `created_at` remains the MCP write time and is not the axis.
 

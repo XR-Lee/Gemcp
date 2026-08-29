@@ -615,6 +615,7 @@ label small { color: #858e88; font-size: 10px; font-weight: 500; }
   border: 1px solid var(--line);
   border-radius: 12px;
   box-shadow: 0 8px 24px #1b18140f;
+  cursor: pointer;
 }
 .flow-node.is-active-path {
   border-color: #d97706;

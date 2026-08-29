@@ -65,6 +65,8 @@ const graphNodes = computed<Node[]>(() => {
       type: 'research',
       position: { x: placed?.x ?? 36, y: placed?.y ?? 72 },
       class: [
+        'nodrag',
+        'nopan',
         placed?.active ? 'is-active-path' : '',
         placed?.unlinked ? 'is-unlinked' : '',
         placed?.outcome === 'success' ? 'is-success' : '',
@@ -143,9 +145,19 @@ function neighborTitle(id: string) {
   return nodeByID.value.get(id)?.title ?? id
 }
 
+function openNodeRecord(id: string) {
+  const research = nodeByID.value.get(id)
+  if (!research) return
+  if (research.experiment_id) {
+    emit('openExperiment', research.experiment_id)
+    return
+  }
+  selectedID.value = id
+}
+
 function onNodeDoubleClick(payload: NodeMouseEvent) {
   if (payload.node.type === 'timeline') return
-  selectedID.value = payload.node.id
+  openNodeRecord(payload.node.id)
 }
 
 function onPaneClick() {

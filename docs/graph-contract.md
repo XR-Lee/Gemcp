@@ -82,7 +82,7 @@ The Owner hypothesis list (same objects as MCP) shows, for each hypothesis:
 - commit
 - run records: state, result title, highlight observation
 
-UUIDs, argv, GPU IDs, and reservation math stay on the Lab Evidence page.
+UUIDs, argv, GPU IDs, and reservation math stay on the Lab Evidence page. Double-click a Graph node with an Evidence link to open that same Experiment record; other nodes open the node-detail sidebar.
 
 ## Legal edges
 

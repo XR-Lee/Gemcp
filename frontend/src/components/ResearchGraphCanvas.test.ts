@@ -65,9 +65,24 @@ describe('ResearchGraphCanvas', () => {
     await flushPromises()
     expect(wrapper.find('.graph-detail').text()).toContain('Can a cleaner OBJ-BG traversal raise ScanObjectNN accuracy?')
     expect(wrapper.find('.graph-detail').text()).toContain('Start from the published OBJ-BG protocol.')
+    expect(wrapper.emitted('openExperiment')).toBeUndefined()
     await wrapper.get('button[aria-label="Fullscreen graph"]').trigger('click')
     expect(document.body.querySelector('.graph-shell')?.classList.contains('is-fullscreen')).toBe(true)
     expect(document.body.style.overflow).toBe('hidden')
+    wrapper.unmount()
+  })
+
+  it('opens the experiment record when double-clicking a linked node', async () => {
+    useI18n().setLocale('en')
+    const wrapper = mount(ResearchGraphCanvas, {
+      props: { nodes, edges, layout },
+      attachTo: document.body,
+      global: { stubs: flowStubs },
+    })
+    await wrapper.findAll('.flow-node')[1].trigger('dblclick')
+    await flushPromises()
+    expect(wrapper.emitted('openExperiment')).toEqual([['experiment-1']])
+    expect(wrapper.find('.graph-detail').exists()).toBe(false)
     wrapper.unmount()
   })
 })
