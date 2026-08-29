@@ -54,6 +54,35 @@ func TestRegisterRejectsForeignRootsAndRequiresConfigure(t *testing.T) {
 	}
 }
 
+func TestRegisterModelNet40MiniAllowsSubmitScope(t *testing.T) {
+	client := enttest.Open(t, dialect.SQLite, "file:datasetcatalog-submit?mode=memory&cache=shared&_fk=1")
+	t.Cleanup(func() { client.Close() })
+	ctx := context.Background()
+	tenant, err := client.Tenant.Create().SetName("lab").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	project, err := client.Project.Create().SetTenantID(tenant.ID).SetName("p").SetSlug("p").
+		SetMonthlyBudgetMilli(100000).SetMaxExperimentMilli(20000).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, err := client.AgentToken.Create().SetProjectID(project.ID).SetLabel("agent").
+		SetPrefix("gmc_test").SetTokenHash([]byte("hash")).SetScopes([]string{"read", "submit", "cancel"}).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := NewService(client)
+	principal := agentauth.Principal{
+		TenantID: tenant.ID, ProjectID: project.ID, ProjectPublicID: project.PublicID.String(),
+		TokenID: token.ID, TokenPublicID: token.PublicID.String(), Scopes: []string{"read", "submit", "cancel"},
+	}
+	view, err := service.Register(ctx, principal, RegisterInput{Catalog: "modelnet40-mini"})
+	if err != nil || view.Name != "modelnet40-mini" || view.Backend != BackendSSHCloud {
+		t.Fatalf("submit-scope local CPU fixture = %+v, %v", view, err)
+	}
+}
+
 func TestRegisterCatalogModelNet40MiniUsesSSHCloudRoot(t *testing.T) {
 	client := enttest.Open(t, dialect.SQLite, "file:datasetcatalog-mini?mode=memory&cache=shared&_fk=1")
 	t.Cleanup(func() { client.Close() })

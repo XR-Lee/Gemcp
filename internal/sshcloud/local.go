@@ -13,6 +13,15 @@ import (
 const localProcessFingerprint = "SHA256:local-process"
 const localProcessPassword = "local-process"
 
+// LooksLikeLocalProcessNode reports whether registration would target the
+// loopback CPU stub (empty host/ssh, or 127.0.0.1/localhost). Remote SSH
+// still requires operate_nodes.
+func LooksLikeLocalProcessNode(input CreateInput) bool {
+	applyLocalProcessDefaults(&input, true)
+	_ = applySSHTarget(&input)
+	return isLoopbackHost(input.Host)
+}
+
 // applyLocalProcessDefaults fills loopback host/user/password so a local CLI
 // can register compute without inventing an SSH secret.
 func applyLocalProcessDefaults(input *CreateInput, enabled bool) {

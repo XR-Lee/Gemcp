@@ -32,6 +32,18 @@ func TestLocalDialRejectsNonLoopbackAndRunsCommands(t *testing.T) {
 	}
 }
 
+func TestLooksLikeLocalProcessNode(t *testing.T) {
+	if !LooksLikeLocalProcessNode(CreateInput{}) || !LooksLikeLocalProcessNode(CreateInput{Host: "127.0.0.1"}) {
+		t.Fatal("empty or loopback input should look like the local CPU stub")
+	}
+	if LooksLikeLocalProcessNode(CreateInput{Host: "203.0.113.10", User: "ubuntu", Password: "secret"}) {
+		t.Fatal("remote host must not look like the local CPU stub")
+	}
+	if LooksLikeLocalProcessNode(CreateInput{SSH: "ssh ubuntu@203.0.113.10", Password: "secret"}) {
+		t.Fatal("remote ssh line must not look like the local CPU stub")
+	}
+}
+
 func TestCreateLocalProcessFillsLoopbackDefaultsWithoutSecrets(t *testing.T) {
 	service, _, tenant, project := newServiceFixture(t)
 	service.config.LocalProcessEnabled = true

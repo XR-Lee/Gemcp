@@ -22,6 +22,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/repository"
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
+	"github.com/XR-Lee/Gemcp/internal/datasetcatalog"
 	"github.com/XR-Lee/Gemcp/internal/secrets"
 	"github.com/XR-Lee/Gemcp/internal/sshcloud"
 	"github.com/XR-Lee/Gemcp/internal/validation"
@@ -57,21 +58,27 @@ type CommitVerifier interface {
 }
 
 type Service struct {
-	client         *ent.Client
-	box            *secrets.Box
-	verifier       CommitVerifier
-	refResolver    ProposalRefResolver
-	archiver       ProposalArchiveReader
-	providerReader ProposalProviderReader
-	runtimeReader  ProposalRuntimeReader
-	proposalConfig ProposalConfig
-	graphBinder    GraphBinder
-	sshCloud       SSHCloudController
-	now            func() time.Time
+	client          *ent.Client
+	box             *secrets.Box
+	verifier        CommitVerifier
+	refResolver     ProposalRefResolver
+	archiver        ProposalArchiveReader
+	providerReader  ProposalProviderReader
+	runtimeReader   ProposalRuntimeReader
+	proposalConfig  ProposalConfig
+	graphBinder     GraphBinder
+	sshCloud        SSHCloudController
+	localCPUDataset LocalCPUDatasetBinder
+	now             func() time.Time
 }
 
 type SSHCloudController interface {
 	EnsureForProject(ctx context.Context, tenantID int, actorID, projectPublicID, image string) (sshcloud.EnsureResult, error)
+	LocalProcessEnabled() bool
+}
+
+type LocalCPUDatasetBinder interface {
+	EnsureModelNet40Mini(ctx context.Context, tenantID int, actorID, projectPublicID string) (datasetcatalog.View, error)
 }
 
 type GraphBinder interface {
@@ -93,6 +100,12 @@ type ServiceOption func(*Service)
 func WithSSHCloud(controller SSHCloudController) ServiceOption {
 	return func(service *Service) {
 		service.sshCloud = controller
+	}
+}
+
+func WithLocalCPUDataset(binder LocalCPUDatasetBinder) ServiceOption {
+	return func(service *Service) {
+		service.localCPUDataset = binder
 	}
 }
 

@@ -118,13 +118,13 @@ func New(agentAuth *agentauth.Service, experiments *experiment.Service, version 
 		Name: "list_dataset_bindings", Description: "List Project dataset bindings for Public Elastic, Private Cloud, and Cloud SSH. These inject GEMCP_DATASET_* at start. Public Elastic bindings live under /root/autodl-fs/.",
 	}, server.listDatasetBindings)
 	mcp.AddTool(mcpServer, &mcp.Tool{
-		Name: "register_dataset_binding", Description: "Register a dataset root for this Project. For Public Elastic use /root/autodl-fs/ plus optional catalog=scanobjectnn-objbg and allowlisted HTTPS sources. For local CPU use catalog=modelnet40-mini and backend=ssh_cloud on an approved host path. Requires configure scope. This never uploads data; prepare_experiment with runtime_preset=provision downloads the sources.",
+		Name: "register_dataset_binding", Description: "Register a dataset root for this Project. For Public Elastic use /root/autodl-fs/ plus optional catalog=scanobjectnn-objbg and allowlisted HTTPS sources. For local CPU use catalog=modelnet40-mini and backend=ssh_cloud; that fixture accepts submit scope when GEMCP_LOCAL_PROCESS_ENABLED is on. Requires configure for other bindings. This never uploads data; prepare_experiment with runtime_preset=provision downloads the sources.",
 	}, server.registerDatasetBinding)
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "remove_dataset_binding", Description: "Disable one Project dataset binding. Requires configure scope.",
 	}, server.removeDatasetBinding)
 	mcp.AddTool(mcpServer, &mcp.Tool{
-		Name: "register_environment", Description: "Register a Provider-visible AutoDL image as a Project Environment, or ensure the Cloud SSH host Environment after register_ssh_cloud_node (backend=ssh_cloud, image_uuid=host). Requires configure scope. Official image-* UUIDs remain Owner-only unless already used on the Project.",
+		Name: "register_environment", Description: "Register a Provider-visible AutoDL image as a Project Environment, or ensure the Cloud SSH host Environment (backend=ssh_cloud, image_uuid=host/cpu/local). AutoDL registration requires configure. The local CPU host Environment accepts submit when GEMCP_LOCAL_PROCESS_ENABLED is on. Official image-* UUIDs remain Owner-only unless already used on the Project.",
 	}, server.registerEnvironment)
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "remove_environment", Description: "Disable one Project Environment. Requires configure scope.",
@@ -148,7 +148,7 @@ func New(agentAuth *agentauth.Service, experiments *experiment.Service, version 
 		Name: "prepare_experiment", Description: "Prepare a zero-cost immutable argv proposal. runtime_preset may be smoke (300s), probe (3600s), train (up to the Project max runtime), or provision (Gemcp-owned AutoDL dataset fetch; omit argv). Optional install_dependencies runs python -m pip install --user from the verified commit. When the Project has an active Study, from_node_id must be a hypothesis or plan node and is bound into the confirmation digest. For Cloud SSH, omit image and repository; pass argv and optional cwd. Do not invent SSH credentials, wrap argv in a shell, or write wget/curl/conda.",
 	}, server.prepareExperiment)
 	mcp.AddTool(mcpServer, &mcp.Tool{
-		Name: "register_ssh_cloud_node", Description: "Register a Cloud SSH host for this Project. Accepts an ssh command line or host/port/user plus a password or private key. Credentials are write-only and never returned. Probe only checks connectivity and pins the host key. Requires operate_nodes scope.",
+		Name: "register_ssh_cloud_node", Description: "Register a Cloud SSH host for this Project. Accepts an ssh command line or host/port/user plus a password or private key. Credentials are write-only and never returned. Remote hosts require operate_nodes. The loopback CPU stub (empty host or 127.0.0.1) accepts submit when GEMCP_LOCAL_PROCESS_ENABLED is on and is probed immediately.",
 	}, server.registerSSHCloudNode)
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "rotate_ssh_cloud_node_credential", Description: "Replace the encrypted SSH password or private key for one Cloud SSH node. Credentials are write-only. Requires operate_nodes scope.",
@@ -433,8 +433,12 @@ func looksLikeSSHCloudHostEnvironment(input environmentcatalog.RegisterInput) bo
 	return false
 }
 
+func (s *Server) allowsLocalCPUSubmit(principal agentauth.Principal) bool {
+	return principal.HasScope("submit") && s.sshCloud != nil && s.sshCloud.LocalProcessEnabled()
+}
+
 func (s *Server) registerSSHCloudHostEnvironment(ctx context.Context, principal agentauth.Principal, input environmentcatalog.RegisterInput) (environmentcatalog.View, error) {
-	if !principal.HasScope("configure") {
+	if !principal.HasScope("configure") && !s.allowsLocalCPUSubmit(principal) {
 		return environmentcatalog.View{}, experiment.ErrForbidden
 	}
 	if s.sshCloud == nil {
@@ -608,13 +612,14 @@ func (s *Server) registerSSHCloudNode(ctx context.Context, request *mcp.CallTool
 	if err != nil {
 		return nil, sshcloud.NodeView{}, err
 	}
-	if !principal.HasScope("operate_nodes") {
+	localCPU := s.sshCloud != nil && s.sshCloud.LocalProcessEnabled() && sshcloud.LooksLikeLocalProcessNode(input)
+	if !principal.HasScope("operate_nodes") && !(localCPU && principal.HasScope("submit")) {
 		return nil, sshcloud.NodeView{}, experiment.ErrForbidden
 	}
 	if s.sshCloud == nil {
 		return nil, sshcloud.NodeView{}, sshcloud.ErrDisabled
 	}
-	probe := false
+	probe := localCPU
 	input.Probe = &probe
 	input.ProjectID = principal.ProjectPublicID
 	view, err := s.sshCloud.Create(ctx, principal.TenantID, "agent:"+principal.TokenPublicID, input)

@@ -16,8 +16,8 @@ import (
 	"github.com/XR-Lee/Gemcp/internal/buildinfo"
 	"github.com/XR-Lee/Gemcp/internal/config"
 	"github.com/XR-Lee/Gemcp/internal/datasetcatalog"
-	"github.com/XR-Lee/Gemcp/internal/environmentcatalog"
 	"github.com/XR-Lee/Gemcp/internal/diagnostic"
+	"github.com/XR-Lee/Gemcp/internal/environmentcatalog"
 	"github.com/XR-Lee/Gemcp/internal/execution"
 	"github.com/XR-Lee/Gemcp/internal/experiment"
 	"github.com/XR-Lee/Gemcp/internal/finance"
@@ -186,6 +186,7 @@ func New(deps Dependencies) *http.Server {
 	if deps.SSHCloud != nil {
 		experimentOptions = append(experimentOptions, experiment.WithSSHCloud(deps.SSHCloud))
 	}
+	experimentOptions = append(experimentOptions, experiment.WithLocalCPUDataset(datasetcatalog.NewService(deps.Ent)))
 	experimentService := experiment.NewService(deps.Ent, deps.Secrets, repositoryService, experimentOptions...)
 	experimentHandlers := httpapi.NewExperimentHandlers(experimentService)
 	protected.GET("/experiments", experimentHandlers.List)

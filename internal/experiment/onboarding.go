@@ -55,18 +55,17 @@ func localCPUOnboarding(options ProjectOptions) *ExecutionOnboarding {
 	}
 	if environments == 0 {
 		steps = append(steps, OnboardingStep{
-			Tool:   "register_environment",
-			Reason: "No host Environment is registered. Use backend=ssh_cloud and image_uuid=host. Do not call register_workspace_dataset and do not pick a Provider image UUID.",
+			Tool:    "register_environment",
+			Reason:  "No host Environment is registered. Use backend=ssh_cloud and image_uuid=host. Do not call register_workspace_dataset and do not pick a Provider image UUID.",
 			Example: map[string]any{"name": "local-cpu-host", "backend": "ssh_cloud", "image_uuid": "host"},
 		})
 	}
 	if bindings == 0 {
 		steps = append(steps, OnboardingStep{
 			Tool:   "register_dataset_binding",
-			Reason: "Register the CPU ModelNet40-mini fixture. Seed examples/local-cpu/dataset to $HOME/gemcp/datasets/modelnet40-mini first. Do not use register_workspace_dataset.",
+			Reason: "Register the CPU ModelNet40-mini fixture. Catalog registration seeds $HOME/gemcp/datasets/modelnet40-mini. Do not pass a literal $HOME path and do not use register_workspace_dataset.",
 			Example: map[string]any{
 				"catalog": "modelnet40-mini", "backend": "ssh_cloud",
-				"canonical_root": "$HOME/gemcp/datasets/modelnet40-mini",
 			},
 		})
 	}
@@ -128,21 +127,21 @@ func publicCloudOnboarding(options ProjectOptions) *ExecutionOnboarding {
 		})
 	} else {
 		steps = append(steps, OnboardingStep{
-			Tool:   "prepare_experiment",
-			Reason: "A provision run downloads the registered sources onto AutoDL file storage using a Gemcp-owned fetch. Confirm the digest, then prepare smoke, probe, or train.",
+			Tool:    "prepare_experiment",
+			Reason:  "A provision run downloads the registered sources onto AutoDL file storage using a Gemcp-owned fetch. Confirm the digest, then prepare smoke, probe, or train.",
 			Example: map[string]any{"runtime_preset": "provision", "dataset": "scanobjectnn-objbg"},
 		})
 	}
 	if environments == 0 {
 		steps = append(steps, OnboardingStep{
-			Tool:   "register_environment",
-			Reason: "No AutoDL Environment is registered. Register a Provider-visible image from get_project_options.provider_images. Official image-* UUIDs are Owner-only unless already used on the Project.",
+			Tool:    "register_environment",
+			Reason:  "No AutoDL Environment is registered. Register a Provider-visible image from get_project_options.provider_images. Official image-* UUIDs are Owner-only unless already used on the Project.",
 			Example: map[string]any{"name": "torch-train", "backend": backend, "image_uuid": "image-visible"},
 		})
 	} else {
 		steps = append(steps, OnboardingStep{
-			Tool:   "register_environment",
-			Reason: "The AutoDL image is Owner-locked. If that image lacks the training stack, register another Provider-visible image. Do not wrap argv in conda or compile mamba; set install_dependencies or change the image.",
+			Tool:    "register_environment",
+			Reason:  "The AutoDL image is Owner-locked. If that image lacks the training stack, register another Provider-visible image. Do not wrap argv in conda or compile mamba; set install_dependencies or change the image.",
 			Example: map[string]any{"name": "torch-train", "backend": backend, "image_uuid": lockedImage},
 		})
 	}

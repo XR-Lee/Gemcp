@@ -405,6 +405,77 @@ func TestRegisterEnvironmentInvisibleImageFallsBackToLocalCPU(t *testing.T) {
 	}
 }
 
+func TestRegisterLocalCPUStubAllowsSubmitWithoutOperateNodes(t *testing.T) {
+	client := enttest.Open(t, dialect.SQLite, "file:mcp-local-submit?mode=memory&cache=shared&_fk=1")
+	defer client.Close()
+	ctx := context.Background()
+	tenant, _ := client.Tenant.Create().SetName("Test").Save(ctx)
+	project, _ := client.Project.Create().
+		SetTenantID(tenant.ID).SetName("Project").SetSlug("project").
+		SetMonthlyBudgetMilli(100000).SetMaxExperimentMilli(20000).SetMaxRuntimeSeconds(3600).
+		Save(ctx)
+	key, _ := secrets.GenerateMasterKey()
+	box, _ := secrets.New(key)
+	rawToken, prefix, _ := secrets.RandomToken("gmc", 32)
+	_, _ = client.AgentToken.Create().
+		SetProjectID(project.ID).SetLabel("smoke-agent").SetPrefix(prefix).
+		SetTokenHash(box.Digest("agent-token", rawToken)).
+		SetScopes([]string{"read", "submit", "cancel"}).Save(ctx)
+	config := sshcloud.DefaultConfig()
+	config.Enabled = true
+	config.LocalProcessEnabled = true
+	config.InstanceID = "test"
+	sshService, err := sshcloud.NewService(client, box, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := New(
+		agentauth.NewService(client, box),
+		experiment.NewService(client, box, allowCommitVerifier{}, experiment.WithSSHCloud(sshService), experiment.WithLocalCPUDataset(datasetcatalog.NewService(client))),
+		"test", nil, WithSSHCloud(sshService), WithEnvironments(environmentcatalog.NewService(client, nil)),
+		WithConfiguration(nil, nil, datasetcatalog.NewService(client)),
+	).Handler()
+	httpServer := httptest.NewServer(handler)
+	defer httpServer.Close()
+	httpClient := &http.Client{Transport: bearerTransport{token: rawToken, base: http.DefaultTransport}}
+	mcpClient := mcp.NewClient(&mcp.Implementation{Name: "gemcp-test", Version: "test"}, nil)
+	session, err := mcpClient.Connect(ctx, &mcp.StreamableClientTransport{
+		Endpoint: httpServer.URL, HTTPClient: httpClient,
+	}, nil)
+	if err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	defer session.Close()
+
+	remote, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "register_ssh_cloud_node", Arguments: map[string]any{
+		"host": "203.0.113.10", "user": "ubuntu", "auth_method": "password", "password": "secret",
+	}})
+	if err != nil {
+		t.Fatalf("remote register err=%v", err)
+	}
+	encodedRemote, _ := json.Marshal(remote)
+	if !remote.IsError || !strings.Contains(strings.ToLower(string(encodedRemote)), "scope") {
+		t.Fatalf("remote SSH must still require operate_nodes: %s", encodedRemote)
+	}
+
+	node, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "register_ssh_cloud_node", Arguments: map[string]any{}})
+	if err != nil || node.IsError {
+		t.Fatalf("loopback CPU stub with submit = %+v, %v", node, err)
+	}
+	environment, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "register_environment", Arguments: map[string]any{
+		"name": "cpu", "image_uuid": "host",
+	}})
+	if err != nil || environment.IsError {
+		t.Fatalf("host environment with submit = %+v, %v", environment, err)
+	}
+	dataset, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "register_dataset_binding", Arguments: map[string]any{
+		"catalog": "modelnet40-mini",
+	}})
+	if err != nil || dataset.IsError {
+		t.Fatalf("modelnet40-mini with submit = %+v, %v", dataset, err)
+	}
+}
+
 func decodeStructured(t *testing.T, value any, target any) {
 	t.Helper()
 	encoded, err := json.Marshal(value)

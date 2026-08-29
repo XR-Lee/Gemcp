@@ -741,14 +741,46 @@ func TestOwnerReadinessWaitingAgentDoesNotProbe(t *testing.T) {
 }
 
 type fakeSSHCloudController struct {
-	result    sshcloud.EnsureResult
-	err       error
-	calls     int
-	lastImage string
+	result       sshcloud.EnsureResult
+	err          error
+	calls        int
+	lastImage    string
+	localProcess bool
 }
 
 func (f *fakeSSHCloudController) EnsureForProject(_ context.Context, _ int, _, _, image string) (sshcloud.EnsureResult, error) {
 	f.calls++
 	f.lastImage = image
 	return f.result, f.err
+}
+
+func (f *fakeSSHCloudController) LocalProcessEnabled() bool { return f.localProcess }
+
+func TestEnsureSSHCloudForPrepareUsesLocalCPUWithoutNodes(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	ctx := context.Background()
+	fake := &fakeSSHCloudController{
+		localProcess: true,
+		result:       sshcloud.EnsureResult{NodeID: "n1", EnvironmentName: "local-cpu", Message: "ready"},
+	}
+	f.service = NewService(f.client, f.box, f.verifier, WithSSHCloud(fake), WithPreparedExperiments(
+		nil, nil, nil, nil, ProposalConfig{SSHCloudEnabled: true},
+	))
+	got, err := f.service.ensureSSHCloudForPrepare(ctx, f.principal, &PrepareInput{Argv: []string{"python3", "train.py"}})
+	if err != nil || fake.calls != 1 || got.EnvironmentName != "local-cpu" {
+		t.Fatalf("ensure=%+v calls=%d err=%v", got, fake.calls, err)
+	}
+}
+
+func TestEnsureSSHCloudForPrepareSkipsWhenNoLocalCPUAndNoNodes(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	ctx := context.Background()
+	fake := &fakeSSHCloudController{}
+	f.service = NewService(f.client, f.box, f.verifier, WithSSHCloud(fake), WithPreparedExperiments(
+		nil, nil, nil, nil, ProposalConfig{SSHCloudEnabled: true},
+	))
+	got, err := f.service.ensureSSHCloudForPrepare(ctx, f.principal, &PrepareInput{Argv: []string{"python3", "train.py"}})
+	if err != nil || fake.calls != 0 || got.EnvironmentName != "" {
+		t.Fatalf("ensure=%+v calls=%d err=%v", got, fake.calls, err)
+	}
 }

@@ -67,23 +67,23 @@ type proposalWorkspace struct {
 }
 
 type proposalResolved struct {
-	id             uuid.UUID
-	project        *ent.Project
-	repository     *ent.Repository
-	environment    *ent.Environment
-	profile        *ent.ResourceProfile
-	image          string
-	workspace      *proposalWorkspace
-	ref            string
-	commitSHA      string
-	execution      executioncmd.Spec
-	preset         string
-	runtime        int
-	reservation    int64
-	expiresAt      time.Time
-	checks         []ProposalCheck
-	fromNodeID     string
-	expectedMetric string
+	id                  uuid.UUID
+	project             *ent.Project
+	repository          *ent.Repository
+	environment         *ent.Environment
+	profile             *ent.ResourceProfile
+	image               string
+	workspace           *proposalWorkspace
+	ref                 string
+	commitSHA           string
+	execution           executioncmd.Spec
+	preset              string
+	runtime             int
+	reservation         int64
+	expiresAt           time.Time
+	checks              []ProposalCheck
+	fromNodeID          string
+	expectedMetric      string
 	cwd                 string
 	sshHost             string
 	sshUser             string
@@ -552,6 +552,7 @@ func (s *Service) ensureSSHCloudForPrepare(ctx context.Context, principal agenta
 	if !s.proposalConfig.SSHCloudEnabled || s.sshCloud == nil || input == nil {
 		return empty, nil
 	}
+	localCPU := s.sshCloud.LocalProcessEnabled()
 	sshSelector := looksLikeSSHCloudSelector(input.Environment) || looksLikeSSHCloudSelector(input.ResourceProfile)
 	hasNodes, err := s.client.CloudSSHNode.Query().Where(
 		cloudsshnode.TenantIDEQ(principal.TenantID),
@@ -562,16 +563,19 @@ func (s *Service) ensureSSHCloudForPrepare(ctx context.Context, principal agenta
 	}
 	selectedOther := (strings.TrimSpace(input.Environment) != "" && !looksLikeSSHCloudSelector(input.Environment)) ||
 		(strings.TrimSpace(input.ResourceProfile) != "" && !looksLikeSSHCloudSelector(input.ResourceProfile))
-	if selectedOther && !sshSelector {
+	if selectedOther && !sshSelector && !localCPU {
 		return empty, nil
 	}
-	if !sshSelector && !hasNodes {
+	if !sshSelector && !hasNodes && !localCPU {
 		return empty, nil
 	}
 	input.Image = ""
 	result, err := s.sshCloud.EnsureForProject(ctx, principal.TenantID, "agent:"+principal.TokenPublicID, principal.ProjectPublicID, sshcloud.HostImage)
 	if err != nil {
 		return empty, publicCloudSSHPrepareError(err)
+	}
+	if localCPU && s.localCPUDataset != nil {
+		_, _ = s.localCPUDataset.EnsureModelNet40Mini(ctx, principal.TenantID, "agent:"+principal.TokenPublicID, principal.ProjectPublicID)
 	}
 	return result, nil
 }
@@ -600,7 +604,15 @@ func publicCloudSSHPrepareError(err error) error {
 
 func looksLikeSSHCloudSelector(value string) bool {
 	text := strings.ToLower(strings.TrimSpace(value))
-	return strings.Contains(text, "ssh_cloud") || strings.Contains(text, "ssh-cloud")
+	if text == "" {
+		return false
+	}
+	switch text {
+	case sshcloud.HostImage, "cpu", "local", "local-cpu", "local_cpu":
+		return true
+	}
+	return strings.Contains(text, "ssh_cloud") || strings.Contains(text, "ssh-cloud") ||
+		strings.Contains(text, "local-cpu") || strings.Contains(text, "local_cpu")
 }
 
 func validateProposalResource(profileRecord *ent.ResourceProfile) error {
