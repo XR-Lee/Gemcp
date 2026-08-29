@@ -146,13 +146,20 @@ csrf = ((login.get("data") or {}).get("csrf_token") or "")
 if not csrf:
     print("WARN Owner login skipped; smoke token scopes were not upgraded", flush=True)
     raise SystemExit(0)
-projects = ((call("GET", "/api/v1/projects").get("data") or {}).get("projects") or [])
+listed_projects = call("GET", "/api/v1/projects").get("data")
+if isinstance(listed_projects, list):
+    projects = listed_projects
+else:
+    projects = (listed_projects or {}).get("projects") or []
 if not projects:
     print("WARN no Owner projects; smoke token scopes were not upgraded", flush=True)
     raise SystemExit(0)
 project_id = projects[0]["id"]
 listed = call("GET", f"/api/v1/projects/{project_id}/agent-tokens")
-tokens = ((listed.get("data") or {}).get("tokens") or [])
+payload = listed.get("data") or {}
+tokens = payload.get("tokens") if isinstance(payload, dict) else payload
+if not isinstance(tokens, list):
+    tokens = []
 match = None
 for item in tokens:
     prefix = item.get("prefix") or ""
