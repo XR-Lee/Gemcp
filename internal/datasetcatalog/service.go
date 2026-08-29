@@ -70,15 +70,43 @@ type ListResult struct {
 	Bindings []View `json:"dataset_bindings"`
 }
 
-type Service struct{ client *ent.Client }
+type Service struct {
+	client *ent.Client
+	// localCPUFixture mirrors GEMCP_LOCAL_PROCESS_ENABLED. Only then may a
+	// submit-scope token register the modelnet40-mini fixture, and only then
+	// does registering it seed files onto the control-plane host.
+	localCPUFixture bool
+}
 
-func NewService(client *ent.Client) *Service { return &Service{client: client} }
+type Option func(*Service)
+
+func WithLocalCPUFixture(enabled bool) Option {
+	return func(s *Service) { s.localCPUFixture = enabled }
+}
+
+func NewService(client *ent.Client, options ...Option) *Service {
+	service := &Service{client: client}
+	for _, option := range options {
+		option(service)
+	}
+	return service
+}
+
+func LooksLikeLocalCPUFixture(input RegisterInput) bool {
+	catalog := strings.ToLower(strings.TrimSpace(input.Catalog))
+	name := strings.ToLower(strings.TrimSpace(input.Name))
+	return catalog == "modelnet40-mini" || name == "modelnet40-mini"
+}
 
 func (s *Service) Register(ctx context.Context, principal agentauth.Principal, input RegisterInput) (View, error) {
-	if !principal.HasScope("configure") {
+	if !principal.HasScope("configure") && !(s.localCPUFixture && principal.HasScope("submit") && LooksLikeLocalCPUFixture(input)) {
 		return View{}, ErrForbidden
 	}
 	return s.register(ctx, principal.TenantID, principal.ProjectID, principal.ProjectPublicID, &principal.TokenID, principal.TokenPublicID, auditevent.ActorTypeAgentToken, input)
+}
+
+func (s *Service) EnsureModelNet40Mini(ctx context.Context, tenantID int, actorID, projectPublicID string) (View, error) {
+	return s.OwnerRegister(ctx, tenantID, actorID, projectPublicID, RegisterInput{Catalog: "modelnet40-mini"})
 }
 
 func (s *Service) OwnerRegister(ctx context.Context, tenantID int, actorID, projectPublicID string, input RegisterInput) (View, error) {
@@ -120,7 +148,7 @@ func (s *Service) OwnerRemove(ctx context.Context, tenantID int, actorID, projec
 }
 
 func (s *Service) register(ctx context.Context, tenantID, projectID int, projectPublicID string, tokenID *int, actorID string, actorType auditevent.ActorType, input RegisterInput) (View, error) {
-	input, err := applyCatalogDefaults(input)
+	input, err := applyCatalogDefaults(input, s.localCPUFixture)
 	if err != nil {
 		return View{}, err
 	}
@@ -132,7 +160,7 @@ func (s *Service) register(ctx context.Context, tenantID, projectID int, project
 	if err != nil {
 		return View{}, err
 	}
-	canonicalRoot, err := NormalizeCanonicalRootForBackend(input.CanonicalRoot, backend)
+	canonicalRoot, err := s.normalizeRegisterRoot(input.CanonicalRoot, backend)
 	if err != nil {
 		return View{}, err
 	}
@@ -145,6 +173,14 @@ func (s *Service) register(ctx context.Context, tenantID, projectID int, project
 		return View{}, err
 	}
 	sourceMaps := SourceMaps(sources)
+	// Seed only after every input passed validation, and only the fixed
+	// default root in local mode, so an API caller can never point the
+	// control plane at an arbitrary directory.
+	if s.localCPUFixture && name == "modelnet40-mini" && canonicalRoot == DefaultModelNet40MiniRoot() {
+		if err := SeedModelNet40Mini(canonicalRoot); err != nil {
+			return View{}, invalid("could not seed the ModelNet40-mini CPU fixture: " + err.Error())
+		}
+	}
 	environmentVariable := workspacecatalog.DatasetEnvironmentVariable(name)
 	tx, err := s.client.Tx(ctx)
 	if err != nil {
@@ -288,14 +324,14 @@ func (s *Service) activeProject(ctx context.Context, tenantID int, projectPublic
 	return record, err
 }
 
-func applyCatalogDefaults(input RegisterInput) (RegisterInput, error) {
+func applyCatalogDefaults(input RegisterInput, localCPUFixture bool) (RegisterInput, error) {
 	catalogName := strings.ToLower(strings.TrimSpace(input.Catalog))
 	if catalogName == "" {
 		return input, nil
 	}
 	entry, ok := LookupCatalog(catalogName)
 	if !ok {
-		return RegisterInput{}, invalid("catalog must be a built-in dataset source such as scanobjectnn-objbg")
+		return RegisterInput{}, invalid("catalog must be a built-in dataset source such as scanobjectnn-objbg or modelnet40-mini")
 	}
 	if strings.TrimSpace(input.Name) == "" {
 		input.Name = entry.Name
@@ -306,10 +342,26 @@ func applyCatalogDefaults(input RegisterInput) (RegisterInput, error) {
 	if strings.TrimSpace(input.CanonicalRoot) == "" {
 		input.CanonicalRoot = entry.CanonicalRoot
 	}
+	// Only local mode redirects the fixture into the server's home; production
+	// keeps the catalog's /opt root and never writes files.
+	if localCPUFixture && entry.Name == "modelnet40-mini" && (strings.TrimSpace(input.CanonicalRoot) == "" || input.CanonicalRoot == entry.CanonicalRoot) {
+		input.CanonicalRoot = DefaultModelNet40MiniRoot()
+	}
 	if len(input.RequiredMarkers) == 0 {
 		input.RequiredMarkers = append([]string(nil), entry.RequiredMarkers...)
 	}
 	return input, nil
+}
+
+// normalizeRegisterRoot accepts the server-derived default fixture root in
+// local mode even when the home directory (for example /Users on macOS) is not
+// under the ssh_cloud prefix allowlist. Every other root goes through the
+// normal validation.
+func (s *Service) normalizeRegisterRoot(value, backend string) (string, error) {
+	if s.localCPUFixture && backend == BackendSSHCloud && strings.TrimSpace(value) == DefaultModelNet40MiniRoot() {
+		return DefaultModelNet40MiniRoot(), nil
+	}
+	return NormalizeCanonicalRootForBackend(value, backend)
 }
 
 func NormalizeCanonicalRoot(value string) (string, error) {

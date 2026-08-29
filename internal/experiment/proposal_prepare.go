@@ -89,6 +89,7 @@ type proposalResolved struct {
 	sshUser             string
 	sshNodeID           string
 	sshNodeLabel        string
+	dataset             string
 	bindings            []datasetcatalog.View
 	installDependencies bool
 	requirementsFile    string
@@ -324,7 +325,7 @@ func (s *Service) resolveProposal(ctx context.Context, principal agentauth.Princ
 		image: image, workspace: workspace, cwd: cwd,
 		ref: ref, commitSHA: commitSHA, execution: executionSpec, preset: preset, runtime: runtimeSeconds,
 		reservation: reservation, expiresAt: now.Add(s.proposalConfig.Lifetime).Truncate(time.Microsecond),
-		fromNodeID: fromNodeID, expectedMetric: expectedMetric,
+		fromNodeID: fromNodeID, expectedMetric: expectedMetric, dataset: strings.TrimSpace(input.Dataset),
 	}
 	if sshCloud {
 		if err := s.attachSSHCloudTarget(ctx, projectRecord, environmentRecord, &resolved); err != nil {
@@ -551,6 +552,7 @@ func (s *Service) ensureSSHCloudForPrepare(ctx context.Context, principal agenta
 	if !s.proposalConfig.SSHCloudEnabled || s.sshCloud == nil || input == nil {
 		return empty, nil
 	}
+	localCPU := s.sshCloud.LocalProcessEnabled()
 	sshSelector := looksLikeSSHCloudSelector(input.Environment) || looksLikeSSHCloudSelector(input.ResourceProfile)
 	hasNodes, err := s.client.CloudSSHNode.Query().Where(
 		cloudsshnode.TenantIDEQ(principal.TenantID),
@@ -561,16 +563,22 @@ func (s *Service) ensureSSHCloudForPrepare(ctx context.Context, principal agenta
 	}
 	selectedOther := (strings.TrimSpace(input.Environment) != "" && !looksLikeSSHCloudSelector(input.Environment)) ||
 		(strings.TrimSpace(input.ResourceProfile) != "" && !looksLikeSSHCloudSelector(input.ResourceProfile))
+	// An explicit non-SSH selection always wins, even in local mode, so an
+	// agent that names an AutoDL environment is not silently rerouted onto the
+	// loopback CPU host.
 	if selectedOther && !sshSelector {
 		return empty, nil
 	}
-	if !sshSelector && !hasNodes {
+	if !sshSelector && !hasNodes && !localCPU {
 		return empty, nil
 	}
 	input.Image = ""
 	result, err := s.sshCloud.EnsureForProject(ctx, principal.TenantID, "agent:"+principal.TokenPublicID, principal.ProjectPublicID, sshcloud.HostImage)
 	if err != nil {
 		return empty, publicCloudSSHPrepareError(err)
+	}
+	if localCPU && s.localCPUDataset != nil {
+		_, _ = s.localCPUDataset.EnsureModelNet40Mini(ctx, principal.TenantID, "agent:"+principal.TokenPublicID, principal.ProjectPublicID)
 	}
 	return result, nil
 }
@@ -599,7 +607,15 @@ func publicCloudSSHPrepareError(err error) error {
 
 func looksLikeSSHCloudSelector(value string) bool {
 	text := strings.ToLower(strings.TrimSpace(value))
-	return strings.Contains(text, "ssh_cloud") || strings.Contains(text, "ssh-cloud")
+	if text == "" {
+		return false
+	}
+	switch text {
+	case sshcloud.HostImage, "cpu", "local", "local-cpu", "local_cpu":
+		return true
+	}
+	return strings.Contains(text, "ssh_cloud") || strings.Contains(text, "ssh-cloud") ||
+		strings.Contains(text, "local-cpu") || strings.Contains(text, "local_cpu")
 }
 
 func validateProposalResource(profileRecord *ent.ResourceProfile) error {
@@ -1081,7 +1097,7 @@ func proposalNodeMatchesGPU(capabilities map[string]any, accepted []string) bool
 	return false
 }
 
-func proposalDigest(resolved proposalResolved) string {
+func proposalDigestMaterial(resolved proposalResolved) []byte {
 	material := struct {
 		ProposalID       string            `json:"proposal_id"`
 		Project          map[string]any    `json:"project"`
@@ -1113,7 +1129,11 @@ func proposalDigest(resolved proposalResolved) string {
 		Isolation: proposalIsolation(resolved),
 	}
 	encoded, _ := json.Marshal(material)
-	digest := sha256.Sum256(encoded)
+	return encoded
+}
+
+func proposalDigest(resolved proposalResolved) string {
+	digest := sha256.Sum256(proposalDigestMaterial(resolved))
 	return fmt.Sprintf("sha256:%x", digest[:])
 }
 

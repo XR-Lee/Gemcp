@@ -85,6 +85,7 @@ type View struct {
 	RunnerErrorType       *string                 `json:"runner_error_type,omitempty"`
 	LogTail               *string                 `json:"log_tail,omitempty"`
 	Metrics               map[string]any          `json:"metrics,omitempty"`
+	LastHeartbeatAt       *time.Time              `json:"last_heartbeat_at,omitempty"`
 	ExecutionContext      ExecutionContextView    `json:"execution_context"`
 	BackendObservation    *BackendObservationView `json:"backend_observation,omitempty"`
 	Timeline              []TimelineEvent         `json:"timeline,omitempty"`
@@ -344,6 +345,15 @@ type ProviderImageOption struct {
 
 type ExecutionOnboarding struct {
 	PublicCloud PublicCloudOnboarding `json:"public_cloud"`
+	LocalCPU    *LocalCPUOnboarding   `json:"local_cpu,omitempty"`
+}
+
+type LocalCPUOnboarding struct {
+	Backend         string           `json:"backend"`
+	DatasetBindings int              `json:"dataset_bindings"`
+	Environments    int              `json:"environments"`
+	ReadyCompute    int              `json:"ready_compute"`
+	NextSteps       []OnboardingStep `json:"next_steps"`
 }
 
 type PublicCloudOnboarding struct {

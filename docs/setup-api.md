@@ -8,7 +8,7 @@ Gemcp starts only when `GEMCP_MASTER_KEY` is a valid base64-encoded 32-byte key.
 gemcp keygen
 ```
 
-Store it in the protected deployment `.env`; loss of this key makes encrypted Provider and Git credentials unrecoverable.
+Store it in the protected deployment `.env`; loss of this key makes encrypted Provider and Git credentials unrecoverable. `gemcp serve` and `gemcp watchdog` read repo-root `.env` (or `GEMCP_ENV_FILE`) and do not override variables already in the process environment.
 
 Generate a separate one-time bootstrap credential:
 
@@ -113,6 +113,27 @@ For Public Elastic, replace the Provider and resource fields with values matchin
 ```
 
 The region example is not a permanent allowlist; validate current region identifiers through AutoDL before enabling scheduling. Public Elastic GPU stock is queried per region. Its Developer API lists user-private images but does not dynamically list official base images, so a documented or console-provided base-image UUID may be valid even when it is absent from Provider image discovery.
+
+To initialize without AutoDL (local HTTP, no GPU), send `skip_provider: true` and omit live Provider fields. The first Agent Token then includes `configure` and `operate_nodes` so the local CPU loop can register a host, Environment, and dataset. `./scripts/local-http-smoke.sh` posts this payload using `GEMCP_DEV_*` from `.env`.
+
+```json
+{
+  "organization_name": "Local Lab",
+  "owner": {"email": "owner@localhost", "password": "at-least-12-characters"},
+  "skip_provider": true,
+  "project": {
+    "name": "Local Project",
+    "slug": "local-project",
+    "monthly_budget_milli": 100000,
+    "max_experiment_milli": 20000,
+    "max_concurrency": 1,
+    "max_runtime_seconds": 3600,
+    "timeout_extension_seconds": 3600,
+    "termination_grace_seconds": 60
+  },
+  "agent_token_label": "local-smoke"
+}
+```
 
 The Web setup sends `provider.backend` explicitly. Recovery clients may omit it, in which case Gemcp derives it from the official host. `elastic` must use `https://api.autodl.com`, and `private` must use `https://private.autodl.com`; mismatched pairs are rejected. Public Elastic creates `autodl_elastic` Environment and Resource Profile records, while Private Cloud creates `autodl_private` records. Environments and Resource Profiles from different backends are never treated as compatible defaults. After setup, Lab can bind the other official AutoDL backend without replacing the first Token. Adding Public Elastic also creates a `public-elastic` Environment and Resource Profile when none exist and a user-private image is visible; those records become the default only when no Private Cloud account remains bound.
 

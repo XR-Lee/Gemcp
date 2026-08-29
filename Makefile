@@ -5,7 +5,19 @@ COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 BUILT_AT := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.builtAt=$(BUILT_AT)
 
-.PHONY: fmt test vet vuln frontend-install frontend-test frontend-e2e frontend-build stage-frontend build build-node check
+.PHONY: fmt test vet vuln frontend-install frontend-test frontend-e2e frontend-build stage-frontend build build-node check local-bootstrap local-serve local-smoke local-loop
+
+local-bootstrap:
+	./scripts/bootstrap-local.sh
+
+local-serve:
+	./scripts/dev-serve.sh
+
+local-smoke:
+	./scripts/local-http-smoke.sh
+
+local-loop:
+	./scripts/local-cpu-loop.sh
 
 fmt:
 	$(GO) fmt ./...

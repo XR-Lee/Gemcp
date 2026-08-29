@@ -83,6 +83,11 @@ func validateHostSpec(spec remoteWorkload) error {
 func hostStartScript(spec remoteWorkload) string {
 	cwd := spec.WorkingDir
 	command := hostCommand(spec)
+	// The nested `sh -lc` does not inherit `dir`; pin the exit file to the
+	// assignment directory or the wrapper writes /exit and fails after a
+	// successful command.
+	inner := command + "; echo $? > " + shellQuote(spec.RemoteDir+"/exit")
+	quotedInner := shellQuote(inner)
 	return `
 echo gemcp-host-start
 dir=` + shellQuote(spec.RemoteDir) + `
@@ -95,9 +100,9 @@ else
 fi
 export GEMCP_OUTPUT_DIR="$dir/outputs"
 ` + hostDatasetExports(spec) + `if command -v setsid >/dev/null 2>&1; then
-  setsid sh -lc ` + shellQuote(command+`; echo $? > "$dir/exit"`) + ` </dev/null >"$dir/log" 2>&1 &
+  setsid sh -lc ` + quotedInner + ` </dev/null >"$dir/log" 2>&1 &
 else
-  nohup sh -lc ` + shellQuote(command+`; echo $? > "$dir/exit"`) + ` </dev/null >"$dir/log" 2>&1 &
+  nohup sh -lc ` + quotedInner + ` </dev/null >"$dir/log" 2>&1 &
 fi
 printf '%s\n' "$!" >"$dir/pid"
 printf 'PID %s\n' "$(tr -d ' \n' < "$dir/pid")"

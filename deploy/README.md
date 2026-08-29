@@ -1,5 +1,7 @@
 # Deployment
 
+For GPU-free local HTTP on a laptop or tester VM, do not use this Compose file. Use [../scripts/bootstrap-local.sh](../scripts/bootstrap-local.sh) and [../docs/tester-brief.md](../docs/tester-brief.md). Distro PostgreSQL 16+ is enough locally; this file still pins `postgres:18-alpine` for production.
+
 1. Build Gemcp once and run `gemcp keygen` and `gemcp bootstrap-token` on the server. Store both outputs only in the protected `.env` file.
 2. Copy `../.env.example` to `.env` in this directory.
 3. Replace `GEMCP_MASTER_KEY`, `GEMCP_BOOTSTRAP_TOKEN`, and both PostgreSQL password occurrences. Set `GEMCP_VERSION`, the full immutable `GEMCP_COMMIT`, and `GEMCP_BUILT_AT` for release metadata.

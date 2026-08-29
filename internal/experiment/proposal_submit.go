@@ -4,8 +4,10 @@ import (
 	"context"
 	"crypto/hmac"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/XR-Lee/Gemcp/ent"
 	"github.com/XR-Lee/Gemcp/ent/environment"
@@ -21,6 +23,8 @@ import (
 	"github.com/XR-Lee/Gemcp/internal/sshcloud"
 	"github.com/google/uuid"
 )
+
+var errProposalRaced = errors.New("proposal submission raced with another transaction")
 
 func (s *Service) SubmitPrepared(ctx context.Context, principal agentauth.Principal, input SubmitPreparedInput) (SubmitPreparedResult, error) {
 	if !principal.HasScope("submit") {
@@ -78,12 +82,12 @@ func (s *Service) SubmitPrepared(ctx context.Context, principal agentauth.Princi
 			return SubmitPreparedResult{}, err
 		}
 	}
-	for attempt := 0; attempt < 3; attempt++ {
+	for attempt := 0; attempt < 8; attempt++ {
 		result, err := s.createPreparedExperiment(ctx, principal, record.ID, digest)
 		if err == nil {
 			return s.bindPreparedGraph(ctx, principal, record.ProjectSnapshot, result)
 		}
-		if !isRetryableTransaction(err) && !ent.IsConstraintError(err) {
+		if !isRetryableTransaction(err) && !ent.IsConstraintError(err) && !errors.Is(err, errProposalRaced) {
 			return SubmitPreparedResult{}, err
 		}
 		existing, lookupErr := s.client.ExperimentProposal.Query().Where(
@@ -99,6 +103,13 @@ func (s *Service) SubmitPrepared(ctx context.Context, principal agentauth.Princi
 		}
 		if lookupErr != nil && !ent.IsNotFound(lookupErr) {
 			return SubmitPreparedResult{}, lookupErr
+		}
+		if attempt < 7 {
+			select {
+			case <-ctx.Done():
+				return SubmitPreparedResult{}, ctx.Err()
+			case <-time.After(time.Millisecond << attempt):
+			}
 		}
 	}
 	return SubmitPreparedResult{}, fmt.Errorf("prepared experiment submission transaction did not converge")
@@ -145,20 +156,23 @@ func (s *Service) currentProposal(ctx context.Context, principal agentauth.Princ
 	if err != nil {
 		return result, ErrProposalChanged
 	}
+	// cwd and the ssh_* pins are populated by applyStoredProposalPins below.
 	resolved := proposalResolved{
 		id: record.PublicID, project: projectRecord, repository: repositoryRecord, environment: environmentRecord, profile: profileRecord,
-		image: image, workspace: workspace, cwd: snapshotString(record.EnvironmentSnapshot, "working_directory"),
-		sshHost: snapshotString(record.EnvironmentSnapshot, "ssh_host"), sshUser: snapshotString(record.EnvironmentSnapshot, "ssh_user"),
-		sshNodeID: snapshotString(record.EnvironmentSnapshot, "ssh_node_id"), sshNodeLabel: snapshotString(record.EnvironmentSnapshot, "ssh_node_label"),
+		image: image, workspace: workspace,
 		ref: record.RequestedRef, commitSHA: record.CommitSha, execution: executionSpec, preset: record.RuntimePreset,
 		runtime: record.MaxRuntimeSeconds, reservation: reservation, expiresAt: record.ExpiresAt,
 		fromNodeID: snapshotString(record.ProjectSnapshot, "from_node_id"), expectedMetric: snapshotString(record.ProjectSnapshot, "expected_metric"),
+		dataset: snapshotString(record.ProjectSnapshot, "dataset"),
 	}
 	bindings, err := queryActiveDatasetBindings(ctx, s.client.DatasetBinding.Query(), projectRecord.ID, string(profileRecord.Backend))
 	if err != nil {
 		return result, err
 	}
 	resolved.bindings = bindings
+	if err := applyStoredProposalPins(&resolved, record.EnvironmentSnapshot, record.ProjectSnapshot); err != nil {
+		return result, err
+	}
 	return resolved, nil
 }
 
@@ -240,12 +254,16 @@ func (s *Service) createPreparedExperiment(ctx context.Context, principal agenta
 		ref: proposalRecord.RequestedRef, commitSHA: proposalRecord.CommitSha, execution: executionSpec, preset: proposalRecord.RuntimePreset,
 		runtime: proposalRecord.MaxRuntimeSeconds, reservation: reservation, expiresAt: proposalRecord.ExpiresAt,
 		fromNodeID: snapshotString(proposalRecord.ProjectSnapshot, "from_node_id"), expectedMetric: snapshotString(proposalRecord.ProjectSnapshot, "expected_metric"),
+		dataset: snapshotString(proposalRecord.ProjectSnapshot, "dataset"),
 	}
 	bindings, err := queryActiveDatasetBindings(ctx, tx.DatasetBinding.Query(), projectRecord.ID, string(profileRecord.Backend))
 	if err != nil {
 		return result, err
 	}
 	current.bindings = bindings
+	if err := applyStoredProposalPins(&current, proposalRecord.EnvironmentSnapshot, proposalRecord.ProjectSnapshot); err != nil {
+		return result, err
+	}
 	if !hmac.Equal([]byte(proposalDigest(current)), []byte(proposalRecord.ConfirmationDigest)) {
 		return result, ErrProposalChanged
 	}
@@ -315,7 +333,7 @@ func (s *Service) createPreparedExperiment(ctx context.Context, principal agenta
 		return result, err
 	}
 	if updated != 1 {
-		return result, fmt.Errorf("proposal submission raced with another transaction")
+		return result, errProposalRaced
 	}
 	if _, err := tx.AuditEvent.Create().
 		SetTenantID(principal.TenantID).SetActorType("agent_token").SetActorID(principal.TokenPublicID).
@@ -382,6 +400,22 @@ func proposalRuntimeInTransaction(ctx context.Context, tx *ent.Tx, projectRecord
 		nodeID: node.PublicID.String(), nodeLabel: node.Label, path: *access.WorkspacePath,
 		datasets: proposalWorkspaceDatasets(datasetRecords),
 	}, nil
+}
+
+func applyStoredProposalPins(resolved *proposalResolved, environmentSnapshot, projectSnapshot map[string]any) error {
+	resolved.cwd = snapshotString(environmentSnapshot, "working_directory")
+	resolved.sshHost = snapshotString(environmentSnapshot, "ssh_host")
+	resolved.sshUser = snapshotString(environmentSnapshot, "ssh_user")
+	resolved.sshNodeID = snapshotString(environmentSnapshot, "ssh_node_id")
+	resolved.sshNodeLabel = snapshotString(environmentSnapshot, "ssh_node_label")
+	if deps, ok := environmentSnapshot["install_dependencies"].(map[string]any); ok {
+		resolved.installDependencies = true
+		resolved.requirementsFile = snapshotString(deps, "requirements_file")
+	}
+	if err := filterProposalBindings(resolved, snapshotString(projectSnapshot, "dataset")); err != nil {
+		return ErrProposalChanged
+	}
+	return nil
 }
 
 func proposalReservation(projectRecord *ent.Project, profileRecord *ent.ResourceProfile, runtimeSeconds int) (int64, error) {

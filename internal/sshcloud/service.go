@@ -58,6 +58,7 @@ func (s *Service) Create(ctx context.Context, tenantID int, actorID string, inpu
 	if !s.Enabled() {
 		return NodeView{}, ErrDisabled
 	}
+	applyLocalProcessDefaults(&input, s.config.LocalProcessEnabled)
 	if err := applySSHTarget(&input); err != nil {
 		return NodeView{}, err
 	}
@@ -65,7 +66,7 @@ func (s *Service) Create(ctx context.Context, tenantID int, actorID string, inpu
 	if err != nil {
 		return NodeView{}, err
 	}
-	target, err := normalizeTarget(input.Host, input.Port, input.User)
+	target, err := normalizeTarget(input.Host, input.Port, input.User, s.config.LocalProcessEnabled)
 	if err != nil {
 		return NodeView{}, err
 	}

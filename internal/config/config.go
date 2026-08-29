@@ -27,6 +27,7 @@ type Config struct {
 	PublicURL                string
 	SelfHostedEnabled        bool
 	SSHCloudEnabled          bool
+	LocalProcessEnabled      bool
 	SchedulerEnabled         bool
 	GlobalConcurrency        int
 	SchedulerPollInterval    time.Duration
@@ -44,7 +45,14 @@ type Config struct {
 
 func Load() (Config, error) {
 	environment := envOrDefault("GEMCP_ENV", "development")
-	autoMigrate, err := boolOrDefault("GEMCP_AUTO_MIGRATE", false)
+	// Powerful capabilities default on only for the explicit development
+	// environment (the GEMCP_ENV default). Anything else — production, staging,
+	// or a typo like "prod" — stays opt-in, so a misspelled value can never
+	// silently enable schema changes or host process execution.
+	localDevelopment := environment == "development"
+	// Local HTTP must migrate or /setup/status 500s while /healthz and /readyz
+	// still return 200.
+	autoMigrate, err := boolOrDefault("GEMCP_AUTO_MIGRATE", localDevelopment)
 	if err != nil {
 		return Config{}, err
 	}
@@ -56,11 +64,18 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
-	sshCloudEnabled, err := boolOrDefault("GEMCP_SSH_CLOUD_ENABLED", false)
+	// Local HTTP (the implicit development default) must be able to register
+	// loopback compute and schedule a CPU fixture without extra flags or
+	// AutoDL secrets. Every other environment stays opt-in.
+	sshCloudEnabled, err := boolOrDefault("GEMCP_SSH_CLOUD_ENABLED", localDevelopment)
 	if err != nil {
 		return Config{}, err
 	}
-	schedulerEnabled, err := boolOrDefault("GEMCP_SCHEDULER_ENABLED", false)
+	localProcessEnabled, err := boolOrDefault("GEMCP_LOCAL_PROCESS_ENABLED", localDevelopment)
+	if err != nil {
+		return Config{}, err
+	}
+	schedulerEnabled, err := boolOrDefault("GEMCP_SCHEDULER_ENABLED", localDevelopment)
 	if err != nil {
 		return Config{}, err
 	}
@@ -131,9 +146,10 @@ func Load() (Config, error) {
 		BootstrapToken:           strings.TrimSpace(os.Getenv("GEMCP_BOOTSTRAP_TOKEN")),
 		AutoMigrate:              autoMigrate,
 		SecureCookies:            secureCookies,
-		PublicURL:                strings.TrimRight(strings.TrimSpace(os.Getenv("GEMCP_PUBLIC_URL")), "/"),
+		PublicURL:                developmentPublicURL(environment, strings.TrimRight(strings.TrimSpace(os.Getenv("GEMCP_PUBLIC_URL")), "/")),
 		SelfHostedEnabled:        selfHostedEnabled,
 		SSHCloudEnabled:          sshCloudEnabled,
+		LocalProcessEnabled:      localProcessEnabled,
 		SchedulerEnabled:         schedulerEnabled,
 		GlobalConcurrency:        globalConcurrency,
 		SchedulerPollInterval:    schedulerPollInterval,
@@ -154,6 +170,12 @@ func Load() (Config, error) {
 	}
 	if cfg.DatabaseURL == "" {
 		return Config{}, fmt.Errorf("GEMCP_DATABASE_URL is required")
+	}
+	if isExamplePlaceholder(cfg.MasterKey, "generate-with-gemcp-keygen") {
+		return Config{}, fmt.Errorf("GEMCP_MASTER_KEY is still the example placeholder; run ./scripts/bootstrap-local.sh or ./bin/gemcp keygen")
+	}
+	if isExamplePlaceholder(cfg.BootstrapToken, "generate-with-gemcp-bootstrap-token") {
+		return Config{}, fmt.Errorf("GEMCP_BOOTSTRAP_TOKEN is still the example placeholder; run ./scripts/bootstrap-local.sh or ./bin/gemcp bootstrap-token")
 	}
 	if cfg.BootstrapToken != "" && len(cfg.BootstrapToken) < 32 {
 		return Config{}, fmt.Errorf("GEMCP_BOOTSTRAP_TOKEN must contain at least 32 characters")
@@ -192,7 +214,17 @@ func Load() (Config, error) {
 			return Config{}, fmt.Errorf("GEMCP_PUBLIC_URL must be a credential-free HTTPS origin, or loopback HTTP, when Self-hosted nodes are enabled")
 		}
 	}
+	if cfg.LocalProcessEnabled && !cfg.SSHCloudEnabled {
+		return Config{}, fmt.Errorf("GEMCP_LOCAL_PROCESS_ENABLED requires GEMCP_SSH_CLOUD_ENABLED")
+	}
 	return cfg, nil
+}
+
+func developmentPublicURL(environment, publicURL string) string {
+	if publicURL != "" || environment == "production" {
+		return publicURL
+	}
+	return "http://127.0.0.1:8080"
 }
 
 func HTTPSPublicOrigin(raw string) bool {
@@ -220,6 +252,10 @@ func acceptablePublicOrigin(raw string, allowLoopbackHTTP bool) bool {
 	default:
 		return false
 	}
+}
+
+func isExamplePlaceholder(value, placeholder string) bool {
+	return strings.EqualFold(strings.TrimSpace(value), placeholder)
 }
 
 func envOrDefault(key, fallback string) string {

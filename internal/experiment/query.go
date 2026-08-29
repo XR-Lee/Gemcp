@@ -80,6 +80,10 @@ func (s *Service) enrichRunnerStatus(ctx context.Context, experimentRecord *ent.
 	sourceDownloads := attemptRecord.SourceDownloads
 	view.RunnerAttemptID = &attemptID
 	view.RunnerSourceDownloads = &sourceDownloads
+	if attemptRecord.LastHeartbeatAt != nil {
+		heartbeat := *attemptRecord.LastHeartbeatAt
+		view.LastHeartbeatAt = &heartbeat
+	}
 
 	events, err := s.client.AuditEvent.Query().Where(
 		auditevent.TenantIDEQ(experimentRecord.TenantID),
@@ -469,6 +473,9 @@ func (s *Service) projectOptions(ctx context.Context, principal agentauth.Princi
 	}
 	if ensureSSHCloud && s.proposalConfig.SSHCloudEnabled && s.sshCloud != nil {
 		_, _ = s.sshCloud.EnsureForProject(ctx, principal.TenantID, "agent:"+principal.TokenPublicID, principal.ProjectPublicID, "")
+		if s.sshCloud.LocalProcessEnabled() && s.localCPUDataset != nil {
+			_, _ = s.localCPUDataset.EnsureModelNet40Mini(ctx, principal.TenantID, "agent:"+principal.TokenPublicID, principal.ProjectPublicID)
+		}
 		if refreshed, refreshErr := s.client.Environment.Query().Where(
 			environment.ProjectIDEQ(principal.ProjectID), environment.StatusEQ("approved"),
 		).Order(ent.Desc(environment.FieldIsDefault), ent.Asc(environment.FieldName)).All(ctx); refreshErr == nil {
@@ -493,13 +500,26 @@ func (s *Service) projectOptions(ctx context.Context, principal agentauth.Princi
 				})
 			}
 		}
+		if refreshed, refreshErr := s.client.DatasetBinding.Query().Where(
+			datasetbinding.ProjectIDEQ(principal.ProjectID),
+		).Order(ent.Asc(datasetbinding.FieldBackend), ent.Asc(datasetbinding.FieldName)).All(ctx); refreshErr == nil {
+			result.DatasetBindings = make([]DatasetBindingOption, 0, len(refreshed))
+			for _, record := range refreshed {
+				result.DatasetBindings = append(result.DatasetBindings, DatasetBindingOption{
+					ID: record.PublicID.String(), Name: record.Name, Backend: string(record.Backend),
+					CanonicalRoot: record.CanonicalRoot, EnvironmentVariable: record.EnvironmentVariable,
+					RequiredMarkers: append([]string(nil), record.RequiredMarkers...), Sources: datasetBindingSources(record),
+					Status: string(record.Status),
+				})
+			}
+		}
 	}
 	if err := s.appendSSHCloudOptions(ctx, principal, environments, profiles, &result); err != nil {
 		return result, err
 	}
 	result.DatasetSources = catalogSourceOptions()
 	s.appendProviderImages(ctx, principal.TenantID, environments, profiles, &result)
-	result.Onboarding = publicCloudOnboarding(result)
+	result.Onboarding = executionOnboarding(result, s.proposalConfig.SSHCloudEnabled)
 	result.Readiness = projectOptionsReadiness(result)
 	return result, nil
 }

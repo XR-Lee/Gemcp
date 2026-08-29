@@ -23,6 +23,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
 	"github.com/XR-Lee/Gemcp/ent/study"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
+	"github.com/XR-Lee/Gemcp/internal/datasetcatalog"
 	"github.com/XR-Lee/Gemcp/internal/secrets"
 	"github.com/XR-Lee/Gemcp/internal/sshcloud"
 	"github.com/XR-Lee/Gemcp/internal/validation"
@@ -58,21 +59,27 @@ type CommitVerifier interface {
 }
 
 type Service struct {
-	client         *ent.Client
-	box            *secrets.Box
-	verifier       CommitVerifier
-	refResolver    ProposalRefResolver
-	archiver       ProposalArchiveReader
-	providerReader ProposalProviderReader
-	runtimeReader  ProposalRuntimeReader
-	proposalConfig ProposalConfig
-	graphBinder    GraphBinder
-	sshCloud       SSHCloudController
-	now            func() time.Time
+	client          *ent.Client
+	box             *secrets.Box
+	verifier        CommitVerifier
+	refResolver     ProposalRefResolver
+	archiver        ProposalArchiveReader
+	providerReader  ProposalProviderReader
+	runtimeReader   ProposalRuntimeReader
+	proposalConfig  ProposalConfig
+	graphBinder     GraphBinder
+	sshCloud        SSHCloudController
+	localCPUDataset LocalCPUDatasetBinder
+	now             func() time.Time
 }
 
 type SSHCloudController interface {
 	EnsureForProject(ctx context.Context, tenantID int, actorID, projectPublicID, image string) (sshcloud.EnsureResult, error)
+	LocalProcessEnabled() bool
+}
+
+type LocalCPUDatasetBinder interface {
+	EnsureModelNet40Mini(ctx context.Context, tenantID int, actorID, projectPublicID string) (datasetcatalog.View, error)
 }
 
 type GraphBinder interface {
@@ -97,6 +104,12 @@ type ServiceOption func(*Service)
 func WithSSHCloud(controller SSHCloudController) ServiceOption {
 	return func(service *Service) {
 		service.sshCloud = controller
+	}
+}
+
+func WithLocalCPUDataset(binder LocalCPUDatasetBinder) ServiceOption {
+	return func(service *Service) {
+		service.localCPUDataset = binder
 	}
 }
 
@@ -527,8 +540,16 @@ func optionError(err error) error {
 }
 
 func isRetryableTransaction(err error) bool {
+	if err == nil {
+		return false
+	}
 	var sqlState interface{ SQLState() string }
-	return errors.As(err, &sqlState) && (sqlState.SQLState() == "40001" || sqlState.SQLState() == "40P01")
+	if errors.As(err, &sqlState) && (sqlState.SQLState() == "40001" || sqlState.SQLState() == "40P01") {
+		return true
+	}
+	// SQLite (tests and single-box deployments) reports write contention as a
+	// busy/locked error without a SQLState.
+	return strings.Contains(err.Error(), "database is locked") || strings.Contains(err.Error(), "database table is locked")
 }
 
 func repositorySnapshot(record *ent.Repository, projectID string) map[string]any {

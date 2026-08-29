@@ -3,6 +3,7 @@ package datasetcatalog
 import (
 	"context"
 	"errors"
+	"os"
 	"testing"
 
 	"entgo.io/ent/dialect"
@@ -33,6 +34,10 @@ func TestRegisterRejectsForeignRootsAndRequiresConfigure(t *testing.T) {
 	if _, err := service.Register(ctx, principal, input); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("missing configure scope error = %v", err)
 	}
+	// Without GEMCP_LOCAL_PROCESS_ENABLED the fixture name grants nothing.
+	if _, err := service.Register(ctx, principal, RegisterInput{Catalog: "modelnet40-mini"}); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("submit-scope modelnet40-mini without local mode = %v, want ErrForbidden", err)
+	}
 	principal.Scopes = []string{"configure", "read"}
 	if _, err := service.Register(ctx, principal, RegisterInput{Name: "scanobjectnn-objbg", CanonicalRoot: "/root/autodl-tmp/data"}); err == nil {
 		t.Fatal("expected foreign root to fail")
@@ -50,5 +55,87 @@ func TestRegisterRejectsForeignRootsAndRequiresConfigure(t *testing.T) {
 	listed, err := service.OwnerList(ctx, tenant.ID, project.PublicID.String())
 	if err != nil || len(listed.Bindings) != 1 {
 		t.Fatalf("OwnerList() = %+v, %v", listed, err)
+	}
+}
+
+func TestRegisterModelNet40MiniAllowsSubmitScope(t *testing.T) {
+	client := enttest.Open(t, dialect.SQLite, "file:datasetcatalog-submit?mode=memory&cache=shared&_fk=1")
+	t.Cleanup(func() { client.Close() })
+	ctx := context.Background()
+	tenant, err := client.Tenant.Create().SetName("lab").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	project, err := client.Project.Create().SetTenantID(tenant.ID).SetName("p").SetSlug("p").
+		SetMonthlyBudgetMilli(100000).SetMaxExperimentMilli(20000).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, err := client.AgentToken.Create().SetProjectID(project.ID).SetLabel("agent").
+		SetPrefix("gmc_test").SetTokenHash([]byte("hash")).SetScopes([]string{"read", "submit", "cancel"}).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", t.TempDir())
+	service := NewService(client, WithLocalCPUFixture(true))
+	principal := agentauth.Principal{
+		TenantID: tenant.ID, ProjectID: project.ID, ProjectPublicID: project.PublicID.String(),
+		TokenID: token.ID, TokenPublicID: token.PublicID.String(), Scopes: []string{"read", "submit", "cancel"},
+	}
+	view, err := service.Register(ctx, principal, RegisterInput{Catalog: "modelnet40-mini"})
+	if err != nil || view.Name != "modelnet40-mini" || view.Backend != BackendSSHCloud || view.CanonicalRoot != DefaultModelNet40MiniRoot() {
+		t.Fatalf("submit-scope local CPU fixture = %+v, %v", view, err)
+	}
+}
+
+func TestRegisterCatalogModelNet40MiniUsesSSHCloudRoot(t *testing.T) {
+	client := enttest.Open(t, dialect.SQLite, "file:datasetcatalog-mini?mode=memory&cache=shared&_fk=1")
+	t.Cleanup(func() { client.Close() })
+	ctx := context.Background()
+	tenant, err := client.Tenant.Create().SetName("lab").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	project, err := client.Project.Create().SetTenantID(tenant.ID).SetName("p").SetSlug("p").
+		SetMonthlyBudgetMilli(100000).SetMaxExperimentMilli(20000).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Without local mode the catalog keeps its production /opt root and the
+	// register never touches the filesystem.
+	service := NewService(client)
+	view, err := service.OwnerRegister(ctx, tenant.ID, "owner-1", project.PublicID.String(), RegisterInput{
+		Catalog: "modelnet40-mini",
+	})
+	if err != nil || view.Backend != BackendSSHCloud || view.EnvironmentVariable != "GEMCP_DATASET_MODELNET40_MINI" ||
+		view.CanonicalRoot != "/opt/gemcp/datasets/modelnet40-mini" || len(view.RequiredMarkers) != 2 {
+		t.Fatalf("OwnerRegister() = %+v, %v", view, err)
+	}
+}
+
+func TestRegisterCatalogModelNet40MiniSeedsHomeFixture(t *testing.T) {
+	client := enttest.Open(t, dialect.SQLite, "file:datasetcatalog-seed?mode=memory&cache=shared&_fk=1")
+	t.Cleanup(func() { client.Close() })
+	ctx := context.Background()
+	tenant, err := client.Tenant.Create().SetName("lab").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	project, err := client.Project.Create().SetTenantID(tenant.ID).SetName("p").SetSlug("p").
+		SetMonthlyBudgetMilli(100000).SetMaxExperimentMilli(20000).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", t.TempDir())
+	service := NewService(client, WithLocalCPUFixture(true))
+	view, err := service.OwnerRegister(ctx, tenant.ID, "owner-1", project.PublicID.String(), RegisterInput{Catalog: "modelnet40-mini"})
+	if err != nil || view.CanonicalRoot != DefaultModelNet40MiniRoot() {
+		t.Fatalf("catalog-only register = %+v, %v", view, err)
+	}
+	for _, relative := range []string{"meta.json", "train/chair/0001.off", "train.py"} {
+		path := view.CanonicalRoot + "/" + relative
+		if _, statErr := os.Stat(path); statErr != nil {
+			t.Fatalf("seeded fixture missing %s: %v", path, statErr)
+		}
 	}
 }
