@@ -68,4 +68,25 @@ describe('ResearchGraphNode', () => {
     expect(onOpenEvidence).toHaveBeenCalledWith('experiment-1')
     wrapper.unmount()
   })
+
+  it('opens the experiment record after two clicks on the node body', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(1_000)
+    const research = node({
+      id: 'node-result-1',
+      kind: 'result',
+      title: 'OBJ-BG smoke accuracy',
+      status: 'succeeded',
+      experiment_id: 'experiment-1',
+      experiment_state: 'succeeded',
+    })
+    const { wrapper, onOpenEvidence, onOpenDetail } = mountNode(research)
+    await wrapper.get('.flow-node').trigger('click')
+    vi.setSystemTime(1_200)
+    await wrapper.get('.flow-node').trigger('click')
+    expect(onOpenEvidence).toHaveBeenCalledWith('experiment-1')
+    expect(onOpenDetail).not.toHaveBeenCalled()
+    wrapper.unmount()
+    vi.useRealTimers()
+  })
 })

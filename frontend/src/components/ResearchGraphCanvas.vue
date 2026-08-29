@@ -31,6 +31,7 @@ const flow = ref<VueFlowStore | null>(null)
 const fullscreen = ref(false)
 const fittedOnce = ref(false)
 const selectedID = ref('')
+const lastNodeClick = ref({ id: '', at: 0 })
 const viewport = ref<ViewportTransform>({ x: 0, y: 0, zoom: 1 })
 provide('researchGraphSelectedID', selectedID)
 const selected = computed(() => props.nodes.find((node) => node.id === selectedID.value) ?? null)
@@ -157,7 +158,21 @@ function openNodeRecord(id: string) {
 
 function onNodeDoubleClick(payload: NodeMouseEvent) {
   if (payload.node.type === 'timeline') return
+  lastNodeClick.value = { id: '', at: 0 }
   openNodeRecord(payload.node.id)
+}
+
+function onNodeClick(payload: NodeMouseEvent) {
+  if (payload.node.type === 'timeline') return
+  const target = payload.event.target
+  if (target instanceof Element && target.closest('button')) return
+  const now = Date.now()
+  if (lastNodeClick.value.id === payload.node.id && now - lastNodeClick.value.at < 500) {
+    lastNodeClick.value = { id: '', at: 0 }
+    openNodeRecord(payload.node.id)
+    return
+  }
+  lastNodeClick.value = { id: payload.node.id, at: now }
 }
 
 function onPaneClick() {
@@ -234,6 +249,7 @@ onUnmounted(() => {
           :pan-on-scroll="true"
           :pan-on-drag="true"
           @node-double-click="onNodeDoubleClick"
+          @node-click="onNodeClick"
           @pane-click="onPaneClick"
           @pane-ready="onPaneReady"
         >

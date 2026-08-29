@@ -27,6 +27,8 @@ const outcomeLabel = computed(() => {
   return ''
 })
 
+const lastBodyClick = ref(0)
+
 function openRecord() {
   const experimentID = props.data.node.experiment_id
   if (experimentID) {
@@ -34,6 +36,17 @@ function openRecord() {
     return
   }
   props.data.onOpenDetail?.(props.data.node.id)
+}
+
+function onBodyClick(event: MouseEvent) {
+  if (event.target instanceof Element && event.target.closest('button')) return
+  const now = Date.now()
+  if (now - lastBodyClick.value < 500) {
+    lastBodyClick.value = 0
+    openRecord()
+    return
+  }
+  lastBodyClick.value = now
 }
 </script>
 
@@ -54,6 +67,7 @@ function openRecord() {
     :title="data.node.experiment_id
       ? t('Double-click to open the experiment record', '双击打开实验记录')
       : t('Double-click for detail', '双击展开细节')"
+    @click="onBodyClick"
     @dblclick="openRecord"
   >
     <Handle id="target" type="target" :position="Position.Left" />

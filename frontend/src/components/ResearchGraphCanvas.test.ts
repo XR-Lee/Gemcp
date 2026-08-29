@@ -25,13 +25,14 @@ const layout = layoutResearchGraph({ nodes, edges })
 const flowStubs = {
   VueFlow: {
     props: ['nodes'],
-    emits: ['node-double-click', 'pane-click', 'pane-ready'],
+    emits: ['node-double-click', 'node-click', 'pane-click', 'pane-ready'],
     template: `
       <div class="vue-flow">
         <article
           v-for="node in nodes.filter((item) => item.type === 'research')"
           :key="node.id"
           class="flow-node"
+          @click="$emit('node-click', { event: $event, node })"
           @dblclick="$emit('node-double-click', { event: $event, node })"
         >{{ node.data.node.title }}</article>
         <slot />
@@ -83,6 +84,21 @@ describe('ResearchGraphCanvas', () => {
     await flushPromises()
     expect(wrapper.emitted('openExperiment')).toEqual([['experiment-1']])
     expect(wrapper.find('.graph-detail').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('opens the experiment record after two clicks on a linked node', async () => {
+    useI18n().setLocale('en')
+    const wrapper = mount(ResearchGraphCanvas, {
+      props: { nodes, edges, layout },
+      attachTo: document.body,
+      global: { stubs: flowStubs },
+    })
+    const linked = wrapper.findAll('.flow-node')[1]
+    await linked.trigger('click')
+    await linked.trigger('click')
+    await flushPromises()
+    expect(wrapper.emitted('openExperiment')).toEqual([['experiment-1']])
     wrapper.unmount()
   })
 })
