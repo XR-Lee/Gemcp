@@ -67,8 +67,8 @@ function onBodyClick(event: MouseEvent) {
     :title="data.node.experiment_id
       ? t('Double-click to open the experiment record', '双击打开实验记录')
       : t('Double-click for detail', '双击展开细节')"
-    @click="onBodyClick"
-    @dblclick="openRecord"
+    @click.stop="onBodyClick"
+    @dblclick.stop="openRecord"
   >
     <Handle id="target" type="target" :position="Position.Left" />
     <div class="flow-node-meta">

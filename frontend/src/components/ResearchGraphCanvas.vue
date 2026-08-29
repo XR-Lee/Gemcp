@@ -32,6 +32,7 @@ const fullscreen = ref(false)
 const fittedOnce = ref(false)
 const selectedID = ref('')
 const lastNodeClick = ref({ id: '', at: 0 })
+const ignorePaneClickUntil = ref(0)
 const viewport = ref<ViewportTransform>({ x: 0, y: 0, zoom: 1 })
 provide('researchGraphSelectedID', selectedID)
 const selected = computed(() => props.nodes.find((node) => node.id === selectedID.value) ?? null)
@@ -154,6 +155,7 @@ function openNodeRecord(id: string) {
     return
   }
   selectedID.value = id
+  ignorePaneClickUntil.value = Date.now() + 400
 }
 
 function onNodeDoubleClick(payload: NodeMouseEvent) {
@@ -176,6 +178,7 @@ function onNodeClick(payload: NodeMouseEvent) {
 }
 
 function onPaneClick() {
+  if (Date.now() < ignorePaneClickUntil.value) return
   selectedID.value = ''
 }
 
