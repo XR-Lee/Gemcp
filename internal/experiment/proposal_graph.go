@@ -66,6 +66,9 @@ func proposalStoredProjectSnapshot(resolved proposalResolved) map[string]any {
 	if resolved.expectedMetric != "" {
 		snapshot["expected_metric"] = resolved.expectedMetric
 	}
+	if resolved.dataset != "" {
+		snapshot["dataset"] = resolved.dataset
+	}
 	return snapshot
 }
 

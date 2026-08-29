@@ -48,10 +48,11 @@ type ValidationError = validation.Error[validationDomain]
 func invalid(message string) error { return &ValidationError{Message: message} }
 
 type Config struct {
-	Enabled          bool
-	InstanceID       string
-	ProvisionTimeout time.Duration
-	MaxAttempts      int
+	Enabled             bool
+	LocalProcessEnabled bool
+	InstanceID          string
+	ProvisionTimeout    time.Duration
+	MaxAttempts         int
 }
 
 func DefaultConfig() Config {
@@ -201,6 +202,10 @@ func NewService(client *ent.Client, box *secrets.Box, config Config) (*Service, 
 }
 
 func (s *Service) Enabled() bool { return s != nil && s.config.Enabled }
+
+func (s *Service) LocalProcessEnabled() bool {
+	return s != nil && s.config.Enabled && s.config.LocalProcessEnabled
+}
 
 func (s *Service) WithDial(dial DialFunc) *Service {
 	if s != nil && dial != nil {

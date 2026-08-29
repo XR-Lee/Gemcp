@@ -16,8 +16,8 @@ import (
 	"github.com/XR-Lee/Gemcp/internal/buildinfo"
 	"github.com/XR-Lee/Gemcp/internal/config"
 	"github.com/XR-Lee/Gemcp/internal/datasetcatalog"
-	"github.com/XR-Lee/Gemcp/internal/environmentcatalog"
 	"github.com/XR-Lee/Gemcp/internal/diagnostic"
+	"github.com/XR-Lee/Gemcp/internal/environmentcatalog"
 	"github.com/XR-Lee/Gemcp/internal/execution"
 	"github.com/XR-Lee/Gemcp/internal/experiment"
 	"github.com/XR-Lee/Gemcp/internal/finance"
@@ -112,7 +112,7 @@ func New(deps Dependencies) *http.Server {
 	projectHandlers := httpapi.NewProjectHandlers(deps.Ent)
 	protected.GET("/projects", projectHandlers.List)
 	protected.PATCH("/projects/:id", projectHandlers.Update)
-	datasetBindingHandlers := httpapi.NewDatasetBindingHandlers(datasetcatalog.NewService(deps.Ent))
+	datasetBindingHandlers := httpapi.NewDatasetBindingHandlers(datasetcatalog.NewService(deps.Ent, datasetcatalog.WithLocalCPUFixture(deps.Config.LocalProcessEnabled)))
 	protected.GET("/projects/:id/dataset-bindings", datasetBindingHandlers.List)
 	protected.POST("/projects/:id/dataset-bindings", datasetBindingHandlers.Create)
 	protected.GET("/projects/:id/dataset-sources", datasetBindingHandlers.Sources)
@@ -186,6 +186,7 @@ func New(deps Dependencies) *http.Server {
 	if deps.SSHCloud != nil {
 		experimentOptions = append(experimentOptions, experiment.WithSSHCloud(deps.SSHCloud))
 	}
+	experimentOptions = append(experimentOptions, experiment.WithLocalCPUDataset(datasetcatalog.NewService(deps.Ent, datasetcatalog.WithLocalCPUFixture(deps.Config.LocalProcessEnabled))))
 	experimentService := experiment.NewService(deps.Ent, deps.Secrets, repositoryService, experimentOptions...)
 	experimentHandlers := httpapi.NewExperimentHandlers(experimentService)
 	protected.GET("/experiments", experimentHandlers.List)
@@ -215,7 +216,7 @@ func New(deps Dependencies) *http.Server {
 	agentAuthService := agentauth.NewService(deps.Ent, deps.Secrets)
 	mcpHandler := mcpserver.New(
 		agentAuthService, experimentService, deps.Build.Version, nil,
-		mcpserver.WithConfiguration(repositoryService, workspacecatalog.NewService(deps.Ent), datasetcatalog.NewService(deps.Ent)),
+		mcpserver.WithConfiguration(repositoryService, workspacecatalog.NewService(deps.Ent), datasetcatalog.NewService(deps.Ent, datasetcatalog.WithLocalCPUFixture(deps.Config.LocalProcessEnabled))),
 		mcpserver.WithEnvironments(environmentService),
 		mcpserver.WithResearch(researchService),
 		mcpserver.WithSSHCloud(deps.SSHCloud),

@@ -13,6 +13,10 @@ func TestLoadDefaults(t *testing.T) {
 	t.Setenv("GEMCP_SHUTDOWN_TIMEOUT", "")
 	t.Setenv("GEMCP_AUTO_MIGRATE", "")
 	t.Setenv("GEMCP_SECURE_COOKIES", "")
+	t.Setenv("GEMCP_PUBLIC_URL", "")
+	t.Setenv("GEMCP_SCHEDULER_ENABLED", "")
+	t.Setenv("GEMCP_LOCAL_PROCESS_ENABLED", "")
+	t.Setenv("GEMCP_SSH_CLOUD_ENABLED", "")
 
 	cfg, err := Load()
 	if err != nil {
@@ -24,14 +28,54 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.DatabaseConnectTimeout != 10*time.Second {
 		t.Fatalf("DatabaseConnectTimeout = %s", cfg.DatabaseConnectTimeout)
 	}
-	if cfg.AutoMigrate {
-		t.Fatal("AutoMigrate defaulted to true")
+	if !cfg.AutoMigrate {
+		t.Fatal("development AutoMigrate defaulted to false")
 	}
 	if cfg.SelfHostedEnabled {
 		t.Fatal("Self-hosted nodes defaulted to enabled")
 	}
-	if cfg.SSHCloudEnabled {
-		t.Fatal("Cloud SSH nodes defaulted to enabled")
+	if !cfg.SSHCloudEnabled || !cfg.LocalProcessEnabled || !cfg.SchedulerEnabled {
+		t.Fatal("development local HTTP did not default Cloud SSH, local process, and scheduler on")
+	}
+	if cfg.PublicURL != "http://127.0.0.1:8080" {
+		t.Fatalf("development PublicURL = %q", cfg.PublicURL)
+	}
+}
+
+func TestLocalProcessRequiresSSHCloud(t *testing.T) {
+	t.Setenv("GEMCP_LOCAL_PROCESS_ENABLED", "true")
+	t.Setenv("GEMCP_SSH_CLOUD_ENABLED", "false")
+	if _, err := Load(); err == nil {
+		t.Fatal("Load() accepted local process without Cloud SSH")
+	}
+	t.Setenv("GEMCP_SSH_CLOUD_ENABLED", "true")
+	cfg, err := Load()
+	if err != nil || !cfg.LocalProcessEnabled || !cfg.SSHCloudEnabled {
+		t.Fatalf("local process config=%+v err=%v", cfg, err)
+	}
+}
+
+func TestLoadProductionDefaultsDisableAutoMigrate(t *testing.T) {
+	t.Setenv("GEMCP_ENV", "production")
+	t.Setenv("GEMCP_AUTO_MIGRATE", "")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.AutoMigrate {
+		t.Fatal("production AutoMigrate defaulted to true")
+	}
+}
+
+func TestLoadRejectsExamplePlaceholders(t *testing.T) {
+	t.Setenv("GEMCP_MASTER_KEY", "generate-with-gemcp-keygen")
+	if _, err := Load(); err == nil {
+		t.Fatal("Load() accepted the example master key placeholder")
+	}
+	t.Setenv("GEMCP_MASTER_KEY", "")
+	t.Setenv("GEMCP_BOOTSTRAP_TOKEN", "generate-with-gemcp-bootstrap-token")
+	if _, err := Load(); err == nil {
+		t.Fatal("Load() accepted the example bootstrap token placeholder")
 	}
 }
 
@@ -50,11 +94,13 @@ func TestLoadRejectsInvalidBoolean(t *testing.T) {
 }
 
 func TestSelfHostedNodesAreOptInAndRequireHTTPSPublicOrigin(t *testing.T) {
+	t.Setenv("GEMCP_ENV", "production")
 	t.Setenv("GEMCP_SELF_HOSTED_ENABLED", "true")
 	t.Setenv("GEMCP_PUBLIC_URL", "")
 	if _, err := Load(); err == nil {
 		t.Fatal("Load() accepted Self-hosted nodes without a public HTTPS origin")
 	}
+	t.Setenv("GEMCP_ENV", "development")
 	t.Setenv("GEMCP_PUBLIC_URL", "http://gemcp.example.com")
 	if _, err := Load(); err == nil {
 		t.Fatal("Load() accepted Self-hosted nodes with a public HTTP origin")
@@ -72,6 +118,7 @@ func TestSelfHostedNodesAreOptInAndRequireHTTPSPublicOrigin(t *testing.T) {
 }
 
 func TestSchedulerIsOptInAndRequiresHTTPSPublicOrigin(t *testing.T) {
+	t.Setenv("GEMCP_ENV", "production")
 	t.Setenv("GEMCP_SCHEDULER_ENABLED", "")
 	t.Setenv("GEMCP_PUBLIC_URL", "")
 	cfg, err := Load()
@@ -79,8 +126,9 @@ func TestSchedulerIsOptInAndRequiresHTTPSPublicOrigin(t *testing.T) {
 		t.Fatal(err)
 	}
 	if cfg.SchedulerEnabled {
-		t.Fatal("scheduler defaulted to enabled")
+		t.Fatal("production scheduler defaulted to enabled")
 	}
+	t.Setenv("GEMCP_ENV", "development")
 
 	t.Setenv("GEMCP_SCHEDULER_ENABLED", "true")
 	t.Setenv("GEMCP_PUBLIC_URL", "http://gemcp.example.com")
@@ -103,18 +151,41 @@ func TestSchedulerIsOptInAndRequiresHTTPSPublicOrigin(t *testing.T) {
 }
 
 func TestSSHCloudNodesAreOptIn(t *testing.T) {
+	t.Setenv("GEMCP_ENV", "production")
+	t.Setenv("GEMCP_LOCAL_PROCESS_ENABLED", "")
 	t.Setenv("GEMCP_SSH_CLOUD_ENABLED", "")
 	cfg, err := Load()
 	if err != nil {
 		t.Fatal(err)
 	}
 	if cfg.SSHCloudEnabled {
-		t.Fatal("Cloud SSH nodes defaulted to enabled")
+		t.Fatal("production Cloud SSH nodes defaulted to enabled")
 	}
+	if cfg.LocalProcessEnabled {
+		t.Fatal("production local process overlay defaulted to enabled")
+	}
+	t.Setenv("GEMCP_ENV", "development")
 	t.Setenv("GEMCP_SSH_CLOUD_ENABLED", "true")
 	cfg, err = Load()
 	if err != nil || !cfg.SSHCloudEnabled {
 		t.Fatalf("Cloud SSH config=%+v err=%v", cfg, err)
+	}
+}
+
+func TestNonDevelopmentEnvironmentsStayOptIn(t *testing.T) {
+	for _, environment := range []string{"staging", "prod", "Development"} {
+		t.Setenv("GEMCP_ENV", environment)
+		t.Setenv("GEMCP_AUTO_MIGRATE", "")
+		t.Setenv("GEMCP_SSH_CLOUD_ENABLED", "")
+		t.Setenv("GEMCP_LOCAL_PROCESS_ENABLED", "")
+		t.Setenv("GEMCP_SCHEDULER_ENABLED", "")
+		cfg, err := Load()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cfg.AutoMigrate || cfg.SSHCloudEnabled || cfg.LocalProcessEnabled || cfg.SchedulerEnabled {
+			t.Fatalf("%q must not default powerful capabilities on: %+v", environment, cfg)
+		}
 	}
 }
 

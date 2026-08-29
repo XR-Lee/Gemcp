@@ -824,6 +824,78 @@ func TestPreparedSSHCloudInjectsDatasetBindings(t *testing.T) {
 	}
 }
 
+func TestPreparedSSHCloudSubmitKeepsCwdAndDatasetFilter(t *testing.T) {
+	f := newFixture(t, 1, 1)
+	ctx := context.Background()
+	node := createSSHCloudHost(t, f, map[string]any{"os": "Linux", "nvidia_ready": false})
+	environmentName, profileName := createSSHCloudRuntime(t, f, node)
+	if _, err := f.client.DatasetBinding.Create().
+		SetTenantID(f.principal.TenantID).SetProjectID(f.project.ID).
+		SetName("modelnet40-mini").SetBackend("ssh_cloud").
+		SetCanonicalRoot("/home/ubuntu/gemcp/datasets/modelnet40-mini").
+		SetEnvironmentVariable("GEMCP_DATASET_MODELNET40_MINI").
+		SetRequiredMarkers([]string{"meta.json", "train/chair/0001.off"}).
+		Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.client.DatasetBinding.Create().
+		SetTenantID(f.principal.TenantID).SetProjectID(f.project.ID).
+		SetName("scanobjectnn-objbg").SetBackend("ssh_cloud").
+		SetCanonicalRoot("/home/ubuntu/data/ScanObjectNN").
+		SetEnvironmentVariable("GEMCP_DATASET_SCANOBJECTNN_OBJBG").
+		Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	controller := &fakeSSHCloudController{result: sshcloud.EnsureResult{
+		EnvironmentName: environmentName, ProfileName: profileName, ResolvedImage: sshcloud.HostImage,
+	}}
+	git := &proposalGit{resolved: proposalCommit, archive: proposalArchive(t)}
+	service := NewService(f.client, f.box, git, WithSSHCloud(controller), WithPreparedExperiments(
+		git, git, nil, proposalStatusRuntime{status: execution.RuntimeStatus{
+			SchedulerEnabled: true, SchedulerHealthy: true, PublicURLConfigured: true, SSHCloudEnabled: true, GlobalConcurrency: 2,
+		}}, ProposalConfig{SourceMaxBytes: 1 << 20, SSHCloudEnabled: true},
+	))
+	input := PrepareInput{
+		Argv: []string{"python3", "/home/ubuntu/gemcp/datasets/modelnet40-mini/train.py"},
+		Cwd:  "/home/ubuntu/gemcp/datasets/modelnet40-mini", RuntimePreset: "smoke",
+		Dataset: "modelnet40-mini", Environment: environmentName, ResourceProfile: profileName,
+	}
+	prepared, err := service.Prepare(ctx, f.principal, input)
+	if err != nil || prepared.Proposal == nil || !prepared.Proposal.Eligible {
+		t.Fatalf("Prepare()=%+v err=%v", prepared, err)
+	}
+	if prepared.Proposal.Resource.WorkingDirectory != input.Cwd || prepared.Proposal.Resource.Host != "203.0.113.10" ||
+		len(prepared.Proposal.Resource.DatasetBindings) != 1 || prepared.Proposal.Resource.DatasetBindings[0].Name != "modelnet40-mini" {
+		t.Fatalf("prepared resource=%+v", prepared.Proposal.Resource)
+	}
+	stored, err := f.client.ExperimentProposal.Query().Only(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reloaded, err := service.currentProposal(ctx, f.principal, stored)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if proposalDigest(reloaded) != prepared.Proposal.ConfirmationDigest {
+		t.Fatalf("currentProposal digest drifted prepared=%s reloaded=%s cwd=%q host=%q bindings=%d",
+			prepared.Proposal.ConfirmationDigest, proposalDigest(reloaded), reloaded.cwd, reloaded.sshHost, len(reloaded.bindings))
+	}
+	if _, err := f.client.DatasetBinding.Create().
+		SetTenantID(f.principal.TenantID).SetProjectID(f.project.ID).
+		SetName("extra-local").SetBackend("ssh_cloud").
+		SetCanonicalRoot("/home/ubuntu/extra").
+		SetEnvironmentVariable("GEMCP_DATASET_EXTRA_LOCAL").
+		Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	submitted, err := service.OwnerSubmitPrepared(ctx, f.principal.TenantID, "owner-1", f.project.PublicID.String(), prepared.Proposal.ID, OwnerSubmitPreparedInput{
+		ConfirmationDigest: prepared.Proposal.ConfirmationDigest, Confirmed: true,
+	})
+	if err != nil || submitted.Experiment.ID == "" || submitted.Experiment.State == "" {
+		t.Fatalf("OwnerSubmitPrepared()=%+v err=%v", submitted, err)
+	}
+}
+
 func TestPreparedExperimentRejectsPolicyUpdateAfterPrepare(t *testing.T) {
 	f := newFixture(t, 100000, 20000)
 	service := preparedService(t, f, 2)

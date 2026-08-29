@@ -6,6 +6,8 @@ Gemcp exposes the official MCP Streamable HTTP transport at:
 https://<gemcp-host>/mcp
 ```
 
+Production is HTTPS. Local HTTP loopback is also accepted, for example `http://127.0.0.1:8080/mcp`, when `GEMCP_PUBLIC_URL` is that origin. The server currently registers **28** tools. A Streamable HTTP `initialize` against loopback returns 200 with a valid Agent Token.
+
 Every request requires a project-scoped Agent Token:
 
 ```http
@@ -18,13 +20,13 @@ Create a short-lived **MCP setup link** from the Owner console and let the Agent
 
 The Owner sends one URL from `/agent/setup#code=...`. The Agent reads the public setup instructions at `/agent/setup` and enrolls its own MCP client. The code remains in the URL fragment and is not sent by link previews or ordinary page requests.
 
-Claiming creates a short-lived `read`-only credential. After the Agent discovers all twenty-six tools and verifies guide, options, and cost, completion activates the Owner-selected scopes and lifetime. Claim and complete are retry-safe if the final response is lost.
+Claiming creates a short-lived `read`-only credential. After the Agent discovers all twenty-eight tools and verifies guide, options, and cost, completion activates the Owner-selected scopes and lifetime. Claim and complete are retry-safe if the final response is lost.
 
 ## Pi with pi-mcp-adapter
 
 Pi can run the fixed installer from the same configured origin when `pi-mcp-adapter` is already installed.
 
-The installer merges a `gemcp-<project>` server into `<Pi agent dir>/mcp.json`, preserves existing servers, writes mode `0600`, exposes all twenty-six bounded Gemcp tools through `directTools`, and verifies tool discovery plus guide, options, and cost calls. A local credential-reading helper supports the current session without printing the Token. One `/reload` activates native `gemcp-<project>_*` tools through the adapter.
+The installer merges a `gemcp-<project>` server into `<Pi agent dir>/mcp.json`, preserves existing servers, writes mode `0600`, exposes all twenty-eight bounded Gemcp tools through `directTools`, and verifies tool discovery plus guide, options, and cost calls. A local credential-reading helper supports the current session without printing the Token. One `/reload` activates native `gemcp-<project>_*` tools through the adapter.
 
 Claimed credentials remain `read`-only and expire at the setup deadline until verification completes. Completion activates the Owner-selected scopes and lifetime, clears the setup capability, and leaves only a credential-free local receipt. The complete API and installer are retry-safe if the final response is lost.
 
@@ -219,7 +221,9 @@ grok mcp list
 grok mcp doctor gemcp-project
 ```
 
-`grok mcp add --scope project --transport http gemcp-project https://gemcp.example.com/mcp --header "Authorization: Bearer ${GEMCP_AGENT_TOKEN}"` writes the same project file. Grok expands `${GEMCP_AGENT_TOKEN}` at load time. Do not commit a live Token or put Gemcp in `~/.grok/config.toml` unless this machine exists only for this repository.
+If doctor reports the folder as untrusted, grant trust once with top-level `grok --trust` in this directory, then rerun `grok mcp doctor gemcp-project`. `grok mcp doctor` does not accept `--trust`.
+
+`grok mcp add --scope project --transport http gemcp-project https://gemcp.example.com/mcp --header "Authorization: Bearer ${GEMCP_AGENT_TOKEN}"` writes the same project file. For local HTTP, use `http://127.0.0.1:8080/mcp` instead. Grok expands `${GEMCP_AGENT_TOKEN}` at load time. Do not commit a live Token or put Gemcp in `~/.grok/config.toml` unless this machine exists only for this repository.
 
 ## Other MCP clients
 
@@ -245,7 +249,7 @@ Start with `get_usage_guide`, or read `gemcp://docs/agent-guide` when the client
 
 Then call `get_project_options`. It is read-only and confirms all of the following:
 
-- the HTTPS endpoint is reachable;
+- the configured origin is reachable (HTTPS in production, loopback HTTP locally);
 - the bearer header is present;
 - the Token maps to the intended project;
 - the Token has `read` scope;
@@ -279,10 +283,10 @@ before calling submit_prepared_experiment.
 - `get_next_actions`: return only Graph-legal next steps for the selected Study.
 - `close_run`: write a result node on a terminal Experiment that already has a Graph run; omit `metric_name` to copy the prepared `expected_metric` from the Experiment; optionally attach the full Git commit containing a durable result manifest as `result_commit_sha`; requires `submit`.
 - `prepare_experiment`: resolve a repository/ref, safe argv, compatible defaults, preflight checks, cost, and a short-lived immutable proposal without reserving budget. `runtime_preset` may be `smoke` (300s), `probe` (3600s), `train` (up to the Project max runtime), or `provision` (Gemcp-owned AutoDL dataset fetch; omit argv). Optional `install_dependencies` runs `python -m pip install --user` from the verified commit. AutoDL probe/train require a Project dataset binding under `/root/autodl-fs/`. When a Study exists, `from_node_id` must be a hypothesis or plan node and is bound into the confirmation digest. For experimental Cloud SSH, omit `image` and optionally omit repository; pass `argv` and optional `cwd`. Do not invent SSH credentials, wrap argv in a shell, or write wget/curl/conda.
-- `list_dataset_bindings` / `register_dataset_binding` / `remove_dataset_binding`: Project AutoDL or Cloud SSH dataset roots, optional catalog and HTTPS sources, and `GEMCP_DATASET_*` injection; write tools require `configure`. Registration never uploads data; `runtime_preset=provision` downloads allowlisted sources.
-- `register_environment` / `remove_environment`: register or disable a Provider-visible AutoDL image for the Project; write tools require `configure`.
-- `get_project_options`: includes `dataset_sources`, `provider_images`, and `onboarding.public_cloud.next_steps` so Agents can finish Public Elastic setup without a trusted workspace.
-- `register_ssh_cloud_node`: register a Cloud SSH host for the Token's Project; requires `operate_nodes`. Credentials are write-only. Probe only checks connectivity and pins the host key.
+- `list_dataset_bindings` / `register_dataset_binding` / `remove_dataset_binding`: Project AutoDL or Cloud SSH dataset roots, optional catalog (`scanobjectnn-objbg` or local CPU `modelnet40-mini`) and HTTPS sources, and `GEMCP_DATASET_*` injection; AutoDL write tools require `configure`. Catalog `modelnet40-mini` also accepts `submit` so a skip_provider smoke token can register the CPU fixture. Registration never uploads data; `runtime_preset=provision` downloads allowlisted sources.
+- `register_environment` / `remove_environment`: register or disable a Provider-visible AutoDL image for the Project, or ensure the Cloud SSH host Environment (`backend=ssh_cloud` or `image_uuid` `host`/`cpu`/`local`). AutoDL writes require `configure`. The local CPU host Environment accepts `submit` when `GEMCP_LOCAL_PROCESS_ENABLED` is on.
+- `get_project_options`: includes `dataset_sources`, `provider_images`, `onboarding.public_cloud.next_steps`, and `onboarding.local_cpu.next_steps` when Cloud SSH is the only backend (skip_provider / no AutoDL Environment). With local process enabled, `EnsureForProject` auto-creates the loopback `local-cpu` node and seeds catalog `modelnet40-mini` so `ready_compute` is not stuck at 0. `prepare_experiment` does the same even when the CLI omits an `ssh_cloud` selector. Do not follow AutoDL image or `register_workspace_dataset` on that path.
+- `register_ssh_cloud_node`: register a Cloud SSH host for the Token's Project. Remote hosts require `operate_nodes`. The loopback CPU stub (empty host or `127.0.0.1`) accepts `submit` when `GEMCP_LOCAL_PROCESS_ENABLED` is on and is probed immediately. Credentials are write-only. With local process enabled, omitted loopback host/user/password become `127.0.0.1` / `$USER` / `local-process`.
 - `rotate_ssh_cloud_node_credential`: replace the encrypted SSH password or private key; requires `operate_nodes`.
 - `submit_prepared_experiment`: submit one confirmed proposal by ID and digest; identical retries return the same Experiment and bind its Graph run node. Agents do not auto-submit. The Owner console can confirm the same digest and start the Experiment.
 - `get_project_options`: approved repositories, environments, resource profiles, dataset bindings, dataset source catalog, Provider-visible images, public-cloud onboarding steps, project limits, dynamically discovered authorized Self-hosted Node readiness, experimental Cloud SSH node readiness, and a `readiness` summary with the heartbeat contract. Cloud SSH listing does not require prior Project access; the control plane probes registered nodes.
@@ -298,10 +302,10 @@ Scope mapping:
 | Scope | Required for |
 | --- | --- |
 | `read` | usage guide, options, research workspace, next actions, experiment queries, artifact listing, and cost queries |
-| `submit` | research updates, close_run, prepare, prepared submission, and Advanced direct submission |
+| `submit` | research updates, close_run, prepare, prepared submission, Advanced direct submission, and the local CPU stub (`register_ssh_cloud_node` loopback, host Environment, catalog `modelnet40-mini`) when `GEMCP_LOCAL_PROCESS_ENABLED` is on. While that flag is on, MCP requests are verified as if the token also held `configure` and `operate_nodes`; the stored token scopes never change, so turning the flag off restores the token's real authority |
 | `cancel` | `cancel_experiment` |
 | `configure` | register and verify Project repositories; register or disable trusted-workspace dataset paths and AutoDL dataset bindings |
-| `operate_nodes` | register Cloud SSH hosts and rotate their credentials; off by default and not included in `configure` |
+| `operate_nodes` | register Cloud SSH hosts and rotate their credentials; off by default in production and not included in `configure`. skip_provider local setup tokens include it |
 
 Issue the minimum scopes needed by the third-party Agent.
 

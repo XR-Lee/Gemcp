@@ -53,7 +53,9 @@ func (s *Service) probeConn(ctx context.Context, conn Conn) (Inventory, error) {
 
 func (s *Service) openNode(ctx context.Context, node Target, credential Credential, expected string) (Conn, string, error) {
 	dial := s.dial
-	if dial == nil {
+	if s.config.LocalProcessEnabled && isLoopbackHost(node.Host) {
+		dial = LocalDial
+	} else if dial == nil {
 		dial = Dial
 	}
 	probeCtx, cancel := context.WithTimeout(ctx, 45*time.Second)

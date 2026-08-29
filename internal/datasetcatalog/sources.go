@@ -16,10 +16,10 @@ const (
 var sha256Pattern = regexp.MustCompile(`^[a-fA-F0-9]{64}$`)
 
 var allowedSourceHosts = map[string]bool{
-	"huggingface.co":                      true,
-	"cdn-lfs.huggingface.co":              true,
-	"objects.githubusercontent.com":       true,
-	"github.com":                          true,
+	"huggingface.co":                       true,
+	"cdn-lfs.huggingface.co":               true,
+	"objects.githubusercontent.com":        true,
+	"github.com":                           true,
 	"release-assets.githubusercontent.com": true,
 }
 
@@ -51,6 +51,16 @@ func Catalog() []CatalogEntry {
 			"main_split/test_objectdataset_augmentedrot_scale75.h5",
 		},
 		Notes: "For Public Elastic, register this catalog name with HTTPS Hugging Face resolve URLs as sources, then prepare_experiment with runtime_preset=provision. Do not use register_workspace_dataset; that tool only declares paths under an Owner-approved Self-hosted workspace.",
+	}, {
+		Name:          "modelnet40-mini",
+		DisplayName:   "ModelNet40 mini (CPU fixture)",
+		Backend:       BackendSSHCloud,
+		CanonicalRoot: "/opt/gemcp/datasets/modelnet40-mini",
+		RequiredMarkers: []string{
+			"meta.json",
+			"train/chair/0001.off",
+		},
+		Notes: "Local CPU fixture. No NVIDIA. Seed examples/local-cpu/dataset to an approved host path, then register_dataset_binding with catalog=modelnet40-mini and backend=ssh_cloud. Override canonical_root to a /home, /opt, /data, /mnt, /root, or /gemcp path when /opt is not writable.",
 	}}
 }
 

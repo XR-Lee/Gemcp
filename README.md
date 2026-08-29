@@ -2,7 +2,7 @@
 
 Gemcp is a private research workbench. Sub-agents run inside Docker on Owner-approved machines; the main surface shows a Study, iteration plan, and research Graph. Provider credentials, node authorization, budgets, lifecycle enforcement, and audit data stay in a separate Lab layer.
 
-Testers (including Jiyao Pu / Linear XIN-28): start at the [tester brief](docs/tester-brief.md). Use `main` or tag `alpha-0.19`. Do not use the stale `Jiyao` branch.
+Testers (including Jiyao Pu / Linear XIN-28): start at the [tester brief](docs/tester-brief.md). Use `main`. Do not use the stale `Jiyao` branch. Local HTTP is `./scripts/bootstrap-local.sh` then `./scripts/dev-serve.sh`.
 
 ## Current release
 
@@ -76,9 +76,19 @@ The Vue frontend is embedded in the Go release binary. Redis, Kubernetes, and a 
 
 ## Local checks
 
-For a first local run, follow the [tester brief](docs/tester-brief.md) (tree, `.env`, HTTP cookies, and what not to file as a bug).
+For a first local run, follow the [tester brief](docs/tester-brief.md). The binary reads repo-root `.env` on `serve` / `watchdog`. Development defaults `GEMCP_AUTO_MIGRATE=true`.
 
-Prerequisites: Go 1.26.6 and Node.js 22+.
+Prerequisites for `./scripts/bootstrap-local.sh`: a Go 1.21+ command (the `go.mod` pin is 1.26.6 and will download that toolchain), Node.js 22+, and PostgreSQL 16+ on loopback. Debian/Ubuntu apt Go and PostgreSQL are acceptable bootstrap packages; they are not the production Compose versions. No GPU is required.
+
+```bash
+./scripts/bootstrap-local.sh
+./scripts/dev-serve.sh
+# second terminal:
+./scripts/local-http-smoke.sh
+./scripts/local-cpu-loop.sh
+```
+
+Manual unit checks without serving:
 
 ```bash
 npm --prefix frontend install
@@ -91,14 +101,9 @@ npx --prefix frontend playwright install chromium
 make frontend-e2e
 ```
 
-The backend requires PostgreSQL when started. `.env.example` is the production Compose template: it still needs generated credentials, and `GEMCP_SECURE_COOKIES=true` will block login on plain HTTP.
+`.env.example` remains the production Compose template. Local HTTP uses `deploy/env.local.example` (`GEMCP_ENV=development`, `GEMCP_SECURE_COOKIES=false`, `GEMCP_PUBLIC_URL=http://127.0.0.1:8080`, scheduler + Cloud SSH + `GEMCP_LOCAL_PROCESS_ENABLED` for the CPU loop). Do not start serve with only `GEMCP_DATABASE_URL` on the command line: that ignores `.env`, dies on the master-key placeholder, or returns 200 on `/healthz` while `/api/v1/setup/status` is 500.
 
-```bash
-cp .env.example .env
-# Write real values from ./bin/gemcp keygen and ./bin/gemcp bootstrap-token.
-# For local HTTP, also set GEMCP_ENV=development and GEMCP_SECURE_COOKIES=false.
-GEMCP_DATABASE_URL='postgres://gemcp:gemcp@127.0.0.1:5432/gemcp?sslmode=disable' ./bin/gemcp serve
-```
+The CPU loop seeds `examples/local-cpu/` to `$HOME/gemcp/datasets/modelnet40-mini`, registers compute / environment / dataset through MCP, records a new-assumption vs sub-assumption graph, waits for a scraped heartbeat, and prints `CLI_DECISION=success|failure|new_observation`. No NVIDIA is required.
 
 Health endpoints:
 

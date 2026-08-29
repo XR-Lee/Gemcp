@@ -15,6 +15,7 @@ import (
 	"github.com/XR-Lee/Gemcp/guides"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
 	"github.com/XR-Lee/Gemcp/internal/datasetcatalog"
+	"github.com/XR-Lee/Gemcp/internal/environmentcatalog"
 	"github.com/XR-Lee/Gemcp/internal/experiment"
 	repositoryservice "github.com/XR-Lee/Gemcp/internal/repository"
 	"github.com/XR-Lee/Gemcp/internal/research"
@@ -286,6 +287,183 @@ func TestRegisterSSHCloudNodeRequiresOperateNodesAndNeverReturnsSecret(t *testin
 	}
 	if strings.Contains(string(encoded), "super-secret-password") || strings.Contains(strings.ToLower(string(encoded)), "ciphertext") {
 		t.Fatalf("register leaked credential: %s", encoded)
+	}
+}
+
+func TestRegisterEnvironmentSSHCloudHostAfterLocalNode(t *testing.T) {
+	client := enttest.Open(t, dialect.SQLite, "file:mcp-local-env?mode=memory&cache=shared&_fk=1")
+	defer client.Close()
+	ctx := context.Background()
+	tenant, _ := client.Tenant.Create().SetName("Test").Save(ctx)
+	project, _ := client.Project.Create().
+		SetTenantID(tenant.ID).SetName("Project").SetSlug("project").
+		SetMonthlyBudgetMilli(100000).SetMaxExperimentMilli(20000).SetMaxRuntimeSeconds(3600).
+		Save(ctx)
+	key, _ := secrets.GenerateMasterKey()
+	box, _ := secrets.New(key)
+	rawToken, prefix, _ := secrets.RandomToken("gmc", 32)
+	_, _ = client.AgentToken.Create().
+		SetProjectID(project.ID).SetLabel("local-agent").SetPrefix(prefix).
+		SetTokenHash(box.Digest("agent-token", rawToken)).
+		SetScopes([]string{"read", "submit", "configure", "operate_nodes"}).Save(ctx)
+	config := sshcloud.DefaultConfig()
+	config.Enabled = true
+	config.LocalProcessEnabled = true
+	config.InstanceID = "test"
+	sshService, err := sshcloud.NewService(client, box, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := New(
+		agentauth.NewService(client, box),
+		experiment.NewService(client, box, allowCommitVerifier{}),
+		"test", nil, WithSSHCloud(sshService), WithEnvironments(environmentcatalog.NewService(client, nil)),
+	).Handler()
+	httpServer := httptest.NewServer(handler)
+	defer httpServer.Close()
+	httpClient := &http.Client{Transport: bearerTransport{token: rawToken, base: http.DefaultTransport}}
+	mcpClient := mcp.NewClient(&mcp.Implementation{Name: "gemcp-test", Version: "test"}, nil)
+	session, err := mcpClient.Connect(ctx, &mcp.StreamableClientTransport{
+		Endpoint: httpServer.URL, HTTPClient: httpClient,
+	}, nil)
+	if err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	defer session.Close()
+
+	registered, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "register_ssh_cloud_node", Arguments: map[string]any{
+		"host": "127.0.0.1",
+	}})
+	if err != nil || registered.IsError {
+		t.Fatalf("register_ssh_cloud_node without invented secrets = %+v, %v", registered, err)
+	}
+	environment, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "register_environment", Arguments: map[string]any{
+		"name": "local-host", "image_uuid": "cpu",
+	}})
+	if err != nil || environment.IsError {
+		t.Fatalf("register_environment = %+v, %v", environment, err)
+	}
+	encoded, _ := json.Marshal(environment.StructuredContent)
+	if !strings.Contains(string(encoded), "ssh_cloud") || !strings.Contains(string(encoded), "host") {
+		t.Fatalf("environment = %s", encoded)
+	}
+}
+
+func TestRegisterEnvironmentInvisibleImageFallsBackToLocalCPU(t *testing.T) {
+	client := enttest.Open(t, dialect.SQLite, "file:mcp-local-fallback?mode=memory&cache=shared&_fk=1")
+	defer client.Close()
+	ctx := context.Background()
+	tenant, _ := client.Tenant.Create().SetName("Test").Save(ctx)
+	project, _ := client.Project.Create().
+		SetTenantID(tenant.ID).SetName("Project").SetSlug("project").
+		SetMonthlyBudgetMilli(100000).SetMaxExperimentMilli(20000).SetMaxRuntimeSeconds(3600).
+		Save(ctx)
+	key, _ := secrets.GenerateMasterKey()
+	box, _ := secrets.New(key)
+	rawToken, prefix, _ := secrets.RandomToken("gmc", 32)
+	_, _ = client.AgentToken.Create().
+		SetProjectID(project.ID).SetLabel("local-agent").SetPrefix(prefix).
+		SetTokenHash(box.Digest("agent-token", rawToken)).
+		SetScopes([]string{"read", "submit", "configure"}).Save(ctx)
+	config := sshcloud.DefaultConfig()
+	config.Enabled = true
+	config.LocalProcessEnabled = true
+	config.InstanceID = "test"
+	sshService, err := sshcloud.NewService(client, box, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", t.TempDir())
+	handler := New(
+		agentauth.NewService(client, box),
+		experiment.NewService(client, box, allowCommitVerifier{}, experiment.WithSSHCloud(sshService)),
+		"test", nil, WithSSHCloud(sshService), WithEnvironments(environmentcatalog.NewService(client, nil)),
+		WithConfiguration(nil, nil, datasetcatalog.NewService(client, datasetcatalog.WithLocalCPUFixture(true))),
+	).Handler()
+	httpServer := httptest.NewServer(handler)
+	defer httpServer.Close()
+	httpClient := &http.Client{Transport: bearerTransport{token: rawToken, base: http.DefaultTransport}}
+	mcpClient := mcp.NewClient(&mcp.Implementation{Name: "gemcp-test", Version: "test"}, nil)
+	session, err := mcpClient.Connect(ctx, &mcp.StreamableClientTransport{
+		Endpoint: httpServer.URL, HTTPClient: httpClient,
+	}, nil)
+	if err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	defer session.Close()
+
+	environment, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "register_environment", Arguments: map[string]any{
+		"name": "torch-train", "image_uuid": "image-visible",
+	}})
+	if err != nil || environment.IsError {
+		t.Fatalf("invisible image should fall back to local CPU: %+v, %v", environment, err)
+	}
+	dataset, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "register_dataset_binding", Arguments: map[string]any{
+		"catalog": "modelnet40-mini",
+	}})
+	if err != nil || dataset.IsError {
+		t.Fatalf("catalog dataset = %+v, %v", dataset, err)
+	}
+}
+
+func TestRegisterLocalCPUStubAllowsSubmitWithoutOperateNodes(t *testing.T) {
+	client := enttest.Open(t, dialect.SQLite, "file:mcp-local-submit?mode=memory&cache=shared&_fk=1")
+	defer client.Close()
+	ctx := context.Background()
+	tenant, _ := client.Tenant.Create().SetName("Test").Save(ctx)
+	project, _ := client.Project.Create().
+		SetTenantID(tenant.ID).SetName("Project").SetSlug("project").
+		SetMonthlyBudgetMilli(100000).SetMaxExperimentMilli(20000).SetMaxRuntimeSeconds(3600).
+		Save(ctx)
+	key, _ := secrets.GenerateMasterKey()
+	box, _ := secrets.New(key)
+	rawToken, prefix, _ := secrets.RandomToken("gmc", 32)
+	_, _ = client.AgentToken.Create().
+		SetProjectID(project.ID).SetLabel("smoke-agent").SetPrefix(prefix).
+		SetTokenHash(box.Digest("agent-token", rawToken)).
+		SetScopes([]string{"read", "submit", "cancel"}).Save(ctx)
+	config := sshcloud.DefaultConfig()
+	config.Enabled = true
+	config.LocalProcessEnabled = true
+	config.InstanceID = "test"
+	sshService, err := sshcloud.NewService(client, box, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", t.TempDir())
+	handler := New(
+		agentauth.NewService(client, box),
+		experiment.NewService(client, box, allowCommitVerifier{}, experiment.WithSSHCloud(sshService), experiment.WithLocalCPUDataset(datasetcatalog.NewService(client, datasetcatalog.WithLocalCPUFixture(true)))),
+		"test", nil, WithSSHCloud(sshService), WithEnvironments(environmentcatalog.NewService(client, nil)),
+		WithConfiguration(nil, nil, datasetcatalog.NewService(client, datasetcatalog.WithLocalCPUFixture(true))),
+	).Handler()
+	httpServer := httptest.NewServer(handler)
+	defer httpServer.Close()
+	httpClient := &http.Client{Transport: bearerTransport{token: rawToken, base: http.DefaultTransport}}
+	mcpClient := mcp.NewClient(&mcp.Implementation{Name: "gemcp-test", Version: "test"}, nil)
+	session, err := mcpClient.Connect(ctx, &mcp.StreamableClientTransport{
+		Endpoint: httpServer.URL, HTTPClient: httpClient,
+	}, nil)
+	if err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	defer session.Close()
+
+	node, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "register_ssh_cloud_node", Arguments: map[string]any{}})
+	if err != nil || node.IsError {
+		t.Fatalf("loopback CPU stub with submit = %+v, %v", node, err)
+	}
+	environment, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "register_environment", Arguments: map[string]any{
+		"name": "cpu", "image_uuid": "host",
+	}})
+	if err != nil || environment.IsError {
+		t.Fatalf("host environment with submit = %+v, %v", environment, err)
+	}
+	dataset, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "register_dataset_binding", Arguments: map[string]any{
+		"catalog": "modelnet40-mini",
+	}})
+	if err != nil || dataset.IsError {
+		t.Fatalf("modelnet40-mini with submit = %+v, %v", dataset, err)
 	}
 }
 

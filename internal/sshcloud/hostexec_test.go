@@ -24,6 +24,12 @@ func TestHostStartScriptExportsDatasetBindings(t *testing.T) {
 	if !strings.Contains(script, "export GEMCP_DATASET_SCANOBJECTNN_OBJBG='/root/autodl-fs/datasets/ScanObjectNN'") {
 		t.Fatalf("missing dataset export: %s", script)
 	}
+	if !strings.Contains(script, "/var/tmp/gemcp/assignment/exit") {
+		t.Fatalf("nested sh must write the assignment exit file: %s", script)
+	}
+	if strings.Contains(script, `> "$dir/exit"`) {
+		t.Fatalf("nested sh must not expand an unset $dir: %s", script)
+	}
 	if err := validateHostSpec(remoteWorkload{
 		AssignmentID: "11111111-1111-1111-1111-111111111111", ExecutionMode: executioncmd.ModeArgv,
 		Argv: []string{"python"}, RemoteDir: "/var/tmp/gemcp/assignment",

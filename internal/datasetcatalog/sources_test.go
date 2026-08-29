@@ -33,6 +33,13 @@ func TestLookupCatalogScanObjectNN(t *testing.T) {
 	}
 }
 
+func TestLookupCatalogModelNet40Mini(t *testing.T) {
+	entry, ok := LookupCatalog("modelnet40-mini")
+	if !ok || entry.Backend != BackendSSHCloud || entry.CanonicalRoot != "/opt/gemcp/datasets/modelnet40-mini" {
+		t.Fatalf("catalog=%+v ok=%v", entry, ok)
+	}
+}
+
 func TestNormalizeCanonicalRootForSSHCloud(t *testing.T) {
 	root, err := NormalizeCanonicalRootForBackend("/root/autodl-fs/datasets/ScanObjectNN", BackendSSHCloud)
 	if err != nil || root != "/root/autodl-fs/datasets/ScanObjectNN" {

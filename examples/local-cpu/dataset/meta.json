@@ -1,0 +1,7 @@
+{
+  "name": "modelnet40-mini",
+  "classes": ["chair", "table"],
+  "n_classes": 2,
+  "split": "tiny-cpu-fixture",
+  "notes": "Not the full ModelNet40 corpus. Enough samples to exercise Gemcp schedule, heartbeat, and close_run on CPU."
+}

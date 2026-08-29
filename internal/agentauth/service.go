@@ -100,3 +100,35 @@ func (s *Service) Authenticate(ctx context.Context, raw string) (Principal, erro
 		ExpiresAt:       matched.ExpiresAt,
 	}, nil
 }
+
+// LocalCPUScopes returns the principal with configure + operate_nodes added to
+// its effective scopes so a local CLI can register the loopback CPU stub
+// without an Owner scope edit. The stored token is never modified: the grant
+// only applies to requests verified while GEMCP_LOCAL_PROCESS_ENABLED is on,
+// and disabling local mode immediately restores the token's real authority.
+func LocalCPUScopes(principal Principal) Principal {
+	if principal.TokenID == 0 || (principal.HasScope("configure") && principal.HasScope("operate_nodes")) {
+		return principal
+	}
+	if !principal.HasScope("read") && !principal.HasScope("submit") {
+		return principal
+	}
+	seen := map[string]bool{}
+	ordered := make([]string, 0, 5)
+	for _, scope := range []string{"read", "submit", "cancel", "configure", "operate_nodes"} {
+		if principal.HasScope(scope) || scope == "configure" || scope == "operate_nodes" {
+			if !seen[scope] {
+				seen[scope] = true
+				ordered = append(ordered, scope)
+			}
+		}
+	}
+	for _, scope := range principal.Scopes {
+		if !seen[scope] {
+			seen[scope] = true
+			ordered = append(ordered, scope)
+		}
+	}
+	principal.Scopes = ordered
+	return principal
+}
