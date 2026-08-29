@@ -295,7 +295,7 @@ func applyCatalogDefaults(input RegisterInput) (RegisterInput, error) {
 	}
 	entry, ok := LookupCatalog(catalogName)
 	if !ok {
-		return RegisterInput{}, invalid("catalog must be a built-in dataset source such as scanobjectnn-objbg")
+		return RegisterInput{}, invalid("catalog must be a built-in dataset source such as scanobjectnn-objbg or modelnet40-mini")
 	}
 	if strings.TrimSpace(input.Name) == "" {
 		input.Name = entry.Name

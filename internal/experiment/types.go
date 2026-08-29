@@ -85,6 +85,7 @@ type View struct {
 	RunnerErrorType       *string                 `json:"runner_error_type,omitempty"`
 	LogTail               *string                 `json:"log_tail,omitempty"`
 	Metrics               map[string]any          `json:"metrics,omitempty"`
+	LastHeartbeatAt       *time.Time              `json:"last_heartbeat_at,omitempty"`
 	ExecutionContext      ExecutionContextView    `json:"execution_context"`
 	BackendObservation    *BackendObservationView `json:"backend_observation,omitempty"`
 	Timeline              []TimelineEvent         `json:"timeline,omitempty"`
@@ -310,14 +311,14 @@ type AgentReadinessInstructions struct {
 }
 
 type DatasetBindingOption struct {
-	ID                  string                    `json:"id"`
-	Name                string                    `json:"name"`
-	Backend             string                    `json:"backend"`
-	CanonicalRoot       string                    `json:"canonical_root"`
-	EnvironmentVariable string                    `json:"environment_variable"`
-	RequiredMarkers     []string                  `json:"required_markers"`
-	Sources             []DatasetBindingSource    `json:"sources"`
-	Status              string                    `json:"status"`
+	ID                  string                 `json:"id"`
+	Name                string                 `json:"name"`
+	Backend             string                 `json:"backend"`
+	CanonicalRoot       string                 `json:"canonical_root"`
+	EnvironmentVariable string                 `json:"environment_variable"`
+	RequiredMarkers     []string               `json:"required_markers"`
+	Sources             []DatasetBindingSource `json:"sources"`
+	Status              string                 `json:"status"`
 }
 
 type DatasetBindingSource struct {

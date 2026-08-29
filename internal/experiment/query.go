@@ -80,6 +80,10 @@ func (s *Service) enrichRunnerStatus(ctx context.Context, experimentRecord *ent.
 	sourceDownloads := attemptRecord.SourceDownloads
 	view.RunnerAttemptID = &attemptID
 	view.RunnerSourceDownloads = &sourceDownloads
+	if attemptRecord.LastHeartbeatAt != nil {
+		heartbeat := *attemptRecord.LastHeartbeatAt
+		view.LastHeartbeatAt = &heartbeat
+	}
 
 	events, err := s.client.AuditEvent.Query().Where(
 		auditevent.TenantIDEQ(experimentRecord.TenantID),

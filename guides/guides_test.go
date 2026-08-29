@@ -98,6 +98,7 @@ func TestLocalDevBootstrapMatchesBinary(t *testing.T) {
 		filepath.Join("..", "scripts", "bootstrap-local.sh"),
 		filepath.Join("..", "scripts", "dev-serve.sh"),
 		filepath.Join("..", "scripts", "local-http-smoke.sh"),
+		filepath.Join("..", "scripts", "local-cpu-loop.sh"),
 		filepath.Join("..", "deploy", "env.local.example"),
 	} {
 		info, err := os.Stat(filename)
@@ -129,10 +130,17 @@ func TestLocalDevBootstrapMatchesBinary(t *testing.T) {
 					t.Fatalf("%s does not contain %q", filename, required)
 				}
 			}
+		case strings.HasSuffix(filename, "local-cpu-loop.sh"):
+			for _, required := range []string{"GEMCP_LOCAL_PROCESS_ENABLED", "local-cpu-loop.py", "GEMCP_SCHEDULER_ENABLED"} {
+				if !strings.Contains(body, required) {
+					t.Fatalf("%s does not contain %q", filename, required)
+				}
+			}
 		case strings.HasSuffix(filename, "env.local.example"):
 			for _, required := range []string{
 				"GEMCP_ENV=development", "GEMCP_SECURE_COOKIES=false", "GEMCP_AUTO_MIGRATE=true",
 				"GEMCP_PUBLIC_URL=http://127.0.0.1:8080", `GEMCP_DEV_ORGANIZATION="Local Lab"`,
+				"GEMCP_LOCAL_PROCESS_ENABLED=true", "GEMCP_SSH_CLOUD_ENABLED=true", "GEMCP_SCHEDULER_ENABLED=true",
 			} {
 				if !strings.Contains(body, required) {
 					t.Fatalf("%s does not contain %q", filename, required)

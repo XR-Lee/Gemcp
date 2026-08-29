@@ -121,6 +121,7 @@ func runServer() error {
 	}
 	sshCloudConfig := sshcloud.DefaultConfig()
 	sshCloudConfig.Enabled = cfg.SSHCloudEnabled
+	sshCloudConfig.LocalProcessEnabled = cfg.LocalProcessEnabled
 	sshCloudConfig.InstanceID = executionConfig.InstanceID
 	sshCloudConfig.ProvisionTimeout = cfg.ProvisionTimeout
 	sshCloudConfig.MaxAttempts = cfg.MaxAttempts

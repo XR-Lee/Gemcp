@@ -134,4 +134,11 @@ func TestInitializeCanSkipAutoDL(t *testing.T) {
 	if count, _ := client.AgentToken.Query().Count(context.Background()); count != 1 {
 		t.Fatalf("Agent token count = %d, want 1", count)
 	}
+	token, err := client.AgentToken.Query().Only(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(token.Scopes, ",") != "read,submit,cancel,configure,operate_nodes" {
+		t.Fatalf("skip_provider token scopes = %v", token.Scopes)
+	}
 }

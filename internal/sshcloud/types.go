@@ -48,10 +48,11 @@ type ValidationError = validation.Error[validationDomain]
 func invalid(message string) error { return &ValidationError{Message: message} }
 
 type Config struct {
-	Enabled          bool
-	InstanceID       string
-	ProvisionTimeout time.Duration
-	MaxAttempts      int
+	Enabled             bool
+	LocalProcessEnabled bool
+	InstanceID          string
+	ProvisionTimeout    time.Duration
+	MaxAttempts         int
 }
 
 func DefaultConfig() Config {

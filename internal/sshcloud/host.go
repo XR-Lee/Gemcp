@@ -156,7 +156,16 @@ func suggestedSSHLabel(host string) string {
 	return host
 }
 
-func normalizeTarget(host string, port int, user string) (Target, error) {
+func isLoopbackHost(host string) bool {
+	host = strings.TrimSpace(host)
+	if strings.EqualFold(host, "localhost") || strings.HasSuffix(strings.ToLower(host), ".localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
+func normalizeTarget(host string, port int, user string, allowLoopback bool) (Target, error) {
 	host = strings.TrimSpace(host)
 	user = strings.TrimSpace(user)
 	if port == 0 {
@@ -165,12 +174,15 @@ func normalizeTarget(host string, port int, user string) (Target, error) {
 	if host == "" || len(host) > 255 || strings.ContainsAny(host, "/@ \t") || strings.Contains(host, ":") {
 		return Target{}, invalid("SSH host must be a hostname or IP without credentials or a port")
 	}
-	if strings.EqualFold(host, "localhost") || strings.HasSuffix(strings.ToLower(host), ".localhost") {
-		return Target{}, invalid("Cloud SSH targets cannot be loopback hosts")
+	if isLoopbackHost(host) && !allowLoopback {
+		return Target{}, invalid("Cloud SSH targets cannot be loopback hosts unless GEMCP_LOCAL_PROCESS_ENABLED is true")
 	}
 	if ip := net.ParseIP(host); ip != nil {
-		if ip.IsLoopback() || ip.IsUnspecified() || ip.IsMulticast() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+		if ip.IsUnspecified() || ip.IsMulticast() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
 			return Target{}, invalid("Cloud SSH targets cannot be loopback, link-local, or unspecified addresses")
+		}
+		if ip.IsLoopback() && !allowLoopback {
+			return Target{}, invalid("Cloud SSH targets cannot be loopback hosts unless GEMCP_LOCAL_PROCESS_ENABLED is true")
 		}
 	} else {
 		for _, character := range host {

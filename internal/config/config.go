@@ -27,6 +27,7 @@ type Config struct {
 	PublicURL                string
 	SelfHostedEnabled        bool
 	SSHCloudEnabled          bool
+	LocalProcessEnabled      bool
 	SchedulerEnabled         bool
 	GlobalConcurrency        int
 	SchedulerPollInterval    time.Duration
@@ -60,6 +61,10 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	sshCloudEnabled, err := boolOrDefault("GEMCP_SSH_CLOUD_ENABLED", false)
+	if err != nil {
+		return Config{}, err
+	}
+	localProcessEnabled, err := boolOrDefault("GEMCP_LOCAL_PROCESS_ENABLED", false)
 	if err != nil {
 		return Config{}, err
 	}
@@ -137,6 +142,7 @@ func Load() (Config, error) {
 		PublicURL:                strings.TrimRight(strings.TrimSpace(os.Getenv("GEMCP_PUBLIC_URL")), "/"),
 		SelfHostedEnabled:        selfHostedEnabled,
 		SSHCloudEnabled:          sshCloudEnabled,
+		LocalProcessEnabled:      localProcessEnabled,
 		SchedulerEnabled:         schedulerEnabled,
 		GlobalConcurrency:        globalConcurrency,
 		SchedulerPollInterval:    schedulerPollInterval,
@@ -200,6 +206,9 @@ func Load() (Config, error) {
 		if !acceptablePublicOrigin(cfg.PublicURL, true) {
 			return Config{}, fmt.Errorf("GEMCP_PUBLIC_URL must be a credential-free HTTPS origin, or loopback HTTP, when Self-hosted nodes are enabled")
 		}
+	}
+	if cfg.LocalProcessEnabled && !cfg.SSHCloudEnabled {
+		return Config{}, fmt.Errorf("GEMCP_LOCAL_PROCESS_ENABLED requires GEMCP_SSH_CLOUD_ENABLED")
 	}
 	return cfg, nil
 }

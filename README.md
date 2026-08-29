@@ -85,6 +85,7 @@ Prerequisites for `./scripts/bootstrap-local.sh`: a Go 1.21+ command (the `go.mo
 ./scripts/dev-serve.sh
 # second terminal:
 ./scripts/local-http-smoke.sh
+./scripts/local-cpu-loop.sh
 ```
 
 Manual unit checks without serving:
@@ -100,7 +101,9 @@ npx --prefix frontend playwright install chromium
 make frontend-e2e
 ```
 
-`.env.example` remains the production Compose template. Local HTTP uses `deploy/env.local.example` (`GEMCP_ENV=development`, `GEMCP_SECURE_COOKIES=false`, `GEMCP_PUBLIC_URL=http://127.0.0.1:8080`). Do not start serve with only `GEMCP_DATABASE_URL` on the command line: that ignores `.env`, dies on the master-key placeholder, or returns 200 on `/healthz` while `/api/v1/setup/status` is 500.
+`.env.example` remains the production Compose template. Local HTTP uses `deploy/env.local.example` (`GEMCP_ENV=development`, `GEMCP_SECURE_COOKIES=false`, `GEMCP_PUBLIC_URL=http://127.0.0.1:8080`, scheduler + Cloud SSH + `GEMCP_LOCAL_PROCESS_ENABLED` for the CPU loop). Do not start serve with only `GEMCP_DATABASE_URL` on the command line: that ignores `.env`, dies on the master-key placeholder, or returns 200 on `/healthz` while `/api/v1/setup/status` is 500.
+
+The CPU loop seeds `examples/local-cpu/` to `$HOME/gemcp/datasets/modelnet40-mini`, registers compute / environment / dataset through MCP, records a new-assumption vs sub-assumption graph, waits for a scraped heartbeat, and prints `CLI_DECISION=success|failure|new_observation`. No NVIDIA is required.
 
 Health endpoints:
 

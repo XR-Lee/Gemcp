@@ -13,6 +13,8 @@ func TestLoadDefaults(t *testing.T) {
 	t.Setenv("GEMCP_SHUTDOWN_TIMEOUT", "")
 	t.Setenv("GEMCP_AUTO_MIGRATE", "")
 	t.Setenv("GEMCP_SECURE_COOKIES", "")
+	t.Setenv("GEMCP_LOCAL_PROCESS_ENABLED", "")
+	t.Setenv("GEMCP_SSH_CLOUD_ENABLED", "")
 
 	cfg, err := Load()
 	if err != nil {
@@ -32,6 +34,22 @@ func TestLoadDefaults(t *testing.T) {
 	}
 	if cfg.SSHCloudEnabled {
 		t.Fatal("Cloud SSH nodes defaulted to enabled")
+	}
+	if cfg.LocalProcessEnabled {
+		t.Fatal("local process overlay defaulted to enabled")
+	}
+}
+
+func TestLocalProcessRequiresSSHCloud(t *testing.T) {
+	t.Setenv("GEMCP_LOCAL_PROCESS_ENABLED", "true")
+	t.Setenv("GEMCP_SSH_CLOUD_ENABLED", "")
+	if _, err := Load(); err == nil {
+		t.Fatal("Load() accepted local process without Cloud SSH")
+	}
+	t.Setenv("GEMCP_SSH_CLOUD_ENABLED", "true")
+	cfg, err := Load()
+	if err != nil || !cfg.LocalProcessEnabled || !cfg.SSHCloudEnabled {
+		t.Fatalf("local process config=%+v err=%v", cfg, err)
 	}
 }
 
@@ -127,6 +145,7 @@ func TestSchedulerIsOptInAndRequiresHTTPSPublicOrigin(t *testing.T) {
 }
 
 func TestSSHCloudNodesAreOptIn(t *testing.T) {
+	t.Setenv("GEMCP_LOCAL_PROCESS_ENABLED", "")
 	t.Setenv("GEMCP_SSH_CLOUD_ENABLED", "")
 	cfg, err := Load()
 	if err != nil {
@@ -134,6 +153,9 @@ func TestSSHCloudNodesAreOptIn(t *testing.T) {
 	}
 	if cfg.SSHCloudEnabled {
 		t.Fatal("Cloud SSH nodes defaulted to enabled")
+	}
+	if cfg.LocalProcessEnabled {
+		t.Fatal("local process overlay defaulted to enabled")
 	}
 	t.Setenv("GEMCP_SSH_CLOUD_ENABLED", "true")
 	cfg, err = Load()

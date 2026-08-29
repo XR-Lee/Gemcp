@@ -114,7 +114,7 @@ For Public Elastic, replace the Provider and resource fields with values matchin
 
 The region example is not a permanent allowlist; validate current region identifiers through AutoDL before enabling scheduling. Public Elastic GPU stock is queried per region. Its Developer API lists user-private images but does not dynamically list official base images, so a documented or console-provided base-image UUID may be valid even when it is absent from Provider image discovery.
 
-To initialize without AutoDL (local HTTP, no GPU), send `skip_provider: true` and omit live Provider fields. `./scripts/local-http-smoke.sh` posts this payload using `GEMCP_DEV_*` from `.env`.
+To initialize without AutoDL (local HTTP, no GPU), send `skip_provider: true` and omit live Provider fields. The first Agent Token then includes `configure` and `operate_nodes` so the local CPU loop can register a host, Environment, and dataset. `./scripts/local-http-smoke.sh` posts this payload using `GEMCP_DEV_*` from `.env`.
 
 ```json
 {

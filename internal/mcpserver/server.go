@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/XR-Lee/Gemcp/guides"
@@ -117,13 +118,13 @@ func New(agentAuth *agentauth.Service, experiments *experiment.Service, version 
 		Name: "list_dataset_bindings", Description: "List Project dataset bindings for Public Elastic, Private Cloud, and Cloud SSH. These inject GEMCP_DATASET_* at start. Public Elastic bindings live under /root/autodl-fs/.",
 	}, server.listDatasetBindings)
 	mcp.AddTool(mcpServer, &mcp.Tool{
-		Name: "register_dataset_binding", Description: "Register a dataset root for this Project. For Public Elastic use /root/autodl-fs/ plus optional catalog=scanobjectnn-objbg and allowlisted HTTPS sources. Requires configure scope. This never uploads data; prepare_experiment with runtime_preset=provision downloads the sources.",
+		Name: "register_dataset_binding", Description: "Register a dataset root for this Project. For Public Elastic use /root/autodl-fs/ plus optional catalog=scanobjectnn-objbg and allowlisted HTTPS sources. For local CPU use catalog=modelnet40-mini and backend=ssh_cloud on an approved host path. Requires configure scope. This never uploads data; prepare_experiment with runtime_preset=provision downloads the sources.",
 	}, server.registerDatasetBinding)
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "remove_dataset_binding", Description: "Disable one Project dataset binding. Requires configure scope.",
 	}, server.removeDatasetBinding)
 	mcp.AddTool(mcpServer, &mcp.Tool{
-		Name: "register_environment", Description: "Register a Provider-visible AutoDL image as a Project Environment. Requires configure scope. Official image-* UUIDs remain Owner-only unless already used on the Project.",
+		Name: "register_environment", Description: "Register a Provider-visible AutoDL image as a Project Environment, or ensure the Cloud SSH host Environment after register_ssh_cloud_node (backend=ssh_cloud, image_uuid=host). Requires configure scope. Official image-* UUIDs remain Owner-only unless already used on the Project.",
 	}, server.registerEnvironment)
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "remove_environment", Description: "Disable one Project Environment. Requires configure scope.",
@@ -403,11 +404,59 @@ func (s *Server) registerEnvironment(ctx context.Context, request *mcp.CallToolR
 	if err != nil {
 		return nil, environmentcatalog.View{}, err
 	}
+	if looksLikeSSHCloudHostEnvironment(input) {
+		view, hookErr := s.registerSSHCloudHostEnvironment(ctx, principal, input)
+		return nil, view, s.sshCloudToolError("register_environment", hookErr)
+	}
 	if s.environments == nil {
 		return nil, environmentcatalog.View{}, errors.New("environment service is unavailable")
 	}
 	view, err := s.environments.Register(ctx, principal, input)
 	return nil, view, s.configurationToolError("register_environment", err)
+}
+
+func looksLikeSSHCloudHostEnvironment(input environmentcatalog.RegisterInput) bool {
+	backend := strings.ToLower(strings.TrimSpace(input.Backend))
+	image := strings.ToLower(strings.TrimSpace(input.ImageUUID))
+	return backend == "ssh_cloud" || backend == "ssh-cloud" || backend == "cloud-ssh" || image == sshcloud.HostImage
+}
+
+func (s *Server) registerSSHCloudHostEnvironment(ctx context.Context, principal agentauth.Principal, input environmentcatalog.RegisterInput) (environmentcatalog.View, error) {
+	if !principal.HasScope("configure") {
+		return environmentcatalog.View{}, experiment.ErrForbidden
+	}
+	if s.sshCloud == nil {
+		return environmentcatalog.View{}, sshcloud.ErrDisabled
+	}
+	result, err := s.sshCloud.EnsureForProject(ctx, principal.TenantID, "agent:"+principal.TokenPublicID, principal.ProjectPublicID, sshcloud.HostImage)
+	if err != nil {
+		return environmentcatalog.View{}, err
+	}
+	if strings.TrimSpace(result.EnvironmentName) == "" {
+		message := strings.TrimSpace(result.Message)
+		if message == "" {
+			message = "register_ssh_cloud_node before register_environment with backend=ssh_cloud and image_uuid=host"
+		}
+		return environmentcatalog.View{}, &sshcloud.ValidationError{Message: message}
+	}
+	if s.environments != nil {
+		listed, listErr := s.environments.List(ctx, principal)
+		if listErr == nil {
+			for _, view := range listed.Environments {
+				if view.Name == result.EnvironmentName && view.Backend == sshcloud.Backend {
+					return view, nil
+				}
+			}
+		}
+	}
+	name := strings.TrimSpace(input.Name)
+	if name == "" {
+		name = result.EnvironmentName
+	}
+	return environmentcatalog.View{
+		ProjectID: principal.ProjectPublicID, Name: name, Backend: sshcloud.Backend,
+		ImageUUID: sshcloud.HostImage, IsDefault: true, Status: "approved",
+	}, nil
 }
 
 func (s *Server) removeEnvironment(ctx context.Context, request *mcp.CallToolRequest, input environmentcatalog.RemoveInput) (*mcp.CallToolResult, environmentcatalog.View, error) {

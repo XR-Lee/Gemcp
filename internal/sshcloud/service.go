@@ -65,7 +65,7 @@ func (s *Service) Create(ctx context.Context, tenantID int, actorID string, inpu
 	if err != nil {
 		return NodeView{}, err
 	}
-	target, err := normalizeTarget(input.Host, input.Port, input.User)
+	target, err := normalizeTarget(input.Host, input.Port, input.User, s.config.LocalProcessEnabled)
 	if err != nil {
 		return NodeView{}, err
 	}

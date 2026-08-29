@@ -204,6 +204,12 @@ ensure_env() {
     replace_env_value "$repo_root/.env" GEMCP_BOOTSTRAP_TOKEN "$("$gemcp" bootstrap-token)"
     log "Generated GEMCP_BOOTSTRAP_TOKEN."
   fi
+  if ! grep -q '^GEMCP_LOCAL_PROCESS_ENABLED=' "$repo_root/.env"; then
+    replace_env_value "$repo_root/.env" GEMCP_SSH_CLOUD_ENABLED true
+    replace_env_value "$repo_root/.env" GEMCP_LOCAL_PROCESS_ENABLED true
+    replace_env_value "$repo_root/.env" GEMCP_SCHEDULER_ENABLED true
+    log "Enabled local CPU loop flags in .env (restart serve if it is already running)."
+  fi
   # shellcheck disable=SC1091
   set -a
   # shellcheck source=/dev/null
@@ -239,6 +245,7 @@ main() {
   log "  ./scripts/dev-serve.sh"
   log "  # in another terminal:"
   log "  ./scripts/local-http-smoke.sh"
+  log "  ./scripts/local-cpu-loop.sh"
   log "Open http://127.0.0.1:8080 and skip AutoDL on the Compute step, or let the smoke script call skip_provider."
 }
 

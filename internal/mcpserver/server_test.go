@@ -15,6 +15,7 @@ import (
 	"github.com/XR-Lee/Gemcp/guides"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
 	"github.com/XR-Lee/Gemcp/internal/datasetcatalog"
+	"github.com/XR-Lee/Gemcp/internal/environmentcatalog"
 	"github.com/XR-Lee/Gemcp/internal/experiment"
 	repositoryservice "github.com/XR-Lee/Gemcp/internal/repository"
 	"github.com/XR-Lee/Gemcp/internal/research"
@@ -286,6 +287,65 @@ func TestRegisterSSHCloudNodeRequiresOperateNodesAndNeverReturnsSecret(t *testin
 	}
 	if strings.Contains(string(encoded), "super-secret-password") || strings.Contains(strings.ToLower(string(encoded)), "ciphertext") {
 		t.Fatalf("register leaked credential: %s", encoded)
+	}
+}
+
+func TestRegisterEnvironmentSSHCloudHostAfterLocalNode(t *testing.T) {
+	client := enttest.Open(t, dialect.SQLite, "file:mcp-local-env?mode=memory&cache=shared&_fk=1")
+	defer client.Close()
+	ctx := context.Background()
+	tenant, _ := client.Tenant.Create().SetName("Test").Save(ctx)
+	project, _ := client.Project.Create().
+		SetTenantID(tenant.ID).SetName("Project").SetSlug("project").
+		SetMonthlyBudgetMilli(100000).SetMaxExperimentMilli(20000).SetMaxRuntimeSeconds(3600).
+		Save(ctx)
+	key, _ := secrets.GenerateMasterKey()
+	box, _ := secrets.New(key)
+	rawToken, prefix, _ := secrets.RandomToken("gmc", 32)
+	_, _ = client.AgentToken.Create().
+		SetProjectID(project.ID).SetLabel("local-agent").SetPrefix(prefix).
+		SetTokenHash(box.Digest("agent-token", rawToken)).
+		SetScopes([]string{"read", "submit", "configure", "operate_nodes"}).Save(ctx)
+	config := sshcloud.DefaultConfig()
+	config.Enabled = true
+	config.LocalProcessEnabled = true
+	config.InstanceID = "test"
+	sshService, err := sshcloud.NewService(client, box, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := New(
+		agentauth.NewService(client, box),
+		experiment.NewService(client, box, allowCommitVerifier{}),
+		"test", nil, WithSSHCloud(sshService), WithEnvironments(environmentcatalog.NewService(client, nil)),
+	).Handler()
+	httpServer := httptest.NewServer(handler)
+	defer httpServer.Close()
+	httpClient := &http.Client{Transport: bearerTransport{token: rawToken, base: http.DefaultTransport}}
+	mcpClient := mcp.NewClient(&mcp.Implementation{Name: "gemcp-test", Version: "test"}, nil)
+	session, err := mcpClient.Connect(ctx, &mcp.StreamableClientTransport{
+		Endpoint: httpServer.URL, HTTPClient: httpClient,
+	}, nil)
+	if err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	defer session.Close()
+
+	registered, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "register_ssh_cloud_node", Arguments: map[string]any{
+		"host": "127.0.0.1", "user": "ubuntu", "auth_method": "password", "password": "local-process", "label": "local-cpu",
+	}})
+	if err != nil || registered.IsError {
+		t.Fatalf("register_ssh_cloud_node = %+v, %v", registered, err)
+	}
+	environment, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "register_environment", Arguments: map[string]any{
+		"name": "local-host", "backend": "ssh_cloud", "image_uuid": "host",
+	}})
+	if err != nil || environment.IsError {
+		t.Fatalf("register_environment = %+v, %v", environment, err)
+	}
+	encoded, _ := json.Marshal(environment.StructuredContent)
+	if !strings.Contains(string(encoded), "ssh_cloud") || !strings.Contains(string(encoded), "host") {
+		t.Fatalf("environment = %s", encoded)
 	}
 }
 

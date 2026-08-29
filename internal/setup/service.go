@@ -240,12 +240,18 @@ func (s *Service) Initialize(ctx context.Context, input Input) (Result, error) {
 	if label == "" {
 		label = "default-agent"
 	}
-	tokenRecord, err := tx.AgentToken.Create().
+	createToken := tx.AgentToken.Create().
 		SetProjectID(project.ID).
 		SetLabel(label).
 		SetPrefix(tokenPrefix).
-		SetTokenHash(s.box.Digest("agent-token", agentToken)).
-		Save(ctx)
+		SetTokenHash(s.box.Digest("agent-token", agentToken))
+	if input.SkipProvider {
+		// Local skip_provider needs configure + operate_nodes so the CPU
+		// loop can register a host, environment, and dataset without a
+		// second Owner scope edit.
+		createToken.SetScopes([]string{"read", "submit", "cancel", "configure", "operate_nodes"})
+	}
+	tokenRecord, err := createToken.Save(ctx)
 	if err != nil {
 		return result, fmt.Errorf("create Agent token: %w", err)
 	}

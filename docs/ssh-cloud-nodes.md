@@ -32,7 +32,7 @@ Gemcp does three things in this version:
 - Emergency Stop and Cancel kill only the Gemcp-started process group. They do not delete the Agent's home or project files. Cleanup is limited to `/var/tmp/gemcp/<assignment>/`.
 - Dispatch is gated by `GEMCP_SSH_CLOUD_ENABLED` (default false).
 
-Loopback and link-local SSH targets are rejected. RFC1918 addresses are allowed when the control plane can reach them. The first successful probe pins the host-key fingerprint. A later change marks the node `host_key_changed` and blocks scheduling until the Owner reviews it.
+Loopback and link-local SSH targets are rejected unless `GEMCP_LOCAL_PROCESS_ENABLED=true`. That overlay keeps the Cloud SSH observer (probe, argv host process, log tail, `metrics.json`) but runs commands with local `sh -c` on `127.0.0.1` / `localhost` instead of outbound SSH. Use a write-only dummy password such as `local-process`. RFC1918 addresses still use real SSH when the control plane can reach them. The first successful probe pins the host-key fingerprint (`SHA256:local-process` for the overlay). A later change marks the node `host_key_changed` and blocks scheduling until the Owner reviews it.
 
 ## Scheduler and AutoDL
 

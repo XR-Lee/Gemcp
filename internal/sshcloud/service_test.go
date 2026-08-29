@@ -131,14 +131,18 @@ func TestEncryptCredentialNeverStoresPlaintextAndRejectsBadAAD(t *testing.T) {
 }
 
 func TestValidateTargetRejectsLoopback(t *testing.T) {
-	if _, err := normalizeTarget("127.0.0.1", 22, "ubuntu"); err == nil {
+	if _, err := normalizeTarget("127.0.0.1", 22, "ubuntu", false); err == nil {
 		t.Fatal("accepted loopback IP")
 	}
-	if _, err := normalizeTarget("localhost", 22, "ubuntu"); err == nil {
+	if _, err := normalizeTarget("localhost", 22, "ubuntu", false); err == nil {
 		t.Fatal("accepted localhost")
 	}
-	if _, err := normalizeTarget("10.0.0.8", 22, "ubuntu"); err != nil {
+	if _, err := normalizeTarget("10.0.0.8", 22, "ubuntu", false); err != nil {
 		t.Fatalf("rejected private VPC address: %v", err)
+	}
+	target, err := normalizeTarget("127.0.0.1", 22, "ubuntu", true)
+	if err != nil || target.Host != "127.0.0.1" {
+		t.Fatalf("local process loopback = %+v err=%v", target, err)
 	}
 }
 
