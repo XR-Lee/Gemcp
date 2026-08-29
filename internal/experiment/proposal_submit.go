@@ -146,12 +146,16 @@ func (s *Service) currentProposal(ctx context.Context, principal agentauth.Princ
 		ref: record.RequestedRef, commitSHA: record.CommitSha, execution: executionSpec, preset: record.RuntimePreset,
 		runtime: record.MaxRuntimeSeconds, reservation: reservation, expiresAt: record.ExpiresAt,
 		fromNodeID: snapshotString(record.ProjectSnapshot, "from_node_id"), expectedMetric: snapshotString(record.ProjectSnapshot, "expected_metric"),
+		dataset: snapshotString(record.ProjectSnapshot, "dataset"),
 	}
 	bindings, err := queryActiveDatasetBindings(ctx, s.client.DatasetBinding.Query(), projectRecord.ID, string(profileRecord.Backend))
 	if err != nil {
 		return result, err
 	}
 	resolved.bindings = bindings
+	if err := applyStoredProposalPins(&resolved, record.EnvironmentSnapshot, record.ProjectSnapshot); err != nil {
+		return result, err
+	}
 	return resolved, nil
 }
 
@@ -233,12 +237,16 @@ func (s *Service) createPreparedExperiment(ctx context.Context, principal agenta
 		ref: proposalRecord.RequestedRef, commitSHA: proposalRecord.CommitSha, execution: executionSpec, preset: proposalRecord.RuntimePreset,
 		runtime: proposalRecord.MaxRuntimeSeconds, reservation: reservation, expiresAt: proposalRecord.ExpiresAt,
 		fromNodeID: snapshotString(proposalRecord.ProjectSnapshot, "from_node_id"), expectedMetric: snapshotString(proposalRecord.ProjectSnapshot, "expected_metric"),
+		dataset: snapshotString(proposalRecord.ProjectSnapshot, "dataset"),
 	}
 	bindings, err := queryActiveDatasetBindings(ctx, tx.DatasetBinding.Query(), projectRecord.ID, string(profileRecord.Backend))
 	if err != nil {
 		return result, err
 	}
 	current.bindings = bindings
+	if err := applyStoredProposalPins(&current, proposalRecord.EnvironmentSnapshot, proposalRecord.ProjectSnapshot); err != nil {
+		return result, err
+	}
 	if !hmac.Equal([]byte(proposalDigest(current)), []byte(proposalRecord.ConfirmationDigest)) {
 		return result, ErrProposalChanged
 	}
@@ -375,6 +383,22 @@ func proposalRuntimeInTransaction(ctx context.Context, tx *ent.Tx, projectRecord
 		nodeID: node.PublicID.String(), nodeLabel: node.Label, path: *access.WorkspacePath,
 		datasets: proposalWorkspaceDatasets(datasetRecords),
 	}, nil
+}
+
+func applyStoredProposalPins(resolved *proposalResolved, environmentSnapshot, projectSnapshot map[string]any) error {
+	resolved.cwd = snapshotString(environmentSnapshot, "working_directory")
+	resolved.sshHost = snapshotString(environmentSnapshot, "ssh_host")
+	resolved.sshUser = snapshotString(environmentSnapshot, "ssh_user")
+	resolved.sshNodeID = snapshotString(environmentSnapshot, "ssh_node_id")
+	resolved.sshNodeLabel = snapshotString(environmentSnapshot, "ssh_node_label")
+	if deps, ok := environmentSnapshot["install_dependencies"].(map[string]any); ok {
+		resolved.installDependencies = true
+		resolved.requirementsFile = snapshotString(deps, "requirements_file")
+	}
+	if err := filterProposalBindings(resolved, snapshotString(projectSnapshot, "dataset")); err != nil {
+		return ErrProposalChanged
+	}
+	return nil
 }
 
 func proposalReservation(projectRecord *ent.Project, profileRecord *ent.ResourceProfile, runtimeSeconds int) (int64, error) {

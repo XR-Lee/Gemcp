@@ -89,6 +89,7 @@ type proposalResolved struct {
 	sshUser             string
 	sshNodeID           string
 	sshNodeLabel        string
+	dataset             string
 	bindings            []datasetcatalog.View
 	installDependencies bool
 	requirementsFile    string
@@ -324,7 +325,7 @@ func (s *Service) resolveProposal(ctx context.Context, principal agentauth.Princ
 		image: image, workspace: workspace, cwd: cwd,
 		ref: ref, commitSHA: commitSHA, execution: executionSpec, preset: preset, runtime: runtimeSeconds,
 		reservation: reservation, expiresAt: now.Add(s.proposalConfig.Lifetime).Truncate(time.Microsecond),
-		fromNodeID: fromNodeID, expectedMetric: expectedMetric,
+		fromNodeID: fromNodeID, expectedMetric: expectedMetric, dataset: strings.TrimSpace(input.Dataset),
 	}
 	if sshCloud {
 		if err := s.attachSSHCloudTarget(ctx, projectRecord, environmentRecord, &resolved); err != nil {
@@ -1081,7 +1082,7 @@ func proposalNodeMatchesGPU(capabilities map[string]any, accepted []string) bool
 	return false
 }
 
-func proposalDigest(resolved proposalResolved) string {
+func proposalDigestMaterial(resolved proposalResolved) []byte {
 	material := struct {
 		ProposalID       string            `json:"proposal_id"`
 		Project          map[string]any    `json:"project"`
@@ -1113,7 +1114,11 @@ func proposalDigest(resolved proposalResolved) string {
 		Isolation: proposalIsolation(resolved),
 	}
 	encoded, _ := json.Marshal(material)
-	digest := sha256.Sum256(encoded)
+	return encoded
+}
+
+func proposalDigest(resolved proposalResolved) string {
+	digest := sha256.Sum256(proposalDigestMaterial(resolved))
 	return fmt.Sprintf("sha256:%x", digest[:])
 }
 
