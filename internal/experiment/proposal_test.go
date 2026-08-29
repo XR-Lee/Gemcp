@@ -857,7 +857,7 @@ func TestPreparedSSHCloudSubmitKeepsCwdAndDatasetFilter(t *testing.T) {
 	))
 	input := PrepareInput{
 		Argv: []string{"python3", "/home/ubuntu/gemcp/datasets/modelnet40-mini/train.py"},
-		Cwd: "/home/ubuntu/gemcp/datasets/modelnet40-mini", RuntimePreset: "smoke",
+		Cwd:  "/home/ubuntu/gemcp/datasets/modelnet40-mini", RuntimePreset: "smoke",
 		Dataset: "modelnet40-mini", Environment: environmentName, ResourceProfile: profileName,
 	}
 	prepared, err := service.Prepare(ctx, f.principal, input)
@@ -888,11 +888,11 @@ func TestPreparedSSHCloudSubmitKeepsCwdAndDatasetFilter(t *testing.T) {
 		Save(ctx); err != nil {
 		t.Fatal(err)
 	}
-	submitted, err := service.SubmitPrepared(ctx, f.principal, SubmitPreparedInput{
-		ProposalID: prepared.Proposal.ID, ConfirmationDigest: prepared.Proposal.ConfirmationDigest,
+	submitted, err := service.OwnerSubmitPrepared(ctx, f.principal.TenantID, "owner-1", f.project.PublicID.String(), prepared.Proposal.ID, OwnerSubmitPreparedInput{
+		ConfirmationDigest: prepared.Proposal.ConfirmationDigest, Confirmed: true,
 	})
 	if err != nil || submitted.Experiment.ID == "" || submitted.Experiment.State == "" {
-		t.Fatalf("SubmitPrepared()=%+v err=%v", submitted, err)
+		t.Fatalf("OwnerSubmitPrepared()=%+v err=%v", submitted, err)
 	}
 }
 
