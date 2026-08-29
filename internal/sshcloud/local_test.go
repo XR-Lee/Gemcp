@@ -45,6 +45,16 @@ func TestCreateLocalProcessFillsLoopbackDefaultsWithoutSecrets(t *testing.T) {
 	}
 }
 
+func TestEnsureForProjectCreatesLoopbackWhenLocalProcess(t *testing.T) {
+	service, _, tenant, project := newServiceFixture(t)
+	service.config.LocalProcessEnabled = true
+	ctx := context.Background()
+	result, err := service.EnsureForProject(ctx, tenant.ID, "agent:token", project.PublicID.String(), HostImage)
+	if err != nil || result.EnvironmentName == "" || result.NodeID == "" {
+		t.Fatalf("EnsureForProject()=%+v err=%v", result, err)
+	}
+}
+
 func TestCreateLocalProcessProbesLoopbackWithoutSSH(t *testing.T) {
 	service, _, tenant, project := newServiceFixture(t)
 	service.config.LocalProcessEnabled = true

@@ -40,8 +40,24 @@ func (s *Service) EnsureForProject(ctx context.Context, tenantID int, actorID, p
 		return result, err
 	}
 	if len(nodes) == 0 {
-		result.Message = "no Cloud SSH node is registered"
-		return result, nil
+		if !s.config.LocalProcessEnabled {
+			result.Message = "no Cloud SSH node is registered"
+			return result, nil
+		}
+		if _, createErr := s.Create(ctx, tenantID, actorID, CreateInput{Label: "local-cpu", ProjectID: projectPublicID}); createErr != nil {
+			return result, createErr
+		}
+		nodes, err = s.client.CloudSSHNode.Query().Where(
+			cloudsshnode.TenantIDEQ(tenantID),
+			cloudsshnode.StatusIn(cloudsshnode.StatusPendingProbe, cloudsshnode.StatusActive),
+		).Order(ent.Asc(cloudsshnode.FieldID)).All(ctx)
+		if err != nil {
+			return result, err
+		}
+		if len(nodes) == 0 {
+			result.Message = "no Cloud SSH node is registered"
+			return result, nil
+		}
 	}
 	actorID = strings.TrimSpace(actorID)
 	if actorID == "" {

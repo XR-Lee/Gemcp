@@ -306,8 +306,16 @@ func applyCatalogDefaults(input RegisterInput) (RegisterInput, error) {
 	if strings.TrimSpace(input.CanonicalRoot) == "" {
 		input.CanonicalRoot = entry.CanonicalRoot
 	}
+	if entry.Name == "modelnet40-mini" && (strings.TrimSpace(input.CanonicalRoot) == "" || input.CanonicalRoot == entry.CanonicalRoot) {
+		input.CanonicalRoot = DefaultModelNet40MiniRoot()
+	}
 	if len(input.RequiredMarkers) == 0 {
 		input.RequiredMarkers = append([]string(nil), entry.RequiredMarkers...)
+	}
+	if entry.Name == "modelnet40-mini" {
+		if err := SeedModelNet40Mini(input.CanonicalRoot); err != nil {
+			return RegisterInput{}, invalid("could not seed the ModelNet40-mini CPU fixture: " + err.Error())
+		}
 	}
 	return input, nil
 }

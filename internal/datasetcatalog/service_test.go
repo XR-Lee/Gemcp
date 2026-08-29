@@ -3,6 +3,7 @@ package datasetcatalog
 import (
 	"context"
 	"errors"
+	"os"
 	"testing"
 
 	"entgo.io/ent/dialect"
@@ -74,5 +75,31 @@ func TestRegisterCatalogModelNet40MiniUsesSSHCloudRoot(t *testing.T) {
 	if err != nil || view.Backend != BackendSSHCloud || view.EnvironmentVariable != "GEMCP_DATASET_MODELNET40_MINI" ||
 		view.CanonicalRoot != "/home/ubuntu/gemcp/datasets/modelnet40-mini" || len(view.RequiredMarkers) != 2 {
 		t.Fatalf("OwnerRegister() = %+v, %v", view, err)
+	}
+}
+
+func TestRegisterCatalogModelNet40MiniSeedsHomeFixture(t *testing.T) {
+	client := enttest.Open(t, dialect.SQLite, "file:datasetcatalog-seed?mode=memory&cache=shared&_fk=1")
+	t.Cleanup(func() { client.Close() })
+	ctx := context.Background()
+	tenant, err := client.Tenant.Create().SetName("lab").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	project, err := client.Project.Create().SetTenantID(tenant.ID).SetName("p").SetSlug("p").
+		SetMonthlyBudgetMilli(100000).SetMaxExperimentMilli(20000).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := NewService(client)
+	view, err := service.OwnerRegister(ctx, tenant.ID, "owner-1", project.PublicID.String(), RegisterInput{Catalog: "modelnet40-mini"})
+	if err != nil || view.CanonicalRoot != DefaultModelNet40MiniRoot() {
+		t.Fatalf("catalog-only register = %+v, %v", view, err)
+	}
+	for _, relative := range []string{"meta.json", "train/chair/0001.off", "train.py"} {
+		path := view.CanonicalRoot + "/" + relative
+		if _, statErr := os.Stat(path); statErr != nil {
+			t.Fatalf("seeded fixture missing %s: %v", path, statErr)
+		}
 	}
 }

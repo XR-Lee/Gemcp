@@ -203,6 +203,10 @@ func NewService(client *ent.Client, box *secrets.Box, config Config) (*Service, 
 
 func (s *Service) Enabled() bool { return s != nil && s.config.Enabled }
 
+func (s *Service) LocalProcessEnabled() bool {
+	return s != nil && s.config.Enabled && s.config.LocalProcessEnabled
+}
+
 func (s *Service) WithDial(dial DialFunc) *Service {
 	if s != nil && dial != nil {
 		s.dial = dial

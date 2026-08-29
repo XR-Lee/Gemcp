@@ -349,6 +349,62 @@ func TestRegisterEnvironmentSSHCloudHostAfterLocalNode(t *testing.T) {
 	}
 }
 
+func TestRegisterEnvironmentInvisibleImageFallsBackToLocalCPU(t *testing.T) {
+	client := enttest.Open(t, dialect.SQLite, "file:mcp-local-fallback?mode=memory&cache=shared&_fk=1")
+	defer client.Close()
+	ctx := context.Background()
+	tenant, _ := client.Tenant.Create().SetName("Test").Save(ctx)
+	project, _ := client.Project.Create().
+		SetTenantID(tenant.ID).SetName("Project").SetSlug("project").
+		SetMonthlyBudgetMilli(100000).SetMaxExperimentMilli(20000).SetMaxRuntimeSeconds(3600).
+		Save(ctx)
+	key, _ := secrets.GenerateMasterKey()
+	box, _ := secrets.New(key)
+	rawToken, prefix, _ := secrets.RandomToken("gmc", 32)
+	_, _ = client.AgentToken.Create().
+		SetProjectID(project.ID).SetLabel("local-agent").SetPrefix(prefix).
+		SetTokenHash(box.Digest("agent-token", rawToken)).
+		SetScopes([]string{"read", "submit", "configure"}).Save(ctx)
+	config := sshcloud.DefaultConfig()
+	config.Enabled = true
+	config.LocalProcessEnabled = true
+	config.InstanceID = "test"
+	sshService, err := sshcloud.NewService(client, box, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := New(
+		agentauth.NewService(client, box),
+		experiment.NewService(client, box, allowCommitVerifier{}, experiment.WithSSHCloud(sshService)),
+		"test", nil, WithSSHCloud(sshService), WithEnvironments(environmentcatalog.NewService(client, nil)),
+		WithConfiguration(nil, nil, datasetcatalog.NewService(client)),
+	).Handler()
+	httpServer := httptest.NewServer(handler)
+	defer httpServer.Close()
+	httpClient := &http.Client{Transport: bearerTransport{token: rawToken, base: http.DefaultTransport}}
+	mcpClient := mcp.NewClient(&mcp.Implementation{Name: "gemcp-test", Version: "test"}, nil)
+	session, err := mcpClient.Connect(ctx, &mcp.StreamableClientTransport{
+		Endpoint: httpServer.URL, HTTPClient: httpClient,
+	}, nil)
+	if err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	defer session.Close()
+
+	environment, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "register_environment", Arguments: map[string]any{
+		"name": "torch-train", "image_uuid": "image-visible",
+	}})
+	if err != nil || environment.IsError {
+		t.Fatalf("invisible image should fall back to local CPU: %+v, %v", environment, err)
+	}
+	dataset, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "register_dataset_binding", Arguments: map[string]any{
+		"catalog": "modelnet40-mini",
+	}})
+	if err != nil || dataset.IsError {
+		t.Fatalf("catalog dataset = %+v, %v", dataset, err)
+	}
+}
+
 func decodeStructured(t *testing.T, value any, target any) {
 	t.Helper()
 	encoded, err := json.Marshal(value)

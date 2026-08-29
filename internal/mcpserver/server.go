@@ -412,6 +412,10 @@ func (s *Server) registerEnvironment(ctx context.Context, request *mcp.CallToolR
 		return nil, environmentcatalog.View{}, errors.New("environment service is unavailable")
 	}
 	view, err := s.environments.Register(ctx, principal, input)
+	if err != nil && errors.Is(err, environmentcatalog.ErrImage) && s.sshCloud != nil && s.sshCloud.LocalProcessEnabled() {
+		fallback, hookErr := s.registerSSHCloudHostEnvironment(ctx, principal, input)
+		return nil, fallback, s.sshCloudToolError("register_environment", hookErr)
+	}
 	return nil, view, s.configurationToolError("register_environment", err)
 }
 
@@ -423,7 +427,7 @@ func looksLikeSSHCloudHostEnvironment(input environmentcatalog.RegisterInput) bo
 		return true
 	}
 	switch image {
-	case sshcloud.HostImage, "cpu", "local", "local-cpu", "local_cpu":
+	case "", sshcloud.HostImage, "cpu", "local", "local-cpu", "local_cpu":
 		return true
 	}
 	return false
