@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/XR-Lee/Gemcp/ent"
+	"github.com/XR-Lee/Gemcp/ent/researchedge"
 	"github.com/XR-Lee/Gemcp/ent/researchnode"
 	"github.com/XR-Lee/Gemcp/ent/study"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
@@ -55,7 +56,59 @@ func (s *Service) resolveGraphOrigin(ctx context.Context, principal agentauth.Pr
 	if node.Kind != researchnode.KindHypothesis && node.Kind != researchnode.KindPlan {
 		return "", "", &ValidationError{Message: "from_node_id must be a hypothesis or plan node"}
 	}
+	incoming, err := s.client.ResearchEdge.Query().Where(researchedge.ToNodeIDEQ(node.ID)).Exist(ctx)
+	if err != nil {
+		return "", "", err
+	}
+	if !incoming {
+		return "", "", &ValidationError{Message: "from_node_id must hang off a parent Graph node; isolated nodes cannot prepare"}
+	}
+	if node.Kind == researchnode.KindPlan {
+		traceable, err := s.planTracesToHypothesis(ctx, selected.ID, node.ID)
+		if err != nil {
+			return "", "", err
+		}
+		if !traceable {
+			return "", "", &ValidationError{Message: "from_node_id must trace back to a hypothesis through leads_to parents; record the hypothesis before spending"}
+		}
+	}
 	return node.PublicID.String(), expectedMetric, nil
+}
+
+// planTracesToHypothesis mirrors the research-side ancestor walk: close_run
+// links the highlight to the nearest hypothesis, so a plan may only spend when
+// that hypothesis exists.
+func (s *Service) planTracesToHypothesis(ctx context.Context, studyID, startID int) (bool, error) {
+	const maxTraversal = 128
+	seen := map[int]bool{}
+	queue := []int{startID}
+	for len(queue) > 0 && len(seen) < maxTraversal {
+		id := queue[0]
+		queue = queue[1:]
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
+		edges, err := s.client.ResearchEdge.Query().Where(
+			researchedge.StudyIDEQ(studyID), researchedge.ToNodeIDEQ(id), researchedge.RelationEQ(researchedge.RelationLeadsTo),
+		).WithFromNode().All(ctx)
+		if err != nil {
+			return false, err
+		}
+		for _, edge := range edges {
+			from, err := edge.Edges.FromNodeOrErr()
+			if err != nil || from == nil {
+				continue
+			}
+			switch from.Kind {
+			case researchnode.KindHypothesis:
+				return true, nil
+			case researchnode.KindPlan, researchnode.KindQuestion, researchnode.KindDecision:
+				queue = append(queue, from.ID)
+			}
+		}
+	}
+	return false, nil
 }
 
 func proposalStoredProjectSnapshot(resolved proposalResolved) map[string]any {
@@ -86,7 +139,16 @@ func (s *Service) bindPreparedGraph(ctx context.Context, principal agentauth.Pri
 	}
 	runNodeID, err := s.graphBinder.BindPreparedRun(ctx, principal, fromNodeID, result.Experiment.ID, title)
 	if err != nil {
-		return result, err
+		// The Experiment and budget are already committed; a bare error here
+		// would push the agent into preparing (and paying) again. Return the
+		// submitted Experiment and say exactly what is left to fix.
+		result.GraphBindWarning = "Experiment " + result.Experiment.ID + " was submitted, but binding the Graph run failed: " + err.Error() +
+			". Do not prepare again; fix the Graph origin and retry submit_prepared_experiment to bind this same Experiment."
+		return result, nil
+	}
+	if strings.TrimSpace(runNodeID) == "" {
+		result.GraphBindWarning = "Experiment " + result.Experiment.ID + " was submitted, but no Graph run was bound. Do not prepare again; retry submit_prepared_experiment to bind this same Experiment."
+		return result, nil
 	}
 	result.RunNodeID = runNodeID
 	return result, nil

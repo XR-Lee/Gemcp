@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, markRaw, nextTick, onMounted, onUnmounted, provide, ref, watch } from 'vue'
-import type { Edge, Node, NodeMouseEvent, VueFlowStore, ViewportTransform } from '@vue-flow/core'
+import type { Edge, Node, VueFlowStore, ViewportTransform } from '@vue-flow/core'
 import { Position, VueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
@@ -65,6 +65,7 @@ const graphNodes = computed<Node[]>(() => {
       type: 'research',
       position: { x: placed?.x ?? 36, y: placed?.y ?? 72 },
       class: [
+        'nodrag',
         placed?.active ? 'is-active-path' : '',
         placed?.unlinked ? 'is-unlinked' : '',
         placed?.outcome === 'success' ? 'is-success' : '',
@@ -143,11 +144,9 @@ function neighborTitle(id: string) {
   return nodeByID.value.get(id)?.title ?? id
 }
 
-function onNodeDoubleClick(payload: NodeMouseEvent) {
-  if (payload.node.type === 'timeline') return
-  selectedID.value = payload.node.id
-}
-
+// Node clicks stop propagation inside ResearchGraphNode, so pane clicks only
+// fire on empty canvas; the node component owns open/select behavior through
+// the onOpenEvidence/onOpenDetail callbacks in its data.
 function onPaneClick() {
   selectedID.value = ''
 }
@@ -221,7 +220,6 @@ onUnmounted(() => {
           :zoom-on-scroll="false"
           :pan-on-scroll="true"
           :pan-on-drag="true"
-          @node-double-click="onNodeDoubleClick"
           @pane-click="onPaneClick"
           @pane-ready="onPaneReady"
         >

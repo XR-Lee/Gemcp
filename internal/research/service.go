@@ -13,6 +13,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent"
 	"github.com/XR-Lee/Gemcp/ent/auditevent"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/iterationplan"
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/repository"
@@ -97,6 +98,10 @@ type NodeInput struct {
 	CommitSHA    string   `json:"commit_sha,omitempty" jsonschema:"optional evidence commit SHA, 7 to 64 hex. The Graph stays claim-based, not one node per commit."`
 	FromNodeID   string   `json:"from_node_id,omitempty" jsonschema:"optional source Graph node ID"`
 	Relation     string   `json:"relation,omitempty" jsonschema:"leads_to, compares, supersedes, supports, contradicts, or produced"`
+
+	// exemptStudyCaps lets close_run finish a funded run on a full Graph. It
+	// is never accepted from API input.
+	exemptStudyCaps bool
 }
 
 type UpdateInput struct {
@@ -155,6 +160,26 @@ type StudyRepositoryView struct {
 	Status        string `json:"status"`
 }
 
+type HypothesisRunRecord struct {
+	RunNodeID      string `json:"run_node_id"`
+	ExperimentID   string `json:"experiment_id,omitempty"`
+	Title          string `json:"title"`
+	State          string `json:"state"`
+	Branch         string `json:"branch,omitempty"`
+	CommitSHA      string `json:"commit_sha,omitempty"`
+	ResultTitle    string `json:"result_title,omitempty"`
+	HighlightTitle string `json:"highlight_title,omitempty"`
+}
+
+type HypothesisView struct {
+	ID          string                `json:"id"`
+	Title       string                `json:"title"`
+	Summary     string                `json:"summary,omitempty"`
+	Status      string                `json:"status"`
+	Branch      string                `json:"branch,omitempty"`
+	Experiments []HypothesisRunRecord `json:"experiments"`
+}
+
 type StudyView struct {
 	ID         string               `json:"id"`
 	Name       string               `json:"name"`
@@ -165,6 +190,7 @@ type StudyView struct {
 	Plan       *PlanView            `json:"plan,omitempty"`
 	Nodes      []NodeView           `json:"nodes"`
 	Edges      []EdgeView           `json:"edges"`
+	Hypotheses []HypothesisView     `json:"hypotheses,omitempty"`
 	UpdatedAt  time.Time            `json:"updated_at"`
 }
 
@@ -173,6 +199,7 @@ type Workspace struct {
 	Studies     []StudySummary `json:"studies"`
 	Study       *StudyView     `json:"study,omitempty"`
 	NextActions []NextAction   `json:"next_actions"`
+	Warning     string         `json:"warning,omitempty"`
 	GeneratedAt time.Time      `json:"generated_at"`
 }
 
@@ -538,7 +565,7 @@ func recordNode(ctx context.Context, tx *ent.Tx, current actor, selected *ent.St
 		}
 	}
 	if record == nil {
-		if len(nodes) >= maxNodesPerStudy {
+		if len(nodes) >= maxNodesPerStudy && !input.exemptStudyCaps {
 			return nil, ErrNodeLimit
 		}
 		create := tx.ResearchNode.Create().
@@ -590,7 +617,7 @@ func recordNode(ctx context.Context, tx *ent.Tx, current actor, selected *ent.St
 		}
 	}
 	if strings.TrimSpace(input.FromNodeID) != "" || strings.TrimSpace(input.Relation) != "" {
-		if err := recordEdge(ctx, tx, current, selected, nodes, record, input.FromNodeID, input.Relation); err != nil {
+		if err := recordEdge(ctx, tx, current, selected, nodes, record, input.FromNodeID, input.Relation, input.exemptStudyCaps); err != nil {
 			return nil, err
 		}
 	}
@@ -605,7 +632,7 @@ func recordNode(ctx context.Context, tx *ent.Tx, current actor, selected *ent.St
 	return record, nil
 }
 
-func recordEdge(ctx context.Context, tx *ent.Tx, current actor, selected *ent.Study, nodes []*ent.ResearchNode, to *ent.ResearchNode, fromID, relationValue string) error {
+func recordEdge(ctx context.Context, tx *ent.Tx, current actor, selected *ent.Study, nodes []*ent.ResearchNode, to *ent.ResearchNode, fromID, relationValue string, exemptStudyCaps bool) error {
 	relation := researchedge.Relation(strings.TrimSpace(relationValue))
 	if err := researchedge.RelationValidator(relation); err != nil {
 		return invalid("relation must be leads_to, compares, supersedes, supports, contradicts, or produced")
@@ -633,7 +660,7 @@ func recordEdge(ctx context.Context, tx *ent.Tx, current actor, selected *ent.St
 	if err != nil {
 		return err
 	}
-	if count >= maxEdgesPerStudy {
+	if count >= maxEdgesPerStudy && !exemptStudyCaps {
 		return ErrEdgeLimit
 	}
 	_, err = tx.ResearchEdge.Create().
@@ -689,7 +716,170 @@ func (s *Service) studyView(ctx context.Context, selected *ent.Study) (StudyView
 			ID: edge.PublicID.String(), FromID: from.PublicID.String(), ToID: to.PublicID.String(), Relation: string(edge.Relation),
 		})
 	}
+	branchByExperiment, err := experimentBranches(ctx, s.client, nodes)
+	if err != nil {
+		return StudyView{}, err
+	}
+	defaultBranch := ""
+	if view.Repository != nil {
+		defaultBranch = view.Repository.DefaultBranch
+	}
+	view.Hypotheses = makeHypothesisRecords(view, defaultBranch, branchByExperiment)
 	return view, nil
+}
+
+func experimentBranches(ctx context.Context, client *ent.Client, nodes []*ent.ResearchNode) (map[string]string, error) {
+	ids := make([]int, 0, len(nodes))
+	publicByID := map[int]string{}
+	repositoryIDs := map[int]int{}
+	for _, node := range nodes {
+		experimentRecord, err := node.Edges.ExperimentOrErr()
+		if err != nil || experimentRecord == nil {
+			continue
+		}
+		ids = append(ids, experimentRecord.ID)
+		publicByID[experimentRecord.ID] = experimentRecord.PublicID.String()
+		if experimentRecord.RepositoryID != nil {
+			repositoryIDs[experimentRecord.ID] = *experimentRecord.RepositoryID
+		}
+	}
+	if len(ids) == 0 {
+		return map[string]string{}, nil
+	}
+	refs := map[string]string{}
+	if len(repositoryIDs) > 0 {
+		repoIDs := make([]int, 0, len(repositoryIDs))
+		for _, id := range repositoryIDs {
+			repoIDs = append(repoIDs, id)
+		}
+		repos, err := client.Repository.Query().Where(repository.IDIn(repoIDs...)).All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		byRepo := map[int]string{}
+		for _, repo := range repos {
+			byRepo[repo.ID] = repo.DefaultBranch
+		}
+		for experimentID, repoID := range repositoryIDs {
+			if branch := strings.TrimSpace(byRepo[repoID]); branch != "" {
+				refs[publicByID[experimentID]] = branch
+			}
+		}
+	}
+	proposals, err := client.ExperimentProposal.Query().Where(experimentproposal.ExperimentIDIn(ids...)).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, proposal := range proposals {
+		if proposal.ExperimentID == nil {
+			continue
+		}
+		publicID := publicByID[*proposal.ExperimentID]
+		if publicID == "" || strings.TrimSpace(proposal.RequestedRef) == "" {
+			continue
+		}
+		refs[publicID] = proposal.RequestedRef
+	}
+	return refs, nil
+}
+
+func makeHypothesisRecords(view StudyView, defaultBranch string, branchByExperiment map[string]string) []HypothesisView {
+	outgoing := map[string][]EdgeView{}
+	for _, edge := range view.Edges {
+		outgoing[edge.FromID] = append(outgoing[edge.FromID], edge)
+	}
+	nodesByID := map[string]NodeView{}
+	var hypotheses []NodeView
+	for _, node := range view.Nodes {
+		nodesByID[node.ID] = node
+		if node.Kind == "hypothesis" {
+			hypotheses = append(hypotheses, node)
+		}
+	}
+	records := make([]HypothesisView, 0, len(hypotheses))
+	for _, hypothesis := range hypotheses {
+		kids := descendantsOf(outgoing, nodesByID, hypothesis.ID)
+		var runs, results, observations []NodeView
+		for _, node := range kids {
+			switch node.Kind {
+			case "run":
+				runs = append(runs, node)
+			case "result":
+				results = append(results, node)
+			case "observation":
+				observations = append(observations, node)
+			}
+		}
+		experiments := make([]HypothesisRunRecord, 0, len(runs))
+		for _, run := range runs {
+			record := HypothesisRunRecord{
+				RunNodeID: run.ID, ExperimentID: run.ExperimentID, Title: run.Title,
+				State: run.ExperimentState, CommitSHA: run.CommitSHA,
+			}
+			if record.State == "" {
+				record.State = run.Status
+			}
+			if ref := branchByExperiment[run.ExperimentID]; ref != "" {
+				record.Branch = ref
+			} else {
+				record.Branch = defaultBranch
+			}
+			producedResultID := ""
+			for _, result := range results {
+				if hasEdge(view.Edges, run.ID, result.ID, "produced") {
+					producedResultID = result.ID
+					record.ResultTitle = result.Title
+					if record.CommitSHA == "" {
+						record.CommitSHA = result.CommitSHA
+					}
+					break
+				}
+			}
+			// close_run links the highlight observation to its result, which
+			// stays unambiguous when one hypothesis accumulates several runs.
+			if producedResultID != "" {
+				for _, observation := range observations {
+					if hasEdge(view.Edges, producedResultID, observation.ID, "leads_to") {
+						record.HighlightTitle = observation.Title
+						break
+					}
+				}
+			}
+			// Legacy fallbacks for graphs written before that edge existed.
+			if record.HighlightTitle == "" {
+				for _, observation := range observations {
+					if observation.CommitSHA != "" && observation.CommitSHA == record.CommitSHA {
+						record.HighlightTitle = observation.Title
+						break
+					}
+				}
+			}
+			if record.HighlightTitle == "" {
+				for _, observation := range observations {
+					if hasEdge(view.Edges, hypothesis.ID, observation.ID, "leads_to") &&
+						(hasEdge(view.Edges, observation.ID, hypothesis.ID, "supports") || hasEdge(view.Edges, observation.ID, hypothesis.ID, "contradicts")) {
+						record.HighlightTitle = observation.Title
+						break
+					}
+				}
+			}
+			experiments = append(experiments, record)
+		}
+		records = append(records, HypothesisView{
+			ID: hypothesis.ID, Title: hypothesis.Title, Summary: hypothesis.Summary,
+			Status: hypothesis.Status, Branch: defaultBranch, Experiments: experiments,
+		})
+	}
+	return records
+}
+
+func hasEdge(edges []EdgeView, fromID, toID, relation string) bool {
+	for _, edge := range edges {
+		if edge.FromID == fromID && edge.ToID == toID && edge.Relation == relation {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Service) project(ctx context.Context, tenantID int, projectPublicID string) (*ent.Project, error) {

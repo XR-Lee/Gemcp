@@ -22,18 +22,24 @@ const nodes = [
 const edges = [{ id: 'edge-1', from_id: 'node-question-1', to_id: 'node-result-1', relation: 'produced' }]
 const layout = layoutResearchGraph({ nodes, edges })
 
+// The stub renders the real ResearchGraphNode through node-types, exactly like
+// Vue Flow does, so these tests exercise the production interaction path
+// (node component callbacks) instead of canvas-level event wiring.
 const flowStubs = {
   VueFlow: {
-    props: ['nodes'],
-    emits: ['node-double-click', 'pane-click', 'pane-ready'],
+    props: ['nodes', 'nodeTypes'],
+    emits: ['pane-click', 'pane-ready'],
     template: `
-      <div class="vue-flow">
-        <article
+      <div class="vue-flow" @click="$emit('pane-click', $event)">
+        <component
           v-for="node in nodes.filter((item) => item.type === 'research')"
+          :is="nodeTypes.research"
           :key="node.id"
-          class="flow-node"
-          @dblclick="$emit('node-double-click', { event: $event, node })"
-        >{{ node.data.node.title }}</article>
+          :id="node.id"
+          :type="node.type"
+          :selected="false"
+          :data="node.data"
+        />
         <slot />
       </div>
     `,
@@ -41,6 +47,7 @@ const flowStubs = {
   Background: true,
   MiniMap: true,
   Controls: true,
+  Handle: true,
 }
 
 afterEach(() => {
@@ -65,9 +72,63 @@ describe('ResearchGraphCanvas', () => {
     await flushPromises()
     expect(wrapper.find('.graph-detail').text()).toContain('Can a cleaner OBJ-BG traversal raise ScanObjectNN accuracy?')
     expect(wrapper.find('.graph-detail').text()).toContain('Start from the published OBJ-BG protocol.')
+    expect(wrapper.emitted('openExperiment')).toBeUndefined()
     await wrapper.get('button[aria-label="Fullscreen graph"]').trigger('click')
     expect(document.body.querySelector('.graph-shell')?.classList.contains('is-fullscreen')).toBe(true)
     expect(document.body.style.overflow).toBe('hidden')
+    wrapper.unmount()
+  })
+
+  it('opens the experiment record when double-clicking a linked node', async () => {
+    useI18n().setLocale('en')
+    const wrapper = mount(ResearchGraphCanvas, {
+      props: { nodes, edges, layout },
+      attachTo: document.body,
+      global: { stubs: flowStubs },
+    })
+    await wrapper.findAll('.flow-node')[1].trigger('dblclick')
+    await flushPromises()
+    expect(wrapper.emitted('openExperiment')).toEqual([['experiment-1']])
+    expect(wrapper.find('.graph-detail').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('opens the experiment record exactly once for a physical double-click', async () => {
+    useI18n().setLocale('en')
+    const wrapper = mount(ResearchGraphCanvas, {
+      props: { nodes, edges, layout },
+      attachTo: document.body,
+      global: { stubs: flowStubs },
+    })
+    // A real double-click dispatches click, click, then dblclick.
+    const linked = wrapper.findAll('.flow-node')[1]
+    await linked.trigger('click')
+    await linked.trigger('click')
+    await linked.trigger('dblclick')
+    await flushPromises()
+    expect(wrapper.emitted('openExperiment')).toEqual([['experiment-1']])
+    wrapper.unmount()
+  })
+
+  it('keeps the node detail open because node clicks never reach the pane', async () => {
+    useI18n().setLocale('en')
+    const wrapper = mount(ResearchGraphCanvas, {
+      props: { nodes, edges, layout },
+      attachTo: document.body,
+      global: { stubs: flowStubs },
+    })
+    const question = wrapper.findAll('.flow-node')[0]
+    await question.trigger('dblclick')
+    await flushPromises()
+    expect(wrapper.find('.graph-detail').exists()).toBe(true)
+    // Clicking the node body again must not bubble into a pane click.
+    await question.trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.graph-detail').exists()).toBe(true)
+    // Clicking the empty canvas clears the selection.
+    await wrapper.get('.vue-flow').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.graph-detail').exists()).toBe(false)
     wrapper.unmount()
   })
 })

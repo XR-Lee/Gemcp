@@ -156,6 +156,58 @@ function dateTime(value?: string) {
         </motion.article>
       </div>
 
+      <div v-if="study.hypotheses?.length" class="research-hypotheses" data-testid="hypothesis-records">
+        <div class="section-heading">
+          <div>
+            <h2>{{ t('Hypotheses', '假设') }}</h2>
+            <p>{{ t('Each hypothesis lists its Graph experiments, git branch, commit, and run records. Orphans stay a Lab badge for legacy or bad data, not a way to create new work.', '每条假设列出入图实验、git 分支、commit 和 run 记录。孤儿只作为 Lab 徽章标出历史或坏数据，不是新工作的入口。') }}</p>
+          </div>
+          <span class="live-label">{{ study.hypotheses.length }} {{ t('hypotheses', '条假设') }}</span>
+        </div>
+        <article v-for="hypothesis in study.hypotheses" :key="hypothesis.id" class="hypothesis-card">
+          <header>
+            <span class="research-kicker">{{ t('Hypothesis', '假设') }} · {{ localizedState(hypothesis.status) }}</span>
+            <strong>{{ hypothesis.title }}</strong>
+            <p v-if="hypothesis.summary">{{ hypothesis.summary }}</p>
+            <p v-if="hypothesis.branch" class="hypothesis-branch"><GitBranch :size="13" />{{ hypothesis.branch }}</p>
+          </header>
+          <div v-if="hypothesis.experiments.length" class="hypothesis-runs">
+            <article v-for="record in hypothesis.experiments" :key="record.run_node_id" class="hypothesis-run">
+              <strong>{{ record.title }}</strong>
+              <dl>
+                <div>
+                  <dt>{{ t('Run', '运行') }}</dt>
+                  <dd>{{ localizedState(record.state) }}</dd>
+                </div>
+                <div v-if="record.branch">
+                  <dt>{{ t('Branch', '分支') }}</dt>
+                  <dd><code>{{ record.branch }}</code></dd>
+                </div>
+                <div v-if="record.commit_sha">
+                  <dt>{{ t('Commit', 'Commit') }}</dt>
+                  <dd><code>{{ record.commit_sha.slice(0, 12) }}</code></dd>
+                </div>
+                <div v-if="record.result_title">
+                  <dt>{{ t('Result', '结果') }}</dt>
+                  <dd>{{ record.result_title }}</dd>
+                </div>
+                <div v-if="record.highlight_title">
+                  <dt>{{ t('Highlight', '亮点观察') }}</dt>
+                  <dd>{{ record.highlight_title }}</dd>
+                </div>
+              </dl>
+              <button
+                v-if="record.experiment_id"
+                class="text-button"
+                type="button"
+                @click="emit('openExperiment', record.experiment_id ?? '')"
+              >{{ t('Open evidence', '打开证据') }}</button>
+            </article>
+          </div>
+          <p v-else class="hypothesis-empty">{{ t('No Graph experiment is bound to this hypothesis yet.', '这条假设还没有入图实验。') }}</p>
+        </article>
+      </div>
+
       <div v-if="study.plan?.steps?.length" class="research-steps">
         <h3>{{ t('Iteration plan', '迭代计划') }}</h3>
         <ol>

@@ -49,7 +49,7 @@ type UsageGuide struct {
 	Markdown    string   `json:"markdown"`
 }
 
-const serverInstructions = "Treat the research Graph as the execution contract. Call get_next_actions before spending. Keep the Owner-facing Study current with get_research_workspace. Never include prompts, private reasoning, credentials, or environment dumps in research text. prepare_experiment requires from_node_id when a Study exists; that node is bound into the confirmation digest. Project budget and submit scope are limits and technical capabilities, not financial approval. Show the immutable proposal and exact confirmation digest to the Owner, and never call submit_prepared_experiment until the Owner explicitly confirms that digest. submit_prepared_experiment writes the run node. Poll get_experiment for state, log_tail, and metrics; never SSH, fetch remote files, or infer metrics from logs. close_run is the only way to record a result after a terminal Experiment; omit metric_name to copy the prepared expected_metric from the Experiment; result_commit_sha may attach the full Git commit containing its durable result manifest. Linking a Graph node never starts a workload. Use submit_experiment only as the Advanced shell-command compatibility path."
+const serverInstructions = "Treat the research Graph as the execution contract. Call get_next_actions before spending; it proposes the next decision or Experiment from the hypothesis, its runs, and its observations. Keep the Owner-facing Study current with get_research_workspace. Never include prompts, private reasoning, credentials, or environment dumps in research text. prepare_experiment requires a connected hypothesis or plan from_node_id when a Study exists; isolated nodes cannot prepare; that origin is bound into the confirmation digest. Project budget and submit scope are limits and technical capabilities, not financial approval. Show the immutable proposal and exact confirmation digest to the Owner, and never call submit_prepared_experiment until the Owner explicitly confirms that digest. submit_prepared_experiment writes the run node; bind failure is an error. Poll get_experiment for state, log_tail, and metrics; never SSH, fetch remote files, or infer metrics from logs. close_run is the only way to record a result after a terminal Experiment and also writes a highlight observation on the originating hypothesis; omit metric_name to copy the prepared expected_metric from the Experiment; result_commit_sha may attach the full Git commit containing its durable result manifest. Linking a Graph node never starts a workload. submit_experiment is rejected when an active Study exists."
 
 type Option func(*Server)
 
@@ -136,16 +136,16 @@ func New(agentAuth *agentauth.Service, experiments *experiment.Service, version 
 		Name: "update_research_workspace", Description: "Create or update a Study, replace the active iteration plan, or record a Graph node. This never starts a workload. Requires submit scope.",
 	}, server.updateResearchWorkspace)
 	mcp.AddTool(mcpServer, &mcp.Tool{
-		Name: "get_next_actions", Description: "Return the only Graph-legal next actions for the selected Study. Call this before prepare_experiment or close_run.",
+		Name: "get_next_actions", Description: "Return the next scientific step for the selected Study from its hypotheses, runs, and observations. Call this before prepare_experiment or close_run.",
 	}, server.getNextActions)
 	mcp.AddTool(mcpServer, &mcp.Tool{
-		Name: "close_run", Description: "Record a result node on a terminal Experiment that already has a Graph run. Copy the metric from get_experiment or omit it to use the prepared expected_metric. Do not infer metrics from logs. An optional full result_commit_sha can attach its durable Git manifest commit. Requires submit scope.",
+		Name: "close_run", Description: "Record a result and a highlight observation on a terminal Experiment that already has a Graph run. The observation is linked to the originating hypothesis. Copy the metric from get_experiment or omit it to use the prepared expected_metric. Optional highlight sets the observation title. Do not infer metrics from logs. An optional full result_commit_sha can attach its durable Git manifest commit. Requires submit scope.",
 	}, server.closeRun)
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "report_agent_activity", Description: "Report a controlled workflow phase so the Owner console can show what the Agent is doing without collecting prompts or reasoning.",
 	}, server.reportAgentActivity)
 	mcp.AddTool(mcpServer, &mcp.Tool{
-		Name: "prepare_experiment", Description: "Prepare a zero-cost immutable argv proposal. runtime_preset may be smoke (300s), probe (3600s), train (up to the Project max runtime), or provision (Gemcp-owned AutoDL dataset fetch; omit argv). Optional install_dependencies runs python -m pip install --user from the verified commit. When the Project has an active Study, from_node_id must be a hypothesis or plan node and is bound into the confirmation digest. For Cloud SSH, omit image and repository; pass argv and optional cwd. Do not invent SSH credentials, wrap argv in a shell, or write wget/curl/conda.",
+		Name: "prepare_experiment", Description: "Prepare a zero-cost immutable argv proposal. runtime_preset may be smoke (300s), probe (3600s), train (up to the Project max runtime), or provision (Gemcp-owned AutoDL dataset fetch; omit argv). Optional install_dependencies runs python -m pip install --user from the verified commit. When the Project has an active Study, from_node_id must be a connected hypothesis or a plan under that Study and is bound into the confirmation digest. Isolated nodes cannot prepare. For Cloud SSH, omit image and repository; pass argv and optional cwd. Do not invent SSH credentials, wrap argv in a shell, or write wget/curl/conda.",
 	}, server.prepareExperiment)
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "register_ssh_cloud_node", Description: "Register a Cloud SSH host for this Project. Accepts an ssh command line or host/port/user plus a password or private key. Credentials are write-only and never returned. Remote hosts require operate_nodes. The loopback CPU stub (empty host or 127.0.0.1) accepts submit when GEMCP_LOCAL_PROCESS_ENABLED is on and is probed immediately.",
@@ -157,7 +157,7 @@ func New(agentAuth *agentauth.Service, experiments *experiment.Service, version 
 		Name: "submit_prepared_experiment", Description: "Submit one confirmed prepared proposal by ID and exact confirmation digest. Identical retries return the same Experiment and bind its Graph run node.",
 	}, server.submitPreparedExperiment)
 	mcp.AddTool(mcpServer, &mcp.Tool{
-		Name: "submit_experiment", Description: "Advanced compatibility path: verify a full commit and enqueue an arbitrary shell command using a caller-managed idempotency key.",
+		Name: "submit_experiment", Description: "Advanced compatibility path: verify a full commit and enqueue an arbitrary shell command using a caller-managed idempotency key. Rejected when the Project has an active Study; use prepare_experiment with from_node_id instead.",
 	}, server.submitExperiment)
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "get_experiment", Description: "Get the current state, immutable specification, bounded log_tail, and metrics.json projection for one project experiment. This is the monitoring surface; it never exposes SSH or remote files.",

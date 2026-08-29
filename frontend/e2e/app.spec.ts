@@ -156,6 +156,14 @@ const researchWorkspace = {
       { id: 'node-result-1', kind: 'result', title: 'OBJ-BG smoke accuracy', summary: 'The existing smoke Experiment reached 86.4 overall accuracy.', status: 'succeeded', metric_name: 'overall_accuracy', metric_value: 86.4, experiment_id: experiments[0].id, experiment_state: experiments[0].state, created_at: '2026-07-28T18:05:00Z', updated_at: '2026-07-28T18:05:00Z' },
     ],
     edges: [{ id: 'edge-1', from_id: 'node-question-1', to_id: 'node-result-1', relation: 'produced' }],
+    hypotheses: [{
+      id: 'node-hypothesis-1', title: 'Background noise caps accuracy', status: 'open', branch: 'main',
+      experiments: [{
+        run_node_id: 'node-run-1', experiment_id: experiments[0].id, title: 'OBJ-BG smoke',
+        state: 'succeeded', branch: 'main', commit_sha: experiments[0].commit_sha,
+        result_title: 'OBJ-BG smoke accuracy', highlight_title: 'Background noise still enters kNN',
+      }],
+    }],
   },
   next_actions: [{
     kind: 'record_hypothesis', tool: 'update_research_workspace', study_id: 'study-objbg-1',
@@ -696,6 +704,12 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await expect(page.locator('.flow-node.is-success, .flow-node-outcome[data-outcome="success"]').first()).toBeVisible()
   await page.locator('.flow-node').first().dblclick()
   await expect(page.getByLabel('Node detail')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByLabel('Node detail')).toHaveCount(0)
+  await page.locator('.flow-node.is-success').first().dblclick()
+  await expect(page.getByLabel('Experiment details')).toBeVisible()
+  await page.getByTitle('Close details').click()
+  await expect(page.getByLabel('Experiment details')).toHaveCount(0)
   await page.getByRole('button', { name: 'Fullscreen graph' }).click()
   await expect(page.locator('.graph-shell')).toHaveClass(/is-fullscreen/)
   await page.getByRole('button', { name: 'Exit fullscreen' }).click()

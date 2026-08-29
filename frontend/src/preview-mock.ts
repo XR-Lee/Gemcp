@@ -105,6 +105,14 @@ const research = {
       { id: 'e6', from_id: 'n-h', to_id: 'n-o', relation: 'leads_to' },
       { id: 'e7', from_id: 'n-o', to_id: 'n-d', relation: 'leads_to' },
     ],
+    hypotheses: [{
+      id: 'n-h', title: '噪声背景是精度上限', summary: '旧遍历把背景点带进局部邻域。', status: 'open', branch: 'main',
+      experiments: [{
+        run_node_id: 'n-run', experiment_id: experimentID, title: 'OBJ-BG smoke',
+        state: 'succeeded', branch: 'main', commit_sha: '0123456789012345678901234567890123456789',
+        result_title: 'OBJ-BG smoke accuracy', highlight_title: '背景点仍进入 kNN',
+      }],
+    }],
   },
   next_actions: empty ? [] : [{
     kind: 'record_decision', tool: 'update_research_workspace', study_id: 'study-objbg-1',

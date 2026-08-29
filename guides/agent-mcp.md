@@ -5,7 +5,7 @@ This document is for an AI or automation Agent connected to a Gemcp MCP server. 
 ## Non-negotiable rules
 
 1. Treat the Agent Token as a secret. Never print it, commit it, place it in experiment arguments, or include it in chat or logs.
-2. Treat the research Graph as the execution contract. Call `get_next_actions` before spending. Keep the Owner-facing Study current with `get_research_workspace`. Never place prompts, private reasoning, credentials, or environment dumps in research text. Recording a Graph node never starts a workload.
+2. Treat the research Graph as the execution contract ([Hypothesis–experiment Graph contract](../docs/graph-contract.md)). Call `get_next_actions` before spending. Keep the Owner-facing Study current with `get_research_workspace`. Never place prompts, private reasoning, credentials, or environment dumps in research text. Recording a Graph node never starts a workload.
 3. Report controlled workflow transitions with `report_agent_activity`. Never send prompts, private reasoning, arbitrary free text, environment variables, credentials, or source contents as activity.
 4. Use `prepare_experiment` as the normal execution path. Let Gemcp resolve the repository, moving ref, full commit SHA, compatible defaults, preflight checks, cost, and idempotency.
 5. Submit normal workloads as an ordered `argv`. Do not wrap it in a shell, add output-path wrappers, or interpolate typed values into shell text.
@@ -13,9 +13,9 @@ This document is for an AI or automation Agent connected to a Gemcp MCP server. 
 7. Wait for explicit human approval of the exact confirmation digest before calling `submit_prepared_experiment`.
 8. Submit a prepared proposal using only its proposal ID and exact digest. Never alter fields between preparation and submission.
 9. A proposal retry uses the same proposal ID and digest and returns the same Experiment. A failed paid Experiment is never automatically resubmitted.
-10. After submission, Gemcp writes the Graph `run` node. Monitor with `get_experiment` (`state`, `log_tail`, `metrics`). Then call `close_run`; omit `metric_name` to copy the prepared `expected_metric` from that view. Do not invent a result while the Experiment is still running. Do not SSH, fetch remote files, or infer metrics from logs. Do not infer success from Provider or Node startup alone.
+10. After submission, Gemcp writes the Graph `run` node. Monitor with `get_experiment` (`state`, `log_tail`, `metrics`). Then call `close_run`; omit `metric_name` to copy the prepared `expected_metric` from that view. `close_run` also writes a highlight observation on the originating hypothesis. Do not invent a result while the Experiment is still running. Do not SSH, fetch remote files, or infer metrics from logs. Do not infer success from Provider or Node startup alone.
 11. Use `cancel_experiment` when the human cancels work or when the submitted Experiment should no longer run.
-12. Use `submit_experiment` only when the human explicitly requests the Advanced shell-command compatibility path.
+12. Use `submit_experiment` only when the human explicitly requests the Advanced shell-command compatibility path and the Project has no active Study. An active Study requires `prepare_experiment` with `from_node_id`.
 
 ## Connection
 
@@ -95,7 +95,7 @@ A typical update is:
 }
 ```
 
-`prepare_experiment` requires `from_node_id` when the Project has an active Study. That ID must be a hypothesis or plan node and is bound into the confirmation digest the Owner approves. `submit_prepared_experiment` then writes the `run` node. `produced` edges are only legal from `run` to `result`, and only `close_run` may write that result. Historical evidence uses `observation` nodes hung off a hypothesis with `leads_to`; do not leave observations unlinked. Set `occurred_at` from `git log -1 --format=%cI <sha>` and pass `commit_sha`; the Owner axis uses that evidence time, not the MCP write time. The Graph is still claim-based, not one node per commit. argv, image, GPU, logs, and cleanup stay in Experiment detail. Multiple Studies require an explicit `study_id`.
+`prepare_experiment` requires `from_node_id` when the Project has an active Study. That ID must be a connected hypothesis, or a plan that traces back to a hypothesis through `leads_to` parents — isolated nodes and plans hanging only off the question cannot prepare — and is bound into the confirmation digest the Owner approves. `submit_prepared_experiment` re-validates that origin before committing budget and then writes the `run` node; if the Graph changes in that instant, the response carries the submitted Experiment plus `graph_bind_warning` — fix the Graph and retry the same submit instead of preparing again. `produced` edges are only legal from `run` to `result`, and only `close_run` may write that result plus the highlight observation on the hypothesis. Historical evidence uses `observation` nodes hung off a hypothesis with `leads_to`; do not leave observations unlinked. Set `occurred_at` from `git log -1 --format=%cI <sha>` and pass `commit_sha`; the Owner axis uses that evidence time, not the MCP write time. The Graph is still claim-based, not one node per commit. argv, image, GPU, logs, and cleanup stay in Experiment detail. Multiple Studies require an explicit `study_id`. `get_next_actions` proposes the next decision or Experiment from the hypothesis and its evidence.
 
 ## Required workflow
 
@@ -279,16 +279,16 @@ The optional context is limited to repository remote, ref, and Experiment ID. `m
 | `remove_dataset_binding` | Disable a dataset binding without deleting data | `configure` |
 | `register_environment` | Register a Provider-visible AutoDL image as a Project Environment | `configure` |
 | `remove_environment` | Disable a Project Environment | `configure` |
-| `get_research_workspace` | Return Studies, the selected plan, Graph, and legal next actions | `read` |
+| `get_research_workspace` | Return Studies, the selected plan, Graph, hypothesis records, and next actions | `read` |
 | `update_research_workspace` | Create or update a Study, plan, or Graph node without starting a workload | `submit` |
-| `get_next_actions` | Return the only Graph-legal next actions for the selected Study | `read` |
-| `close_run` | Write a result node on a terminal Experiment that already has a run | `submit` |
+| `get_next_actions` | Propose the next decision or Experiment from the hypothesis and its evidence | `read` |
+| `close_run` | Write a result and a highlight observation on a terminal Experiment that already has a run | `submit` |
 | `report_agent_activity` | Report a controlled workflow phase without prompts or reasoning | `submit` |
-| `prepare_experiment` | Resolve a zero-cost argv proposal; bind `from_node_id` into the digest when a Study exists | `submit` |
+| `prepare_experiment` | Resolve a zero-cost argv proposal; bind a connected `from_node_id` into the digest when a Study exists | `submit` |
 | `submit_prepared_experiment` | Submit one confirmed proposal and bind its Graph run node | `submit` |
 | `get_project_options` | Inspect Project policy, approved IDs, and authorized Self-hosted Node readiness | `read` |
 | `get_project_cost` | Inspect budget and accounting details for Advanced use | `read` |
-| `submit_experiment` | Advanced direct shell-command submission | `submit` |
+| `submit_experiment` | Advanced direct shell-command submission; rejected when a Study is active | `submit` |
 | `get_experiment` | Read one Experiment | `read` |
 | `list_experiments` | List recent Experiments | `read` |
 | `cancel_experiment` | Request durable cancellation | `cancel` |
