@@ -45,10 +45,14 @@ type Config struct {
 
 func Load() (Config, error) {
 	environment := envOrDefault("GEMCP_ENV", "development")
-	// Production stays opt-in so an unconfigured host cannot apply schema. Local
-	// HTTP (the implicit development default) must migrate or /setup/status 500s
-	// while /healthz and /readyz still return 200.
-	autoMigrate, err := boolOrDefault("GEMCP_AUTO_MIGRATE", environment != "production")
+	// Powerful capabilities default on only for the explicit development
+	// environment (the GEMCP_ENV default). Anything else — production, staging,
+	// or a typo like "prod" — stays opt-in, so a misspelled value can never
+	// silently enable schema changes or host process execution.
+	localDevelopment := environment == "development"
+	// Local HTTP must migrate or /setup/status 500s while /healthz and /readyz
+	// still return 200.
+	autoMigrate, err := boolOrDefault("GEMCP_AUTO_MIGRATE", localDevelopment)
 	if err != nil {
 		return Config{}, err
 	}
@@ -62,17 +66,16 @@ func Load() (Config, error) {
 	}
 	// Local HTTP (the implicit development default) must be able to register
 	// loopback compute and schedule a CPU fixture without extra flags or
-	// AutoDL secrets. Production stays opt-in.
-	localHTTP := environment != "production"
-	sshCloudEnabled, err := boolOrDefault("GEMCP_SSH_CLOUD_ENABLED", localHTTP)
+	// AutoDL secrets. Every other environment stays opt-in.
+	sshCloudEnabled, err := boolOrDefault("GEMCP_SSH_CLOUD_ENABLED", localDevelopment)
 	if err != nil {
 		return Config{}, err
 	}
-	localProcessEnabled, err := boolOrDefault("GEMCP_LOCAL_PROCESS_ENABLED", localHTTP)
+	localProcessEnabled, err := boolOrDefault("GEMCP_LOCAL_PROCESS_ENABLED", localDevelopment)
 	if err != nil {
 		return Config{}, err
 	}
-	schedulerEnabled, err := boolOrDefault("GEMCP_SCHEDULER_ENABLED", localHTTP)
+	schedulerEnabled, err := boolOrDefault("GEMCP_SCHEDULER_ENABLED", localDevelopment)
 	if err != nil {
 		return Config{}, err
 	}

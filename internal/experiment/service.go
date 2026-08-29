@@ -524,8 +524,16 @@ func optionError(err error) error {
 }
 
 func isRetryableTransaction(err error) bool {
+	if err == nil {
+		return false
+	}
 	var sqlState interface{ SQLState() string }
-	return errors.As(err, &sqlState) && (sqlState.SQLState() == "40001" || sqlState.SQLState() == "40P01")
+	if errors.As(err, &sqlState) && (sqlState.SQLState() == "40001" || sqlState.SQLState() == "40P01") {
+		return true
+	}
+	// SQLite (tests and single-box deployments) reports write contention as a
+	// busy/locked error without a SQLState.
+	return strings.Contains(err.Error(), "database is locked") || strings.Contains(err.Error(), "database table is locked")
 }
 
 func repositorySnapshot(record *ent.Repository, projectID string) map[string]any {

@@ -262,11 +262,7 @@ func (s *Server) verifyToken(ctx context.Context, raw string, _ *http.Request) (
 		return nil, errors.New("Agent token verification failed")
 	}
 	if s.sshCloud != nil && s.sshCloud.LocalProcessEnabled() {
-		if granted, grantErr := s.agentAuth.GrantLocalCPUScopes(ctx, principal); grantErr != nil {
-			s.logger.Error("grant local CPU Agent scopes", "error", grantErr)
-		} else {
-			principal = granted
-		}
+		principal = agentauth.LocalCPUScopes(principal)
 	}
 	expiration := time.Now().UTC().Add(24 * time.Hour)
 	if principal.ExpiresAt != nil && principal.ExpiresAt.Before(expiration) {

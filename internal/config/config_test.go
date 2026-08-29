@@ -172,6 +172,23 @@ func TestSSHCloudNodesAreOptIn(t *testing.T) {
 	}
 }
 
+func TestNonDevelopmentEnvironmentsStayOptIn(t *testing.T) {
+	for _, environment := range []string{"staging", "prod", "Development"} {
+		t.Setenv("GEMCP_ENV", environment)
+		t.Setenv("GEMCP_AUTO_MIGRATE", "")
+		t.Setenv("GEMCP_SSH_CLOUD_ENABLED", "")
+		t.Setenv("GEMCP_LOCAL_PROCESS_ENABLED", "")
+		t.Setenv("GEMCP_SCHEDULER_ENABLED", "")
+		cfg, err := Load()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cfg.AutoMigrate || cfg.SSHCloudEnabled || cfg.LocalProcessEnabled || cfg.SchedulerEnabled {
+			t.Fatalf("%q must not default powerful capabilities on: %+v", environment, cfg)
+		}
+	}
+}
+
 func TestExecutionBoundsAreValidated(t *testing.T) {
 	t.Setenv("GEMCP_GLOBAL_CONCURRENCY", "0")
 	if _, err := Load(); err == nil {

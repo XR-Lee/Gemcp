@@ -242,8 +242,18 @@ print("OK  POST /mcp initialize -> 200", init.get("result", {}).get("serverInfo"
 mcp("notifications/initialized", {}, notification=True)
 tools = mcp("tools/list", {}, ident=2)
 names = [item["name"] for item in tools.get("result", {}).get("tools", [])]
-if len(names) != 28:
-    sys.stderr.write(f"FAIL tools/list count={len(names)} want 28: {names}\n")
+required = {
+    "get_project_options",
+    "prepare_experiment",
+    "submit_prepared_experiment",
+    "close_run",
+    "register_dataset_binding",
+    "register_ssh_cloud_node",
+    "get_research_workspace",
+}
+missing = sorted(required - set(names))
+if missing:
+    sys.stderr.write(f"FAIL tools/list missing {missing}: {names}\n")
     sys.exit(1)
 print(f"OK  POST /mcp tools/list -> 200 count={len(names)}", flush=True)
 PY

@@ -563,7 +563,10 @@ func (s *Service) ensureSSHCloudForPrepare(ctx context.Context, principal agenta
 	}
 	selectedOther := (strings.TrimSpace(input.Environment) != "" && !looksLikeSSHCloudSelector(input.Environment)) ||
 		(strings.TrimSpace(input.ResourceProfile) != "" && !looksLikeSSHCloudSelector(input.ResourceProfile))
-	if selectedOther && !sshSelector && !localCPU {
+	// An explicit non-SSH selection always wins, even in local mode, so an
+	// agent that names an AutoDL environment is not silently rerouted onto the
+	// loopback CPU host.
+	if selectedOther && !sshSelector {
 		return empty, nil
 	}
 	if !sshSelector && !hasNodes && !localCPU {

@@ -101,16 +101,17 @@ func (s *Service) Authenticate(ctx context.Context, raw string) (Principal, erro
 	}, nil
 }
 
-// GrantLocalCPUScopes persists configure + operate_nodes onto a skip_provider
-// smoke token so a local CLI can register the loopback CPU stub without an
-// Owner scope edit. Remote production tokens are unchanged unless the caller
-// invokes this after GEMCP_LOCAL_PROCESS_ENABLED is on.
-func (s *Service) GrantLocalCPUScopes(ctx context.Context, principal Principal) (Principal, error) {
+// LocalCPUScopes returns the principal with configure + operate_nodes added to
+// its effective scopes so a local CLI can register the loopback CPU stub
+// without an Owner scope edit. The stored token is never modified: the grant
+// only applies to requests verified while GEMCP_LOCAL_PROCESS_ENABLED is on,
+// and disabling local mode immediately restores the token's real authority.
+func LocalCPUScopes(principal Principal) Principal {
 	if principal.TokenID == 0 || (principal.HasScope("configure") && principal.HasScope("operate_nodes")) {
-		return principal, nil
+		return principal
 	}
 	if !principal.HasScope("read") && !principal.HasScope("submit") {
-		return principal, nil
+		return principal
 	}
 	seen := map[string]bool{}
 	ordered := make([]string, 0, 5)
@@ -128,9 +129,6 @@ func (s *Service) GrantLocalCPUScopes(ctx context.Context, principal Principal) 
 			ordered = append(ordered, scope)
 		}
 	}
-	if err := s.client.AgentToken.UpdateOneID(principal.TokenID).SetScopes(ordered).Exec(ctx); err != nil {
-		return principal, err
-	}
 	principal.Scopes = ordered
-	return principal, nil
+	return principal
 }

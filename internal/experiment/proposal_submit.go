@@ -149,11 +149,10 @@ func (s *Service) currentProposal(ctx context.Context, principal agentauth.Princ
 	if err != nil {
 		return result, ErrProposalChanged
 	}
+	// cwd and the ssh_* pins are populated by applyStoredProposalPins below.
 	resolved := proposalResolved{
 		id: record.PublicID, project: projectRecord, repository: repositoryRecord, environment: environmentRecord, profile: profileRecord,
-		image: image, workspace: workspace, cwd: snapshotString(record.EnvironmentSnapshot, "working_directory"),
-		sshHost: snapshotString(record.EnvironmentSnapshot, "ssh_host"), sshUser: snapshotString(record.EnvironmentSnapshot, "ssh_user"),
-		sshNodeID: snapshotString(record.EnvironmentSnapshot, "ssh_node_id"), sshNodeLabel: snapshotString(record.EnvironmentSnapshot, "ssh_node_label"),
+		image: image, workspace: workspace,
 		ref: record.RequestedRef, commitSHA: record.CommitSha, execution: executionSpec, preset: record.RuntimePreset,
 		runtime: record.MaxRuntimeSeconds, reservation: reservation, expiresAt: record.ExpiresAt,
 		fromNodeID: snapshotString(record.ProjectSnapshot, "from_node_id"), expectedMetric: snapshotString(record.ProjectSnapshot, "expected_metric"),

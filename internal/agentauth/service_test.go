@@ -55,11 +55,9 @@ func TestAuthenticateAndRevokeAgentToken(t *testing.T) {
 	}
 }
 
-func TestGrantLocalCPUScopesPersistsConfigureAndOperateNodes(t *testing.T) {
+func TestLocalCPUScopesExpandWithoutPersisting(t *testing.T) {
 	client := enttest.Open(t, dialect.SQLite, "file:agentauth-local-cpu?mode=memory&cache=shared&_fk=1")
 	defer client.Close()
-	key, _ := secrets.GenerateMasterKey()
-	box, _ := secrets.New(key)
 	ctx := context.Background()
 	tenant, err := client.Tenant.Create().SetName("lab").Save(ctx)
 	if err != nil {
@@ -75,17 +73,19 @@ func TestGrantLocalCPUScopesPersistsConfigureAndOperateNodes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	service := NewService(client, box)
 	principal := Principal{
 		TokenID: token.ID, Scopes: []string{"read", "submit", "cancel"},
 	}
-	granted, err := service.GrantLocalCPUScopes(ctx, principal)
-	if err != nil || !granted.HasScope("configure") || !granted.HasScope("operate_nodes") {
-		t.Fatalf("GrantLocalCPUScopes() = %+v err=%v", granted, err)
+	granted := LocalCPUScopes(principal)
+	if !granted.HasScope("configure") || !granted.HasScope("operate_nodes") {
+		t.Fatalf("LocalCPUScopes() = %+v", granted)
 	}
 	stored, err := client.AgentToken.Get(ctx, token.ID)
-	if err != nil || !containsScope(stored.Scopes, "configure") || !containsScope(stored.Scopes, "operate_nodes") {
-		t.Fatalf("stored scopes = %v err=%v", stored.Scopes, err)
+	if err != nil || containsScope(stored.Scopes, "configure") || containsScope(stored.Scopes, "operate_nodes") {
+		t.Fatalf("stored scopes must stay unchanged = %v err=%v", stored.Scopes, err)
+	}
+	if noAuthority := LocalCPUScopes(Principal{TokenID: token.ID, Scopes: []string{"cancel"}}); noAuthority.HasScope("configure") {
+		t.Fatalf("cancel-only token must not gain configure: %+v", noAuthority)
 	}
 }
 

@@ -373,11 +373,12 @@ func TestRegisterEnvironmentInvisibleImageFallsBackToLocalCPU(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Setenv("HOME", t.TempDir())
 	handler := New(
 		agentauth.NewService(client, box),
 		experiment.NewService(client, box, allowCommitVerifier{}, experiment.WithSSHCloud(sshService)),
 		"test", nil, WithSSHCloud(sshService), WithEnvironments(environmentcatalog.NewService(client, nil)),
-		WithConfiguration(nil, nil, datasetcatalog.NewService(client)),
+		WithConfiguration(nil, nil, datasetcatalog.NewService(client, datasetcatalog.WithLocalCPUFixture(true))),
 	).Handler()
 	httpServer := httptest.NewServer(handler)
 	defer httpServer.Close()
@@ -429,11 +430,12 @@ func TestRegisterLocalCPUStubAllowsSubmitWithoutOperateNodes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Setenv("HOME", t.TempDir())
 	handler := New(
 		agentauth.NewService(client, box),
-		experiment.NewService(client, box, allowCommitVerifier{}, experiment.WithSSHCloud(sshService), experiment.WithLocalCPUDataset(datasetcatalog.NewService(client))),
+		experiment.NewService(client, box, allowCommitVerifier{}, experiment.WithSSHCloud(sshService), experiment.WithLocalCPUDataset(datasetcatalog.NewService(client, datasetcatalog.WithLocalCPUFixture(true)))),
 		"test", nil, WithSSHCloud(sshService), WithEnvironments(environmentcatalog.NewService(client, nil)),
-		WithConfiguration(nil, nil, datasetcatalog.NewService(client)),
+		WithConfiguration(nil, nil, datasetcatalog.NewService(client, datasetcatalog.WithLocalCPUFixture(true))),
 	).Handler()
 	httpServer := httptest.NewServer(handler)
 	defer httpServer.Close()
