@@ -586,6 +586,139 @@ func TestPrepareRejectsIsolatedHypothesis(t *testing.T) {
 	}
 }
 
+func TestPrepareRejectsPlanWithoutHypothesisAncestor(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	ctx := context.Background()
+	researchService := mustResearchService(t, f)
+	created, err := researchService.AgentUpdate(ctx, f.principal, researchUpdate(f, "plan-only", "Can a plan spend without a hypothesis?"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	planned, err := researchService.AgentUpdate(ctx, f.principal, research.UpdateInput{
+		Node: &research.NodeInput{Kind: "plan", Title: "Plan under question", FromNodeID: created.Study.Nodes[0].ID, Relation: "leads_to"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	planID := ""
+	for _, node := range planned.Study.Nodes {
+		if node.Kind == "plan" {
+			planID = node.ID
+		}
+	}
+	service := preparedService(t, f, 2)
+	service.SetGraphBinder(researchService)
+	_, err = service.Prepare(ctx, f.principal, prepareFrom(planID))
+	var validation *ValidationError
+	if !errors.As(err, &validation) || !strings.Contains(validation.Message, "trace back to a hypothesis") {
+		t.Fatalf("Prepare() hypothesis-less plan = %v", err)
+	}
+}
+
+func TestSubmitPreparedRejectsDoomedGraphBindBeforeSpending(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	ctx := context.Background()
+	researchService := mustResearchService(t, f)
+	created, err := researchService.AgentUpdate(ctx, f.principal, researchUpdate(f, "preflight", "Does submit refuse to spend when the Graph bind is doomed?"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	hypothesis, err := researchService.AgentUpdate(ctx, f.principal, research.UpdateInput{
+		Node: &research.NodeInput{Kind: "hypothesis", Title: "Noise caps accuracy", FromNodeID: created.Study.Nodes[0].ID, Relation: "leads_to"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := preparedService(t, f, 2)
+	service.SetGraphBinder(researchService)
+	prepared, err := service.Prepare(ctx, f.principal, prepareFrom(hypothesis.Study.Nodes[1].ID))
+	if err != nil || prepared.Proposal == nil {
+		t.Fatalf("Prepare() = %+v, %v", prepared, err)
+	}
+	// The Study completes between prepare and submit: the bind is doomed, so
+	// the submission must be rejected before any money is committed.
+	if _, err := researchService.AgentUpdate(ctx, f.principal, research.UpdateInput{
+		Study: &research.StudyInput{ID: created.Study.ID, Name: created.Study.Name, Question: created.Study.Question, Status: "archived"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	_, err = service.SubmitPrepared(ctx, f.principal, SubmitPreparedInput{ProposalID: prepared.Proposal.ID, ConfirmationDigest: prepared.Proposal.ConfirmationDigest})
+	if err == nil || !strings.Contains(err.Error(), "active Study") {
+		t.Fatalf("doomed bind submit error = %v", err)
+	}
+	if count, _ := f.client.Experiment.Query().Count(ctx); count != 0 {
+		t.Fatalf("doomed submit still created an Experiment, count=%d", count)
+	}
+	if count, _ := f.client.BudgetEntry.Query().Count(ctx); count != 0 {
+		t.Fatalf("doomed submit still reserved budget, count=%d", count)
+	}
+	// Reactivating the Study lets the same proposal submit and bind normally.
+	if _, err := researchService.AgentUpdate(ctx, f.principal, research.UpdateInput{
+		Study: &research.StudyInput{ID: created.Study.ID, Name: created.Study.Name, Question: created.Study.Question, Status: "active"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	submitted, err := service.SubmitPrepared(ctx, f.principal, SubmitPreparedInput{ProposalID: prepared.Proposal.ID, ConfirmationDigest: prepared.Proposal.ConfirmationDigest})
+	if err != nil || submitted.RunNodeID == "" || submitted.GraphBindWarning != "" {
+		t.Fatalf("reactivated submit = %+v, %v", submitted, err)
+	}
+}
+
+func TestBindPreparedGraphWarnsInsteadOfFailingAfterCommit(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	ctx := context.Background()
+	researchService := mustResearchService(t, f)
+	created, err := researchService.AgentUpdate(ctx, f.principal, researchUpdate(f, "bind-race", "What happens when the bind fails after the Experiment committed?"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	hypothesis, err := researchService.AgentUpdate(ctx, f.principal, research.UpdateInput{
+		Node: &research.NodeInput{Kind: "hypothesis", Title: "Noise caps accuracy", FromNodeID: created.Study.Nodes[0].ID, Relation: "leads_to"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := preparedService(t, f, 2)
+	service.SetGraphBinder(researchService)
+	repositoryRecord, err := f.client.Repository.Query().First(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	environmentRecord, err := f.client.Environment.Query().First(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	profileRecord, err := f.client.ResourceProfile.Query().First(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	orphan, err := f.client.Experiment.Create().
+		SetTenantID(f.principal.TenantID).SetProjectID(f.project.ID).SetAgentTokenID(f.principal.TokenID).
+		SetRepositoryID(repositoryRecord.ID).SetEnvironmentID(environmentRecord.ID).SetResourceProfileID(profileRecord.ID).
+		SetCommitSha("0123456789012345678901234567890123456789").SetCommand("python train.py").
+		SetMaxRuntimeSeconds(300).SetTimeoutExtensionSeconds(60).SetTerminationGraceSeconds(30).
+		SetRepositorySnapshot(map[string]any{"name": "main"}).SetEnvironmentSnapshot(map[string]any{"name": "default"}).
+		SetResourceSnapshot(map[string]any{"name": "default"}).SetOutputPath("/outputs").SetReservedCostMilli(0).
+		Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Simulate the race where the Study completes after the Experiment and
+	// budget committed but before the Graph bind ran.
+	if _, err := researchService.AgentUpdate(ctx, f.principal, research.UpdateInput{
+		Study: &research.StudyInput{ID: created.Study.ID, Name: created.Study.Name, Question: created.Study.Question, Status: "archived"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	result, err := service.bindPreparedGraph(ctx, f.principal, map[string]any{"from_node_id": hypothesis.Study.Nodes[1].ID}, SubmitPreparedResult{Experiment: makeView(orphan)})
+	if err != nil {
+		t.Fatalf("bind failure after commit must not surface as a submit error: %v", err)
+	}
+	if result.GraphBindWarning == "" || !strings.Contains(result.GraphBindWarning, "Do not prepare again") || result.RunNodeID != "" {
+		t.Fatalf("bind failure after commit = %+v", result)
+	}
+}
+
 func prepareFrom(fromNodeID string) PrepareInput {
 	input := validPrepare()
 	input.FromNodeID = fromNodeID

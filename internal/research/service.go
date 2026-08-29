@@ -98,6 +98,10 @@ type NodeInput struct {
 	CommitSHA    string   `json:"commit_sha,omitempty" jsonschema:"optional evidence commit SHA, 7 to 64 hex. The Graph stays claim-based, not one node per commit."`
 	FromNodeID   string   `json:"from_node_id,omitempty" jsonschema:"optional source Graph node ID"`
 	Relation     string   `json:"relation,omitempty" jsonschema:"leads_to, compares, supersedes, supports, contradicts, or produced"`
+
+	// exemptStudyCaps lets close_run finish a funded run on a full Graph. It
+	// is never accepted from API input.
+	exemptStudyCaps bool
 }
 
 type UpdateInput struct {
@@ -195,6 +199,7 @@ type Workspace struct {
 	Studies     []StudySummary `json:"studies"`
 	Study       *StudyView     `json:"study,omitempty"`
 	NextActions []NextAction   `json:"next_actions"`
+	Warning     string         `json:"warning,omitempty"`
 	GeneratedAt time.Time      `json:"generated_at"`
 }
 
@@ -560,7 +565,7 @@ func recordNode(ctx context.Context, tx *ent.Tx, current actor, selected *ent.St
 		}
 	}
 	if record == nil {
-		if len(nodes) >= maxNodesPerStudy {
+		if len(nodes) >= maxNodesPerStudy && !input.exemptStudyCaps {
 			return nil, ErrNodeLimit
 		}
 		create := tx.ResearchNode.Create().
@@ -612,7 +617,7 @@ func recordNode(ctx context.Context, tx *ent.Tx, current actor, selected *ent.St
 		}
 	}
 	if strings.TrimSpace(input.FromNodeID) != "" || strings.TrimSpace(input.Relation) != "" {
-		if err := recordEdge(ctx, tx, current, selected, nodes, record, input.FromNodeID, input.Relation); err != nil {
+		if err := recordEdge(ctx, tx, current, selected, nodes, record, input.FromNodeID, input.Relation, input.exemptStudyCaps); err != nil {
 			return nil, err
 		}
 	}
@@ -627,7 +632,7 @@ func recordNode(ctx context.Context, tx *ent.Tx, current actor, selected *ent.St
 	return record, nil
 }
 
-func recordEdge(ctx context.Context, tx *ent.Tx, current actor, selected *ent.Study, nodes []*ent.ResearchNode, to *ent.ResearchNode, fromID, relationValue string) error {
+func recordEdge(ctx context.Context, tx *ent.Tx, current actor, selected *ent.Study, nodes []*ent.ResearchNode, to *ent.ResearchNode, fromID, relationValue string, exemptStudyCaps bool) error {
 	relation := researchedge.Relation(strings.TrimSpace(relationValue))
 	if err := researchedge.RelationValidator(relation); err != nil {
 		return invalid("relation must be leads_to, compares, supersedes, supports, contradicts, or produced")
@@ -655,7 +660,7 @@ func recordEdge(ctx context.Context, tx *ent.Tx, current actor, selected *ent.St
 	if err != nil {
 		return err
 	}
-	if count >= maxEdgesPerStudy {
+	if count >= maxEdgesPerStudy && !exemptStudyCaps {
 		return ErrEdgeLimit
 	}
 	_, err = tx.ResearchEdge.Create().
@@ -819,8 +824,10 @@ func makeHypothesisRecords(view StudyView, defaultBranch string, branchByExperim
 			} else {
 				record.Branch = defaultBranch
 			}
+			producedResultID := ""
 			for _, result := range results {
 				if hasEdge(view.Edges, run.ID, result.ID, "produced") {
+					producedResultID = result.ID
 					record.ResultTitle = result.Title
 					if record.CommitSHA == "" {
 						record.CommitSHA = result.CommitSHA
@@ -828,10 +835,23 @@ func makeHypothesisRecords(view StudyView, defaultBranch string, branchByExperim
 					break
 				}
 			}
-			for _, observation := range observations {
-				if observation.CommitSHA != "" && observation.CommitSHA == record.CommitSHA {
-					record.HighlightTitle = observation.Title
-					break
+			// close_run links the highlight observation to its result, which
+			// stays unambiguous when one hypothesis accumulates several runs.
+			if producedResultID != "" {
+				for _, observation := range observations {
+					if hasEdge(view.Edges, producedResultID, observation.ID, "leads_to") {
+						record.HighlightTitle = observation.Title
+						break
+					}
+				}
+			}
+			// Legacy fallbacks for graphs written before that edge existed.
+			if record.HighlightTitle == "" {
+				for _, observation := range observations {
+					if observation.CommitSHA != "" && observation.CommitSHA == record.CommitSHA {
+						record.HighlightTitle = observation.Title
+						break
+					}
 				}
 			}
 			if record.HighlightTitle == "" {

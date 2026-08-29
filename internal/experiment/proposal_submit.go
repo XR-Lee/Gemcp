@@ -71,6 +71,13 @@ func (s *Service) SubmitPrepared(ctx context.Context, principal agentauth.Princi
 	if !proposalChecksEligible(resolved.checks) {
 		return SubmitPreparedResult{}, ErrProposalBlocked
 	}
+	// Reject a doomed Graph bind before the Experiment and budget commit, so
+	// the money is never spent on a run that cannot join the Graph.
+	if s.graphBinder != nil {
+		if err := s.graphBinder.ValidatePreparedBind(ctx, principal, snapshotString(record.ProjectSnapshot, "from_node_id")); err != nil {
+			return SubmitPreparedResult{}, err
+		}
+	}
 	for attempt := 0; attempt < 3; attempt++ {
 		result, err := s.createPreparedExperiment(ctx, principal, record.ID, digest)
 		if err == nil {

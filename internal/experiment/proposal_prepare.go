@@ -67,23 +67,23 @@ type proposalWorkspace struct {
 }
 
 type proposalResolved struct {
-	id             uuid.UUID
-	project        *ent.Project
-	repository     *ent.Repository
-	environment    *ent.Environment
-	profile        *ent.ResourceProfile
-	image          string
-	workspace      *proposalWorkspace
-	ref            string
-	commitSHA      string
-	execution      executioncmd.Spec
-	preset         string
-	runtime        int
-	reservation    int64
-	expiresAt      time.Time
-	checks         []ProposalCheck
-	fromNodeID     string
-	expectedMetric string
+	id                  uuid.UUID
+	project             *ent.Project
+	repository          *ent.Repository
+	environment         *ent.Environment
+	profile             *ent.ResourceProfile
+	image               string
+	workspace           *proposalWorkspace
+	ref                 string
+	commitSHA           string
+	execution           executioncmd.Spec
+	preset              string
+	runtime             int
+	reservation         int64
+	expiresAt           time.Time
+	checks              []ProposalCheck
+	fromNodeID          string
+	expectedMetric      string
 	cwd                 string
 	sshHost             string
 	sshUser             string

@@ -77,6 +77,9 @@ type SSHCloudController interface {
 
 type GraphBinder interface {
 	BindPreparedRun(context.Context, agentauth.Principal, string, string, string) (string, error)
+	// ValidatePreparedBind runs the same origin checks before any budget is
+	// committed, so a doomed bind rejects the submission instead of spending.
+	ValidatePreparedBind(context.Context, agentauth.Principal, string) error
 }
 
 func WithGraphBinder(binder GraphBinder) ServiceOption {
@@ -141,6 +144,17 @@ func (s *Service) Submit(ctx context.Context, principal agentauth.Principal, inp
 	if err != nil {
 		return result, err
 	}
+	fingerprintJSON, _ := json.Marshal(normalized)
+	fingerprint := sha256.Sum256(fingerprintJSON)
+	keyHash := s.box.Digest("experiment-idempotency", strings.TrimSpace(input.IdempotencyKey))
+	// The idempotency lookup runs before the Study gate so a documented retry
+	// of a submission that succeeded just before a Study was created still
+	// returns the same Experiment instead of a rejection.
+	if existing, found, err := s.findExisting(ctx, s.client.IdempotencyRecord.Query(), principal.TokenID, keyHash, fingerprint[:]); err != nil {
+		return result, err
+	} else if found {
+		return SubmitResult{Experiment: makeView(existing), Idempotent: true}, nil
+	}
 	hasStudy, err := s.client.Study.Query().Where(
 		study.ProjectIDEQ(principal.ProjectID), study.StatusEQ(study.StatusActive),
 	).Exist(ctx)
@@ -149,14 +163,6 @@ func (s *Service) Submit(ctx context.Context, principal agentauth.Principal, inp
 	}
 	if hasStudy {
 		return result, &ValidationError{Message: "submit_experiment cannot skip the Study and hypothesis; use prepare_experiment with from_node_id"}
-	}
-	fingerprintJSON, _ := json.Marshal(normalized)
-	fingerprint := sha256.Sum256(fingerprintJSON)
-	keyHash := s.box.Digest("experiment-idempotency", strings.TrimSpace(input.IdempotencyKey))
-	if existing, found, err := s.findExisting(ctx, s.client.IdempotencyRecord.Query(), principal.TokenID, keyHash, fingerprint[:]); err != nil {
-		return result, err
-	} else if found {
-		return SubmitResult{Experiment: makeView(existing), Idempotent: true}, nil
 	}
 
 	options, err := s.resolveOptions(ctx, principal.ProjectID, normalized)

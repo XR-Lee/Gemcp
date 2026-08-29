@@ -310,14 +310,14 @@ type AgentReadinessInstructions struct {
 }
 
 type DatasetBindingOption struct {
-	ID                  string                    `json:"id"`
-	Name                string                    `json:"name"`
-	Backend             string                    `json:"backend"`
-	CanonicalRoot       string                    `json:"canonical_root"`
-	EnvironmentVariable string                    `json:"environment_variable"`
-	RequiredMarkers     []string                  `json:"required_markers"`
-	Sources             []DatasetBindingSource    `json:"sources"`
-	Status              string                    `json:"status"`
+	ID                  string                 `json:"id"`
+	Name                string                 `json:"name"`
+	Backend             string                 `json:"backend"`
+	CanonicalRoot       string                 `json:"canonical_root"`
+	EnvironmentVariable string                 `json:"environment_variable"`
+	RequiredMarkers     []string               `json:"required_markers"`
+	Sources             []DatasetBindingSource `json:"sources"`
+	Status              string                 `json:"status"`
 }
 
 type DatasetBindingSource struct {

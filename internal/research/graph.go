@@ -48,7 +48,12 @@ type CloseRunInput struct {
 	ResultCommitSHA string   `json:"result_commit_sha,omitempty" jsonschema:"optional full 40- or 64-character Git commit containing the durable result manifest"`
 }
 
-const isolatedSpendOriginMessage = "from_node_id must hang off a parent Graph node; isolated nodes cannot prepare"
+const (
+	isolatedSpendOriginMessage   = "from_node_id must hang off a parent Graph node; isolated nodes cannot prepare"
+	hypothesislessSpendMessage   = "from_node_id must trace back to a hypothesis through leads_to parents; record the hypothesis before spending"
+	legacyCloseHighlightWarning  = "run has no hypothesis ancestor, so no highlight observation was written; link the run's origin to a hypothesis to restore the contract"
+	preStudyProposalStaleMessage = "this proposal was prepared before the Study existed; prepare_experiment again with from_node_id on the Graph"
+)
 
 func legalEdge(fromKind, toKind researchnode.Kind, relation researchedge.Relation) bool {
 	switch relation {
@@ -60,7 +65,9 @@ func legalEdge(fromKind, toKind researchnode.Kind, relation researchedge.Relatio
 			return toKind == researchnode.KindPlan || toKind == researchnode.KindRun || toKind == researchnode.KindDecision || toKind == researchnode.KindObservation
 		case researchnode.KindPlan:
 			return toKind == researchnode.KindRun || toKind == researchnode.KindPlan
-		case researchnode.KindResult, researchnode.KindObservation:
+		case researchnode.KindResult:
+			return toKind == researchnode.KindDecision || toKind == researchnode.KindHypothesis || toKind == researchnode.KindObservation
+		case researchnode.KindObservation:
 			return toKind == researchnode.KindDecision || toKind == researchnode.KindHypothesis
 		case researchnode.KindDecision:
 			return toKind == researchnode.KindHypothesis || toKind == researchnode.KindPlan
@@ -177,6 +184,15 @@ func deriveNextActions(view *StudyView) []NextAction {
 			})
 			continue
 		}
+		if len(decisions) > 0 && len(terminalUnclosed) == 0 && len(openRuns) == 0 && !decisionSpawnedHypothesis(outgoing, nodesByID, decisions) {
+			add(NextAction{
+				Kind: "prepare_experiment", Tool: "prepare_experiment", FromNodeID: hypothesis.ID,
+				Title:  "Prepare the next Experiment for " + hypothesis.Title,
+				Detail: "A decision is recorded on this hypothesis. Propose the next Experiment from it, or record a follow-up hypothesis first.",
+			})
+			addedPrepare = true
+			continue
+		}
 		if !hasRun {
 			add(NextAction{
 				Kind: "prepare_experiment", Tool: "prepare_experiment", FromNodeID: hypothesis.ID,
@@ -215,6 +231,11 @@ func descendantsOf(outgoing map[string][]EdgeView, nodes map[string]NodeView, st
 			if !ok {
 				continue
 			}
+			// Stop at hypothesis boundaries: evidence past a follow-up
+			// hypothesis belongs to that hypothesis, not to every ancestor.
+			if node.Kind == "hypothesis" {
+				continue
+			}
 			out = append(out, node)
 			queue = append(queue, node.ID)
 		}
@@ -237,6 +258,15 @@ func hasOpenRun(outgoing map[string][]EdgeView, nodes map[string]NodeView, hypot
 func hasOutgoingKind(outgoing map[string][]EdgeView, nodes map[string]NodeView, fromID, kind string) bool {
 	for _, edge := range outgoing[fromID] {
 		if nodes[edge.ToID].Kind == kind {
+			return true
+		}
+	}
+	return false
+}
+
+func decisionSpawnedHypothesis(outgoing map[string][]EdgeView, nodes map[string]NodeView, decisions []NodeView) bool {
+	for _, decision := range decisions {
+		if hasOutgoingKind(outgoing, nodes, decision.ID, "hypothesis") {
 			return true
 		}
 	}
@@ -313,6 +343,15 @@ func (s *Service) BindPreparedRun(ctx context.Context, principal agentauth.Princ
 	if !incoming {
 		return "", invalid(isolatedSpendOriginMessage)
 	}
+	if from.Kind == researchnode.KindPlan {
+		hypothesis, ancestorErr := hypothesisAncestor(ctx, tx.ResearchEdge, selected.ID, from.ID)
+		if ancestorErr != nil {
+			return "", ancestorErr
+		}
+		if hypothesis == nil {
+			return "", invalid(hypothesislessSpendMessage)
+		}
+	}
 	count, err := tx.ResearchNode.Query().Where(researchnode.StudyIDEQ(selected.ID)).Count(ctx)
 	if err != nil {
 		return "", err
@@ -358,7 +397,7 @@ func (s *Service) BindPreparedRun(ctx context.Context, principal agentauth.Princ
 	if err != nil {
 		return "", err
 	}
-	if err := recordEdge(ctx, tx, current, selected, nodes, record, from.PublicID.String(), string(researchedge.RelationLeadsTo)); err != nil {
+	if err := recordEdge(ctx, tx, current, selected, nodes, record, from.PublicID.String(), string(researchedge.RelationLeadsTo), false); err != nil {
 		return "", err
 	}
 	if _, err := selected.Update().SetUpdatedAt(time.Now().UTC()).Save(ctx); err != nil {
@@ -452,16 +491,31 @@ func (s *Service) AgentCloseRun(ctx context.Context, principal agentauth.Princip
 	if strings.TrimSpace(title) == "" {
 		title = run.Title + " result"
 	}
-	if _, err := recordNode(ctx, tx, current, selected, NodeInput{
+	hypothesis, err := hypothesisAncestor(ctx, tx.ResearchEdge, selected.ID, run.ID)
+	if err != nil {
+		return Workspace{}, err
+	}
+	// close_run is the only writer for a funded run, so its terminal writes are
+	// exempt from the study caps: a full Graph must never leave paid work
+	// permanently uncloseable.
+	resultNode, err := recordNode(ctx, tx, current, selected, NodeInput{
 		Kind: string(researchnode.KindResult), Title: title, Summary: input.Summary, Status: string(status),
 		MetricName: input.MetricName, MetricValue: input.MetricValue,
 		OccurredAt: experimentEvidenceTime(experimentRecord).Format(time.RFC3339),
 		CommitSHA:  resultCommitSHA,
 		FromNodeID: run.PublicID.String(), Relation: string(researchedge.RelationProduced),
-	}); err != nil {
+
+		exemptStudyCaps: true,
+	})
+	if err != nil {
 		return Workspace{}, err
 	}
-	if err := writeHighlightObservation(ctx, tx, current, selected, run, experimentRecord, input, title, status, resultCommitSHA); err != nil {
+	warning := ""
+	if hypothesis == nil {
+		// Legacy runs bound before the hypothesis contract cannot fail forever:
+		// write the result, skip the highlight, and tell the agent why.
+		warning = legacyCloseHighlightWarning
+	} else if err := writeHighlightObservation(ctx, tx, current, selected, hypothesis, resultNode, experimentRecord, input, title, status, resultCommitSHA); err != nil {
 		return Workspace{}, err
 	}
 	if _, err := run.Update().SetStatus(status).Save(ctx); err != nil {
@@ -470,14 +524,15 @@ func (s *Service) AgentCloseRun(ctx context.Context, principal agentauth.Princip
 	if err := tx.Commit(); err != nil {
 		return Workspace{}, err
 	}
-	return s.workspace(ctx, current, selected.PublicID.String())
+	workspace, err := s.workspace(ctx, current, selected.PublicID.String())
+	if err != nil {
+		return Workspace{}, err
+	}
+	workspace.Warning = warning
+	return workspace, nil
 }
 
-func writeHighlightObservation(ctx context.Context, tx *ent.Tx, current actor, selected *ent.Study, run *ent.ResearchNode, experimentRecord *ent.Experiment, input CloseRunInput, resultTitle string, status researchnode.Status, resultCommitSHA string) error {
-	hypothesis, err := findHypothesisAncestor(ctx, tx, selected.ID, run.ID)
-	if err != nil {
-		return err
-	}
+func writeHighlightObservation(ctx context.Context, tx *ent.Tx, current actor, selected *ent.Study, hypothesis, resultNode *ent.ResearchNode, experimentRecord *ent.Experiment, input CloseRunInput, resultTitle string, status researchnode.Status, resultCommitSHA string) error {
 	highlightTitle := strings.TrimSpace(input.Highlight)
 	if highlightTitle == "" {
 		highlightTitle = resultTitle
@@ -492,6 +547,8 @@ func writeHighlightObservation(ctx context.Context, tx *ent.Tx, current actor, s
 		OccurredAt: experimentEvidenceTime(experimentRecord).Format(time.RFC3339),
 		CommitSHA:  commitSHA,
 		FromNodeID: hypothesis.PublicID.String(), Relation: string(researchedge.RelationLeadsTo),
+
+		exemptStudyCaps: true,
 	})
 	if err != nil {
 		return err
@@ -500,14 +557,24 @@ func writeHighlightObservation(ctx context.Context, tx *ent.Tx, current actor, s
 	if err != nil {
 		return err
 	}
+	// Tie the highlight to its concrete result so the Owner view shows the
+	// right highlight when one hypothesis accumulates several runs.
+	if resultNode != nil {
+		if err := recordEdge(ctx, tx, current, selected, nodes, observation, resultNode.PublicID.String(), string(researchedge.RelationLeadsTo), true); err != nil {
+			return err
+		}
+	}
 	relation := researchedge.RelationSupports
 	if status != researchnode.StatusSucceeded {
 		relation = researchedge.RelationContradicts
 	}
-	return recordEdge(ctx, tx, current, selected, nodes, hypothesis, observation.PublicID.String(), string(relation))
+	return recordEdge(ctx, tx, current, selected, nodes, hypothesis, observation.PublicID.String(), string(relation), true)
 }
 
-func findHypothesisAncestor(ctx context.Context, tx *ent.Tx, studyID, startID int) (*ent.ResearchNode, error) {
+// hypothesisAncestor walks leads_to parents through plan, question, and
+// decision nodes and returns the nearest hypothesis, or nil when the start
+// node does not trace back to one.
+func hypothesisAncestor(ctx context.Context, edgeClient *ent.ResearchEdgeClient, studyID, startID int) (*ent.ResearchNode, error) {
 	seen := map[int]bool{}
 	queue := []int{startID}
 	for len(queue) > 0 && len(seen) < maxNodesPerStudy {
@@ -517,7 +584,7 @@ func findHypothesisAncestor(ctx context.Context, tx *ent.Tx, studyID, startID in
 			continue
 		}
 		seen[id] = true
-		edges, err := tx.ResearchEdge.Query().Where(
+		edges, err := edgeClient.Query().Where(
 			researchedge.StudyIDEQ(studyID), researchedge.ToNodeIDEQ(id), researchedge.RelationEQ(researchedge.RelationLeadsTo),
 		).WithFromNode().All(ctx)
 		if err != nil {
@@ -531,12 +598,76 @@ func findHypothesisAncestor(ctx context.Context, tx *ent.Tx, studyID, startID in
 			if from.Kind == researchnode.KindHypothesis {
 				return from, nil
 			}
-			if from.Kind == researchnode.KindPlan || from.Kind == researchnode.KindQuestion {
+			if from.Kind == researchnode.KindPlan || from.Kind == researchnode.KindQuestion || from.Kind == researchnode.KindDecision {
 				queue = append(queue, from.ID)
 			}
 		}
 	}
-	return nil, invalid("close_run requires the run to hang off a hypothesis so the highlight observation can be linked")
+	return nil, nil
+}
+
+// ValidatePreparedBind reports whether submit_prepared_experiment will be able
+// to bind a Graph run for this proposal, so the check runs before any budget
+// is committed. An empty fromNodeID is only valid while the Project still has
+// no active Study.
+func (s *Service) ValidatePreparedBind(ctx context.Context, principal agentauth.Principal, fromNodeID string) error {
+	fromNodeID = strings.TrimSpace(fromNodeID)
+	if fromNodeID == "" {
+		hasStudy, err := s.client.Study.Query().Where(
+			study.ProjectIDEQ(principal.ProjectID), study.StatusEQ(study.StatusActive),
+		).Exist(ctx)
+		if err != nil {
+			return err
+		}
+		if hasStudy {
+			return invalid(preStudyProposalStaleMessage)
+		}
+		return nil
+	}
+	publicID, err := uuid.Parse(fromNodeID)
+	if err != nil {
+		return invalid("from_node_id must be a Graph node ID")
+	}
+	node, err := s.client.ResearchNode.Query().Where(
+		researchnode.PublicIDEQ(publicID), researchnode.ProjectIDEQ(principal.ProjectID),
+	).WithStudy().Only(ctx)
+	if ent.IsNotFound(err) {
+		return invalid("from_node_id was not found in this Project")
+	}
+	if err != nil {
+		return err
+	}
+	selected, err := node.Edges.StudyOrErr()
+	if err != nil || selected.Status != study.StatusActive {
+		return invalid("from_node_id must belong to an active Study")
+	}
+	if node.Kind != researchnode.KindHypothesis && node.Kind != researchnode.KindPlan {
+		return invalid("from_node_id must be a hypothesis or plan node")
+	}
+	incoming, err := s.client.ResearchEdge.Query().Where(researchedge.ToNodeIDEQ(node.ID)).Exist(ctx)
+	if err != nil {
+		return err
+	}
+	if !incoming {
+		return invalid(isolatedSpendOriginMessage)
+	}
+	if node.Kind == researchnode.KindPlan {
+		hypothesis, err := hypothesisAncestor(ctx, s.client.ResearchEdge, selected.ID, node.ID)
+		if err != nil {
+			return err
+		}
+		if hypothesis == nil {
+			return invalid(hypothesislessSpendMessage)
+		}
+	}
+	count, err := s.client.ResearchNode.Query().Where(researchnode.StudyIDEQ(selected.ID)).Count(ctx)
+	if err != nil {
+		return err
+	}
+	if count >= maxNodesPerStudy {
+		return ErrNodeLimit
+	}
+	return nil
 }
 
 func normalizeResultCommit(value string) (string, error) {

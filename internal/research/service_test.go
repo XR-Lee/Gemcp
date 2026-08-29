@@ -3,11 +3,14 @@ package research
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
 	"entgo.io/ent/dialect"
 	"github.com/XR-Lee/Gemcp/ent/enttest"
+	"github.com/XR-Lee/Gemcp/ent/researchnode"
+	"github.com/XR-Lee/Gemcp/ent/study"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -150,7 +153,7 @@ func TestAgentMaintainsStudyPlanAndGraphWithoutStartingWorkloads(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if updated.Study == nil || len(updated.Study.Nodes) != 7 || len(updated.Study.Edges) != 7 || nodeIDByExperiment(updated.Study.Nodes, experimentRecord.PublicID.String()) == "" {
+	if updated.Study == nil || len(updated.Study.Nodes) != 7 || len(updated.Study.Edges) != 8 || nodeIDByExperiment(updated.Study.Nodes, experimentRecord.PublicID.String()) == "" {
 		t.Fatalf("updated graph = %+v", updated.Study)
 	}
 	if !hasHighlightOnHypothesis(updated.Study, hypothesis.Study.Nodes[1].ID, "OBJ-BG smoke accuracy") {
@@ -320,7 +323,7 @@ func TestCloseRunRequiresTerminalExperimentAndWritesProducedResult(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if closed.Study == nil || len(closed.Study.Nodes) != 6 || len(closed.Study.Edges) != 6 {
+	if closed.Study == nil || len(closed.Study.Nodes) != 6 || len(closed.Study.Edges) != 7 {
 		t.Fatalf("closed graph = %+v", closed.Study)
 	}
 	result := nodeByKind(closed.Study.Nodes, "result")
@@ -543,6 +546,16 @@ func TestBindPreparedRunAndPrepareRejectIsolatedOrigin(t *testing.T) {
 	tenant, _ := client.Tenant.Create().SetName("Test").Save(ctx)
 	project, _ := client.Project.Create().SetTenantID(tenant.ID).SetName("Research").SetSlug("research").SetMonthlyBudgetMilli(1).SetMaxExperimentMilli(1).Save(ctx)
 	token, _ := client.AgentToken.Create().SetProjectID(project.ID).SetLabel("lab-agent").SetPrefix("gmc_lab").SetTokenHash([]byte("iso-hash")).SetScopes([]string{"read", "submit"}).Save(ctx)
+	repository, _ := client.Repository.Create().SetProjectID(project.ID).SetName("main").SetSSHURL("git@github.com:XR-Lee/Gemcp.git").SetSSHHost("github.com").SetDefaultBranch("main").SetHostKeyFingerprint("SHA256:test").SetStatus("active").Save(ctx)
+	environment, _ := client.Environment.Create().SetProjectID(project.ID).SetName("default").SetImageUUID("image").SetIsDefault(true).Save(ctx)
+	profile, _ := client.ResourceProfile.Create().SetProjectID(project.ID).SetName("default").SetRegion("west").SetGpuNames([]string{"RTX 4090"}).SetGpuNum(1).SetCudaFrom(118).SetCudaTo(128).SetCPUFrom(1).SetCPUTo(128).SetMemoryFromGB(1).SetMemoryToGB(512).SetPriceFromMilli(10).SetPriceToMilli(3000).SetIsDefault(true).Save(ctx)
+	experimentRecord, _ := client.Experiment.Create().
+		SetTenantID(tenant.ID).SetProjectID(project.ID).SetAgentTokenID(token.ID).SetRepositoryID(repository.ID).
+		SetEnvironmentID(environment.ID).SetResourceProfileID(profile.ID).SetCommitSha("0123456789012345678901234567890123456789").
+		SetCommand("python train.py").SetMaxRuntimeSeconds(300).SetTimeoutExtensionSeconds(60).SetTerminationGraceSeconds(30).
+		SetRepositorySnapshot(map[string]any{"name": "main"}).SetEnvironmentSnapshot(map[string]any{"name": "default"}).
+		SetResourceSnapshot(map[string]any{"name": "default"}).SetOutputPath("/outputs").SetReservedCostMilli(0).
+		Save(ctx)
 	principal := agentauth.Principal{
 		TenantID: tenant.ID, ProjectID: project.ID, ProjectPublicID: project.PublicID.String(),
 		TokenID: token.ID, TokenPublicID: token.PublicID.String(), Scopes: token.Scopes,
@@ -563,18 +576,125 @@ func TestBindPreparedRunAndPrepareRejectIsolatedOrigin(t *testing.T) {
 	if _, err := service.BindPreparedRun(ctx, principal, "", "not-an-experiment", "no-op"); err == nil {
 		t.Fatal("BindPreparedRun silently accepted an empty origin")
 	}
-	isolatedID := ""
-	for _, node := range isolated.Study.Nodes {
-		if node.Kind == "hypothesis" && node.Title == "Parentless claim" {
-			isolatedID = node.ID
-		}
-	}
+	isolatedID := findNodeID(isolated.Study.Nodes, "hypothesis", "Parentless claim")
 	if isolatedID == "" {
 		t.Fatalf("isolated hypothesis missing: %+v", isolated.Study.Nodes)
 	}
-	if _, err := service.BindPreparedRun(ctx, principal, isolatedID, created.Study.ID, "isolated"); err == nil {
-		t.Fatal("BindPreparedRun accepted an isolated hypothesis")
+	if _, err := service.BindPreparedRun(ctx, principal, isolatedID, experimentRecord.PublicID.String(), "isolated"); err == nil || !strings.Contains(err.Error(), "isolated nodes cannot prepare") {
+		t.Fatalf("isolated hypothesis bind error = %v", err)
 	}
+	if err := service.ValidatePreparedBind(ctx, principal, isolatedID); err == nil || !strings.Contains(err.Error(), "isolated nodes cannot prepare") {
+		t.Fatalf("isolated hypothesis pre-flight error = %v", err)
+	}
+	// A plan hanging directly off the question is connected but hypothesis-less:
+	// it could pay for a run that close_run can never link to a highlight.
+	planned, err := service.AgentUpdate(ctx, principal, UpdateInput{
+		Node: &NodeInput{Kind: "plan", Title: "Plan under question", FromNodeID: created.Study.Nodes[0].ID, Relation: "leads_to"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	planID := findNodeID(planned.Study.Nodes, "plan", "Plan under question")
+	if planID == "" {
+		t.Fatalf("plan missing: %+v", planned.Study.Nodes)
+	}
+	if _, err := service.BindPreparedRun(ctx, principal, planID, experimentRecord.PublicID.String(), "plan run"); err == nil || !strings.Contains(err.Error(), "trace back to a hypothesis") {
+		t.Fatalf("hypothesis-less plan bind error = %v", err)
+	}
+	if err := service.ValidatePreparedBind(ctx, principal, planID); err == nil || !strings.Contains(err.Error(), "trace back to a hypothesis") {
+		t.Fatalf("hypothesis-less plan pre-flight error = %v", err)
+	}
+	// A proposal prepared before the Study existed must be re-prepared once a
+	// Study is active instead of submitting off-graph.
+	if err := service.ValidatePreparedBind(ctx, principal, ""); err == nil || !strings.Contains(err.Error(), "prepared before the Study existed") {
+		t.Fatalf("pre-Study proposal pre-flight error = %v", err)
+	}
+	// A connected hypothesis passes the same pre-flight.
+	connected, err := service.AgentUpdate(ctx, principal, UpdateInput{
+		Node: &NodeInput{Kind: "hypothesis", Title: "Connected claim", FromNodeID: created.Study.Nodes[0].ID, Relation: "leads_to"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	connectedID := findNodeID(connected.Study.Nodes, "hypothesis", "Connected claim")
+	if err := service.ValidatePreparedBind(ctx, principal, connectedID); err != nil {
+		t.Fatalf("connected hypothesis pre-flight = %v", err)
+	}
+}
+
+func TestCloseRunDegradesForLegacyRunWithoutHypothesis(t *testing.T) {
+	client := enttest.Open(t, dialect.SQLite, "file:research-legacy-close?mode=memory&cache=shared&_fk=1")
+	defer client.Close()
+	ctx := context.Background()
+	tenant, _ := client.Tenant.Create().SetName("Test").Save(ctx)
+	project, _ := client.Project.Create().SetTenantID(tenant.ID).SetName("Research").SetSlug("research").SetMonthlyBudgetMilli(1).SetMaxExperimentMilli(1).Save(ctx)
+	token, _ := client.AgentToken.Create().SetProjectID(project.ID).SetLabel("lab-agent").SetPrefix("gmc_lab").SetTokenHash([]byte("legacy-hash")).SetScopes([]string{"read", "submit"}).Save(ctx)
+	repository, _ := client.Repository.Create().SetProjectID(project.ID).SetName("main").SetSSHURL("git@github.com:XR-Lee/Gemcp.git").SetSSHHost("github.com").SetDefaultBranch("main").SetHostKeyFingerprint("SHA256:test").SetStatus("active").Save(ctx)
+	environment, _ := client.Environment.Create().SetProjectID(project.ID).SetName("default").SetImageUUID("image").SetIsDefault(true).Save(ctx)
+	profile, _ := client.ResourceProfile.Create().SetProjectID(project.ID).SetName("default").SetRegion("west").SetGpuNames([]string{"RTX 4090"}).SetGpuNum(1).SetCudaFrom(118).SetCudaTo(128).SetCPUFrom(1).SetCPUTo(128).SetMemoryFromGB(1).SetMemoryToGB(512).SetPriceFromMilli(10).SetPriceToMilli(3000).SetIsDefault(true).Save(ctx)
+	finishedAt := time.Now().UTC()
+	experimentRecord, _ := client.Experiment.Create().
+		SetTenantID(tenant.ID).SetProjectID(project.ID).SetAgentTokenID(token.ID).SetRepositoryID(repository.ID).
+		SetEnvironmentID(environment.ID).SetResourceProfileID(profile.ID).SetCommitSha("0123456789012345678901234567890123456789").
+		SetCommand("python train.py").SetState("succeeded").SetFinishedAt(finishedAt).SetMaxRuntimeSeconds(300).SetTimeoutExtensionSeconds(60).SetTerminationGraceSeconds(30).
+		SetRepositorySnapshot(map[string]any{"name": "main"}).SetEnvironmentSnapshot(map[string]any{"name": "default"}).
+		SetResourceSnapshot(map[string]any{"name": "default"}).SetOutputPath("/outputs").SetReservedCostMilli(0).
+		Save(ctx)
+	principal := agentauth.Principal{
+		TenantID: tenant.ID, ProjectID: project.ID, ProjectPublicID: project.PublicID.String(),
+		TokenID: token.ID, TokenPublicID: token.PublicID.String(), Scopes: token.Scopes,
+	}
+	service := NewService(client)
+	created, err := service.AgentUpdate(ctx, principal, UpdateInput{
+		Study: &StudyInput{Name: "legacy", Question: "Can a pre-contract run still close?"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	studyRecord, err := client.Study.Query().Where(study.ProjectIDEQ(project.ID)).Only(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Simulate a run bound before the hypothesis contract: it hangs directly
+	// off the question, which the bind path no longer allows.
+	questionRecord, err := client.ResearchNode.Query().Where(
+		researchnode.StudyIDEQ(studyRecord.ID), researchnode.KindEQ(researchnode.KindQuestion),
+	).Only(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacyRun, err := client.ResearchNode.Create().
+		SetTenantID(tenant.ID).SetProjectID(project.ID).SetStudyID(studyRecord.ID).
+		SetKind(researchnode.KindRun).SetTitle("legacy run").SetStatus(researchnode.StatusRunning).
+		SetExperimentID(experimentRecord.ID).SetAgentTokenID(token.ID).
+		Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.ResearchEdge.Create().
+		SetTenantID(tenant.ID).SetProjectID(project.ID).SetStudyID(studyRecord.ID).
+		SetFromNodeID(questionRecord.ID).SetToNodeID(legacyRun.ID).SetRelation("leads_to").
+		Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	closed, err := service.AgentCloseRun(ctx, principal, CloseRunInput{
+		ExperimentID: experimentRecord.PublicID.String(), Title: "legacy result", Status: "succeeded",
+	})
+	if err != nil {
+		t.Fatalf("legacy close_run must degrade, not fail: %v", err)
+	}
+	if closed.Warning == "" || !strings.Contains(closed.Warning, "no highlight observation") {
+		t.Fatalf("legacy close warning = %q", closed.Warning)
+	}
+	if result := nodeByKind(closed.Study.Nodes, "result"); result.Kind != "result" {
+		t.Fatalf("legacy close must still write the result: %+v", closed.Study.Nodes)
+	}
+	for _, node := range closed.Study.Nodes {
+		if node.Kind == "observation" {
+			t.Fatalf("legacy close must not invent a highlight: %+v", node)
+		}
+	}
+	_ = created
 }
 
 func TestNextActionsFollowHypothesisEvidence(t *testing.T) {
@@ -626,12 +746,172 @@ func TestNextActionsFollowHypothesisEvidence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !containsActionKind(closed.NextActions, "record_decision") {
+	decisionIndex, prepareIndex := -1, -1
+	for i, action := range closed.NextActions {
+		if action.Kind == "record_decision" && decisionIndex == -1 {
+			decisionIndex = i
+		}
+		if action.Kind == "prepare_experiment" && prepareIndex == -1 {
+			prepareIndex = i
+		}
+	}
+	if decisionIndex == -1 {
 		t.Fatalf("closed run should propose a decision: %+v", closed.NextActions)
 	}
-	if closed.NextActions[0].Kind == "prepare_experiment" && !containsActionKind(closed.NextActions, "record_decision") {
+	if prepareIndex != -1 && prepareIndex < decisionIndex {
 		t.Fatalf("decision should outrank a new proposal: %+v", closed.NextActions)
 	}
+
+	// After the decision is recorded and no follow-up hypothesis exists yet,
+	// the next Experiment is proposed from that same hypothesis.
+	hypothesisID := hypothesis.Study.Nodes[1].ID
+	resultID := nodeByKind(closed.Study.Nodes, "result").ID
+	decided, err := service.AgentUpdate(ctx, principal, UpdateInput{
+		Node: &NodeInput{Kind: "decision", Title: "Iterate on a cleaner kNN", FromNodeID: resultID, Relation: "leads_to"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	foundDecidedPrepare := false
+	for _, action := range decided.NextActions {
+		if action.Kind == "prepare_experiment" && action.FromNodeID == hypothesisID {
+			foundDecidedPrepare = true
+		}
+	}
+	if !foundDecidedPrepare {
+		t.Fatalf("decided hypothesis should propose the next Experiment from itself: %+v", decided.NextActions)
+	}
+
+	// Chained hypotheses: evidence past a follow-up hypothesis belongs to that
+	// hypothesis only, in both next actions and the Owner records.
+	decisionID := findNodeID(decided.Study.Nodes, "decision", "Iterate on a cleaner kNN")
+	followUp, err := service.AgentUpdate(ctx, principal, UpdateInput{
+		Node: &NodeInput{Kind: "hypothesis", Title: "Cleaner kNN raises accuracy", FromNodeID: decisionID, Relation: "leads_to"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	followUpID := findNodeID(followUp.Study.Nodes, "hypothesis", "Cleaner kNN raises accuracy")
+	queued, _ := client.Experiment.Create().
+		SetTenantID(tenant.ID).SetProjectID(project.ID).SetAgentTokenID(token.ID).SetRepositoryID(repository.ID).
+		SetEnvironmentID(environment.ID).SetResourceProfileID(profile.ID).SetCommitSha("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa").
+		SetCommand("python train.py --clean-knn").SetState("running").SetMaxRuntimeSeconds(300).SetTimeoutExtensionSeconds(60).SetTerminationGraceSeconds(30).
+		SetRepositorySnapshot(map[string]any{"name": "main"}).SetEnvironmentSnapshot(map[string]any{"name": "default"}).
+		SetResourceSnapshot(map[string]any{"name": "default"}).SetOutputPath("/outputs").SetReservedCostMilli(0).
+		Save(ctx)
+	if _, err := service.BindPreparedRun(ctx, principal, followUpID, queued.PublicID.String(), "follow-up run"); err != nil {
+		t.Fatal(err)
+	}
+	workspace, err := service.AgentWorkspace(ctx, principal, WorkspaceInput{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	waitActions := 0
+	for _, action := range workspace.NextActions {
+		if action.Kind == "wait_run" && action.ExperimentID == queued.PublicID.String() {
+			waitActions++
+		}
+	}
+	if waitActions != 1 {
+		t.Fatalf("follow-up run must be waited on exactly once, got %d: %+v", waitActions, workspace.NextActions)
+	}
+	for _, record := range workspace.Study.Hypotheses {
+		for _, experiment := range record.Experiments {
+			if experiment.ExperimentID == queued.PublicID.String() && record.ID != followUpID {
+				t.Fatalf("follow-up run attributed to ancestor hypothesis %q: %+v", record.Title, workspace.Study.Hypotheses)
+			}
+		}
+	}
+}
+
+func TestCloseRunSucceedsOnFullGraph(t *testing.T) {
+	client := enttest.Open(t, dialect.SQLite, "file:research-full-graph?mode=memory&cache=shared&_fk=1")
+	defer client.Close()
+	ctx := context.Background()
+	tenant, _ := client.Tenant.Create().SetName("Test").Save(ctx)
+	project, _ := client.Project.Create().SetTenantID(tenant.ID).SetName("Research").SetSlug("research").SetMonthlyBudgetMilli(1).SetMaxExperimentMilli(1).Save(ctx)
+	token, _ := client.AgentToken.Create().SetProjectID(project.ID).SetLabel("lab-agent").SetPrefix("gmc_lab").SetTokenHash([]byte("full-hash")).SetScopes([]string{"read", "submit"}).Save(ctx)
+	repository, _ := client.Repository.Create().SetProjectID(project.ID).SetName("main").SetSSHURL("git@github.com:XR-Lee/Gemcp.git").SetSSHHost("github.com").SetDefaultBranch("main").SetHostKeyFingerprint("SHA256:test").SetStatus("active").Save(ctx)
+	environment, _ := client.Environment.Create().SetProjectID(project.ID).SetName("default").SetImageUUID("image").SetIsDefault(true).Save(ctx)
+	profile, _ := client.ResourceProfile.Create().SetProjectID(project.ID).SetName("default").SetRegion("west").SetGpuNames([]string{"RTX 4090"}).SetGpuNum(1).SetCudaFrom(118).SetCudaTo(128).SetCPUFrom(1).SetCPUTo(128).SetMemoryFromGB(1).SetMemoryToGB(512).SetPriceFromMilli(10).SetPriceToMilli(3000).SetIsDefault(true).Save(ctx)
+	finishedAt := time.Now().UTC()
+	experimentRecord, _ := client.Experiment.Create().
+		SetTenantID(tenant.ID).SetProjectID(project.ID).SetAgentTokenID(token.ID).SetRepositoryID(repository.ID).
+		SetEnvironmentID(environment.ID).SetResourceProfileID(profile.ID).SetCommitSha("0123456789012345678901234567890123456789").
+		SetCommand("python train.py").SetState("succeeded").SetFinishedAt(finishedAt).SetMaxRuntimeSeconds(300).SetTimeoutExtensionSeconds(60).SetTerminationGraceSeconds(30).
+		SetRepositorySnapshot(map[string]any{"name": "main"}).SetEnvironmentSnapshot(map[string]any{"name": "default"}).
+		SetResourceSnapshot(map[string]any{"name": "default"}).SetOutputPath("/outputs").SetReservedCostMilli(0).
+		Save(ctx)
+	principal := agentauth.Principal{
+		TenantID: tenant.ID, ProjectID: project.ID, ProjectPublicID: project.PublicID.String(),
+		TokenID: token.ID, TokenPublicID: token.PublicID.String(), Scopes: token.Scopes,
+	}
+	service := NewService(client)
+	created, err := service.AgentUpdate(ctx, principal, UpdateInput{
+		Study: &StudyInput{Name: "full", Question: "Can a funded run close on a full Graph?"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hypothesis, err := service.AgentUpdate(ctx, principal, UpdateInput{
+		Node: &NodeInput{Kind: "hypothesis", Title: "Noise caps accuracy", FromNodeID: created.Study.Nodes[0].ID, Relation: "leads_to"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hypothesisID := hypothesis.Study.Nodes[1].ID
+	if _, err := service.BindPreparedRun(ctx, principal, hypothesisID, experimentRecord.PublicID.String(), "funded run"); err != nil {
+		t.Fatal(err)
+	}
+	// Fill the Study to the node cap with plain observations.
+	studyRecord, err := client.Study.Query().Where(study.ProjectIDEQ(project.ID)).Only(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; ; i++ {
+		count, countErr := client.ResearchNode.Query().Where(researchnode.StudyIDEQ(studyRecord.ID)).Count(ctx)
+		if countErr != nil {
+			t.Fatal(countErr)
+		}
+		if count >= maxNodesPerStudy {
+			break
+		}
+		if _, err := client.ResearchNode.Create().
+			SetTenantID(tenant.ID).SetProjectID(project.ID).SetStudyID(studyRecord.ID).
+			SetKind(researchnode.KindObservation).SetTitle("filler observation").SetStatus(researchnode.StatusOpen).
+			Save(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := service.AgentUpdate(ctx, principal, UpdateInput{
+		Node: &NodeInput{Kind: "observation", Title: "One too many", FromNodeID: hypothesisID, Relation: "leads_to"},
+	}); !errors.Is(err, ErrNodeLimit) {
+		t.Fatalf("full graph must reject ordinary writes, got %v", err)
+	}
+	if err := service.ValidatePreparedBind(ctx, principal, hypothesisID); !errors.Is(err, ErrNodeLimit) {
+		t.Fatalf("full graph must reject new spending, got %v", err)
+	}
+	closed, err := service.AgentCloseRun(ctx, principal, CloseRunInput{
+		ExperimentID: experimentRecord.PublicID.String(), Title: "full-graph result", Status: "succeeded",
+	})
+	if err != nil {
+		t.Fatalf("close_run must stay possible on a full Graph: %v", err)
+	}
+	if closed.Warning != "" {
+		t.Fatalf("funded close warning = %q", closed.Warning)
+	}
+	if !hasHighlightOnHypothesis(closed.Study, hypothesisID, "full-graph result") {
+		t.Fatalf("full-graph close must still write the highlight: %d nodes", len(closed.Study.Nodes))
+	}
+}
+
+func findNodeID(nodes []NodeView, kind, title string) string {
+	for _, node := range nodes {
+		if node.Kind == kind && node.Title == title {
+			return node.ID
+		}
+	}
+	return ""
 }
 
 func containsActionKind(actions []NextAction, kind string) bool {

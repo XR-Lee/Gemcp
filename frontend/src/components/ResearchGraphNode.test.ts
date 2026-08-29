@@ -69,9 +69,7 @@ describe('ResearchGraphNode', () => {
     wrapper.unmount()
   })
 
-  it('opens the experiment record after two clicks on the node body', async () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(1_000)
+  it('opens the experiment record exactly once for a physical double-click', async () => {
     const research = node({
       id: 'node-result-1',
       kind: 'result',
@@ -81,12 +79,13 @@ describe('ResearchGraphNode', () => {
       experiment_state: 'succeeded',
     })
     const { wrapper, onOpenEvidence, onOpenDetail } = mountNode(research)
+    // A real double-click dispatches click, click, then dblclick.
     await wrapper.get('.flow-node').trigger('click')
-    vi.setSystemTime(1_200)
     await wrapper.get('.flow-node').trigger('click')
+    await wrapper.get('.flow-node').trigger('dblclick')
+    expect(onOpenEvidence).toHaveBeenCalledTimes(1)
     expect(onOpenEvidence).toHaveBeenCalledWith('experiment-1')
     expect(onOpenDetail).not.toHaveBeenCalled()
     wrapper.unmount()
-    vi.useRealTimers()
   })
 })

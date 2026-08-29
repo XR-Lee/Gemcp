@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, markRaw, nextTick, onMounted, onUnmounted, provide, ref, watch } from 'vue'
-import type { Edge, Node, NodeMouseEvent, VueFlowStore, ViewportTransform } from '@vue-flow/core'
+import type { Edge, Node, VueFlowStore, ViewportTransform } from '@vue-flow/core'
 import { Position, VueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
@@ -31,8 +31,6 @@ const flow = ref<VueFlowStore | null>(null)
 const fullscreen = ref(false)
 const fittedOnce = ref(false)
 const selectedID = ref('')
-const lastNodeClick = ref({ id: '', at: 0 })
-const ignorePaneClickUntil = ref(0)
 const viewport = ref<ViewportTransform>({ x: 0, y: 0, zoom: 1 })
 provide('researchGraphSelectedID', selectedID)
 const selected = computed(() => props.nodes.find((node) => node.id === selectedID.value) ?? null)
@@ -68,7 +66,6 @@ const graphNodes = computed<Node[]>(() => {
       position: { x: placed?.x ?? 36, y: placed?.y ?? 72 },
       class: [
         'nodrag',
-        'nopan',
         placed?.active ? 'is-active-path' : '',
         placed?.unlinked ? 'is-unlinked' : '',
         placed?.outcome === 'success' ? 'is-success' : '',
@@ -147,38 +144,10 @@ function neighborTitle(id: string) {
   return nodeByID.value.get(id)?.title ?? id
 }
 
-function openNodeRecord(id: string) {
-  const research = nodeByID.value.get(id)
-  if (!research) return
-  if (research.experiment_id) {
-    emit('openExperiment', research.experiment_id)
-    return
-  }
-  selectedID.value = id
-  ignorePaneClickUntil.value = Date.now() + 400
-}
-
-function onNodeDoubleClick(payload: NodeMouseEvent) {
-  if (payload.node.type === 'timeline') return
-  lastNodeClick.value = { id: '', at: 0 }
-  openNodeRecord(payload.node.id)
-}
-
-function onNodeClick(payload: NodeMouseEvent) {
-  if (payload.node.type === 'timeline') return
-  const target = payload.event.target
-  if (target instanceof Element && target.closest('button')) return
-  const now = Date.now()
-  if (lastNodeClick.value.id === payload.node.id && now - lastNodeClick.value.at < 500) {
-    lastNodeClick.value = { id: '', at: 0 }
-    openNodeRecord(payload.node.id)
-    return
-  }
-  lastNodeClick.value = { id: payload.node.id, at: now }
-}
-
+// Node clicks stop propagation inside ResearchGraphNode, so pane clicks only
+// fire on empty canvas; the node component owns open/select behavior through
+// the onOpenEvidence/onOpenDetail callbacks in its data.
 function onPaneClick() {
-  if (Date.now() < ignorePaneClickUntil.value) return
   selectedID.value = ''
 }
 
@@ -251,8 +220,6 @@ onUnmounted(() => {
           :zoom-on-scroll="false"
           :pan-on-scroll="true"
           :pan-on-drag="true"
-          @node-double-click="onNodeDoubleClick"
-          @node-click="onNodeClick"
           @pane-click="onPaneClick"
           @pane-ready="onPaneReady"
         >

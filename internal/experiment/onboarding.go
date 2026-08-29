@@ -52,21 +52,21 @@ func publicCloudOnboarding(options ProjectOptions) *ExecutionOnboarding {
 		})
 	} else {
 		steps = append(steps, OnboardingStep{
-			Tool:   "prepare_experiment",
-			Reason: "A provision run downloads the registered sources onto AutoDL file storage using a Gemcp-owned fetch. Confirm the digest, then prepare smoke, probe, or train.",
+			Tool:    "prepare_experiment",
+			Reason:  "A provision run downloads the registered sources onto AutoDL file storage using a Gemcp-owned fetch. Confirm the digest, then prepare smoke, probe, or train.",
 			Example: map[string]any{"runtime_preset": "provision", "dataset": "scanobjectnn-objbg"},
 		})
 	}
 	if environments == 0 {
 		steps = append(steps, OnboardingStep{
-			Tool:   "register_environment",
-			Reason: "No AutoDL Environment is registered. Register a Provider-visible image from get_project_options.provider_images. Official image-* UUIDs are Owner-only unless already used on the Project.",
+			Tool:    "register_environment",
+			Reason:  "No AutoDL Environment is registered. Register a Provider-visible image from get_project_options.provider_images. Official image-* UUIDs are Owner-only unless already used on the Project.",
 			Example: map[string]any{"name": "torch-train", "backend": backend, "image_uuid": "image-visible"},
 		})
 	} else {
 		steps = append(steps, OnboardingStep{
-			Tool:   "register_environment",
-			Reason: "The AutoDL image is Owner-locked. If that image lacks the training stack, register another Provider-visible image. Do not wrap argv in conda or compile mamba; set install_dependencies or change the image.",
+			Tool:    "register_environment",
+			Reason:  "The AutoDL image is Owner-locked. If that image lacks the training stack, register another Provider-visible image. Do not wrap argv in conda or compile mamba; set install_dependencies or change the image.",
 			Example: map[string]any{"name": "torch-train", "backend": backend, "image_uuid": lockedImage},
 		})
 	}
