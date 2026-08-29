@@ -2,15 +2,15 @@
 
 Linear [XIN-28](https://linear.app/xinrunli/issue/XIN-28/gemcp-development) asked Jiyao Pu to test Gemcp. This is the checklist. It is not a product spec.
 
-快速开始：测 `main` 或 tag `alpha-0.19`（版本字符串 `v0.19.0`），**不要**用名为 `Jiyao` 的分支（停在 v0.15.1，没有研究工作台）。本地 HTTP 必须 `GEMCP_ENV=development` 且 `GEMCP_SECURE_COOKIES=false`，并用 `./bin/gemcp keygen` / `bootstrap-token` 替换 `.env` 占位符。调度、自托管和 Cloud SSH 默认关闭。下面英文是完整步骤。
+快速开始：测 `main`（当前 `VERSION` 为 `0.20.0`），**不要**用名为 `Jiyao` 的分支。在仓库根目录运行 `./scripts/bootstrap-local.sh`，再 `./scripts/dev-serve.sh`。不要手抄 `.env.example`（那是生产 Compose 模板），也不要用 Debian/Ubuntu apt 里的 Go 当编译器版本要求。下面英文是完整步骤。
 
 ## Which tree
 
 | Use | Do not use |
 | --- | --- |
-| `main`, or the published tag `alpha-0.19` | Branch `Jiyao` (frozen at v0.15.1; no Research / Graph / Lab split) |
-| Version string `0.19.0` / `v0.19.0` | Older tags such as `alpha-0.17` |
+| `main` (current `VERSION` is `0.20.0`) | Branch `Jiyao` (frozen at v0.15.1; no Research / Graph / Lab split) |
 | This repo: `git@github.com:XR-Lee/Gemcp.git` (private; you need GitHub access) | The public Ruby gem `baweaver/gemcp` |
+| `./scripts/bootstrap-local.sh` then `./scripts/dev-serve.sh` | Copying `.env.example` and running `./bin/gemcp serve` with only `GEMCP_DATABASE_URL` on the command line |
 
 Confirm after checkout:
 
@@ -19,48 +19,45 @@ git fetch --tags origin
 git checkout main
 git pull origin main
 git rev-parse HEAD
-# expect the same commit as tag alpha-0.19 unless newer commits landed on main
-git rev-parse alpha-0.19
+cat VERSION
 ```
 
-`VERSION` should read `0.19.0`. The running binary reports that version plus the commit you built.
+`VERSION` should match the current release file (`0.20.0` on this tree). The running binary reports that version plus the commit you built. `alpha-0.19` is an older published tag, not the local-HTTP path.
 
 ## Local start (HTTP)
 
-Prerequisites: Go 1.26.6, Node.js 22+, PostgreSQL 18.
+Prerequisites the bootstrap script will check or install:
+
+- A Go 1.21+ command so the `go.mod` pin (`1.26.6`) can download the official toolchain. Debian 13 / Ubuntu apt Go is enough as a bootstrap compiler; it is not the required compile version.
+- Node.js 22+
+- PostgreSQL 16+ on `127.0.0.1:5432` (Debian 13 apt 17 and Ubuntu 24.04 apt 16 both work). Production Compose still uses PostgreSQL 18. No GPU and no NVIDIA Container Toolkit.
 
 ```bash
-npm --prefix frontend install
-make test
-make frontend-test
-make build
-
-cp .env.example .env
+./scripts/bootstrap-local.sh
+./scripts/dev-serve.sh
 ```
 
-`.env.example` is a **production Compose** template. For `http://127.0.0.1:8080`:
+`bootstrap-local.sh` writes repo-root `.env` from `deploy/env.local.example`, generates `GEMCP_MASTER_KEY` and `GEMCP_BOOTSTRAP_TOKEN`, creates the `gemcp` role/database, and builds `./bin/gemcp`. `gemcp serve` reads that `.env` (process environment still wins). `GEMCP_AUTO_MIGRATE` is true for development so `/api/v1/setup/status` does not 500 while `/healthz` and `/readyz` return 200.
 
-1. Replace `GEMCP_MASTER_KEY` with `./bin/gemcp keygen` (must be a real 32-byte key; the placeholder will not start).
-2. Replace `GEMCP_BOOTSTRAP_TOKEN` with `./bin/gemcp bootstrap-token` (at least 32 characters).
-3. Set `GEMCP_ENV=development` and `GEMCP_SECURE_COOKIES=false`. Secure cookies on HTTP look like a login/setup failure.
-4. Point `GEMCP_DATABASE_URL` at local PostgreSQL, for example `postgres://gemcp:gemcp@127.0.0.1:5432/gemcp?sslmode=disable`.
-5. Leave `GEMCP_SCHEDULER_ENABLED=false`, `GEMCP_SELF_HOSTED_ENABLED=false`, and `GEMCP_SSH_CLOUD_ENABLED=false` through first startup. Enable only the backend you are ready to test.
+Do **not** copy `.env.example` for this path. That file is the production Compose template (`GEMCP_ENV=production`, `GEMCP_SECURE_COOKIES=true`, Compose-only `GEMCP_DATABASE_URL`). The old documented command that only exported `GEMCP_DATABASE_URL` never loaded `.env`, so serve died on the master-key placeholder or came up without migrations.
+
+In a second terminal:
 
 ```bash
-GEMCP_DATABASE_URL='postgres://gemcp:gemcp@127.0.0.1:5432/gemcp?sslmode=disable' ./bin/gemcp serve
+./scripts/local-http-smoke.sh
 ```
 
-Check `GET /healthz`, `GET /readyz`, `GET /api/v1/version`. Open `http://127.0.0.1:8080`.
+That checks `/healthz`, `/readyz`, `/api/v1/version`, `/api/v1/setup/status`, runs first-run setup with `skip_provider` when needed, and `POST /mcp` initialize. Open `http://127.0.0.1:8080` and use the Owner email/password from `.env` (`GEMCP_DEV_OWNER_*`).
 
-Compose (`deploy/`) is for a tunneled HTTPS host. Do not expose port 8080 to the public Internet.
+Compose (`deploy/`) is for a tunneled HTTPS host. Do not expose port 8080 to the public Internet. Do not require a GPU to finish this HTTP + MCP check.
 
 ## First-run and console
 
-The first visit is setup (Owner → Compute → Project), not login.
+The first visit is setup (Owner → Compute → Project), not login. `./scripts/local-http-smoke.sh` can do the same `skip_provider` POST if you have not opened the browser yet.
 
-- Paste the bootstrap token from `.env`.
-- In Compute, either configure AutoDL with a Provider token and image UUID or explicitly skip it. Skipping creates the Owner and Project without Provider credentials; add AutoDL later in Lab → Provider when it is needed.
-- Copy the one-time Agent Token shown at the end. Gemcp will not show it again.
+- Paste the bootstrap token from `.env` (`GEMCP_BOOTSTRAP_TOKEN`).
+- In Compute, explicitly skip AutoDL. No GPU or Provider token is required for this path. Add AutoDL later in Lab → Provider when it is needed.
+- Copy the one-time Agent Token shown at the end. Gemcp will not show it again. The smoke script stores it in `.gemcp-local-agent-token` (gitignored).
 
 After setup, the home view is **Research** (Study, plan, Graph). **Evidence** lists Experiments. **Lab** is Diagnostics, Finance, Project, Agents, Provider, Alerts. **Nodes** appears when Self-hosted or Cloud SSH is enabled.
 
@@ -74,7 +71,9 @@ These should work on a fresh local control plane:
 2. Open Evidence. Experiments that never entered the Graph are marked orphaned. That badge is intended.
 3. Open Lab → Project, Agents, Finance, Alerts, Provider. If AutoDL was skipped, Provider should show that it is not configured; saving a real token later enables the live views.
 4. From Agents, download the non-secret Owner / Agent guides. The live copies are also `/docs/owner-mcp.md` and `/docs/agent-mcp.md`.
-5. Connect an MCP client to `http://127.0.0.1:8080/mcp` with the Agent Token only if you are comfortable putting a secret in a local client. Call `get_usage_guide`, `get_research_workspace`, and `get_next_actions`. `prepare_experiment` needs a registered repository and Project defaults. Review its repository, commit, argv, runtime, resource, checks, expiry, and reservation in Evidence; the Owner can confirm that exact digest and start the Experiment. Do **not** call `submit_prepared_experiment` without the same Owner-confirmed digest.
+5. Connect an MCP client to `http://127.0.0.1:8080/mcp` (loopback HTTP is supported; production remains HTTPS). The server currently registers **28** tools. Call `get_usage_guide`, `get_research_workspace`, and `get_next_actions`. `prepare_experiment` needs a registered repository and Project defaults. Review its repository, commit, argv, runtime, resource, checks, expiry, and reservation in Evidence; the Owner can confirm that exact digest and start the Experiment. Do **not** call `submit_prepared_experiment` without the same Owner-confirmed digest.
+
+Grok: `grok mcp list` and `grok mcp doctor gemcp-project`. If doctor says the folder is untrusted, grant trust with top-level `grok --trust` in this directory, then run doctor again. There is no `grok mcp doctor --trust` flag.
 
 Unit / UI checks without a running server:
 
@@ -110,4 +109,4 @@ Known unfinished or out of scope for this test:
 
 ## What to report
 
-A useful report is: tree (`git rev-parse HEAD` + `./bin/gemcp version`), how you started (local HTTP vs Compose), which flags were on, what you clicked or which MCP tool you called, expected vs actual, and a screenshot or response body. File surprises against that tree, not against branch `Jiyao`.
+A useful report is: tree (`git rev-parse HEAD` + `./bin/gemcp version`), how you started (local HTTP vs Compose), which flags were on, what you clicked or which MCP tool you called, expected vs actual, and a screenshot or response body. File surprises against that tree, not against branch `Jiyao`. Local HTTP footguns from [issue #6](https://github.com/XR-Lee/Gemcp/issues/6) (`.env` not loaded, apt Go/Postgres vs documented versions, MCP HTTPS/26-tools/`--trust`) should be gone if you followed this brief.

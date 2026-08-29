@@ -93,6 +93,55 @@ func TestNodeSetupIsSelfContainedAgentHandoff(t *testing.T) {
 	}
 }
 
+func TestLocalDevBootstrapMatchesBinary(t *testing.T) {
+	for _, filename := range []string{
+		filepath.Join("..", "scripts", "bootstrap-local.sh"),
+		filepath.Join("..", "scripts", "dev-serve.sh"),
+		filepath.Join("..", "scripts", "local-http-smoke.sh"),
+		filepath.Join("..", "deploy", "env.local.example"),
+	} {
+		info, err := os.Stat(filename)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.HasSuffix(filename, ".sh") && info.Mode()&0o111 == 0 {
+			t.Fatalf("%s is not executable", filename)
+		}
+		payload, err := os.ReadFile(filename)
+		if err != nil {
+			t.Fatal(err)
+		}
+		body := string(payload)
+		switch {
+		case strings.HasSuffix(filename, "bootstrap-local.sh"):
+			for _, required := range []string{"deploy/env.local.example", "GEMCP_MASTER_KEY", "make build", "PostgreSQL", "no GPU"} {
+				if !strings.Contains(body, required) {
+					t.Fatalf("%s does not contain %q", filename, required)
+				}
+			}
+		case strings.HasSuffix(filename, "dev-serve.sh"):
+			if !strings.Contains(body, "gemcp\" serve") && !strings.Contains(body, "gemcp serve") {
+				t.Fatalf("%s does not exec gemcp serve", filename)
+			}
+		case strings.HasSuffix(filename, "local-http-smoke.sh"):
+			for _, required := range []string{"/healthz", "/readyz", "/api/v1/setup/status", "skip_provider", "/mcp", "initialize"} {
+				if !strings.Contains(body, required) {
+					t.Fatalf("%s does not contain %q", filename, required)
+				}
+			}
+		case strings.HasSuffix(filename, "env.local.example"):
+			for _, required := range []string{
+				"GEMCP_ENV=development", "GEMCP_SECURE_COOKIES=false", "GEMCP_AUTO_MIGRATE=true",
+				"GEMCP_PUBLIC_URL=http://127.0.0.1:8080",
+			} {
+				if !strings.Contains(body, required) {
+					t.Fatalf("%s does not contain %q", filename, required)
+				}
+			}
+		}
+	}
+}
+
 func TestEnvExampleVersionMatchesReleaseFile(t *testing.T) {
 	version, err := os.ReadFile(filepath.Join("..", "VERSION"))
 	if err != nil {

@@ -24,14 +24,38 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.DatabaseConnectTimeout != 10*time.Second {
 		t.Fatalf("DatabaseConnectTimeout = %s", cfg.DatabaseConnectTimeout)
 	}
-	if cfg.AutoMigrate {
-		t.Fatal("AutoMigrate defaulted to true")
+	if !cfg.AutoMigrate {
+		t.Fatal("development AutoMigrate defaulted to false")
 	}
 	if cfg.SelfHostedEnabled {
 		t.Fatal("Self-hosted nodes defaulted to enabled")
 	}
 	if cfg.SSHCloudEnabled {
 		t.Fatal("Cloud SSH nodes defaulted to enabled")
+	}
+}
+
+func TestLoadProductionDefaultsDisableAutoMigrate(t *testing.T) {
+	t.Setenv("GEMCP_ENV", "production")
+	t.Setenv("GEMCP_AUTO_MIGRATE", "")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.AutoMigrate {
+		t.Fatal("production AutoMigrate defaulted to true")
+	}
+}
+
+func TestLoadRejectsExamplePlaceholders(t *testing.T) {
+	t.Setenv("GEMCP_MASTER_KEY", "generate-with-gemcp-keygen")
+	if _, err := Load(); err == nil {
+		t.Fatal("Load() accepted the example master key placeholder")
+	}
+	t.Setenv("GEMCP_MASTER_KEY", "")
+	t.Setenv("GEMCP_BOOTSTRAP_TOKEN", "generate-with-gemcp-bootstrap-token")
+	if _, err := Load(); err == nil {
+		t.Fatal("Load() accepted the example bootstrap token placeholder")
 	}
 }
 

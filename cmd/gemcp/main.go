@@ -73,6 +73,9 @@ func run(args []string) error {
 }
 
 func runServer() error {
+	if err := config.LoadDotEnv(); err != nil {
+		return fmt.Errorf("load environment file: %w", err)
+	}
 	cfg, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
@@ -172,6 +175,9 @@ func runServer() error {
 }
 
 func runWatchdog() error {
+	if err := config.LoadDotEnv(); err != nil {
+		return fmt.Errorf("load environment file: %w", err)
+	}
 	cfg, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)

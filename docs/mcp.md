@@ -6,6 +6,8 @@ Gemcp exposes the official MCP Streamable HTTP transport at:
 https://<gemcp-host>/mcp
 ```
 
+Production is HTTPS. Local HTTP loopback is also accepted, for example `http://127.0.0.1:8080/mcp`, when `GEMCP_PUBLIC_URL` is that origin. The server currently registers **28** tools. A Streamable HTTP `initialize` against loopback returns 200 with a valid Agent Token.
+
 Every request requires a project-scoped Agent Token:
 
 ```http
@@ -18,13 +20,13 @@ Create a short-lived **MCP setup link** from the Owner console and let the Agent
 
 The Owner sends one URL from `/agent/setup#code=...`. The Agent reads the public setup instructions at `/agent/setup` and enrolls its own MCP client. The code remains in the URL fragment and is not sent by link previews or ordinary page requests.
 
-Claiming creates a short-lived `read`-only credential. After the Agent discovers all twenty-six tools and verifies guide, options, and cost, completion activates the Owner-selected scopes and lifetime. Claim and complete are retry-safe if the final response is lost.
+Claiming creates a short-lived `read`-only credential. After the Agent discovers all twenty-eight tools and verifies guide, options, and cost, completion activates the Owner-selected scopes and lifetime. Claim and complete are retry-safe if the final response is lost.
 
 ## Pi with pi-mcp-adapter
 
 Pi can run the fixed installer from the same configured origin when `pi-mcp-adapter` is already installed.
 
-The installer merges a `gemcp-<project>` server into `<Pi agent dir>/mcp.json`, preserves existing servers, writes mode `0600`, exposes all twenty-six bounded Gemcp tools through `directTools`, and verifies tool discovery plus guide, options, and cost calls. A local credential-reading helper supports the current session without printing the Token. One `/reload` activates native `gemcp-<project>_*` tools through the adapter.
+The installer merges a `gemcp-<project>` server into `<Pi agent dir>/mcp.json`, preserves existing servers, writes mode `0600`, exposes all twenty-eight bounded Gemcp tools through `directTools`, and verifies tool discovery plus guide, options, and cost calls. A local credential-reading helper supports the current session without printing the Token. One `/reload` activates native `gemcp-<project>_*` tools through the adapter.
 
 Claimed credentials remain `read`-only and expire at the setup deadline until verification completes. Completion activates the Owner-selected scopes and lifetime, clears the setup capability, and leaves only a credential-free local receipt. The complete API and installer are retry-safe if the final response is lost.
 
@@ -219,7 +221,9 @@ grok mcp list
 grok mcp doctor gemcp-project
 ```
 
-`grok mcp add --scope project --transport http gemcp-project https://gemcp.example.com/mcp --header "Authorization: Bearer ${GEMCP_AGENT_TOKEN}"` writes the same project file. Grok expands `${GEMCP_AGENT_TOKEN}` at load time. Do not commit a live Token or put Gemcp in `~/.grok/config.toml` unless this machine exists only for this repository.
+If doctor reports the folder as untrusted, grant trust once with top-level `grok --trust` in this directory, then rerun `grok mcp doctor gemcp-project`. `grok mcp doctor` does not accept `--trust`.
+
+`grok mcp add --scope project --transport http gemcp-project https://gemcp.example.com/mcp --header "Authorization: Bearer ${GEMCP_AGENT_TOKEN}"` writes the same project file. For local HTTP, use `http://127.0.0.1:8080/mcp` instead. Grok expands `${GEMCP_AGENT_TOKEN}` at load time. Do not commit a live Token or put Gemcp in `~/.grok/config.toml` unless this machine exists only for this repository.
 
 ## Other MCP clients
 
@@ -245,7 +249,7 @@ Start with `get_usage_guide`, or read `gemcp://docs/agent-guide` when the client
 
 Then call `get_project_options`. It is read-only and confirms all of the following:
 
-- the HTTPS endpoint is reachable;
+- the configured origin is reachable (HTTPS in production, loopback HTTP locally);
 - the bearer header is present;
 - the Token maps to the intended project;
 - the Token has `read` scope;

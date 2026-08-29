@@ -46,7 +46,7 @@ The MCP setup flow writes this authentication configuration for the Agent that c
 
 An MCP setup link stores its 256-bit setup code only in the URL fragment. Browsers do not include the fragment in the setup-page request, access log, or Referer. Previewing the public setup page does not consume the link. The same link enrolls Pi, Codex, OpenCode, Claude Code, or Grok.
 
-Claiming creates a short-lived `read`-only credential. The Agent stores that credential in a directory-local MCP config for its client. Pi may still use the fixed installer, which writes the Pi agent directory's `mcp.json` with mode `0600` and preserves other MCP servers. Every client must discover all twenty-six Gemcp tools, call `get_usage_guide`, `get_project_options`, and `get_project_cost`, and then complete enrollment. Completion atomically applies the Owner-selected scopes and credential lifetime. The database stores only HMAC-SHA-256 digests of the setup code and Agent Token.
+Claiming creates a short-lived `read`-only credential. The Agent stores that credential in a directory-local MCP config for its client. Pi may still use the fixed installer, which writes the Pi agent directory's `mcp.json` with mode `0600` and preserves other MCP servers. Every client must discover all twenty-eight Gemcp tools, call `get_usage_guide`, `get_project_options`, and `get_project_cost`, and then complete enrollment. Completion atomically applies the Owner-selected scopes and credential lifetime. The database stores only HMAC-SHA-256 digests of the setup code and Agent Token.
 
 The setup link is shown once, may be claimed repeatedly only until completion for retry safety, and becomes unusable after completion, expiry, or revocation. The Owner can revoke pending or claimed setup from the console; revoking a claimed setup also revokes its provisional Token.
 
@@ -164,7 +164,7 @@ url = "https://<gemcp-host>/mcp"
 headers = { Authorization = "Bearer ${GEMCP_AGENT_TOKEN}" }
 ```
 
-Set `GEMCP_AGENT_TOKEN` before launching Grok and verify with `grok mcp list` or `grok mcp doctor gemcp-project`. Prefer `--scope project` over a user-wide `~/.grok/config.toml`. Grok also loads project `.mcp.json`.
+Set `GEMCP_AGENT_TOKEN` before launching Grok and verify with `grok mcp list` or `grok mcp doctor gemcp-project`. If doctor reports the folder as untrusted, run `grok --trust` in this directory (not `grok mcp doctor --trust`) and retry doctor. Prefer `--scope project` over a user-wide `~/.grok/config.toml`. Grok also loads project `.mcp.json`. Local HTTP uses `http://127.0.0.1:8080/mcp`.
 
 ### Other clients
 

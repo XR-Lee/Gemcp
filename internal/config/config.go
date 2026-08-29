@@ -44,7 +44,10 @@ type Config struct {
 
 func Load() (Config, error) {
 	environment := envOrDefault("GEMCP_ENV", "development")
-	autoMigrate, err := boolOrDefault("GEMCP_AUTO_MIGRATE", false)
+	// Production stays opt-in so an unconfigured host cannot apply schema. Local
+	// HTTP (the implicit development default) must migrate or /setup/status 500s
+	// while /healthz and /readyz still return 200.
+	autoMigrate, err := boolOrDefault("GEMCP_AUTO_MIGRATE", environment != "production")
 	if err != nil {
 		return Config{}, err
 	}
@@ -155,6 +158,12 @@ func Load() (Config, error) {
 	if cfg.DatabaseURL == "" {
 		return Config{}, fmt.Errorf("GEMCP_DATABASE_URL is required")
 	}
+	if isExamplePlaceholder(cfg.MasterKey, "generate-with-gemcp-keygen") {
+		return Config{}, fmt.Errorf("GEMCP_MASTER_KEY is still the example placeholder; run ./scripts/bootstrap-local.sh or ./bin/gemcp keygen")
+	}
+	if isExamplePlaceholder(cfg.BootstrapToken, "generate-with-gemcp-bootstrap-token") {
+		return Config{}, fmt.Errorf("GEMCP_BOOTSTRAP_TOKEN is still the example placeholder; run ./scripts/bootstrap-local.sh or ./bin/gemcp bootstrap-token")
+	}
 	if cfg.BootstrapToken != "" && len(cfg.BootstrapToken) < 32 {
 		return Config{}, fmt.Errorf("GEMCP_BOOTSTRAP_TOKEN must contain at least 32 characters")
 	}
@@ -220,6 +229,10 @@ func acceptablePublicOrigin(raw string, allowLoopbackHTTP bool) bool {
 	default:
 		return false
 	}
+}
+
+func isExamplePlaceholder(value, placeholder string) bool {
+	return strings.EqualFold(strings.TrimSpace(value), placeholder)
 }
 
 func envOrDefault(key, fallback string) string {
