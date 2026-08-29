@@ -302,7 +302,7 @@ Scope mapping:
 | Scope | Required for |
 | --- | --- |
 | `read` | usage guide, options, research workspace, next actions, experiment queries, artifact listing, and cost queries |
-| `submit` | research updates, close_run, prepare, prepared submission, Advanced direct submission, and the local CPU stub (`register_ssh_cloud_node` loopback, host Environment, catalog `modelnet40-mini`) when `GEMCP_LOCAL_PROCESS_ENABLED` is on |
+| `submit` | research updates, close_run, prepare, prepared submission, Advanced direct submission, and the local CPU stub (`register_ssh_cloud_node` loopback, host Environment, catalog `modelnet40-mini`) when `GEMCP_LOCAL_PROCESS_ENABLED` is on. The first MCP call on that path also persists `configure` and `operate_nodes` onto a skip_provider smoke token |
 | `cancel` | `cancel_experiment` |
 | `configure` | register and verify Project repositories; register or disable trusted-workspace dataset paths and AutoDL dataset bindings |
 | `operate_nodes` | register Cloud SSH hosts and rotate their credentials; off by default in production and not included in `configure`. skip_provider local setup tokens include it |
