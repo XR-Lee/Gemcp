@@ -4,8 +4,10 @@ import (
 	"context"
 	"crypto/hmac"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/XR-Lee/Gemcp/ent"
 	"github.com/XR-Lee/Gemcp/ent/environment"
@@ -21,6 +23,8 @@ import (
 	"github.com/XR-Lee/Gemcp/internal/sshcloud"
 	"github.com/google/uuid"
 )
+
+var errProposalRaced = errors.New("proposal submission raced with another transaction")
 
 func (s *Service) SubmitPrepared(ctx context.Context, principal agentauth.Principal, input SubmitPreparedInput) (SubmitPreparedResult, error) {
 	if !principal.HasScope("submit") {
@@ -71,12 +75,12 @@ func (s *Service) SubmitPrepared(ctx context.Context, principal agentauth.Princi
 	if !proposalChecksEligible(resolved.checks) {
 		return SubmitPreparedResult{}, ErrProposalBlocked
 	}
-	for attempt := 0; attempt < 3; attempt++ {
+	for attempt := 0; attempt < 8; attempt++ {
 		result, err := s.createPreparedExperiment(ctx, principal, record.ID, digest)
 		if err == nil {
 			return s.bindPreparedGraph(ctx, principal, record.ProjectSnapshot, result)
 		}
-		if !isRetryableTransaction(err) && !ent.IsConstraintError(err) {
+		if !isRetryableTransaction(err) && !ent.IsConstraintError(err) && !errors.Is(err, errProposalRaced) {
 			return SubmitPreparedResult{}, err
 		}
 		existing, lookupErr := s.client.ExperimentProposal.Query().Where(
@@ -92,6 +96,13 @@ func (s *Service) SubmitPrepared(ctx context.Context, principal agentauth.Princi
 		}
 		if lookupErr != nil && !ent.IsNotFound(lookupErr) {
 			return SubmitPreparedResult{}, lookupErr
+		}
+		if attempt < 7 {
+			select {
+			case <-ctx.Done():
+				return SubmitPreparedResult{}, ctx.Err()
+			case <-time.After(time.Millisecond << attempt):
+			}
 		}
 	}
 	return SubmitPreparedResult{}, fmt.Errorf("prepared experiment submission transaction did not converge")
@@ -316,7 +327,7 @@ func (s *Service) createPreparedExperiment(ctx context.Context, principal agenta
 		return result, err
 	}
 	if updated != 1 {
-		return result, fmt.Errorf("proposal submission raced with another transaction")
+		return result, errProposalRaced
 	}
 	if _, err := tx.AuditEvent.Create().
 		SetTenantID(principal.TenantID).SetActorType("agent_token").SetActorID(principal.TokenPublicID).
