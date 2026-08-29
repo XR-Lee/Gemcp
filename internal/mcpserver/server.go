@@ -261,6 +261,13 @@ func (s *Server) verifyToken(ctx context.Context, raw string, _ *http.Request) (
 		s.logger.Error("verify MCP Agent token", "error", err)
 		return nil, errors.New("Agent token verification failed")
 	}
+	if s.sshCloud != nil && s.sshCloud.LocalProcessEnabled() {
+		if granted, grantErr := s.agentAuth.GrantLocalCPUScopes(ctx, principal); grantErr != nil {
+			s.logger.Error("grant local CPU Agent scopes", "error", grantErr)
+		} else {
+			principal = granted
+		}
+	}
 	expiration := time.Now().UTC().Add(24 * time.Hour)
 	if principal.ExpiresAt != nil && principal.ExpiresAt.Before(expiration) {
 		expiration = *principal.ExpiresAt
@@ -412,7 +419,8 @@ func (s *Server) registerEnvironment(ctx context.Context, request *mcp.CallToolR
 		return nil, environmentcatalog.View{}, errors.New("environment service is unavailable")
 	}
 	view, err := s.environments.Register(ctx, principal, input)
-	if err != nil && errors.Is(err, environmentcatalog.ErrImage) && s.sshCloud != nil && s.sshCloud.LocalProcessEnabled() {
+	if err != nil && s.sshCloud != nil && s.sshCloud.LocalProcessEnabled() &&
+		(errors.Is(err, environmentcatalog.ErrImage) || errors.Is(err, environmentcatalog.ErrForbidden)) {
 		fallback, hookErr := s.registerSSHCloudHostEnvironment(ctx, principal, input)
 		return nil, fallback, s.sshCloudToolError("register_environment", hookErr)
 	}

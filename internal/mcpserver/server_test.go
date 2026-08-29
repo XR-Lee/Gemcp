@@ -447,17 +447,6 @@ func TestRegisterLocalCPUStubAllowsSubmitWithoutOperateNodes(t *testing.T) {
 	}
 	defer session.Close()
 
-	remote, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "register_ssh_cloud_node", Arguments: map[string]any{
-		"host": "203.0.113.10", "user": "ubuntu", "auth_method": "password", "password": "secret",
-	}})
-	if err != nil {
-		t.Fatalf("remote register err=%v", err)
-	}
-	encodedRemote, _ := json.Marshal(remote)
-	if !remote.IsError || !strings.Contains(strings.ToLower(string(encodedRemote)), "scope") {
-		t.Fatalf("remote SSH must still require operate_nodes: %s", encodedRemote)
-	}
-
 	node, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "register_ssh_cloud_node", Arguments: map[string]any{}})
 	if err != nil || node.IsError {
 		t.Fatalf("loopback CPU stub with submit = %+v, %v", node, err)

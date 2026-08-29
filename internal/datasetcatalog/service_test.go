@@ -97,12 +97,17 @@ func TestRegisterCatalogModelNet40MiniUsesSSHCloudRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 	service := NewService(client)
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		t.Fatal(err)
+	}
+	root := home + "/gemcp/datasets/modelnet40-mini"
 	view, err := service.OwnerRegister(ctx, tenant.ID, "owner-1", project.PublicID.String(), RegisterInput{
 		Catalog:       "modelnet40-mini",
-		CanonicalRoot: "/home/ubuntu/gemcp/datasets/modelnet40-mini",
+		CanonicalRoot: root,
 	})
 	if err != nil || view.Backend != BackendSSHCloud || view.EnvironmentVariable != "GEMCP_DATASET_MODELNET40_MINI" ||
-		view.CanonicalRoot != "/home/ubuntu/gemcp/datasets/modelnet40-mini" || len(view.RequiredMarkers) != 2 {
+		view.CanonicalRoot != root || len(view.RequiredMarkers) != 2 {
 		t.Fatalf("OwnerRegister() = %+v, %v", view, err)
 	}
 }
