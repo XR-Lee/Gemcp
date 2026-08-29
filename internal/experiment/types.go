@@ -345,6 +345,15 @@ type ProviderImageOption struct {
 
 type ExecutionOnboarding struct {
 	PublicCloud PublicCloudOnboarding `json:"public_cloud"`
+	LocalCPU    *LocalCPUOnboarding   `json:"local_cpu,omitempty"`
+}
+
+type LocalCPUOnboarding struct {
+	Backend         string           `json:"backend"`
+	DatasetBindings int              `json:"dataset_bindings"`
+	Environments    int              `json:"environments"`
+	ReadyCompute    int              `json:"ready_compute"`
+	NextSteps       []OnboardingStep `json:"next_steps"`
 }
 
 type PublicCloudOnboarding struct {

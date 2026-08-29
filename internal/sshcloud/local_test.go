@@ -32,6 +32,19 @@ func TestLocalDialRejectsNonLoopbackAndRunsCommands(t *testing.T) {
 	}
 }
 
+func TestCreateLocalProcessFillsLoopbackDefaultsWithoutSecrets(t *testing.T) {
+	service, _, tenant, project := newServiceFixture(t)
+	service.config.LocalProcessEnabled = true
+	ctx := context.Background()
+	view, err := service.Create(ctx, tenant.ID, "agent:token", CreateInput{ProjectID: project.PublicID.String()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if view.Host != "127.0.0.1" || view.Label != "local-cpu" || view.HostKeyFingerprint != localProcessFingerprint {
+		t.Fatalf("defaults node=%+v", view)
+	}
+}
+
 func TestCreateLocalProcessProbesLoopbackWithoutSSH(t *testing.T) {
 	service, _, tenant, project := newServiceFixture(t)
 	service.config.LocalProcessEnabled = true

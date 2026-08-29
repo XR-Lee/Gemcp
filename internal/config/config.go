@@ -60,15 +60,19 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
-	sshCloudEnabled, err := boolOrDefault("GEMCP_SSH_CLOUD_ENABLED", false)
+	// Local HTTP (the implicit development default) must be able to register
+	// loopback compute and schedule a CPU fixture without extra flags or
+	// AutoDL secrets. Production stays opt-in.
+	localHTTP := environment != "production"
+	sshCloudEnabled, err := boolOrDefault("GEMCP_SSH_CLOUD_ENABLED", localHTTP)
 	if err != nil {
 		return Config{}, err
 	}
-	localProcessEnabled, err := boolOrDefault("GEMCP_LOCAL_PROCESS_ENABLED", false)
+	localProcessEnabled, err := boolOrDefault("GEMCP_LOCAL_PROCESS_ENABLED", localHTTP)
 	if err != nil {
 		return Config{}, err
 	}
-	schedulerEnabled, err := boolOrDefault("GEMCP_SCHEDULER_ENABLED", false)
+	schedulerEnabled, err := boolOrDefault("GEMCP_SCHEDULER_ENABLED", localHTTP)
 	if err != nil {
 		return Config{}, err
 	}
@@ -139,7 +143,7 @@ func Load() (Config, error) {
 		BootstrapToken:           strings.TrimSpace(os.Getenv("GEMCP_BOOTSTRAP_TOKEN")),
 		AutoMigrate:              autoMigrate,
 		SecureCookies:            secureCookies,
-		PublicURL:                strings.TrimRight(strings.TrimSpace(os.Getenv("GEMCP_PUBLIC_URL")), "/"),
+		PublicURL:                developmentPublicURL(environment, strings.TrimRight(strings.TrimSpace(os.Getenv("GEMCP_PUBLIC_URL")), "/")),
 		SelfHostedEnabled:        selfHostedEnabled,
 		SSHCloudEnabled:          sshCloudEnabled,
 		LocalProcessEnabled:      localProcessEnabled,
@@ -211,6 +215,13 @@ func Load() (Config, error) {
 		return Config{}, fmt.Errorf("GEMCP_LOCAL_PROCESS_ENABLED requires GEMCP_SSH_CLOUD_ENABLED")
 	}
 	return cfg, nil
+}
+
+func developmentPublicURL(environment, publicURL string) string {
+	if publicURL != "" || environment == "production" {
+		return publicURL
+	}
+	return "http://127.0.0.1:8080"
 }
 
 func HTTPSPublicOrigin(raw string) bool {

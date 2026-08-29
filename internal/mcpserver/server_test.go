@@ -332,13 +332,13 @@ func TestRegisterEnvironmentSSHCloudHostAfterLocalNode(t *testing.T) {
 	defer session.Close()
 
 	registered, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "register_ssh_cloud_node", Arguments: map[string]any{
-		"host": "127.0.0.1", "user": "ubuntu", "auth_method": "password", "password": "local-process", "label": "local-cpu",
+		"host": "127.0.0.1",
 	}})
 	if err != nil || registered.IsError {
-		t.Fatalf("register_ssh_cloud_node = %+v, %v", registered, err)
+		t.Fatalf("register_ssh_cloud_node without invented secrets = %+v, %v", registered, err)
 	}
 	environment, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "register_environment", Arguments: map[string]any{
-		"name": "local-host", "backend": "ssh_cloud", "image_uuid": "host",
+		"name": "local-host", "image_uuid": "cpu",
 	}})
 	if err != nil || environment.IsError {
 		t.Fatalf("register_environment = %+v, %v", environment, err)

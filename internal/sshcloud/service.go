@@ -58,6 +58,7 @@ func (s *Service) Create(ctx context.Context, tenantID int, actorID string, inpu
 	if !s.Enabled() {
 		return NodeView{}, ErrDisabled
 	}
+	applyLocalProcessDefaults(&input, s.config.LocalProcessEnabled)
 	if err := applySSHTarget(&input); err != nil {
 		return NodeView{}, err
 	}

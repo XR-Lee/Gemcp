@@ -418,7 +418,15 @@ func (s *Server) registerEnvironment(ctx context.Context, request *mcp.CallToolR
 func looksLikeSSHCloudHostEnvironment(input environmentcatalog.RegisterInput) bool {
 	backend := strings.ToLower(strings.TrimSpace(input.Backend))
 	image := strings.ToLower(strings.TrimSpace(input.ImageUUID))
-	return backend == "ssh_cloud" || backend == "ssh-cloud" || backend == "cloud-ssh" || image == sshcloud.HostImage
+	switch backend {
+	case "ssh_cloud", "ssh-cloud", "cloud-ssh":
+		return true
+	}
+	switch image {
+	case sshcloud.HostImage, "cpu", "local", "local-cpu", "local_cpu":
+		return true
+	}
+	return false
 }
 
 func (s *Server) registerSSHCloudHostEnvironment(ctx context.Context, principal agentauth.Principal, input environmentcatalog.RegisterInput) (environmentcatalog.View, error) {

@@ -113,6 +113,64 @@ fi
 
 agent_token=$(tr -d '\n' <"$token_file")
 
+python3 - "$origin" \
+  "${GEMCP_DEV_OWNER_EMAIL:-owner@localhost}" \
+  "${GEMCP_DEV_OWNER_PASSWORD:-local-dev-owner-password}" \
+  "$agent_token" <<'PY'
+import http.cookiejar, json, sys, urllib.error, urllib.request
+origin, email, password, token = sys.argv[1:]
+cookies = http.cookiejar.CookieJar()
+opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cookies))
+csrf = ""
+
+def call(method, path, payload=None):
+    global csrf
+    headers = {"Accept": "application/json"}
+    data = None
+    if payload is not None:
+        headers["Content-Type"] = "application/json"
+        data = json.dumps(payload).encode()
+    if method not in ("GET", "HEAD") and csrf:
+        headers["X-CSRF-Token"] = csrf
+    req = urllib.request.Request(origin + path, data=data, headers=headers, method=method)
+    try:
+        with opener.open(req, timeout=20) as resp:
+            raw = resp.read().decode()
+            return json.loads(raw) if raw.strip() else {}
+    except urllib.error.HTTPError as exc:
+        sys.stderr.write(f"WARN {method} {path}: HTTP {exc.code} {exc.read().decode()}\n")
+        return {}
+
+login = call("POST", "/api/v1/auth/login", {"email": email, "password": password})
+csrf = ((login.get("data") or {}).get("csrf_token") or "")
+if not csrf:
+    print("WARN Owner login skipped; smoke token scopes were not upgraded", flush=True)
+    raise SystemExit(0)
+projects = ((call("GET", "/api/v1/projects").get("data") or {}).get("projects") or [])
+if not projects:
+    print("WARN no Owner projects; smoke token scopes were not upgraded", flush=True)
+    raise SystemExit(0)
+project_id = projects[0]["id"]
+listed = call("GET", f"/api/v1/projects/{project_id}/agent-tokens")
+tokens = ((listed.get("data") or {}).get("tokens") or [])
+match = None
+for item in tokens:
+    prefix = item.get("prefix") or ""
+    if prefix and token.startswith(prefix):
+        match = item
+        break
+if match is None:
+    print("WARN could not match smoke token; scopes were not upgraded", flush=True)
+    raise SystemExit(0)
+needed = ("read", "submit", "cancel", "configure", "operate_nodes")
+current = list(match.get("scopes") or [])
+if all(scope in current for scope in needed):
+    print("OK  smoke Agent Token already has configure and operate_nodes", flush=True)
+    raise SystemExit(0)
+call("PATCH", f"/api/v1/projects/{project_id}/agent-tokens/{match['id']}", {"scopes": list(needed)})
+print("OK  Owner granted smoke Agent Token scopes", list(needed), flush=True)
+PY
+
 python3 - "$origin" "$agent_token" <<'PY'
 import json, sys, urllib.error, urllib.request
 origin, token = sys.argv[1], sys.argv[2]

@@ -11,6 +11,38 @@ import (
 )
 
 const localProcessFingerprint = "SHA256:local-process"
+const localProcessPassword = "local-process"
+
+// applyLocalProcessDefaults fills loopback host/user/password so a local CLI
+// can register compute without inventing an SSH secret.
+func applyLocalProcessDefaults(input *CreateInput, enabled bool) {
+	if !enabled || input == nil {
+		return
+	}
+	host := strings.TrimSpace(input.Host)
+	if host == "" && strings.TrimSpace(input.SSH) == "" {
+		input.Host = "127.0.0.1"
+		host = input.Host
+	}
+	if !isLoopbackHost(host) {
+		return
+	}
+	if strings.TrimSpace(input.User) == "" {
+		input.User = strings.TrimSpace(os.Getenv("USER"))
+		if input.User == "" {
+			input.User = "ubuntu"
+		}
+	}
+	if strings.TrimSpace(input.Password) == "" && strings.TrimSpace(input.PrivateKey) == "" {
+		input.Password = localProcessPassword
+		if strings.TrimSpace(input.AuthMethod) == "" {
+			input.AuthMethod = "password"
+		}
+	}
+	if strings.TrimSpace(input.Label) == "" {
+		input.Label = "local-cpu"
+	}
+}
 
 // LocalDial runs Cloud SSH observer commands on this machine instead of
 // opening outbound SSH. It is used only when GEMCP_LOCAL_PROCESS_ENABLED is

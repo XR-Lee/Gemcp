@@ -125,7 +125,7 @@ func TestLocalDevBootstrapMatchesBinary(t *testing.T) {
 				t.Fatalf("%s does not exec gemcp serve", filename)
 			}
 		case strings.HasSuffix(filename, "local-http-smoke.sh"):
-			for _, required := range []string{"/healthz", "/readyz", "/api/v1/setup/status", "skip_provider", "/mcp", "initialize"} {
+			for _, required := range []string{"/healthz", "/readyz", "/api/v1/setup/status", "skip_provider", "/mcp", "initialize", "operate_nodes"} {
 				if !strings.Contains(body, required) {
 					t.Fatalf("%s does not contain %q", filename, required)
 				}

@@ -503,7 +503,7 @@ func (s *Service) projectOptions(ctx context.Context, principal agentauth.Princi
 	}
 	result.DatasetSources = catalogSourceOptions()
 	s.appendProviderImages(ctx, principal.TenantID, environments, profiles, &result)
-	result.Onboarding = publicCloudOnboarding(result)
+	result.Onboarding = executionOnboarding(result, s.proposalConfig.SSHCloudEnabled)
 	result.Readiness = projectOptionsReadiness(result)
 	return result, nil
 }
