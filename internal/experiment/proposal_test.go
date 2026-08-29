@@ -499,6 +499,34 @@ func TestPrepareRequiresFromNodeWhenStudyExistsAndSubmitBindsRun(t *testing.T) {
 	}
 }
 
+func TestPrepareRejectsIsolatedHypothesis(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	ctx := context.Background()
+	researchService := mustResearchService(t, f)
+	if _, err := researchService.AgentUpdate(ctx, f.principal, researchUpdate(f, "isolated", "Should a parentless hypothesis prepare?")); err != nil {
+		t.Fatal(err)
+	}
+	isolated, err := researchService.AgentUpdate(ctx, f.principal, research.UpdateInput{
+		Node: &research.NodeInput{Kind: "hypothesis", Title: "Parentless claim"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	fromID := ""
+	for _, node := range isolated.Study.Nodes {
+		if node.Kind == "hypothesis" && node.Title == "Parentless claim" {
+			fromID = node.ID
+		}
+	}
+	service := preparedService(t, f, 2)
+	service.SetGraphBinder(researchService)
+	_, err = service.Prepare(ctx, f.principal, prepareFrom(fromID))
+	var validation *ValidationError
+	if !errors.As(err, &validation) || !strings.Contains(validation.Message, "isolated") {
+		t.Fatalf("Prepare() isolated hypothesis = %v", err)
+	}
+}
+
 func prepareFrom(fromNodeID string) PrepareInput {
 	input := validPrepare()
 	input.FromNodeID = fromNodeID

@@ -20,9 +20,21 @@ const workspace = {
     },
     nodes: [
       { id: 'node-question-1', kind: 'question', title: 'Can a cleaner OBJ-BG traversal raise ScanObjectNN accuracy?', status: 'open', created_at: '2026-07-28T18:00:00Z', updated_at: '2026-07-28T18:00:00Z' },
+      { id: 'node-hypothesis-1', kind: 'hypothesis', title: 'Background noise caps accuracy', status: 'open', created_at: '2026-07-28T18:01:00Z', updated_at: '2026-07-28T18:01:00Z' },
       { id: 'node-result-1', kind: 'result', title: 'OBJ-BG smoke accuracy', summary: 'The existing smoke Experiment reached 86.4 overall accuracy.', status: 'succeeded', metric_name: 'overall_accuracy', metric_value: 86.4, experiment_id: 'experiment-1', experiment_state: 'succeeded', created_at: '2026-07-28T18:05:00Z', updated_at: '2026-07-28T18:05:00Z' },
     ],
-    edges: [{ id: 'edge-1', from_id: 'node-question-1', to_id: 'node-result-1', relation: 'produced' }],
+    edges: [
+      { id: 'edge-0', from_id: 'node-question-1', to_id: 'node-hypothesis-1', relation: 'leads_to' },
+      { id: 'edge-1', from_id: 'node-hypothesis-1', to_id: 'node-result-1', relation: 'produced' },
+    ],
+    hypotheses: [{
+      id: 'node-hypothesis-1', title: 'Background noise caps accuracy', status: 'open', branch: 'main',
+      experiments: [{
+        run_node_id: 'node-run-1', experiment_id: 'experiment-1', title: 'OBJ-BG smoke',
+        state: 'succeeded', branch: 'main', commit_sha: '0123456789abcdef0123456789abcdef01234567',
+        result_title: 'OBJ-BG smoke accuracy', highlight_title: 'Background noise still enters kNN',
+      }],
+    }],
   },
   next_actions: [{
     kind: 'record_hypothesis', tool: 'update_research_workspace', study_id: 'study-1',
@@ -60,6 +72,10 @@ describe('ResearchView', () => {
     expect(wrapper.find('button[aria-label="Fullscreen graph"]').exists()).toBe(true)
     expect(wrapper.text()).toContain('evidence time')
     expect(wrapper.text()).toContain('OBJ-BG smoke accuracy')
+    expect(wrapper.text()).toContain('Background noise caps accuracy')
+    expect(wrapper.find('[data-testid="hypothesis-records"]').text()).toContain('main')
+    expect(wrapper.find('[data-testid="hypothesis-records"]').text()).toContain('0123456789ab')
+    expect(wrapper.find('[data-testid="hypothesis-records"]').text()).toContain('Background noise still enters kNN')
     expect(wrapper.text()).toContain('Record a hypothesis')
     expect(wrapper.find('button[aria-label="Attach prompt"]').exists()).toBe(true)
     expect(wrapper.find('.research-mcp-banner').exists()).toBe(false)

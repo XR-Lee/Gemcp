@@ -6,6 +6,8 @@ UI kits in `v0.16.1`: Vue Flow for the Graph, Reka UI for selectors and dialogs,
 
 `v0.16.2` turns that Graph into an MCP execution contract: legal edges, `get_next_actions`, `from_node_id` in the Proposal digest, automatic run binding on submit, and `close_run` as the only result writer.
 
+The current Agent and Owner vocabulary is the single [Hypothesis–experiment Graph contract](graph-contract.md). MCP and the Owner console use the same words.
+
 `v0.17.0` makes an imported repository usable: Study import, directory-scoped MCP, a time-axis Graph with fullscreen and double-click detail, success/failure stamps, and default selection of the latest import.
 
 The Graph time axis uses each node's `occurred_at` (git committer date for historical evidence, Experiment start/create time for Gemcp runs). `created_at` remains the MCP write time and is not the axis.
@@ -87,18 +89,18 @@ Constraints:
 
 ## Agent contract
 
-The Graph is the execution contract. External harnesses stay outside Gemcp; MCP tools constrain what they may record and spend. The recommended singleton companion deployment, Git result manifest, and autonomy boundary are defined in [Lightweight experiment harness](node-experiment-harness.md).
+The Graph is the execution contract. External harnesses stay outside Gemcp; MCP tools constrain what they may record and spend. The recommended singleton companion deployment, Git result manifest, and autonomy boundary are defined in [Lightweight experiment harness](node-experiment-harness.md). Tool names and object words are defined once in [Hypothesis–experiment Graph contract](graph-contract.md).
 
-- `get_research_workspace` (`read`): return Studies, the selected plan, Graph, and legal next actions.
-- `get_next_actions` (`read`): return only Graph-legal next steps.
+- `get_research_workspace` (`read`): return Studies, the selected plan, Graph, hypothesis records, and next actions.
+- `get_next_actions` (`read`): suggest the next decision or Experiment from the hypothesis, its runs, and its observations.
 - `update_research_workspace` (`submit`): create or update a Study, replace the active plan, or record a Graph node and optional legal edge.
-- `prepare_experiment` (`submit`): when a Study exists, `from_node_id` must be a hypothesis or plan node and is bound into the confirmation digest.
-- `submit_prepared_experiment` (`submit`): creates the Experiment and writes the `run` node.
-- `close_run` (`submit`): the only way to write a `result` on that run after the Experiment is terminal. Monitor with `get_experiment`; do not SSH or infer metrics from logs.
+- `prepare_experiment` (`submit`): when a Study exists, `from_node_id` must be a connected hypothesis or a plan under that Study. Isolated nodes cannot prepare. The origin is bound into the confirmation digest.
+- `submit_prepared_experiment` (`submit`): creates the Experiment and writes the `run` node. Bind failure is an error, not a silent skip.
+- `close_run` (`submit`): the only way to write a `result` on that run after the Experiment is terminal. It also writes a highlight observation linked to the originating hypothesis. Monitor with `get_experiment`; do not SSH or infer metrics from logs.
 
-Calling `get_next_actions` before spending is an Agent operating requirement, not a separately persisted server precondition. The server enforces the Graph boundary at the write operations: `prepare_experiment` requires a current hypothesis or plan `from_node_id`, submission binds the `run`, and only `close_run` can add its terminal `result`.
+Calling `get_next_actions` before spending is an Agent operating requirement, not a separately persisted server precondition. The server enforces the Graph boundary at the write operations: `prepare_experiment` requires a connected hypothesis or plan `from_node_id`, submission binds the `run`, and `close_run` writes the terminal `result` plus the highlight observation.
 
-`produced` is legal only from `run` to `result`. Experiments that are not bound to a Graph node are marked orphaned on the Evidence page.
+`produced` is legal only from `run` to `result`. Advanced `submit_experiment` is rejected when an active Study exists. Experiments that never entered the Graph remain an orphaned badge on Evidence for legacy or bad data; they are not a way to create new work.
 
 ## Owner review
 
@@ -106,6 +108,7 @@ The research home shows:
 
 - the active Study question
 - the current next action
+- each hypothesis with linked Experiments, git branch, commit, and run records
 - the Graph
 - the latest linked result
 

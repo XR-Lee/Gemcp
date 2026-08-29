@@ -101,8 +101,8 @@ export function buildResearchAttachPrompt(input: ResearchAttachPromptInput) {
     '一个成熟研究仓如果只画出 question + 一条 hypothesis + 一个 plan + 再一个节点，就是没画完。大型实验室仓库首次入图通常有很多 hypothesis 和 observation，常见 15 到 60 个节点，不是 4 个。不要超过 128 个节点。停止条件是再画就会重复已有主张，而不是 `get_next_actions` 第一次提到 `prepare_experiment`。',
   )
   add(
-    '`get_next_actions` is the paid-run legality list. During first import it is not a stop signal. If it asks you to prepare a run after one hypothesis, keep reconstructing the repo lineage first. Do not launch a paid job just to draw the Graph.',
-    '`get_next_actions` 是付费 run 的合法动作列表。首次入图时它不是停手信号。如果它在只有一条 hypothesis 时就要你准备 run，先继续把仓库谱系画完。不要为了画图去开付费作业。',
+    '`get_next_actions` proposes the next decision or Experiment from the current hypothesis, its runs, and its observations. During first import it is not a stop signal: keep reconstructing the repo lineage first. Do not launch a paid job just to draw the Graph. After a terminal Experiment, `close_run` writes the result and a highlight observation on that hypothesis.',
+    '`get_next_actions` 会根据当前 hypothesis、已有 run 和 observation 提出下一步决策或实验。首次入图时它不是停手信号：先把仓库谱系画完。不要为了画图去开付费作业。Experiment 终态后，`close_run` 会写 result，并在该 hypothesis 上挂一条 highlight observation。',
   )
   lines.push('')
   add('## Current snapshot', '## 当前快照')

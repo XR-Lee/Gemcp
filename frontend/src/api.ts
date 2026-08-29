@@ -395,6 +395,24 @@ export type ResearchStudyRepository = {
   default_branch: string
   status: string
 }
+export type ResearchHypothesisExperiment = {
+  run_node_id: string
+  experiment_id?: string
+  title: string
+  state: string
+  branch?: string
+  commit_sha?: string
+  result_title?: string
+  highlight_title?: string
+}
+export type ResearchHypothesis = {
+  id: string
+  title: string
+  summary?: string
+  status: string
+  branch?: string
+  experiments: ResearchHypothesisExperiment[]
+}
 export type ResearchStudy = {
   id: string
   name: string
@@ -405,6 +423,7 @@ export type ResearchStudy = {
   plan?: ResearchPlan
   nodes: ResearchNode[]
   edges: ResearchEdge[]
+  hypotheses?: ResearchHypothesis[]
   updated_at: string
 }
 export type ResearchNextAction = {

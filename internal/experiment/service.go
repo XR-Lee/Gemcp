@@ -21,6 +21,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/repository"
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
+	"github.com/XR-Lee/Gemcp/ent/study"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
 	"github.com/XR-Lee/Gemcp/internal/secrets"
 	"github.com/XR-Lee/Gemcp/internal/sshcloud"
@@ -139,6 +140,15 @@ func (s *Service) Submit(ctx context.Context, principal agentauth.Principal, inp
 	normalized, err := normalizeSubmit(input)
 	if err != nil {
 		return result, err
+	}
+	hasStudy, err := s.client.Study.Query().Where(
+		study.ProjectIDEQ(principal.ProjectID), study.StatusEQ(study.StatusActive),
+	).Exist(ctx)
+	if err != nil {
+		return result, err
+	}
+	if hasStudy {
+		return result, &ValidationError{Message: "submit_experiment cannot skip the Study and hypothesis; use prepare_experiment with from_node_id"}
 	}
 	fingerprintJSON, _ := json.Marshal(normalized)
 	fingerprint := sha256.Sum256(fingerprintJSON)

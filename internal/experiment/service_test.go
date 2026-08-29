@@ -114,6 +114,20 @@ func validSubmit(f fixture, key string) SubmitInput {
 	}
 }
 
+func TestSubmitRejectedWhenActiveStudyExists(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	ctx := context.Background()
+	if _, err := f.client.Study.Create().SetTenantID(f.principal.TenantID).SetProjectID(f.project.ID).
+		SetName("block-advanced").SetQuestion("Should Advanced submit skip the Graph?").Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	_, err := f.service.Submit(ctx, f.principal, validSubmit(f, "graph-block-0001"))
+	var validation *ValidationError
+	if !errors.As(err, &validation) || !strings.Contains(validation.Message, "prepare_experiment") {
+		t.Fatalf("Submit() with Study = %v", err)
+	}
+}
+
 func TestSubmitIsAtomicAndIdempotent(t *testing.T) {
 	f := newFixture(t, 100000, 20000)
 	ctx := context.Background()

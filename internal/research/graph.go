@@ -41,11 +41,14 @@ type CloseRunInput struct {
 	ExperimentID    string   `json:"experiment_id,omitempty" jsonschema:"same-Project Experiment ID when run_node_id is omitted"`
 	Title           string   `json:"title" jsonschema:"short result title"`
 	Summary         string   `json:"summary,omitempty" jsonschema:"bounded scientific claim"`
+	Highlight       string   `json:"highlight,omitempty" jsonschema:"short highlight observation linked to the hypothesis; omit to use the result title"`
 	Status          string   `json:"status,omitempty" jsonschema:"succeeded or failed"`
 	MetricName      string   `json:"metric_name,omitempty" jsonschema:"optional scalar metric name; omit to copy the prepared expected_metric from the terminal Experiment"`
 	MetricValue     *float64 `json:"metric_value,omitempty" jsonschema:"optional scalar metric value; omit to copy the matching Experiment metric"`
 	ResultCommitSHA string   `json:"result_commit_sha,omitempty" jsonschema:"optional full 40- or 64-character Git commit containing the durable result manifest"`
 }
+
+const isolatedSpendOriginMessage = "from_node_id must hang off a parent Graph node; isolated nodes cannot prepare"
 
 func legalEdge(fromKind, toKind researchnode.Kind, relation researchedge.Relation) bool {
 	switch relation {
@@ -87,7 +90,7 @@ func deriveNextActions(view *StudyView) []NextAction {
 		outgoing[edge.FromID] = append(outgoing[edge.FromID], edge)
 	}
 	nodesByID := map[string]NodeView{}
-	var question, hypotheses, plans, runs, results, observations []NodeView
+	var question, hypotheses []NodeView
 	for _, node := range view.Nodes {
 		nodesByID[node.ID] = node
 		switch node.Kind {
@@ -95,14 +98,6 @@ func deriveNextActions(view *StudyView) []NextAction {
 			question = append(question, node)
 		case "hypothesis":
 			hypotheses = append(hypotheses, node)
-		case "plan":
-			plans = append(plans, node)
-		case "run":
-			runs = append(runs, node)
-		case "result":
-			results = append(results, node)
-		case "observation":
-			observations = append(observations, node)
 		}
 	}
 	actions := make([]NextAction, 0, 8)
@@ -121,70 +116,122 @@ func deriveNextActions(view *StudyView) []NextAction {
 		add(NextAction{
 			Kind: "record_hypothesis", Tool: "update_research_workspace", FromNodeID: fromID,
 			Title:  "Record a hypothesis",
-			Detail: "A paid run must start from a hypothesis or plan node, not from the question alone. First import should then keep mapping other experimental branches from the repository.",
+			Detail: "A paid run must start from a hypothesis or a plan under that hypothesis, not from the question alone.",
 		})
 		return actions
 	}
-	thinLineage := len(hypotheses) < 3 || (len(observations) == 0 && len(results) == 0)
-	if thinLineage {
-		fromID := ""
-		if len(question) > 0 {
-			fromID = question[0].ID
+	addedPrepare := false
+	for i := len(hypotheses) - 1; i >= 0; i-- {
+		hypothesis := hypotheses[i]
+		kids := descendantsOf(outgoing, nodesByID, hypothesis.ID)
+		var terminalUnclosed, openRuns, results, observations, decisions []NodeView
+		hasRun := false
+		for _, node := range kids {
+			switch node.Kind {
+			case "run":
+				hasRun = true
+				if hasOutgoingKind(outgoing, nodesByID, node.ID, "result") {
+					continue
+				}
+				if _, terminal := terminalExperimentStates[node.ExperimentState]; node.ExperimentID != "" && terminal {
+					terminalUnclosed = append(terminalUnclosed, node)
+					continue
+				}
+				openRuns = append(openRuns, node)
+			case "result":
+				results = append(results, node)
+			case "observation":
+				observations = append(observations, node)
+			case "decision":
+				decisions = append(decisions, node)
+			}
 		}
-		add(NextAction{
-			Kind: "record_hypothesis", Tool: "update_research_workspace", FromNodeID: fromID,
-			Title:  "Record another experimental branch",
-			Detail: "Map a distinct method, ablation, dataset, or failed direction from the repository. One hypothesis is not a lineage.",
-		})
-		obsFrom := ""
-		if len(hypotheses) > 0 {
-			obsFrom = hypotheses[0].ID
-		}
-		add(NextAction{
-			Kind: "record_observation", Tool: "update_research_workspace", FromNodeID: obsFrom,
-			Title:  "Record historical evidence",
-			Detail: "Hang README, paper, table, or commit evidence off a hypothesis with relation=leads_to. Set occurred_at from the git committer date. Do not leave observations unlinked. Do not invent metrics or free-write a result.",
-		})
-	}
-	for _, node := range append(append([]NodeView{}, plans...), hypotheses...) {
-		if hasOutgoingKind(outgoing, nodesByID, node.ID, "run") {
-			continue
-		}
-		add(NextAction{
-			Kind: "prepare_experiment", Tool: "prepare_experiment", FromNodeID: node.ID,
-			Title:  "Prepare a run from " + node.Title,
-			Detail: "from_node_id is bound into the confirmation digest. submit_prepared_experiment then writes the run node.",
-		})
-	}
-	for _, node := range runs {
-		if hasOutgoingKind(outgoing, nodesByID, node.ID, "result") {
-			continue
-		}
-		if _, terminal := terminalExperimentStates[node.ExperimentState]; node.ExperimentID != "" && terminal {
+		for _, node := range terminalUnclosed {
 			add(NextAction{
 				Kind: "close_run", Tool: "close_run", FromNodeID: node.ID, ExperimentID: node.ExperimentID,
 				Title:  "Close " + node.Title,
-				Detail: "close_run is the only way to write a result on this run. Copy the metric from get_experiment; do not infer it from logs or SSH.",
+				Detail: "Write the result and a highlight observation on hypothesis \"" + hypothesis.Title + "\". close_run is the only writer.",
+			})
+		}
+		for _, node := range openRuns {
+			add(NextAction{
+				Kind: "wait_run", Tool: "get_experiment", FromNodeID: node.ID, ExperimentID: node.ExperimentID,
+				Title:  "Wait for " + node.Title,
+				Detail: "Poll get_experiment for state, log_tail, and metrics on hypothesis \"" + hypothesis.Title + "\". Do not SSH or infer metrics from logs.",
+			})
+		}
+		if len(decisions) == 0 && (len(results) > 0 || len(observations) > 0) && len(terminalUnclosed) == 0 && len(openRuns) == 0 {
+			fromID := hypothesis.ID
+			detail := "Decide whether the evidence supports \"" + hypothesis.Title + "\" before preparing another Experiment."
+			if len(results) > 0 {
+				fromID = results[len(results)-1].ID
+				detail = "Result \"" + results[len(results)-1].Title + "\" is on hypothesis \"" + hypothesis.Title + "\". Record whether it supports or contradicts that claim."
+			} else if len(observations) > 0 {
+				fromID = observations[len(observations)-1].ID
+				detail = "Observation \"" + observations[len(observations)-1].Title + "\" is on hypothesis \"" + hypothesis.Title + "\". Record a decision before proposing the next Experiment."
+			}
+			add(NextAction{
+				Kind: "record_decision", Tool: "update_research_workspace", FromNodeID: fromID,
+				Title:  "Record a decision on " + hypothesis.Title,
+				Detail: detail,
 			})
 			continue
 		}
-		add(NextAction{
-			Kind: "wait_run", Tool: "get_experiment", FromNodeID: node.ID, ExperimentID: node.ExperimentID,
-			Title:  "Wait for " + node.Title,
-			Detail: "Poll get_experiment for state, log_tail, and metrics. Do not SSH, fetch remote files, or infer metrics from logs.",
-		})
-	}
-	for _, node := range append(append([]NodeView{}, results...), observations...) {
-		if hasOutgoingKind(outgoing, nodesByID, node.ID, "decision") {
-			continue
+		if !hasRun {
+			add(NextAction{
+				Kind: "prepare_experiment", Tool: "prepare_experiment", FromNodeID: hypothesis.ID,
+				Title:  "Prepare an Experiment for " + hypothesis.Title,
+				Detail: "from_node_id must be this hypothesis or a plan under it. The confirmation digest binds that origin; submit_prepared_experiment writes the run.",
+			})
+			addedPrepare = true
 		}
-		add(NextAction{
-			Kind: "record_decision", Tool: "update_research_workspace", FromNodeID: node.ID,
-			Title:  "Record a decision from " + node.Title,
-			Detail: "Say whether the evidence supports the hypothesis before preparing another run.",
-		})
+	}
+	if !addedPrepare && len(actions) < 8 {
+		newest := hypotheses[len(hypotheses)-1]
+		if !hasOpenRun(outgoing, nodesByID, newest.ID) {
+			add(NextAction{
+				Kind: "prepare_experiment", Tool: "prepare_experiment", FromNodeID: newest.ID,
+				Title:  "Prepare the next Experiment for " + newest.Title,
+				Detail: "Existing runs and observations are on the Graph. Propose the next Experiment from this hypothesis.",
+			})
+		}
 	}
 	return actions
+}
+
+func descendantsOf(outgoing map[string][]EdgeView, nodes map[string]NodeView, startID string) []NodeView {
+	seen := map[string]bool{startID: true}
+	queue := []string{startID}
+	var out []NodeView
+	for len(queue) > 0 {
+		id := queue[0]
+		queue = queue[1:]
+		for _, edge := range outgoing[id] {
+			if seen[edge.ToID] {
+				continue
+			}
+			seen[edge.ToID] = true
+			node, ok := nodes[edge.ToID]
+			if !ok {
+				continue
+			}
+			out = append(out, node)
+			queue = append(queue, node.ID)
+		}
+	}
+	return out
+}
+
+func hasOpenRun(outgoing map[string][]EdgeView, nodes map[string]NodeView, hypothesisID string) bool {
+	for _, node := range descendantsOf(outgoing, nodes, hypothesisID) {
+		if node.Kind != "run" {
+			continue
+		}
+		if !hasOutgoingKind(outgoing, nodes, node.ID, "result") {
+			return true
+		}
+	}
+	return false
 }
 
 func hasOutgoingKind(outgoing map[string][]EdgeView, nodes map[string]NodeView, fromID, kind string) bool {
@@ -211,7 +258,7 @@ func (s *Service) AgentNextActions(ctx context.Context, principal agentauth.Prin
 func (s *Service) BindPreparedRun(ctx context.Context, principal agentauth.Principal, fromNodeID, experimentID, title string) (string, error) {
 	fromNodeID = strings.TrimSpace(fromNodeID)
 	if fromNodeID == "" || strings.TrimSpace(experimentID) == "" {
-		return "", nil
+		return "", invalid("from_node_id and experiment_id are required to bind a Graph run")
 	}
 	tokenID := principal.TokenID
 	current := actor{
@@ -225,7 +272,7 @@ func (s *Service) BindPreparedRun(ctx context.Context, principal agentauth.Princ
 	defer func() { _ = tx.Rollback() }()
 	experimentRecord, err := findProjectExperiment(ctx, tx, current.projectID, experimentID)
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 	existing, err := tx.ResearchNode.Query().Where(
 		researchnode.ProjectIDEQ(current.projectID), researchnode.ExperimentIDEQ(experimentRecord.ID),
@@ -241,23 +288,30 @@ func (s *Service) BindPreparedRun(ctx context.Context, principal agentauth.Princ
 	}
 	fromPublicID, err := uuid.Parse(fromNodeID)
 	if err != nil {
-		return "", nil
+		return "", invalid("from_node_id must be a Graph node ID")
 	}
 	from, err := tx.ResearchNode.Query().Where(
 		researchnode.PublicIDEQ(fromPublicID), researchnode.ProjectIDEQ(current.projectID),
 	).WithStudy().Only(ctx)
 	if ent.IsNotFound(err) {
-		return "", nil
+		return "", invalid("from_node_id was not found in this Project")
 	}
 	if err != nil {
 		return "", err
 	}
 	if from.Kind != researchnode.KindHypothesis && from.Kind != researchnode.KindPlan {
-		return "", nil
+		return "", invalid("from_node_id must be a hypothesis or plan node")
 	}
 	selected, err := from.Edges.StudyOrErr()
 	if err != nil || selected.Status != study.StatusActive {
-		return "", nil
+		return "", invalid("from_node_id must belong to an active Study")
+	}
+	incoming, err := tx.ResearchEdge.Query().Where(researchedge.ToNodeIDEQ(from.ID)).Exist(ctx)
+	if err != nil {
+		return "", err
+	}
+	if !incoming {
+		return "", invalid(isolatedSpendOriginMessage)
 	}
 	count, err := tx.ResearchNode.Query().Where(researchnode.StudyIDEQ(selected.ID)).Count(ctx)
 	if err != nil {
@@ -407,6 +461,9 @@ func (s *Service) AgentCloseRun(ctx context.Context, principal agentauth.Princip
 	}); err != nil {
 		return Workspace{}, err
 	}
+	if err := writeHighlightObservation(ctx, tx, current, selected, run, experimentRecord, input, title, status, resultCommitSHA); err != nil {
+		return Workspace{}, err
+	}
 	if _, err := run.Update().SetStatus(status).Save(ctx); err != nil {
 		return Workspace{}, err
 	}
@@ -414,6 +471,72 @@ func (s *Service) AgentCloseRun(ctx context.Context, principal agentauth.Princip
 		return Workspace{}, err
 	}
 	return s.workspace(ctx, current, selected.PublicID.String())
+}
+
+func writeHighlightObservation(ctx context.Context, tx *ent.Tx, current actor, selected *ent.Study, run *ent.ResearchNode, experimentRecord *ent.Experiment, input CloseRunInput, resultTitle string, status researchnode.Status, resultCommitSHA string) error {
+	hypothesis, err := findHypothesisAncestor(ctx, tx, selected.ID, run.ID)
+	if err != nil {
+		return err
+	}
+	highlightTitle := strings.TrimSpace(input.Highlight)
+	if highlightTitle == "" {
+		highlightTitle = resultTitle
+	}
+	commitSHA := resultCommitSHA
+	if commitSHA == "" {
+		commitSHA = experimentRecord.CommitSha
+	}
+	observation, err := recordNode(ctx, tx, current, selected, NodeInput{
+		Kind: string(researchnode.KindObservation), Title: highlightTitle, Summary: input.Summary, Status: string(status),
+		MetricName: input.MetricName, MetricValue: input.MetricValue,
+		OccurredAt: experimentEvidenceTime(experimentRecord).Format(time.RFC3339),
+		CommitSHA:  commitSHA,
+		FromNodeID: hypothesis.PublicID.String(), Relation: string(researchedge.RelationLeadsTo),
+	})
+	if err != nil {
+		return err
+	}
+	nodes, err := tx.ResearchNode.Query().Where(researchnode.StudyIDEQ(selected.ID)).All(ctx)
+	if err != nil {
+		return err
+	}
+	relation := researchedge.RelationSupports
+	if status != researchnode.StatusSucceeded {
+		relation = researchedge.RelationContradicts
+	}
+	return recordEdge(ctx, tx, current, selected, nodes, hypothesis, observation.PublicID.String(), string(relation))
+}
+
+func findHypothesisAncestor(ctx context.Context, tx *ent.Tx, studyID, startID int) (*ent.ResearchNode, error) {
+	seen := map[int]bool{}
+	queue := []int{startID}
+	for len(queue) > 0 && len(seen) < maxNodesPerStudy {
+		id := queue[0]
+		queue = queue[1:]
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
+		edges, err := tx.ResearchEdge.Query().Where(
+			researchedge.StudyIDEQ(studyID), researchedge.ToNodeIDEQ(id), researchedge.RelationEQ(researchedge.RelationLeadsTo),
+		).WithFromNode().All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, edge := range edges {
+			from, err := edge.Edges.FromNodeOrErr()
+			if err != nil || from == nil {
+				continue
+			}
+			if from.Kind == researchnode.KindHypothesis {
+				return from, nil
+			}
+			if from.Kind == researchnode.KindPlan || from.Kind == researchnode.KindQuestion {
+				queue = append(queue, from.ID)
+			}
+		}
+	}
+	return nil, invalid("close_run requires the run to hang off a hypothesis so the highlight observation can be linked")
 }
 
 func normalizeResultCommit(value string) (string, error) {

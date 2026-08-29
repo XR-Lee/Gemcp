@@ -267,6 +267,8 @@ before calling submit_prepared_experiment.
 
 ## Tools
 
+Study, hypothesis, run, result, highlight observation, and orphan have one definition in [Hypothesis–experiment Graph contract](graph-contract.md). MCP and the Owner console use those words.
+
 - `get_usage_guide`: current Agent operating guide, authenticated project ID, Token scopes, Resource URI, and Prompt name.
 - `list_repository_registrations`: active and pending repositories in the authenticated Project, including non-secret deploy public keys.
 - `register_repository`: create a pending GitHub SSH registration in the authenticated Project; requires `configure`.
@@ -274,11 +276,11 @@ before calling submit_prepared_experiment.
 - `list_workspace_datasets`: declared dataset paths below Owner-approved trusted workspace roots.
 - `register_workspace_dataset`: declare one normalized relative dataset path without authorizing a new host root; requires `configure`.
 - `remove_workspace_dataset`: disable one declaration without deleting host data; requires `configure`.
-- `get_research_workspace`: return Studies, the selected iteration plan, the research Graph, and legal next actions without starting a workload.
+- `get_research_workspace`: return Studies, the selected iteration plan, the research Graph, hypothesis records, and next actions without starting a workload.
 - `update_research_workspace`: create or update a Study, replace the active plan, or record a Graph node; historical nodes should set `occurred_at` from the evidence committer date and optional `commit_sha`. Requires `submit` and never starts a workload.
-- `get_next_actions`: return only Graph-legal next steps for the selected Study.
-- `close_run`: write a result node on a terminal Experiment that already has a Graph run; omit `metric_name` to copy the prepared `expected_metric` from the Experiment; optionally attach the full Git commit containing a durable result manifest as `result_commit_sha`; requires `submit`.
-- `prepare_experiment`: resolve a repository/ref, safe argv, compatible defaults, preflight checks, cost, and a short-lived immutable proposal without reserving budget. `runtime_preset` may be `smoke` (300s), `probe` (3600s), `train` (up to the Project max runtime), or `provision` (Gemcp-owned AutoDL dataset fetch; omit argv). Optional `install_dependencies` runs `python -m pip install --user` from the verified commit. AutoDL probe/train require a Project dataset binding under `/root/autodl-fs/`. When a Study exists, `from_node_id` must be a hypothesis or plan node and is bound into the confirmation digest. For experimental Cloud SSH, omit `image` and optionally omit repository; pass `argv` and optional `cwd`. Do not invent SSH credentials, wrap argv in a shell, or write wget/curl/conda.
+- `get_next_actions`: return the next scientific step for the selected Study from its hypotheses, runs, and observations — a decision or Experiment proposal, not only a legal-edge checklist.
+- `close_run`: write a result node on a terminal Experiment that already has a Graph run, and a highlight observation linked to the originating hypothesis; omit `metric_name` to copy the prepared `expected_metric` from the Experiment; optionally attach the full Git commit containing a durable result manifest as `result_commit_sha`; requires `submit`.
+- `prepare_experiment`: resolve a repository/ref, safe argv, compatible defaults, preflight checks, cost, and a short-lived immutable proposal without reserving budget. `runtime_preset` may be `smoke` (300s), `probe` (3600s), `train` (up to the Project max runtime), or `provision` (Gemcp-owned AutoDL dataset fetch; omit argv). Optional `install_dependencies` runs `python -m pip install --user` from the verified commit. AutoDL probe/train require a Project dataset binding under `/root/autodl-fs/`. When a Study exists, `from_node_id` must be a connected hypothesis or a plan under that Study and is bound into the confirmation digest. Isolated nodes cannot prepare. For experimental Cloud SSH, omit `image` and optionally omit repository; pass `argv` and optional `cwd`. Do not invent SSH credentials, wrap argv in a shell, or write wget/curl/conda.
 - `list_dataset_bindings` / `register_dataset_binding` / `remove_dataset_binding`: Project AutoDL or Cloud SSH dataset roots, optional catalog and HTTPS sources, and `GEMCP_DATASET_*` injection; write tools require `configure`. Registration never uploads data; `runtime_preset=provision` downloads allowlisted sources.
 - `register_environment` / `remove_environment`: register or disable a Provider-visible AutoDL image for the Project; write tools require `configure`.
 - `get_project_options`: includes `dataset_sources`, `provider_images`, and `onboarding.public_cloud.next_steps` so Agents can finish Public Elastic setup without a trusted workspace.
@@ -286,7 +288,7 @@ before calling submit_prepared_experiment.
 - `rotate_ssh_cloud_node_credential`: replace the encrypted SSH password or private key; requires `operate_nodes`.
 - `submit_prepared_experiment`: submit one confirmed proposal by ID and digest; identical retries return the same Experiment and bind its Graph run node. Agents do not auto-submit. The Owner console can confirm the same digest and start the Experiment.
 - `get_project_options`: approved repositories, environments, resource profiles, dataset bindings, dataset source catalog, Provider-visible images, public-cloud onboarding steps, project limits, dynamically discovered authorized Self-hosted Node readiness, experimental Cloud SSH node readiness, and a `readiness` summary with the heartbeat contract. Cloud SSH listing does not require prior Project access; the control plane probes registered nodes.
-- `submit_experiment`: Advanced compatibility path for a full commit SHA, arbitrary shell command, and caller-managed idempotency key.
+- `submit_experiment`: Advanced compatibility path for a full commit SHA, arbitrary shell command, and caller-managed idempotency key. Rejected when the Project has an active Study; use `prepare_experiment` with `from_node_id` instead.
 - `get_experiment`: current state, immutable specification, bounded `log_tail`, and `metrics.json` projection. This is the monitoring surface; it does not expose SSH or remote files.
 - `list_experiments`: recent experiments with optional state filters.
 - `cancel_experiment`: cancel queued work immediately or request cancellation of active work.

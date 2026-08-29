@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/XR-Lee/Gemcp/ent"
+	"github.com/XR-Lee/Gemcp/ent/researchedge"
 	"github.com/XR-Lee/Gemcp/ent/researchnode"
 	"github.com/XR-Lee/Gemcp/ent/study"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
@@ -55,6 +56,13 @@ func (s *Service) resolveGraphOrigin(ctx context.Context, principal agentauth.Pr
 	if node.Kind != researchnode.KindHypothesis && node.Kind != researchnode.KindPlan {
 		return "", "", &ValidationError{Message: "from_node_id must be a hypothesis or plan node"}
 	}
+	incoming, err := s.client.ResearchEdge.Query().Where(researchedge.ToNodeIDEQ(node.ID)).Exist(ctx)
+	if err != nil {
+		return "", "", err
+	}
+	if !incoming {
+		return "", "", &ValidationError{Message: "from_node_id must hang off a parent Graph node; isolated nodes cannot prepare"}
+	}
 	return node.PublicID.String(), expectedMetric, nil
 }
 
@@ -84,6 +92,9 @@ func (s *Service) bindPreparedGraph(ctx context.Context, principal agentauth.Pri
 	runNodeID, err := s.graphBinder.BindPreparedRun(ctx, principal, fromNodeID, result.Experiment.ID, title)
 	if err != nil {
 		return result, err
+	}
+	if strings.TrimSpace(runNodeID) == "" {
+		return result, &ValidationError{Message: "prepared Experiment must bind a Graph run"}
 	}
 	result.RunNodeID = runNodeID
 	return result, nil
