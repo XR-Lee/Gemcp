@@ -499,6 +499,65 @@ func TestPrepareRequiresFromNodeWhenStudyExistsAndSubmitBindsRun(t *testing.T) {
 	}
 }
 
+func TestCLIPathHypothesisProposalRunAndHighlight(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	ctx := context.Background()
+	researchService := mustResearchService(t, f)
+	created, err := researchService.AgentUpdate(ctx, f.principal, researchUpdate(f, "cli-path", "Can a CLI Agent stay on the Graph from hypothesis to highlight?"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	hypothesis, err := researchService.AgentUpdate(ctx, f.principal, research.UpdateInput{
+		Node: &research.NodeInput{Kind: "hypothesis", Title: "Noise caps accuracy", FromNodeID: created.Study.Nodes[0].ID, Relation: "leads_to"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := preparedService(t, f, 2)
+	service.SetGraphBinder(researchService)
+	input := prepareFrom(hypothesis.Study.Nodes[1].ID)
+	input.ExpectedMetric = "overall_accuracy"
+	prepared, err := service.Prepare(ctx, f.principal, input)
+	if err != nil || prepared.Proposal == nil {
+		t.Fatalf("Prepare() = %+v, %v", prepared, err)
+	}
+	submitted, err := service.SubmitPrepared(ctx, f.principal, SubmitPreparedInput{ProposalID: prepared.Proposal.ID, ConfirmationDigest: prepared.Proposal.ConfirmationDigest})
+	if err != nil || submitted.RunNodeID == "" {
+		t.Fatalf("SubmitPrepared() = %+v, %v", submitted, err)
+	}
+	record, err := service.getRecord(ctx, f.project.ID, submitted.Experiment.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := record.Update().SetState("succeeded").SetMetrics(map[string]any{"overall_accuracy": 86.4}).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	metric := 86.4
+	closed, err := researchService.AgentCloseRun(ctx, f.principal, research.CloseRunInput{
+		ExperimentID: submitted.Experiment.ID, Title: "CLI smoke accuracy", Highlight: "Background noise still enters kNN",
+		MetricName: "overall_accuracy", MetricValue: &metric,
+	})
+	if err != nil || closed.Study == nil || len(closed.Study.Hypotheses) != 1 {
+		t.Fatalf("close_run workspace = %+v, %v", closed.Study, err)
+	}
+	rec := closed.Study.Hypotheses[0].Experiments
+	if len(rec) != 1 || rec[0].Branch == "" || rec[0].CommitSHA == "" || rec[0].HighlightTitle != "Background noise still enters kNN" || rec[0].ResultTitle != "CLI smoke accuracy" {
+		t.Fatalf("hypothesis records = %+v", rec)
+	}
+	if !containsActionKind(closed.NextActions, "record_decision") {
+		t.Fatalf("next actions after highlight = %+v", closed.NextActions)
+	}
+}
+
+func containsActionKind(actions []research.NextAction, kind string) bool {
+	for _, action := range actions {
+		if action.Kind == kind {
+			return true
+		}
+	}
+	return false
+}
+
 func TestPrepareRejectsIsolatedHypothesis(t *testing.T) {
 	f := newFixture(t, 100000, 20000)
 	ctx := context.Background()
