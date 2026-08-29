@@ -11,7 +11,9 @@ import (
 
 	"github.com/XR-Lee/Gemcp/ent"
 	"github.com/XR-Lee/Gemcp/ent/auditevent"
+	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/provideraccount"
+	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
 	"github.com/XR-Lee/Gemcp/internal/autodl"
 	"github.com/XR-Lee/Gemcp/internal/secrets"
 )
@@ -45,11 +47,11 @@ func (e *OperationError) Error() string {
 			detail += ": " + message
 		}
 		if providerErr.RequestID != "" {
-			return fmt.Sprintf("Private Cloud %s failed: %s (%s)", e.Operation, detail, providerErr.RequestID)
+			return fmt.Sprintf("AutoDL %s failed: %s (%s)", e.Operation, detail, providerErr.RequestID)
 		}
-		return fmt.Sprintf("Private Cloud %s failed: %s", e.Operation, detail)
+		return fmt.Sprintf("AutoDL %s failed: %s", e.Operation, detail)
 	}
-	return fmt.Sprintf("Private Cloud %s failed", e.Operation)
+	return fmt.Sprintf("AutoDL %s failed", e.Operation)
 }
 
 func boundedProviderMessage(message string) string {
@@ -66,6 +68,7 @@ func (e *OperationError) Unwrap() error { return e.Cause }
 type api interface {
 	ElasticImages(context.Context, int, int) (autodl.Page[autodl.Image], string, error)
 	PrivateSystemImages(context.Context, int, int) (autodl.Page[autodl.Image], string, error)
+	ElasticGPUStock(context.Context, string, map[string]any) (autodl.GPUStock, string, error)
 	PrivateElasticGPUStock(context.Context) (autodl.GPUStock, string, error)
 	ElasticDeployments(context.Context, int, int, string) (autodl.Page[autodl.Deployment], string, error)
 	ElasticContainersWithReleased(context.Context, string, bool, int, int) (autodl.Page[autodl.Container], string, error)
@@ -95,7 +98,7 @@ type Service struct {
 func NewService(client *ent.Client, box *secrets.Box, version string, options ...Option) *Service {
 	service := &Service{client: client, box: box, version: strings.TrimSpace(version), now: time.Now}
 	service.newClient = func(baseURL, token string) (api, error) {
-		if strings.TrimRight(strings.TrimSpace(baseURL), "/") != autodl.PrivateBaseURL {
+		if _, err := providerBackendForURL(baseURL); err != nil {
 			return nil, ErrUnsupportedBackend
 		}
 		userAgent := "Gemcp/" + service.version + " provider-observer"
@@ -120,11 +123,19 @@ func (s *Service) QueryResources(ctx context.Context, tenantID int) (ResourceSna
 	if err != nil {
 		return ResourceSnapshot{}, err
 	}
+	backend, err := providerBackendForURL(record.BaseURL)
+	if err != nil || (record.Backend != provideraccount.BackendUnverified && record.Backend != backend) {
+		return ResourceSnapshot{}, ErrUnsupportedBackend
+	}
 	providerClient, err := s.clientFor(record)
 	if err != nil {
 		return ResourceSnapshot{}, err
 	}
-	snapshot, err := s.collectResources(ctx, providerClient)
+	regions, err := s.providerRegions(ctx, tenantID, backend)
+	if err != nil {
+		return ResourceSnapshot{}, err
+	}
+	snapshot, err := s.collectResources(ctx, providerClient, backend, regions)
 	if err != nil {
 		statusCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		_, _ = record.Update().SetStatus(provideraccount.StatusError).Save(statusCtx)
@@ -134,7 +145,7 @@ func (s *Service) QueryResources(ctx context.Context, tenantID int) (ResourceSna
 
 	now := s.now().UTC()
 	updated, err := record.Update().
-		SetBackend(provideraccount.BackendPrivate).
+		SetBackend(backend).
 		SetStatus(provideraccount.StatusActive).
 		SetLastValidatedAt(now).
 		Save(ctx)
@@ -153,8 +164,9 @@ func (s *Service) Configure(ctx context.Context, tenantID int, actorID string, i
 		return result, &ValidationError{Message: "Provider name is required and must not exceed 120 characters"}
 	}
 	baseURL := strings.TrimRight(strings.TrimSpace(input.BaseURL), "/")
-	if baseURL != autodl.PrivateBaseURL {
-		return result, &ValidationError{Message: "Provider API URL must be https://private.autodl.com"}
+	backend, err := providerBackendForURL(baseURL)
+	if err != nil {
+		return result, &ValidationError{Message: "Provider API URL must be https://api.autodl.com or https://private.autodl.com"}
 	}
 	token := strings.TrimSpace(input.Token)
 	if len(token) < 32 || len(token) > 4096 {
@@ -164,12 +176,19 @@ func (s *Service) Configure(ctx context.Context, tenantID int, actorID string, i
 	if err != nil {
 		return result, err
 	}
+	if record.Backend != provideraccount.BackendUnverified && record.Backend != backend {
+		return result, &ValidationError{Message: "Provider API host cannot change after the execution backend is configured"}
+	}
 
 	providerClient, err := s.newClient(baseURL, token)
 	if err != nil {
 		return result, err
 	}
-	snapshot, err := s.collectResources(ctx, providerClient)
+	regions, err := s.providerRegions(ctx, tenantID, backend)
+	if err != nil {
+		return result, err
+	}
+	snapshot, err := s.collectResources(ctx, providerClient, backend, regions)
 	if err != nil {
 		return result, err
 	}
@@ -187,7 +206,7 @@ func (s *Service) Configure(ctx context.Context, tenantID int, actorID string, i
 	updated, err := tx.ProviderAccount.UpdateOneID(record.ID).
 		SetName(name).
 		SetBaseURL(baseURL).
-		SetBackend(provideraccount.BackendPrivate).
+		SetBackend(backend).
 		SetCredentialCiphertext(ciphertext).
 		SetStatus(provideraccount.StatusActive).
 		SetLastValidatedAt(now).
@@ -202,7 +221,7 @@ func (s *Service) Configure(ctx context.Context, tenantID int, actorID string, i
 		SetAction("provider.credential_rotated").
 		SetTargetType("provider_account").
 		SetTargetID(updated.PublicID.String()).
-		SetMetadata(map[string]any{"backend": "private", "base_url": baseURL}).
+		SetMetadata(map[string]any{"backend": backend, "base_url": baseURL}).
 		Save(ctx)
 	if err != nil {
 		return result, fmt.Errorf("write Provider audit event: %w", err)
@@ -306,7 +325,8 @@ func (s *Service) account(ctx context.Context, tenantID int) (*ent.ProviderAccou
 }
 
 func (s *Service) clientFor(record *ent.ProviderAccount) (api, error) {
-	if strings.TrimRight(record.BaseURL, "/") != autodl.PrivateBaseURL {
+	backend, err := providerBackendForURL(record.BaseURL)
+	if err != nil || (record.Backend != provideraccount.BackendUnverified && backend != record.Backend) {
 		return nil, ErrUnsupportedBackend
 	}
 	token, err := DecryptCredential(s.box, record.CredentialCiphertext)
@@ -320,7 +340,7 @@ func (s *Service) clientFor(record *ent.ProviderAccount) (api, error) {
 	return providerClient, nil
 }
 
-func (s *Service) collectResources(ctx context.Context, providerClient api) (ResourceSnapshot, error) {
+func (s *Service) collectResources(ctx context.Context, providerClient api, backend provideraccount.Backend, regions []string) (ResourceSnapshot, error) {
 	var snapshot ResourceSnapshot
 	privateImages, truncated, err := collectPages(ctx, func(page, size int) (autodl.Page[autodl.Image], string, error) {
 		return providerClient.ElasticImages(ctx, page, size)
@@ -331,21 +351,43 @@ func (s *Service) collectResources(ctx context.Context, providerClient api) (Res
 	if truncated {
 		snapshot.Truncated = append(snapshot.Truncated, "private_images")
 	}
-	systemImages, truncated, err := collectPages(ctx, func(page, size int) (autodl.Page[autodl.Image], string, error) {
-		return providerClient.PrivateSystemImages(ctx, page, size)
-	})
-	if err != nil {
-		if !optionalSystemImagesUnavailable(err) {
-			return snapshot, operationError("system-image query", err)
+	var systemImages []autodl.Image
+	var gpuStock []GPUStock
+	if backend == provideraccount.BackendPrivate {
+		systemImages, truncated, err = collectPages(ctx, func(page, size int) (autodl.Page[autodl.Image], string, error) {
+			return providerClient.PrivateSystemImages(ctx, page, size)
+		})
+		if err != nil {
+			if !optionalSystemImagesUnavailable(err) {
+				return snapshot, operationError("system-image query", err)
+			}
+			snapshot.Truncated = append(snapshot.Truncated, "system_images")
+			systemImages = nil
+		} else if truncated {
+			snapshot.Truncated = append(snapshot.Truncated, "system_images")
 		}
-		snapshot.Truncated = append(snapshot.Truncated, "system_images")
-		systemImages = nil
-	} else if truncated {
-		snapshot.Truncated = append(snapshot.Truncated, "system_images")
-	}
-	stock, _, err := providerClient.PrivateElasticGPUStock(ctx)
-	if err != nil {
-		return snapshot, operationError("GPU inventory query", err)
+		stock, _, stockErr := providerClient.PrivateElasticGPUStock(ctx)
+		err = stockErr
+		if err != nil {
+			return snapshot, operationError("GPU inventory query", err)
+		}
+		gpuStock = stockViews(stock, "private")
+	} else if backend == provideraccount.BackendElastic {
+		for _, region := range regions {
+			regionStock, _, stockErr := providerClient.ElasticGPUStock(ctx, region, nil)
+			if stockErr != nil {
+				return snapshot, operationError("GPU inventory query for region "+region, stockErr)
+			}
+			gpuStock = append(gpuStock, stockViews(regionStock, region)...)
+		}
+		sort.Slice(gpuStock, func(i, j int) bool {
+			if gpuStock[i].Region == gpuStock[j].Region {
+				return gpuStock[i].Name < gpuStock[j].Name
+			}
+			return gpuStock[i].Region < gpuStock[j].Region
+		})
+	} else {
+		return snapshot, ErrUnsupportedBackend
 	}
 	deployments, truncated, err := collectPages(ctx, func(page, size int) (autodl.Page[autodl.Deployment], string, error) {
 		return providerClient.ElasticDeployments(ctx, page, size, "")
@@ -377,11 +419,51 @@ func (s *Service) collectResources(ctx context.Context, providerClient api) (Res
 
 	snapshot.PrivateImages = imageViews(privateImages, "private")
 	snapshot.SystemImages = imageViews(systemImages, "system")
-	snapshot.GPUStock = stockViews(stock)
+	snapshot.GPUStock = gpuStock
 	snapshot.Deployments = deploymentViews(deployments)
 	snapshot.ActiveContainers = containerViews(active, false)
 	snapshot.CachedContainers = containerViews(cached, true)
 	return snapshot, nil
+}
+
+func providerBackendForURL(baseURL string) (provideraccount.Backend, error) {
+	switch strings.TrimRight(strings.TrimSpace(baseURL), "/") {
+	case autodl.DefaultBaseURL:
+		return provideraccount.BackendElastic, nil
+	case autodl.PrivateBaseURL:
+		return provideraccount.BackendPrivate, nil
+	default:
+		return provideraccount.BackendUnverified, ErrUnsupportedBackend
+	}
+}
+
+func (s *Service) providerRegions(ctx context.Context, tenantID int, backend provideraccount.Backend) ([]string, error) {
+	if backend != provideraccount.BackendElastic {
+		return nil, nil
+	}
+	records, err := s.client.ResourceProfile.Query().Where(
+		resourceprofile.BackendEQ(resourceprofile.BackendAutodlElastic),
+		resourceprofile.StatusEQ(resourceprofile.StatusActive),
+		resourceprofile.HasProjectWith(project.TenantIDEQ(tenantID)),
+	).All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("query AutoDL Elastic regions: %w", err)
+	}
+	seen := map[string]struct{}{}
+	regions := make([]string, 0, len(records))
+	for _, record := range records {
+		region := strings.TrimSpace(record.Region)
+		if region == "" || region == "private" {
+			continue
+		}
+		if _, exists := seen[region]; exists {
+			continue
+		}
+		seen[region] = struct{}{}
+		regions = append(regions, region)
+	}
+	sort.Strings(regions)
+	return regions, nil
 }
 
 func summaryFromRecord(record *ent.ProviderAccount) Summary {
@@ -466,10 +548,10 @@ func imageViews(records []autodl.Image, source string) []Image {
 	return views
 }
 
-func stockViews(stock autodl.GPUStock) []GPUStock {
+func stockViews(stock autodl.GPUStock, region string) []GPUStock {
 	views := make([]GPUStock, 0, len(stock))
 	for name, entry := range stock {
-		views = append(views, GPUStock{Name: name, Idle: entry.Idle, Total: entry.Total})
+		views = append(views, GPUStock{Name: name, Region: region, Idle: entry.Idle, Total: entry.Total})
 	}
 	sort.Slice(views, func(i, j int) bool { return views[i].Name < views[j].Name })
 	return views

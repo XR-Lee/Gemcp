@@ -470,7 +470,7 @@ func (s *Service) proposalChecks(ctx context.Context, resolved proposalResolved)
 		} else {
 			add("public_url", ProposalCheckPass, "Public callback URL is configured", "")
 		}
-		if resolved.profile.Backend == resourceprofile.BackendAutodlPrivate {
+		if resolved.profile.Backend != resourceprofile.BackendSelfHosted {
 			if !status.WatchdogHealthy {
 				add("watchdog", ProposalCheckFail, "Watchdog heartbeat is stale", "Paid AutoDL cleanup enforcement must be healthy.")
 			} else {
@@ -508,7 +508,7 @@ func (s *Service) proposalChecks(ctx context.Context, resolved proposalResolved)
 		}
 	}
 	s.proposalBudgetCheck(ctx, resolved, add)
-	if resolved.profile.Backend == resourceprofile.BackendAutodlPrivate {
+	if resolved.profile.Backend != resourceprofile.BackendSelfHosted {
 		s.proposalAutoDLCheck(ctx, resolved, add)
 	} else {
 		s.proposalSelfHostedCheck(ctx, resolved, add)
@@ -567,10 +567,17 @@ func (s *Service) proposalAutoDLCheck(ctx context.Context, resolved proposalReso
 	idle := 0
 	details := []string{}
 	for _, stock := range snapshot.GPUStock {
+		if resolved.profile.Backend == resourceprofile.BackendAutodlElastic && stock.Region != resolved.profile.Region {
+			continue
+		}
 		for _, accepted := range resolved.profile.GpuNames {
 			if strings.EqualFold(strings.TrimSpace(stock.Name), strings.TrimSpace(accepted)) {
 				idle += stock.Idle
-				details = append(details, fmt.Sprintf("%s: %d idle", stock.Name, stock.Idle))
+				detail := fmt.Sprintf("%s: %d idle", stock.Name, stock.Idle)
+				if stock.Region != "" {
+					detail = fmt.Sprintf("%s / %s: %d idle", stock.Region, stock.Name, stock.Idle)
+				}
+				details = append(details, detail)
 				break
 			}
 		}

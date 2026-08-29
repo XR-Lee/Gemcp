@@ -74,7 +74,7 @@ function applyProviderMode() {
     form.priceToCNY = 9
     return
   }
-  form.providerName = 'AutoDL'
+  form.providerName = 'AutoDL Public Cloud'
   form.providerBaseURL = 'https://api.autodl.com'
   form.region = 'westDC2'
   form.gpuNames = 'RTX 4090'

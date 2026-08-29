@@ -440,6 +440,7 @@ export type ProviderSummary = {
 
 export type ProviderGPUStock = {
   name: string
+  region?: string
   idle: number
   total: number
 }

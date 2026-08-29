@@ -1,6 +1,6 @@
 # Execution and shutdown enforcement
 
-`v0.6.0` adds the M0 production lifecycle for AutoDL Private Cloud Jobs. New dispatch is deliberately opt-in: an upgrade does not start existing queued experiments, while reconciliation and terminal settlement for existing Attempts remain active.
+Gemcp supports the production lifecycle for AutoDL Private Cloud and Public Elastic Jobs. New dispatch is deliberately opt-in: an upgrade does not start existing queued experiments, while reconciliation and terminal settlement for existing Attempts remain active.
 
 ## Arming checklist
 
@@ -15,8 +15,8 @@ Before changing the flag to `true`:
 
 1. Confirm the public URL reaches this controlplane over HTTPS without an interactive access challenge.
 2. Start the Compose `watchdog` and verify `GET /api/v1/runtime/status` reports a recent watchdog heartbeat.
-3. Validate the Private Cloud credential from the Provider page.
-4. Confirm project budgets, approved image, CUDA value, GPU names, resource bounds, and price ceiling.
+3. Validate the credential for the configured AutoDL host from the Provider page.
+4. Confirm project budgets, approved image, GPU names, resource bounds, and price ceiling. For Private Cloud confirm the single CUDA value and `region=private`; for Public Elastic confirm the data-center region and CUDA range.
 5. Configure and test SMTP notifications.
 6. Review every existing `queued` experiment; each becomes eligible when scheduling is armed.
 
@@ -31,7 +31,7 @@ queued -> provisioning -> running -> collecting | cancelling
        -> succeeded | failed | cancelled | timed_out | provider_error
 ```
 
-Dispatch runs in a Serializable transaction. It rechecks project status, project and global concurrency, the active budget period, and the validated Private Cloud account before creating:
+Dispatch runs in a Serializable transaction. It rechecks project status, project and global concurrency, the active budget period, and the validated AutoDL account matching the Resource Profile backend before creating:
 
 - one immutable `Attempt`;
 - one encrypted, scoped Runner Token;
@@ -42,6 +42,8 @@ Dispatch runs in a Serializable transaction. It rechecks project status, project
 The ownership record is committed before the Provider create call. If the response is lost, Gemcp reconciles the deterministic name before taking another action. An Attempt issues at most one create request. Only after the name is confirmed absent can Gemcp fail that Attempt and schedule a new one. A truncated Provider listing is never interpreted as absence.
 
 Known request rejections are terminal Provider errors. Ambiguous transport failures and capacity failures use bounded infrastructure Attempts. A created Job is never retried for command failure, OOM, cancellation, timeout, or missing Runner completion.
+
+Public Elastic creation sends `dc_list`, `cuda_v_from`, and `cuda_v_to` from an `autodl_elastic` Resource Profile. Private Cloud creation sends the validated single `cuda_v` from an `autodl_private` profile. Both paths use the same immutable Attempt ownership, Runner callbacks, deployment observation, cancellation, Watchdog cleanup, and budget settlement.
 
 ## Private source delivery
 

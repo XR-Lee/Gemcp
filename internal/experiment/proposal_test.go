@@ -11,7 +11,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/XR-Lee/Gemcp/ent"
 	"github.com/XR-Lee/Gemcp/ent/nodeprojectaccess"
+	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
 	"github.com/XR-Lee/Gemcp/internal/execution"
 	"github.com/XR-Lee/Gemcp/internal/provider"
 	gitrepository "github.com/XR-Lee/Gemcp/internal/repository"
@@ -51,19 +53,43 @@ func (a *memoryProposalArchive) Close() error     { return nil }
 func (a *memoryProposalArchive) SizeBytes() int64 { return int64(len(a.data)) }
 
 type proposalProvider struct {
-	idle int
-	err  error
+	idle  int
+	stock []provider.GPUStock
+	err   error
 }
 
 func (p proposalProvider) QueryResources(context.Context, int) (provider.ResourceSnapshot, error) {
 	if p.err != nil {
 		return provider.ResourceSnapshot{}, p.err
 	}
+	stock := p.stock
+	if stock == nil {
+		stock = []provider.GPUStock{{Name: "RTX 4090", Idle: p.idle, Total: 2}}
+	}
 	return provider.ResourceSnapshot{
 		Provider:      provider.Summary{Name: "private", Status: "active"},
-		GPUStock:      []provider.GPUStock{{Name: "RTX 4090", Idle: p.idle, Total: 2}},
+		GPUStock:      stock,
 		PrivateImages: []provider.Image{{UUID: "image-uuid", Name: "image", Source: "private"}},
 	}, nil
+}
+
+func TestProposalAutoDLCheckUsesElasticProfileRegion(t *testing.T) {
+	service := &Service{providerReader: proposalProvider{stock: []provider.GPUStock{
+		{Name: "RTX 4090", Region: "eastDC1", Idle: 2, Total: 2},
+		{Name: "RTX 4090", Region: "westDC2", Idle: 0, Total: 2},
+	}}}
+	resolved := proposalResolved{
+		project:     &ent.Project{TenantID: 1},
+		profile:     &ent.ResourceProfile{Backend: resourceprofile.BackendAutodlElastic, Region: "westDC2", GpuNames: []string{"RTX 4090"}, GpuNum: 1},
+		environment: &ent.Environment{ImageUUID: "image-uuid"},
+	}
+	statuses := map[string]string{}
+	service.proposalAutoDLCheck(context.Background(), resolved, func(code, status, _, _ string) {
+		statuses[code] = status
+	})
+	if statuses["gpu_capacity"] != ProposalCheckFail {
+		t.Fatalf("gpu_capacity status = %q, want %q", statuses["gpu_capacity"], ProposalCheckFail)
+	}
 }
 
 type proposalRuntime struct {

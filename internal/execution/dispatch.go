@@ -105,8 +105,14 @@ func (e *Engine) dispatchOne(ctx context.Context, experimentID int, now time.Tim
 		}
 		return true, nil
 	}
+	providerBackend := provideraccount.BackendPrivate
+	if profileRecord.Backend == resourceprofile.BackendAutodlElastic {
+		providerBackend = provideraccount.BackendElastic
+	} else if profileRecord.Backend != resourceprofile.BackendAutodlPrivate {
+		return false, fmt.Errorf("unsupported AutoDL resource backend %q", profileRecord.Backend)
+	}
 	providerRecord, err := tx.ProviderAccount.Query().Where(
-		provideraccount.TenantIDEQ(record.TenantID), provideraccount.BackendEQ(provideraccount.BackendPrivate),
+		provideraccount.TenantIDEQ(record.TenantID), provideraccount.BackendEQ(providerBackend),
 		provideraccount.StatusEQ(provideraccount.StatusActive),
 	).Order(ent.Asc(provideraccount.FieldID)).First(ctx)
 	if ent.IsNotFound(err) {

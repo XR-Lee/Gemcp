@@ -12,6 +12,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/attempt"
 	"github.com/XR-Lee/Gemcp/ent/budgetentry"
 	"github.com/XR-Lee/Gemcp/ent/enttest"
+	"github.com/XR-Lee/Gemcp/ent/provideraccount"
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/internal/autodl"
 	providerservice "github.com/XR-Lee/Gemcp/internal/provider"
@@ -23,19 +24,23 @@ import (
 )
 
 type fakeLifecycle struct {
-	createCalls int
-	findCalls   int
-	stopCalls   int
-	deleteCalls int
-	createErr   error
-	createID    string
-	find        Observation
-	observe     Observation
-	observeErr  error
+	createCalls   int
+	findCalls     int
+	stopCalls     int
+	deleteCalls   int
+	createErr     error
+	createID      string
+	find          Observation
+	observe       Observation
+	observeErr    error
+	createBackend provideraccount.Backend
+	createSpec    DeploymentSpec
 }
 
-func (f *fakeLifecycle) Create(context.Context, *ent.ProviderAccount, DeploymentSpec) (string, map[string]string, error) {
+func (f *fakeLifecycle) Create(_ context.Context, account *ent.ProviderAccount, spec DeploymentSpec) (string, map[string]string, error) {
 	f.createCalls++
+	f.createBackend = account.Backend
+	f.createSpec = spec
 	if f.createErr != nil {
 		return "", map[string]string{"create": "req-create"}, f.createErr
 	}
@@ -130,7 +135,7 @@ func newExecutionFixture(t *testing.T) *executionFixture {
 	fixture := &executionFixture{
 		client: client, box: box, engine: engine, provider: provider, tenant: tenant, project: project,
 		repository: repository, environment: environment, profile: profile, agentToken: agentToken,
-		now: time.Now().UTC().Truncate(time.Second),
+		now: time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC),
 	}
 	engine.now = func() time.Time { return fixture.now }
 	return fixture
@@ -154,12 +159,14 @@ func (f *executionFixture) addExperimentWithReservation(t *testing.T, secretName
 		SetCommitSha("0123456789012345678901234567890123456789").SetCommand("echo trained").
 		SetMaxRuntimeSeconds(300).SetTimeoutExtensionSeconds(60).SetTerminationGraceSeconds(5).
 		SetRepositorySnapshot(map[string]any{"id": f.repository.PublicID.String(), "project_id": f.project.PublicID.String()}).
-		SetEnvironmentSnapshot(map[string]any{"id": f.environment.PublicID.String(), "image_uuid": "image-1"}).
+		SetEnvironmentSnapshot(map[string]any{"id": f.environment.PublicID.String(), "backend": f.environment.Backend, "image_uuid": f.environment.ImageUUID}).
 		SetResourceSnapshot(map[string]any{
-			"id": f.profile.PublicID.String(), "region": "private", "gpu_names": []string{"RTX 3090"}, "gpu_num": 1,
-			"cuda_from": 118, "cuda_to": 118, "cpu_from": 1, "cpu_to": 16,
-			"memory_from_gb": 1, "memory_to_gb": 64, "price_from_milli": 100, "price_to_milli": 1000,
-			"reuse_container": true,
+			"id": f.profile.PublicID.String(), "backend": f.profile.Backend, "region": f.profile.Region,
+			"gpu_names": f.profile.GpuNames, "gpu_num": f.profile.GpuNum,
+			"cuda_from": f.profile.CudaFrom, "cuda_to": f.profile.CudaTo, "cpu_from": f.profile.CPUFrom, "cpu_to": f.profile.CPUTo,
+			"memory_from_gb": f.profile.MemoryFromGB, "memory_to_gb": f.profile.MemoryToGB,
+			"price_from_milli": f.profile.PriceFromMilli, "price_to_milli": f.profile.PriceToMilli,
+			"reuse_container": f.profile.ReuseContainer,
 		}).SetSecretNames(secretNames).SetOutputPath(outputPath).SetReservedCostMilli(reservation).SetNextAttemptAt(f.now).Save(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -279,6 +286,42 @@ func TestDisabledDispatchDoesNotIssuePendingCreate(t *testing.T) {
 	resourceRecord, _ := f.client.ProviderResource.Query().Where(providerresource.ExperimentIDEQ(experimentRecord.ID)).Only(context.Background())
 	if resourceRecord.CreateAttempts != 0 || resourceRecord.State != providerresource.StateCreating {
 		t.Fatalf("resource = %+v", resourceRecord)
+	}
+}
+
+func TestDispatchSelectsPublicElasticProvider(t *testing.T) {
+	f := newExecutionFixture(t)
+	ctx := context.Background()
+	environmentRecord, err := f.client.Environment.Create().SetProjectID(f.project.ID).SetBackend("autodl_elastic").
+		SetName("elastic").SetImageUUID("image-public").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	profileRecord, err := f.client.ResourceProfile.Create().SetProjectID(f.project.ID).SetBackend("autodl_elastic").
+		SetName("elastic").SetRegion("westDC2").SetGpuNames([]string{"RTX 4090"}).SetGpuNum(1).
+		SetCudaFrom(118).SetCudaTo(128).SetCPUFrom(1).SetCPUTo(16).SetMemoryFromGB(1).SetMemoryToGB(64).
+		SetPriceFromMilli(100).SetPriceToMilli(1000).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	account, err := f.client.ProviderAccount.Query().Where(provideraccount.TenantIDEQ(f.tenant.ID)).Only(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := account.Update().SetBaseURL(autodl.DefaultBaseURL).SetBackend(provideraccount.BackendElastic).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	f.environment, f.profile = environmentRecord, profileRecord
+	experimentRecord := f.addExperiment(t)
+	if err := f.engine.Tick(ctx); err != nil {
+		t.Fatal(err)
+	}
+	experimentRecord, _ = f.client.Experiment.Get(ctx, experimentRecord.ID)
+	if experimentRecord.State != "provisioning" || f.provider.createCalls != 1 || f.provider.createBackend != provideraccount.BackendElastic {
+		t.Fatalf("experiment=%+v calls=%d backend=%q", experimentRecord, f.provider.createCalls, f.provider.createBackend)
+	}
+	if f.provider.createSpec.Backend != "autodl_elastic" || f.provider.createSpec.Region != "westDC2" || f.provider.createSpec.CUDAFrom != 118 || f.provider.createSpec.CUDATo != 128 {
+		t.Fatalf("elastic deployment spec = %+v", f.provider.createSpec)
 	}
 }
 

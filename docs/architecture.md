@@ -37,9 +37,9 @@ The remote MCP endpoint uses the official Go SDK's Streamable HTTP transport. Ag
 
 ## Provider boundary
 
-The production AutoDL adapter uses documented Developer APIs; browser automation is excluded. Live phase zero selected **AutoDL Private Cloud Job** as the M0 execution backend. Public Elastic and Pro remain diagnostic clients, not production scheduling fallbacks.
+The production AutoDL adapter uses documented Developer APIs; browser automation is excluded. Both **AutoDL Public Elastic Job** (`https://api.autodl.com`) and **AutoDL Private Cloud Job** (`https://private.autodl.com`) are explicit production execution backends. A Project Environment and Resource Profile bind to one of them; scheduling never falls back between public and private capacity. AutoDL Pro remains a diagnostic client only.
 
-Private Cloud differs materially from public Elastic: it has a separate API host, no Developer wallet endpoint, a non-regional GPU inventory, one `cuda_v` selector, and Provider statuses where `finished_num=1` may coexist with `status=running`. The official console's read-only system-image endpoint is used only to enumerate valid base-image UUIDs during phase zero.
+Private Cloud differs materially from Public Elastic: it has a separate API host, no Developer wallet endpoint, a non-regional GPU inventory, and one `cuda_v` selector. Public Elastic uses one or more data-center regions and a `cuda_v_from`/`cuda_v_to` range. The scheduler preserves those contracts rather than translating one backend's profile into the other. Private Provider statuses may report `finished_num=1` while `status=running`; the common reconciler handles deployment, container, event, stop, and delete observations for both backends.
 
 The Provider adapter decrypts the credential only inside the controlplane or Watchdog process. Owner APIs expose normalized GPU, image, deployment, container, cache, and event views. Token rotation validates the candidate against all required read endpoints before an atomic encrypted update and audit event. Container access fields are intentionally absent from the decoded model.
 

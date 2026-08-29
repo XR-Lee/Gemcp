@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/XR-Lee/Gemcp/ent"
+	"github.com/XR-Lee/Gemcp/ent/provideraccount"
 	"github.com/XR-Lee/Gemcp/internal/autodl"
 	providerservice "github.com/XR-Lee/Gemcp/internal/provider"
 	"github.com/XR-Lee/Gemcp/internal/secrets"
@@ -15,9 +16,12 @@ import (
 
 type DeploymentSpec struct {
 	Name           string
+	Backend        string
+	Region         string
 	ImageUUID      string
 	Command        string
-	CUDAVersion    int
+	CUDAFrom       int
+	CUDATo         int
 	GPUNames       []string
 	GPUNum         int
 	CPUFrom        int
@@ -39,6 +43,7 @@ type Observation struct {
 }
 
 type lifecycleAPI interface {
+	CreateElasticDeployment(context.Context, autodl.ElasticDeploymentCreate) (autodl.DeploymentCreateResult, string, error)
 	CreatePrivateElasticDeployment(context.Context, autodl.PrivateElasticDeploymentCreate) (autodl.DeploymentCreateResult, string, error)
 	ElasticDeployments(context.Context, int, int, string) (autodl.Page[autodl.Deployment], string, error)
 	ElasticContainers(context.Context, string, int, int) (autodl.Page[autodl.Container], string, error)
@@ -82,16 +87,35 @@ func (p *Provider) Create(ctx context.Context, account *ent.ProviderAccount, spe
 	if err != nil {
 		return "", nil, err
 	}
-	result, requestID, err := client.CreatePrivateElasticDeployment(ctx, autodl.PrivateElasticDeploymentCreate{
-		Name: spec.Name, DeploymentType: "Job", ReplicaNum: 1, ParallelismNum: 1, ReuseContainer: spec.ReuseContainer,
-		ContainerTemplate: autodl.PrivateElasticContainerTemplate{
-			CUDAVersion: spec.CUDAVersion, GPUNames: spec.GPUNames, GPUNum: spec.GPUNum,
-			MemoryFromGB: spec.MemoryFromGB, MemoryToGB: spec.MemoryToGB,
-			CPUFrom: spec.CPUFrom, CPUTo: spec.CPUTo,
-			PriceFromMilli: spec.PriceFromMilli, PriceToMilli: spec.PriceToMilli,
-			ImageUUID: spec.ImageUUID, Command: spec.Command,
-		},
-	})
+	var result autodl.DeploymentCreateResult
+	var requestID string
+	switch account.Backend {
+	case provideraccount.BackendElastic:
+		result, requestID, err = client.CreateElasticDeployment(ctx, autodl.ElasticDeploymentCreate{
+			Name: spec.Name, DeploymentType: "Job", ReplicaNum: 1, ParallelismNum: 1, ReuseContainer: spec.ReuseContainer,
+			ContainerTemplate: autodl.ElasticContainerTemplate{
+				DCList: []string{spec.Region}, CUDAFrom: spec.CUDAFrom, CUDATo: spec.CUDATo,
+				GPUNames: spec.GPUNames, GPUNum: spec.GPUNum,
+				MemoryFromGB: spec.MemoryFromGB, MemoryToGB: spec.MemoryToGB,
+				CPUFrom: spec.CPUFrom, CPUTo: spec.CPUTo,
+				PriceFromMilli: spec.PriceFromMilli, PriceToMilli: spec.PriceToMilli,
+				ImageUUID: spec.ImageUUID, Command: spec.Command,
+			},
+		})
+	case provideraccount.BackendPrivate:
+		result, requestID, err = client.CreatePrivateElasticDeployment(ctx, autodl.PrivateElasticDeploymentCreate{
+			Name: spec.Name, DeploymentType: "Job", ReplicaNum: 1, ParallelismNum: 1, ReuseContainer: spec.ReuseContainer,
+			ContainerTemplate: autodl.PrivateElasticContainerTemplate{
+				CUDAVersion: spec.CUDAFrom, GPUNames: spec.GPUNames, GPUNum: spec.GPUNum,
+				MemoryFromGB: spec.MemoryFromGB, MemoryToGB: spec.MemoryToGB,
+				CPUFrom: spec.CPUFrom, CPUTo: spec.CPUTo,
+				PriceFromMilli: spec.PriceFromMilli, PriceToMilli: spec.PriceToMilli,
+				ImageUUID: spec.ImageUUID, Command: spec.Command,
+			},
+		})
+	default:
+		return "", nil, providerservice.ErrUnsupportedBackend
+	}
 	requestIDs := requestMap("create", requestID)
 	if err != nil {
 		return "", requestIDs, err
@@ -209,7 +233,10 @@ func (p *Provider) client(account *ent.ProviderAccount) (lifecycleAPI, error) {
 	if p == nil || p.box == nil || account == nil {
 		return nil, fmt.Errorf("execution Provider is not initialized")
 	}
-	if strings.TrimRight(account.BaseURL, "/") != autodl.PrivateBaseURL || string(account.Backend) != "private" || string(account.Status) != "active" {
+	baseURL := strings.TrimRight(account.BaseURL, "/")
+	validBackend := (baseURL == autodl.PrivateBaseURL && account.Backend == provideraccount.BackendPrivate) ||
+		(baseURL == autodl.DefaultBaseURL && account.Backend == provideraccount.BackendElastic)
+	if !validBackend || account.Status != provideraccount.StatusActive {
 		return nil, providerservice.ErrUnsupportedBackend
 	}
 	token, err := providerservice.DecryptCredential(p.box, account.CredentialCiphertext)

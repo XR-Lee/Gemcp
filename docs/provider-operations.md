@@ -1,6 +1,6 @@
-# Private Cloud Provider operations
+# AutoDL Provider operations
 
-Gemcp provides an Owner-only live AutoDL Private Cloud resource view. The controlplane decrypts the configured Developer Token only inside the server process, queries `https://private.autodl.com`, and returns a normalized credential-free response. `v0.6.0` additionally identifies persisted Gemcp-owned resources and permits bounded lifecycle operations on those resources only.
+Gemcp provides an Owner-only live resource view for AutoDL Public Cloud (`https://api.autodl.com`) and Private Cloud (`https://private.autodl.com`). The controlplane decrypts the configured Developer Token only inside the server process, queries the selected official host, and returns a normalized credential-free response. It identifies persisted Gemcp-owned resources and permits bounded lifecycle operations on those resources only.
 
 ## Security boundary
 
@@ -35,12 +35,14 @@ The response contains a timestamped snapshot of:
 
 - GPU model, idle count, and total count.
 - User-private images.
-- Private Cloud system images and CUDA metadata when the optional Web-console endpoint accepts Developer Token authentication.
+- Private Cloud system images and CUDA metadata when the optional Web-console endpoint accepts Developer Token authentication. Public Cloud does not call that browser-session endpoint.
 - Deployments and replica/starting/running/finished/failed counters.
 - Active containers.
 - Released containers, including reusable `in_cache` entries.
 
-A successful query marks the account `backend=private`, `status=active`, and updates `last_validated_at`. A failed live query does not replace the credential. Collection follows Provider pagination up to 10 pages of 100 records per category; responses explicitly list any category truncated at that 1,000-record safety boundary. AutoDL documents private images, GPU stock, deployments, and containers under `/api/v1/dev/`. Its separate `/api/v2/image/list` system-image endpoint may require a browser login session; when it rejects Developer Token authentication, Gemcp marks only `system_images` as truncated and continues collecting the documented Developer API resources.
+A successful query preserves the account's validated `elastic` or `private` backend, or binds a legacy `unverified` account from its stored official URL. It marks the account `status=active` and updates `last_validated_at`. A failed live query does not replace the credential. Collection follows Provider pagination up to 10 pages of 100 records per category; responses explicitly list any category truncated at that 1,000-record safety boundary.
+
+Private Cloud reads its non-regional GPU stock directly and labels it with the `private` sentinel. Public Cloud queries each distinct region used by an active `autodl_elastic` Resource Profile in the tenant and returns region-scoped GPU rows. Proposal preflight counts only the selected profile region; Provider-page totals sum all displayed rows. Public Cloud therefore requires at least one configured Elastic profile to produce regional stock. Both backends collect user-private images, deployments, active containers, and released containers through documented Developer APIs. Private Cloud additionally attempts `/api/v2/image/list`; browser-session rejection truncates only `system_images` and does not fail the documented resource query.
 
 ### Deployment details
 
@@ -70,13 +72,13 @@ Content-Type: application/json
 X-CSRF-Token: <session CSRF token>
 
 {
-  "name": "AutoDL Private Cloud",
-  "base_url": "https://private.autodl.com",
+  "name": "AutoDL Public Cloud",
+  "base_url": "https://api.autodl.com",
   "token": "entered-in-the-private-owner-form"
 }
 ```
 
-Only the official Private Cloud host is accepted. Gemcp first queries private images, GPU stock, deployments, active containers, and released containers with the candidate Token. It also attempts the optional system-image query. The Token is encrypted and committed only after every documented Developer API query succeeds; browser-session rejection from the optional system-image endpoint does not invalidate an otherwise valid Developer Token. The transaction also writes a `provider.credential_rotated` audit event that contains no Token material.
+Only the two official hosts shown above are accepted. An `unverified` account is bound to the selected host on first validation; later Token rotation must retain that backend because Environment and Resource Profile backend bindings are immutable. Gemcp first queries the resources required for that backend with the candidate Token. For Private Cloud it also attempts the optional system-image query. The Token is encrypted and committed only after every required documented Developer API query succeeds; browser-session rejection from the optional Private system-image endpoint does not invalidate an otherwise valid Developer Token. The transaction also writes a `provider.credential_rotated` audit event that contains no Token material.
 
 ## Web console
 
@@ -87,7 +89,7 @@ This is not HTTP or persistent browser caching: API responses remain `no-store`,
 The `Provider` navigation view contains:
 
 - Connection state and last validation time.
-- Live GPU capacity.
+- Live GPU capacity, aggregated across active configured regions for Public Elastic.
 - Private and system image inventory.
 - Deployment completion counters with Managed or External ownership labels.
 - Active and released container inventory and reusable cache count.
@@ -107,3 +109,5 @@ GEMCP_TEST_PRIVATE_TOKEN_FILE=/secure/path/to/token \
 ```
 
 The test encrypts the Token into a temporary SQLite database, exercises the production Provider service, and rejects any serialized response containing the Token or credential ciphertext. It never creates compute resources.
+
+The automated Public Elastic coverage uses a contract fake and never spends Provider funds. A real paid Elastic Job should be attempted only through the normal explicitly armed scheduler and budget/cleanup controls.

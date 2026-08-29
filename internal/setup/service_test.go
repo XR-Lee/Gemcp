@@ -3,6 +3,10 @@ package setup
 import (
 	"testing"
 
+	"github.com/XR-Lee/Gemcp/ent/environment"
+	"github.com/XR-Lee/Gemcp/ent/provideraccount"
+	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
+	"github.com/XR-Lee/Gemcp/internal/autodl"
 	"github.com/XR-Lee/Gemcp/internal/secrets"
 )
 
@@ -29,6 +33,33 @@ func validInput() Input {
 func TestValidateInput(t *testing.T) {
 	if err := validateInput(validInput()); err != nil {
 		t.Fatalf("validateInput() error = %v", err)
+	}
+}
+
+func TestSetupBackendsFollowOfficialProviderHost(t *testing.T) {
+	providerBackend, environmentBackend, profileBackend := setupBackends(autodl.DefaultBaseURL)
+	if providerBackend != provideraccount.BackendElastic || environmentBackend != environment.BackendAutodlElastic || profileBackend != resourceprofile.BackendAutodlElastic {
+		t.Fatalf("public backends = %q, %q, %q", providerBackend, environmentBackend, profileBackend)
+	}
+	providerBackend, environmentBackend, profileBackend = setupBackends(autodl.PrivateBaseURL)
+	if providerBackend != provideraccount.BackendPrivate || environmentBackend != environment.BackendAutodlPrivate || profileBackend != resourceprofile.BackendAutodlPrivate {
+		t.Fatalf("private backends = %q, %q, %q", providerBackend, environmentBackend, profileBackend)
+	}
+}
+
+func TestValidateInputEnforcesProviderSpecificResourceContract(t *testing.T) {
+	publicInput := validInput()
+	publicInput.Provider.BaseURL = autodl.DefaultBaseURL
+	publicInput.ResourceProfile.Region = "private"
+	if err := validateInput(publicInput); err == nil {
+		t.Fatal("expected Public Elastic private-region validation error")
+	}
+
+	privateInput := validInput()
+	privateInput.Provider.BaseURL = autodl.PrivateBaseURL
+	privateInput.ResourceProfile.CUDATo = privateInput.ResourceProfile.CUDAFrom + 10
+	if err := validateInput(privateInput); err == nil {
+		t.Fatal("expected Private Cloud CUDA-range validation error")
 	}
 }
 

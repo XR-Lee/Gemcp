@@ -119,7 +119,7 @@ func (s *Service) enrichBackendObservation(ctx context.Context, record *ent.Expe
 	}
 	cleanup := resource.State == providerresource.StateDeleted || (resource.State == providerresource.StateError && resource.ProviderID == nil)
 	view.BackendObservation = &BackendObservationView{
-		Kind: "autodl_private", ID: resource.PublicID.String(), ProviderID: pointerString(resource.ProviderID), State: string(resource.State),
+		Kind: snapshotString(record.ResourceSnapshot, "backend"), ID: resource.PublicID.String(), ProviderID: pointerString(resource.ProviderID), State: string(resource.State),
 		Status: pointerString(resource.ProviderStatus), StopReason: pointerString(resource.StopReason), LastError: pointerString(resource.LastError),
 		CleanupComplete: cleanup, UpdatedAt: resource.UpdatedAt, FinishedAt: resource.DeletedAt,
 	}

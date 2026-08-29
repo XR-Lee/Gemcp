@@ -21,6 +21,7 @@ import (
 type fakeAPI struct {
 	err            error
 	systemImageErr error
+	elasticRegions []string
 }
 
 func (f *fakeAPI) ElasticImages(context.Context, int, int) (autodl.Page[autodl.Image], string, error) {
@@ -39,6 +40,11 @@ func (f *fakeAPI) PrivateSystemImages(context.Context, int, int) (autodl.Page[au
 
 func (f *fakeAPI) PrivateElasticGPUStock(context.Context) (autodl.GPUStock, string, error) {
 	return autodl.GPUStock{"NVIDIA GeForce RTX 3090": {Idle: 2, Total: 9}}, "req-stock", nil
+}
+
+func (f *fakeAPI) ElasticGPUStock(_ context.Context, region string, _ map[string]any) (autodl.GPUStock, string, error) {
+	f.elasticRegions = append(f.elasticRegions, region)
+	return autodl.GPUStock{"RTX 4090": {Idle: 1, Total: 3}}, "req-stock-" + region, nil
 }
 
 func (f *fakeAPI) ElasticDeployments(context.Context, int, int, string) (autodl.Page[autodl.Deployment], string, error) {
@@ -105,6 +111,7 @@ func newProviderFixture(t *testing.T) *providerFixture {
 		SetTenantID(tenant.ID).
 		SetName("AutoDL Private Cloud").
 		SetBaseURL(autodl.PrivateBaseURL).
+		SetBackend(provideraccount.BackendPrivate).
 		SetCredentialCiphertext(ciphertext).
 		Save(ctx)
 	if err != nil {
@@ -118,6 +125,58 @@ func newProviderFixture(t *testing.T) *providerFixture {
 	}))
 	fixture.service.now = func() time.Time { return time.Date(2026, 7, 17, 2, 0, 0, 0, time.UTC) }
 	return fixture
+}
+
+func TestQueryResourcesSupportsPublicElasticRegions(t *testing.T) {
+	fixture := newProviderFixture(t)
+	ctx := context.Background()
+	projectRecord, err := fixture.client.Project.Create().SetTenantID(fixture.tenantID).SetName("Elastic").SetSlug("elastic-test").
+		SetMonthlyBudgetMilli(100_000).SetMaxExperimentMilli(10_000).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fixture.client.ResourceProfile.Create().SetProjectID(projectRecord.ID).
+		SetBackend("autodl_elastic").SetName("west").SetRegion("westDC2").SetGpuNames([]string{"RTX 4090"}).
+		SetGpuNum(1).SetCudaFrom(118).SetCudaTo(128).SetCPUFrom(1).SetCPUTo(8).
+		SetMemoryFromGB(1).SetMemoryToGB(32).SetPriceFromMilli(1).SetPriceToMilli(1000).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fixture.record.Update().SetName("AutoDL Public Cloud").SetBaseURL(autodl.DefaultBaseURL).
+		SetBackend(provideraccount.BackendElastic).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := fixture.service.QueryResources(ctx, fixture.tenantID)
+	if err != nil {
+		t.Fatalf("QueryResources() error = %v", err)
+	}
+	if snapshot.Provider.Backend != "elastic" || fixture.seenURL != autodl.DefaultBaseURL {
+		t.Fatalf("unexpected public Provider: %+v url=%q", snapshot.Provider, fixture.seenURL)
+	}
+	if !slices.Equal(fixture.fake.elasticRegions, []string{"westDC2"}) || len(snapshot.GPUStock) != 1 || snapshot.GPUStock[0].Idle != 1 || snapshot.GPUStock[0].Region != "westDC2" {
+		t.Fatalf("unexpected elastic stock: regions=%v stock=%+v", fixture.fake.elasticRegions, snapshot.GPUStock)
+	}
+	if len(snapshot.SystemImages) != 0 || len(snapshot.PrivateImages) != 1 {
+		t.Fatalf("unexpected elastic images: private=%+v system=%+v", snapshot.PrivateImages, snapshot.SystemImages)
+	}
+}
+
+func TestQueryResourcesBindsLegacyUnverifiedAccount(t *testing.T) {
+	fixture := newProviderFixture(t)
+	ctx := context.Background()
+	if _, err := fixture.record.Update().SetBackend(provideraccount.BackendUnverified).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := fixture.service.QueryResources(ctx, fixture.tenantID)
+	if err != nil {
+		t.Fatalf("QueryResources() error = %v", err)
+	}
+	if snapshot.Provider.Backend != "private" {
+		t.Fatalf("bound backend = %q", snapshot.Provider.Backend)
+	}
+	updated, err := fixture.client.ProviderAccount.Get(ctx, fixture.record.ID)
+	if err != nil || updated.Backend != provideraccount.BackendPrivate {
+		t.Fatalf("persisted backend = %q, err=%v", updated.Backend, err)
+	}
 }
 
 func TestQueryResourcesDecryptsCredentialAndNormalizesData(t *testing.T) {
@@ -213,6 +272,20 @@ func TestProviderTenantIsolationAndUnsupportedHost(t *testing.T) {
 	var validation *ValidationError
 	if !errors.As(err, &validation) {
 		t.Fatalf("Configure() unknown host error = %v", err)
+	}
+}
+
+func TestConfigureRejectsBackendSwitch(t *testing.T) {
+	fixture := newProviderFixture(t)
+	_, err := fixture.service.Configure(context.Background(), fixture.tenantID, "owner", ConfigureInput{
+		Name: "Public", BaseURL: autodl.DefaultBaseURL, Token: "new-provider-token-abcdefghijklmnopqrstuvwxyz",
+	})
+	var validation *ValidationError
+	if !errors.As(err, &validation) {
+		t.Fatalf("Configure() backend switch error = %v", err)
+	}
+	if fixture.seenURL != "" {
+		t.Fatalf("backend switch contacted Provider host %q", fixture.seenURL)
 	}
 }
 

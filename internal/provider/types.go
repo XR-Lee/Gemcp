@@ -38,9 +38,10 @@ type ResourceSnapshot struct {
 }
 
 type GPUStock struct {
-	Name  string `json:"name"`
-	Idle  int    `json:"idle"`
-	Total int    `json:"total"`
+	Name   string `json:"name"`
+	Region string `json:"region,omitempty"`
+	Idle   int    `json:"idle"`
+	Total  int    `json:"total"`
 }
 
 type Image struct {

@@ -11,7 +11,7 @@ The setup flow collects the bootstrap credential, Owner account, encrypted AutoD
 The operations console provides:
 
 - Scheduler, Watchdog, and notification-worker heartbeat visibility.
-- Live Private Cloud GPU, image, deployment, container, cache, and event visibility with a session-memory snapshot and visible-page 60-second background refresh.
+- Live Public Elastic or Private Cloud GPU, image, deployment, container, cache, and event visibility with a session-memory snapshot and visible-page 60-second background refresh.
 - A strict distinction between Gemcp-managed and external Provider deployments.
 - Owner stop for managed deployments and phrase-confirmed emergency stop for all active managed resources.
 - Validate-before-commit Provider Token rotation without any credential reveal path.

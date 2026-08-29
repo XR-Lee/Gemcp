@@ -12,6 +12,9 @@ import (
 	"time"
 
 	"github.com/XR-Lee/Gemcp/ent"
+	"github.com/XR-Lee/Gemcp/ent/environment"
+	"github.com/XR-Lee/Gemcp/ent/provideraccount"
+	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
 	"github.com/XR-Lee/Gemcp/internal/auth"
 	"github.com/XR-Lee/Gemcp/internal/autodl"
 	providerservice "github.com/XR-Lee/Gemcp/internal/provider"
@@ -128,6 +131,7 @@ func (s *Service) Initialize(ctx context.Context, input Input) (Result, error) {
 	if err != nil {
 		return result, err
 	}
+	providerBackend, environmentBackend, profileBackend := setupBackends(input.Provider.BaseURL)
 	agentToken, tokenPrefix, err := secrets.RandomToken("gmc", 32)
 	if err != nil {
 		return result, err
@@ -165,6 +169,7 @@ func (s *Service) Initialize(ctx context.Context, input Input) (Result, error) {
 		SetTenantID(tenant.ID).
 		SetName(strings.TrimSpace(input.Provider.Name)).
 		SetBaseURL(strings.TrimRight(strings.TrimSpace(input.Provider.BaseURL), "/")).
+		SetBackend(providerBackend).
 		SetCredentialCiphertext(encryptedToken).
 		Save(ctx)
 	if err != nil {
@@ -186,6 +191,7 @@ func (s *Service) Initialize(ctx context.Context, input Input) (Result, error) {
 	}
 	environment, err := tx.Environment.Create().
 		SetProjectID(project.ID).
+		SetBackend(environmentBackend).
 		SetName(strings.TrimSpace(input.Environment.Name)).
 		SetImageUUID(strings.TrimSpace(input.Environment.ImageUUID)).
 		SetIsDefault(true).
@@ -196,6 +202,7 @@ func (s *Service) Initialize(ctx context.Context, input Input) (Result, error) {
 	profile := input.ResourceProfile
 	resourceProfile, err := tx.ResourceProfile.Create().
 		SetProjectID(project.ID).
+		SetBackend(profileBackend).
 		SetName(strings.TrimSpace(profile.Name)).
 		SetRegion(strings.TrimSpace(profile.Region)).
 		SetGpuNames(profile.GPUNames).
@@ -255,6 +262,13 @@ func (s *Service) Initialize(ctx context.Context, input Input) (Result, error) {
 	}, nil
 }
 
+func setupBackends(baseURL string) (provideraccount.Backend, environment.Backend, resourceprofile.Backend) {
+	if strings.TrimRight(strings.TrimSpace(baseURL), "/") == autodl.DefaultBaseURL {
+		return provideraccount.BackendElastic, environment.BackendAutodlElastic, resourceprofile.BackendAutodlElastic
+	}
+	return provideraccount.BackendPrivate, environment.BackendAutodlPrivate, resourceprofile.BackendAutodlPrivate
+}
+
 func validateInput(input Input) error {
 	if strings.TrimSpace(input.OrganizationName) == "" {
 		return invalid("organization name is required")
@@ -299,6 +313,12 @@ func validateInput(input Input) error {
 	}
 	if profile.CUDAFrom <= 0 || profile.CUDATo < profile.CUDAFrom || profile.CPUFrom <= 0 || profile.CPUTo < profile.CPUFrom || profile.MemoryFromGB <= 0 || profile.MemoryToGB < profile.MemoryFromGB {
 		return invalid("resource profile CUDA, CPU, or memory range is invalid")
+	}
+	if normalizedProviderURL == autodl.PrivateBaseURL && (strings.TrimSpace(profile.Region) != "private" || profile.CUDAFrom != profile.CUDATo) {
+		return invalid("Private Cloud requires region=private and one CUDA version")
+	}
+	if normalizedProviderURL == autodl.DefaultBaseURL && strings.TrimSpace(profile.Region) == "private" {
+		return invalid("Public Elastic requires a data-center region")
 	}
 	if profile.PriceFromMilli < 0 || profile.PriceToMilli <= 0 || profile.PriceToMilli < profile.PriceFromMilli {
 		return invalid("resource profile price range is invalid")

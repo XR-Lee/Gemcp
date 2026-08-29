@@ -150,7 +150,7 @@ async function refreshLive() {
 }
 
 function openCredentialDialog() {
-  credentialForm.name = summary.value?.name || 'AutoDL Private Cloud'
+  credentialForm.name = summary.value?.name || 'AutoDL'
   credentialForm.token = ''
   credentialError.value = ''
   credentialDialog.value = true
@@ -165,7 +165,7 @@ function closeCredentialDialog() {
 
 async function configureProvider() {
   if (credentialForm.token.trim().length < 32) {
-    credentialError.value = t('Enter a valid AutoDL Private Cloud Developer Token.', '请输入有效的 AutoDL 私有云 Developer Token。')
+    credentialError.value = t('Enter a valid AutoDL Developer Token.', '请输入有效的 AutoDL Developer Token。')
     return
   }
   credentialBusy.value = true
@@ -173,7 +173,7 @@ async function configureProvider() {
   try {
     const result = await api.configureProvider({
       name: credentialForm.name.trim(),
-      base_url: 'https://private.autodl.com',
+      base_url: summary.value?.base_url ?? 'https://private.autodl.com',
       token: credentialForm.token.trim(),
     })
     summary.value = result.provider
@@ -335,8 +335,8 @@ onBeforeUnmount(() => {
     <header class="provider-heading">
       <div>
         <p class="eyebrow">{{ t('Live Provider', '实时 Provider') }}</p>
-        <h2>{{ summary?.name ?? 'AutoDL Private Cloud' }}</h2>
-        <p>{{ summary?.base_url ?? 'https://private.autodl.com' }}</p>
+        <h2>{{ summary?.name ?? 'AutoDL' }}</h2>
+        <p>{{ summary?.base_url ?? t('Not configured', '未配置') }}</p>
       </div>
       <div class="provider-actions">
         <span class="state-badge" :data-state="summary?.status ?? 'pending_validation'"><span />{{ stateLabel(summary?.status ?? 'not connected') }}</span>
@@ -346,7 +346,7 @@ onBeforeUnmount(() => {
       </div>
     </header>
 
-    <div v-if="loading && !resources" class="provider-loading"><LoaderCircle :size="20" class="spinning" /><span>{{ t('Querying Private Cloud', '正在查询私有云') }}</span></div>
+    <div v-if="loading && !resources" class="provider-loading"><LoaderCircle :size="20" class="spinning" /><span>{{ t('Querying AutoDL', '正在查询 AutoDL') }}</span></div>
 
     <template v-else-if="resources">
       <section class="provider-metrics">
@@ -370,11 +370,11 @@ onBeforeUnmount(() => {
       </div>
 
       <section v-if="activeTab === 'inventory'" class="provider-workspace">
-        <div class="section-heading"><div><h2>{{ t('GPU inventory', 'GPU 库存') }}</h2><p>{{ t('Current schedulable capacity returned by Private Cloud.', '私有云返回的当前可调度容量。') }}</p></div><Cpu :size="18" /></div>
+        <div class="section-heading"><div><h2>{{ t('GPU inventory', 'GPU 库存') }}</h2><p>{{ t('Current schedulable capacity returned by the configured AutoDL backend.', '已配置 AutoDL 后端返回的当前可调度容量。') }}</p></div><Cpu :size="18" /></div>
         <div v-if="resources.gpu_stock.length" class="table-scroll">
           <table class="data-table provider-table">
-            <thead><tr><th>{{ t('GPU model', 'GPU 型号') }}</th><th>{{ t('Idle', '空闲') }}</th><th>{{ t('Total', '总量') }}</th><th>{{ t('Utilized', '已使用') }}</th><th>{{ t('Availability', '可用率') }}</th></tr></thead>
-            <tbody><tr v-for="gpu in resources.gpu_stock" :key="gpu.name"><td><strong>{{ gpu.name }}</strong></td><td>{{ gpu.idle }}</td><td>{{ gpu.total }}</td><td>{{ gpu.total - gpu.idle }}</td><td><div class="capacity"><span :style="{ width: `${gpu.total ? (gpu.idle / gpu.total) * 100 : 0}%` }" /></div></td></tr></tbody>
+            <thead><tr><th>{{ t('Region', '区域') }}</th><th>{{ t('GPU model', 'GPU 型号') }}</th><th>{{ t('Idle', '空闲') }}</th><th>{{ t('Total', '总量') }}</th><th>{{ t('Utilized', '已使用') }}</th><th>{{ t('Availability', '可用率') }}</th></tr></thead>
+            <tbody><tr v-for="gpu in resources.gpu_stock" :key="`${gpu.region ?? 'unknown'}:${gpu.name}`"><td><code>{{ gpu.region ?? t('Not set', '未设置') }}</code></td><td><strong>{{ gpu.name }}</strong></td><td>{{ gpu.idle }}</td><td>{{ gpu.total }}</td><td>{{ gpu.total - gpu.idle }}</td><td><div class="capacity"><span :style="{ width: `${gpu.total ? (gpu.idle / gpu.total) * 100 : 0}%` }" /></div></td></tr></tbody>
           </table>
         </div>
       </section>
@@ -433,7 +433,7 @@ onBeforeUnmount(() => {
       <header><div><p class="eyebrow">{{ t('Credential custody', '凭据托管') }}</p><h2>{{ t('Rotate Provider token', '轮换 Provider Token') }}</h2></div><button class="icon-button" type="button" :title="t('Close', '关闭')" :disabled="credentialBusy" @click="closeCredentialDialog"><X :size="17" /></button></header>
       <form class="dialog-form" @submit.prevent="configureProvider">
         <label>{{ t('Provider name', 'Provider 名称') }}<input v-model="credentialForm.name" required maxlength="120" /></label>
-        <label>API base URL<input value="https://private.autodl.com" disabled /></label>
+        <label>API base URL<input :value="summary?.base_url ?? ''" disabled /></label>
         <label>Developer Token<input v-model="credentialForm.token" type="password" required autocomplete="off" spellcheck="false" /></label>
         <p class="form-note">{{ t('The new Token is validated before replacing the encrypted credential.', '新 Token 会在替换已加密凭据前完成验证。') }}</p>
         <div v-if="credentialError" class="form-error" role="alert">{{ credentialError }}</div>
@@ -444,7 +444,7 @@ onBeforeUnmount(() => {
 
   <div v-if="selectedDeployment || deploymentLoading" class="modal-backdrop" @click.self="selectedDeployment = null">
     <section class="detail-panel provider-detail" role="dialog" aria-modal="true" :aria-label="t('Provider deployment details', 'Provider 部署详情')">
-      <header><div><p class="eyebrow">{{ t('Private Cloud deployment', '私有云部署') }}</p><h2>{{ selectedDeployment?.deployment.name ?? t('Loading deployment', '正在加载部署') }}</h2></div><button class="icon-button" type="button" :title="t('Close details', '关闭详情')" @click="selectedDeployment = null"><X :size="17" /></button></header>
+      <header><div><p class="eyebrow">{{ t('AutoDL deployment', 'AutoDL 部署') }}</p><h2>{{ selectedDeployment?.deployment.name ?? t('Loading deployment', '正在加载部署') }}</h2></div><button class="icon-button" type="button" :title="t('Close details', '关闭详情')" @click="selectedDeployment = null"><X :size="17" /></button></header>
       <div v-if="deploymentLoading" class="provider-loading"><LoaderCircle :size="20" class="spinning" /></div>
       <template v-else-if="selectedDeployment">
         <div class="detail-state"><span class="state-badge" :data-state="selectedDeployment.deployment.status"><span />{{ stateLabel(selectedDeployment.deployment.status) }}</span><span class="ownership-chip" :data-managed="Boolean(selectedManagedResource)">{{ selectedManagedResource ? t('Managed', '受管') : t('External', '外部') }}</span><code>{{ selectedDeployment.deployment.uuid }}</code><button v-if="selectedManagedResource" class="danger-button small-button" type="button" :disabled="Boolean(resourceAction) || Boolean(selectedManagedResource.stop_requested_at)" @click="requestStop(selectedDeployment.deployment)"><LoaderCircle v-if="resourceAction" :size="15" class="spinning" /><Square v-else :size="14" />{{ selectedManagedResource.stop_requested_at ? t('Stop requested', '已请求停止') : t('Stop deployment', '停止部署') }}</button></div>
