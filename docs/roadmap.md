@@ -2,6 +2,8 @@
 
 ## Released
 
+Narrative per-version notes live in [Release notes](releases.md). This section stays a short shipped-vs-planned index.
+
 ### v0.1.0 - service foundation
 
 Go/Gin service, PostgreSQL connectivity, embedded Vue console, container deployment, CI, and architecture baseline.
