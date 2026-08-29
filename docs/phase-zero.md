@@ -89,4 +89,4 @@ Record these facts before selecting the M0 backend:
 - Representative permission, inventory, validation, timeout, and rate-limit errors.
 - Cold-start time, `reuse_container` startup time, residual-data behavior, and any stopped-cache charge.
 
-The selected Private Cloud observations are recorded in [AutoDL Private Cloud validation](private-cloud-validation.md). Do not implement around undocumented behavior until a live report confirms it.
+The selected backend observations are recorded in [AutoDL Private Cloud validation](private-cloud-validation.md) and [AutoDL Public Elastic validation](public-elastic-validation.md). Do not implement around undocumented behavior until a live report confirms it.

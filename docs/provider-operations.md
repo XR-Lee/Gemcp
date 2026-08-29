@@ -132,11 +132,17 @@ The normal test suite skips real Provider access and never creates paid resource
 
 Region identifiers are Provider data and can change; validate the intended region against the current AutoDL documentation and API rather than treating an example value as permanent. The public read probe also checks wallet visibility. Public Elastic live Job probes additionally require enterprise eligibility and the explicit spend confirmation documented in [Phase-zero AutoDL validation](phase-zero.md).
 
-An operator can explicitly run the existing Private Cloud read-only integration test with a protected Token file:
+Sanitized evidence from the successful paid probe, together with the boundary between the phase-zero API check and the normal Gemcp control plane, is recorded in [AutoDL Public Elastic validation](public-elastic-validation.md).
+
+An operator can explicitly run the read-only integration tests with a protected Token file:
 
 ```bash
 GEMCP_TEST_PRIVATE_TOKEN_FILE=/secure/path/to/token \
   go test -run '^TestLivePrivateCloudResources$' -v ./internal/provider
+
+GEMCP_TEST_ELASTIC_TOKEN_FILE=/secure/path/to/token \
+GEMCP_TEST_ELASTIC_REGION=westDC2 \
+  go test -run '^TestLivePublicElasticResources$' -v ./internal/provider
 ```
 
-The test encrypts the Token into a temporary SQLite database, exercises the production Provider service, and rejects any serialized response containing the Token or credential ciphertext. It never creates compute resources.
+The tests encrypt the Token into a temporary SQLite database, exercise the production Provider service, and reject any serialized response containing the Token or credential ciphertext. They never create compute resources.
