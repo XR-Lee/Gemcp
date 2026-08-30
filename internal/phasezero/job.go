@@ -2,6 +2,7 @@ package phasezero
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"regexp"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/XR-Lee/Gemcp/internal/autodl"
+	"github.com/google/uuid"
 )
 
 const MaxPhaseZeroSpendMilli int64 = 20_000
@@ -34,6 +36,7 @@ type JobSpec struct {
 	ProvisionTimeoutSeconds int      `json:"provision_timeout_seconds"`
 	OutputRoot              string   `json:"output_root"`
 	ReuseContainer          bool     `json:"reuse_container"`
+	Minimal                 bool     `json:"minimal,omitempty"`
 }
 
 type JobReport struct {
@@ -48,12 +51,14 @@ type JobReport struct {
 	TerminalStatus             string                  `json:"terminal_status,omitempty"`
 	ProviderStatus             string                  `json:"provider_status,omitempty"`
 	FinishedNum                int                     `json:"finished_num,omitempty"`
+	FailedNum                  int                     `json:"failed_num,omitempty"`
 	Containers                 []autodl.Container      `json:"containers,omitempty"`
 	ReleasedContainers         []autodl.Container      `json:"released_containers,omitempty"`
 	Events                     []autodl.ContainerEvent `json:"events,omitempty"`
 	RequestIDs                 map[string]string       `json:"request_ids,omitempty"`
 	ObservationWarnings        []string                `json:"observation_warnings,omitempty"`
 	CleanupWarnings            []string                `json:"cleanup_warnings,omitempty"`
+	CleanupConfirmed           bool                    `json:"cleanup_confirmed"`
 }
 
 type jobAPI interface {
@@ -105,7 +110,7 @@ func (r *JobRunner) Run(ctx context.Context, spec JobSpec, spendCapMilli int64) 
 	}
 
 	now := r.Now().UTC()
-	probeID := fmt.Sprintf("gemcp-phase0-%s", now.Format("20060102t150405z"))
+	probeID := fmt.Sprintf("gemcp-phase0-%s-%s", now.Format("20060102t150405z"), uuid.NewString()[:8])
 	outputPath := strings.TrimRight(spec.OutputRoot, "/") + "/" + probeID
 	report = JobReport{
 		ProbeID:                    probeID,
@@ -126,28 +131,56 @@ func (r *JobRunner) Run(ctx context.Context, spec JobSpec, spendCapMilli int64) 
 		created, requestID, err = r.API.CreateElasticDeployment(ctx, spec.deployment(probeID, outputPath))
 	}
 	setRequestID(report.RequestIDs, "create", requestID)
-	if err != nil {
-		return report, fmt.Errorf("create phase-zero deployment: %w", err)
-	}
-	if created.DeploymentUUID == "" {
-		return report, fmt.Errorf("create phase-zero deployment returned no deployment UUID")
+	if err != nil || created.DeploymentUUID == "" {
+		createErr := err
+		if createErr == nil {
+			createErr = fmt.Errorf("create response contained no deployment UUID")
+		}
+		recovered, recoveryRequestID, recoveryErr := r.recoverDeploymentByName(ctx, probeID)
+		setRequestID(report.RequestIDs, "create_recovery", recoveryRequestID)
+		if recoveryErr != nil {
+			return report, errors.Join(fmt.Errorf("create phase-zero deployment: %w", createErr), fmt.Errorf("recover uncertain create result: %w", recoveryErr))
+		}
+		if recovered.UUID == "" {
+			return report, fmt.Errorf("create phase-zero deployment: %w", createErr)
+		}
+		created.DeploymentUUID = recovered.UUID
+		report.ObservationWarnings = append(report.ObservationWarnings, "create response was uncertain; deployment ownership recovered by unique name")
 	}
 	report.DeploymentUUID = created.DeploymentUUID
 
 	defer func() {
-		cleanupCtx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
-		defer cancel()
-		stopRequestID, stopErr := r.API.StopElasticDeployment(cleanupCtx, report.DeploymentUUID)
+		stopCtx, cancelStop := context.WithTimeout(context.Background(), 45*time.Second)
+		stopRequestID, stopErr := r.API.StopElasticDeployment(stopCtx, report.DeploymentUUID)
+		cancelStop()
 		setRequestID(report.RequestIDs, "cleanup_stop", stopRequestID)
 		if stopErr != nil {
 			report.CleanupWarnings = append(report.CleanupWarnings, "stop deployment: "+stopErr.Error())
+			resultErr = errors.Join(resultErr, fmt.Errorf("stop phase-zero deployment: %w", stopErr))
 		}
-		deleteRequestID, deleteErr := r.API.DeleteElasticDeployment(cleanupCtx, report.DeploymentUUID)
+		deleteCtx, cancelDelete := context.WithTimeout(context.Background(), 45*time.Second)
+		deleteRequestID, deleteErr := r.API.DeleteElasticDeployment(deleteCtx, report.DeploymentUUID)
+		cancelDelete()
 		setRequestID(report.RequestIDs, "cleanup_delete", deleteRequestID)
 		if deleteErr != nil {
 			report.CleanupWarnings = append(report.CleanupWarnings, "delete deployment: "+deleteErr.Error())
+			resultErr = errors.Join(resultErr, fmt.Errorf("delete phase-zero deployment: %w", deleteErr))
 		}
-		released, releasedRequestID, releasedErr := r.API.ElasticContainersWithReleased(cleanupCtx, report.DeploymentUUID, true, 1, 100)
+		if deleteErr == nil {
+			confirmCtx, cancelConfirm := context.WithTimeout(context.Background(), 30*time.Second)
+			confirmRequestID, confirmErr := r.confirmDeleted(confirmCtx, report.DeploymentUUID)
+			cancelConfirm()
+			setRequestID(report.RequestIDs, "cleanup_confirm", confirmRequestID)
+			if confirmErr != nil {
+				report.CleanupWarnings = append(report.CleanupWarnings, "confirm deployment deletion: "+confirmErr.Error())
+				resultErr = errors.Join(resultErr, fmt.Errorf("confirm phase-zero deployment deletion: %w", confirmErr))
+			} else {
+				report.CleanupConfirmed = true
+			}
+		}
+		observationCtx, cancelObservation := context.WithTimeout(context.Background(), 30*time.Second)
+		released, releasedRequestID, releasedErr := r.API.ElasticContainersWithReleased(observationCtx, report.DeploymentUUID, true, 1, 100)
+		cancelObservation()
 		setRequestID(report.RequestIDs, "released_containers", releasedRequestID)
 		if releasedErr != nil {
 			report.ObservationWarnings = append(report.ObservationWarnings, "read released containers: "+releasedErr.Error())
@@ -185,17 +218,91 @@ func (r *JobRunner) Run(ctx context.Context, spec JobSpec, spendCapMilli int64) 
 			deployment := deployments.List[0]
 			report.ProviderStatus = deployment.Status
 			report.FinishedNum = deployment.FinishedNum
-			if isTerminalDeploymentStatus(deployment.Status) {
-				report.TerminalStatus = strings.ToLower(deployment.Status)
-				return report, nil
+			report.FailedNum = deployment.FailedNum
+			status := strings.ToLower(deployment.Status)
+			if deployment.FailedNum > 0 || status == "failed" {
+				report.TerminalStatus = "failed"
+				return report, fmt.Errorf("phase-zero deployment failed")
 			}
 			if deployment.FinishedNum >= 1 {
 				report.TerminalStatus = "finished"
 				return report, nil
 			}
+			if status == "finished" || status == "completed" {
+				report.TerminalStatus = status
+				return report, nil
+			}
+			if status == "stopped" || status == "shutdown" {
+				report.TerminalStatus = status
+				return report, fmt.Errorf("phase-zero deployment stopped before the Job finished")
+			}
 		}
 		if err := r.Sleep(pollCtx, r.PollInterval); err != nil {
 			return report, fmt.Errorf("phase-zero deployment did not finish before deadline: %w", err)
+		}
+	}
+}
+
+func (r *JobRunner) recoverDeploymentByName(ctx context.Context, name string) (autodl.Deployment, string, error) {
+	lastRequestID := ""
+	var lastErr error
+	for attempt := 0; attempt < 6; attempt++ {
+		deployment, requestID, err := r.findDeploymentByName(ctx, name)
+		if requestID != "" {
+			lastRequestID = requestID
+		}
+		if err == nil && deployment.UUID != "" {
+			return deployment, lastRequestID, nil
+		}
+		if err != nil {
+			lastErr = err
+		}
+		if attempt < 5 {
+			if err := r.Sleep(ctx, 2*time.Second); err != nil {
+				return autodl.Deployment{}, lastRequestID, errors.Join(lastErr, err)
+			}
+		}
+	}
+	return autodl.Deployment{}, lastRequestID, lastErr
+}
+
+func (r *JobRunner) findDeploymentByName(ctx context.Context, name string) (autodl.Deployment, string, error) {
+	lastRequestID := ""
+	for page := 1; page <= 10; page++ {
+		deployments, requestID, err := r.API.ElasticDeployments(ctx, page, 100, "")
+		if requestID != "" {
+			lastRequestID = requestID
+		}
+		if err != nil {
+			return autodl.Deployment{}, lastRequestID, err
+		}
+		for _, deployment := range deployments.List {
+			if deployment.Name == name {
+				return deployment, lastRequestID, nil
+			}
+		}
+		if deployments.MaxPage <= page || len(deployments.List) == 0 {
+			break
+		}
+	}
+	return autodl.Deployment{}, lastRequestID, nil
+}
+
+func (r *JobRunner) confirmDeleted(ctx context.Context, deploymentUUID string) (string, error) {
+	lastRequestID := ""
+	for {
+		deployments, requestID, err := r.API.ElasticDeployments(ctx, 1, 10, deploymentUUID)
+		if requestID != "" {
+			lastRequestID = requestID
+		}
+		if err != nil {
+			return lastRequestID, err
+		}
+		if len(deployments.List) == 0 {
+			return lastRequestID, nil
+		}
+		if err := r.Sleep(ctx, 2*time.Second); err != nil {
+			return lastRequestID, err
 		}
 	}
 }
@@ -336,6 +443,10 @@ func (s JobSpec) privateDeployment(probeID, outputPath string) autodl.PrivateEla
 }
 
 func (s JobSpec) probeCommand(probeID, outputPath string) string {
+	if s.Minimal {
+		script := fmt.Sprintf("set -eu; mkdir -p %s; printf 'gemcp-autodl-smoke-ok\\n' > %s/probe.log", shellQuote(outputPath), shellQuote(outputPath))
+		return fmt.Sprintf("timeout --signal=TERM --kill-after=5s %ds /bin/sh -lc %s", s.MaxRuntimeSeconds, shellQuote(script))
+	}
 	script := fmt.Sprintf("set -eu; mkdir -p %s; { date -Iseconds; echo probe_id=%s; test -d /root/autodl-fs; nvidia-smi --query-gpu=name,memory.total --format=csv,noheader; } > %s/probe.log 2>&1", shellQuote(outputPath), shellQuote(probeID), shellQuote(outputPath))
 	return fmt.Sprintf("timeout --signal=TERM --kill-after=5s %ds /bin/sh -lc %s", s.MaxRuntimeSeconds, shellQuote(script))
 }

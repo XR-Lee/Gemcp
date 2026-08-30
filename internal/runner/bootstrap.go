@@ -446,22 +446,26 @@ def main():
                     )
                     interval = max(5, int(spec["heartbeat_interval_seconds"]))
                     local_limit = int(spec["max_runtime_seconds"]) + int(spec["timeout_extension_seconds"])
+                    next_heartbeat = started_mono + interval
                     while process.poll() is None:
-                        time.sleep(interval)
-                        if time.monotonic() - started_mono >= local_limit:
+                        now_mono = time.monotonic()
+                        if now_mono - started_mono >= local_limit:
                             reason = "timeout"
                             terminate(process, int(spec["termination_grace_seconds"]))
                             break
-                        try:
-                            control = post_event({
-                                "type": "heartbeat", "log_tail": log_tail(log_path, 60000), "metrics": metrics(output_path),
-                            }, retries=3)
-                        except Exception:
-                            control = {}
-                        if control.get("stop_requested"):
-                            reason = normalized_stop_reason(control.get("stop_reason"))
-                            terminate(process, int(spec["termination_grace_seconds"]))
-                            break
+                        if now_mono >= next_heartbeat:
+                            try:
+                                control = post_event({
+                                    "type": "heartbeat", "log_tail": log_tail(log_path, 60000), "metrics": metrics(output_path),
+                                }, retries=3)
+                            except Exception:
+                                control = {}
+                            next_heartbeat = now_mono + interval
+                            if control.get("stop_requested"):
+                                reason = normalized_stop_reason(control.get("stop_reason"))
+                                terminate(process, int(spec["termination_grace_seconds"]))
+                                break
+                        time.sleep(0.25)
                     result = process.wait()
                     exit_code = result if result >= 0 else min(255, 128 - result)
                     if reason in ("timeout", "cancelled", "emergency") and exit_code == 0:

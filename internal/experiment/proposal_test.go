@@ -170,6 +170,8 @@ func TestPreparedExperimentPublicElasticRequiresMatchingRegion(t *testing.T) {
 func TestPreparedExperimentIsZeroCostUntilConfirmedAndServerIdempotent(t *testing.T) {
 	f := newFixture(t, 100000, 20000)
 	service := preparedService(t, f, 2)
+	submissionTime := time.Date(2026, time.August, 30, 1, 30, 0, 0, time.FixedZone("BST", 60*60))
+	service.now = func() time.Time { return submissionTime }
 	ctx := context.Background()
 	prepared, err := service.Prepare(ctx, f.principal, validPrepare())
 	if err != nil {
@@ -208,6 +210,10 @@ func TestPreparedExperimentIsZeroCostUntilConfirmedAndServerIdempotent(t *testin
 	if first.Idempotent || first.Experiment.ExecutionMode != "argv" || strings.Join(first.Experiment.Argv, "|") != "python|smoke.py|--label|value with spaces" ||
 		first.Experiment.Command != "python smoke.py --label 'value with spaces'" {
 		t.Fatalf("submitted Experiment = %+v", first)
+	}
+	record, err := service.getRecord(ctx, f.project.ID, first.Experiment.ID)
+	if err != nil || !record.NextAttemptAt.Equal(submissionTime.UTC()) || record.NextAttemptAt.Location() != time.UTC {
+		t.Fatalf("next_attempt_at = %v, want UTC %v (error=%v)", record.NextAttemptAt, submissionTime.UTC(), err)
 	}
 	second, err := service.SubmitPrepared(ctx, f.principal, input)
 	if err != nil || !second.Idempotent || second.Experiment.ID != first.Experiment.ID {

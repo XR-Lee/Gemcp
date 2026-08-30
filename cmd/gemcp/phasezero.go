@@ -18,15 +18,17 @@ const liveSpendConfirmation = "I_ACCEPT_AUTODL_CHARGES"
 
 func runPhaseZero(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("phase0 requires a subcommand: read or job")
+		return fmt.Errorf("phase0 requires a subcommand: read, job, or smoke")
 	}
 	switch args[0] {
 	case "read":
 		return runPhaseZeroRead(args[1:])
 	case "job":
 		return runPhaseZeroJob(args[1:])
+	case "smoke":
+		return runPhaseZeroSmoke(args[1:])
 	default:
-		return fmt.Errorf("unknown phase0 subcommand %q (expected read or job)", args[0])
+		return fmt.Errorf("unknown phase0 subcommand %q (expected read, job, or smoke)", args[0])
 	}
 }
 
@@ -101,6 +103,40 @@ func runPhaseZeroJob(args []string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), totalTimeout)
 	defer cancel()
 	report, runErr := runner.Run(ctx, spec, *spendCapMilli)
+	if encodeErr := writeJSON(os.Stdout, report); encodeErr != nil {
+		return encodeErr
+	}
+	return runErr
+}
+
+func runPhaseZeroSmoke(args []string) error {
+	flags := flag.NewFlagSet("phase0 smoke", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	region := flags.String("region", "westDC2", "AutoDL Public Elastic region")
+	imageUUID := flags.String("image", "", "optional visible private image UUID")
+	priceCeiling := flags.Int64("price-ceiling-milli-per-hour", 1980, "maximum GPU price in milli-CNY/hour")
+	spendCapMilli := flags.Int64("spend-cap-milli", 100, "maximum real spend in milli-CNY, never above 20000")
+	confirmation := flags.String("confirm-live-spend", "", "required exact live-spend confirmation")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if *confirmation != liveSpendConfirmation {
+		return fmt.Errorf("live smoke blocked: pass --confirm-live-spend=%s after reviewing the limits", liveSpendConfirmation)
+	}
+
+	client, _, err := phaseZeroClient("elastic")
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Minute)
+	defer cancel()
+	spec, err := phasezero.PrepareElasticSmoke(ctx, client, phasezero.ElasticSmokeOptions{
+		Region: *region, ImageUUID: *imageUUID, PriceCeilingMilliPerHour: *priceCeiling,
+	})
+	if err != nil {
+		return err
+	}
+	report, runErr := phasezero.NewJobRunner(client).Run(ctx, spec, *spendCapMilli)
 	if encodeErr := writeJSON(os.Stdout, report); encodeErr != nil {
 		return encodeErr
 	}

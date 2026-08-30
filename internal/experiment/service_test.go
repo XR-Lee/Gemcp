@@ -128,6 +128,20 @@ func TestSubmitRejectedWhenActiveStudyExists(t *testing.T) {
 	}
 }
 
+func TestSubmitSchedulesImmediatelyInUTC(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	submissionTime := time.Date(2026, time.August, 30, 1, 30, 0, 0, time.FixedZone("BST", 60*60))
+	f.service.now = func() time.Time { return submissionTime }
+	result, err := f.service.Submit(context.Background(), f.principal, validSubmit(f, "utc-queue-0001"))
+	if err != nil {
+		t.Fatalf("Submit() error = %v", err)
+	}
+	record, err := f.service.getRecord(context.Background(), f.project.ID, result.Experiment.ID)
+	if err != nil || !record.NextAttemptAt.Equal(submissionTime.UTC()) || record.NextAttemptAt.Location() != time.UTC {
+		t.Fatalf("next_attempt_at = %v, want UTC %v (error=%v)", record.NextAttemptAt, submissionTime.UTC(), err)
+	}
+}
+
 func TestSubmitIsAtomicAndIdempotent(t *testing.T) {
 	f := newFixture(t, 100000, 20000)
 	ctx := context.Background()

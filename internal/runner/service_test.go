@@ -142,12 +142,12 @@ func TestSpecIncludesDatasetProvisionAndInstall(t *testing.T) {
 		"dataset_bindings": []map[string]any{{
 			"name": "scanobjectnn-objbg", "canonical_root": "/root/autodl-fs/datasets/ScanObjectNN",
 			"environment_variable": "GEMCP_DATASET_SCANOBJECTNN_OBJBG",
-			"sources": []map[string]string{{"url": "https://huggingface.co/datasets/example/resolve/main/train.h5", "relative_path": "main_split/train.h5"}},
+			"sources":              []map[string]string{{"url": "https://huggingface.co/datasets/example/resolve/main/train.h5", "relative_path": "main_split/train.h5"}},
 		}},
 		"dataset_provision": []map[string]any{{
 			"name": "scanobjectnn-objbg", "canonical_root": "/root/autodl-fs/datasets/ScanObjectNN",
 			"environment_variable": "GEMCP_DATASET_SCANOBJECTNN_OBJBG",
-			"sources": []map[string]string{{"url": "https://huggingface.co/datasets/example/resolve/main/train.h5", "relative_path": "main_split/train.h5"}},
+			"sources":              []map[string]string{{"url": "https://huggingface.co/datasets/example/resolve/main/train.h5", "relative_path": "main_split/train.h5"}},
 		}},
 		"install_dependencies": map[string]any{"requirements_file": "requirements.gemcp.txt"},
 	})
@@ -476,7 +476,7 @@ func TestBootstrapExecutesArgvWithoutShellInterpolation(t *testing.T) {
 			_ = json.NewEncoder(response).Encode(map[string]any{"data": Spec{
 				ExperimentID: "experiment", AttemptID: "attempt", ExecutionMode: "argv",
 				Argv: []string{python, "argv_test.py", literal}, OutputPath: outputPath,
-				MaxRuntimeSeconds: 60, TerminationGraceSeconds: 1, HeartbeatIntervalSeconds: 5,
+				MaxRuntimeSeconds: 5, TerminationGraceSeconds: 1, HeartbeatIntervalSeconds: 15,
 				SourceMaxBytes: 1 << 20, ProvisioningSecondsRemaining: 60, TokenExpiresAt: time.Now().Add(time.Hour),
 			}})
 		case "/api/v1/runner/source":
@@ -503,8 +503,12 @@ func TestBootstrapExecutesArgvWithoutShellInterpolation(t *testing.T) {
 	}
 	command := exec.Command(python, path)
 	command.Env = append(os.Environ(), "GEMCP_RUNNER_URL="+server.URL, "GEMCP_RUNNER_TOKEN="+strings.Repeat("t", 40))
+	startedAt := time.Now()
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("argv bootstrap failed: %v: %s", err, output)
+	}
+	if elapsed := time.Since(startedAt); elapsed >= 5*time.Second {
+		t.Fatalf("short argv workload took %s; completion waited for the heartbeat interval", elapsed)
 	}
 	content, err := os.ReadFile(filepath.Join(outputPath, "argv.txt"))
 	if err != nil || string(content) != literal {

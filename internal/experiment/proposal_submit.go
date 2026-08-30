@@ -270,7 +270,8 @@ func (s *Service) createPreparedExperiment(ctx context.Context, principal agenta
 	if reservation > projectRecord.MaxExperimentMilli {
 		return result, ErrExperimentCap
 	}
-	period, err := budgetPeriod(s.now().UTC(), projectRecord.Timezone)
+	now := s.now().UTC()
+	period, err := budgetPeriod(now, projectRecord.Timezone)
 	if err != nil {
 		return result, err
 	}
@@ -308,7 +309,8 @@ func (s *Service) createPreparedExperiment(ctx context.Context, principal agenta
 		SetResourceSnapshot(resourceSnapshot(profileRecord)).
 		SetSecretNames([]string{}).
 		SetOutputPath(outputPath).
-		SetReservedCostMilli(reservation)
+		SetReservedCostMilli(reservation).
+		SetNextAttemptAt(now)
 	if repositoryRecord != nil {
 		create.SetRepositoryID(repositoryRecord.ID)
 	}
@@ -325,7 +327,6 @@ func (s *Service) createPreparedExperiment(ctx context.Context, principal agenta
 		SetPeriod(period).SetKind("reservation").SetAmountMilli(reservation).SetDescription(description).Save(ctx); err != nil {
 		return result, err
 	}
-	now := s.now().UTC()
 	updated, err := tx.ExperimentProposal.Update().Where(
 		experimentproposal.IDEQ(proposalRecord.ID), experimentproposal.StatusEQ(experimentproposal.StatusPrepared),
 	).SetStatus(experimentproposal.StatusSubmitted).SetExperimentID(experimentRecord.ID).SetSubmittedAt(now).Save(ctx)

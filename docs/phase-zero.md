@@ -48,6 +48,16 @@ Public reports include wallet amounts in AutoDL integer units (`milli-CNY`). Pri
 
 ## Minimal live Job
 
+For the smallest Public Elastic check on Windows, run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\live-paid-autodl-smoke.ps1
+```
+
+The script requests only the Developer Token. It reads the current private-image list and regional GPU inventory, selects one visible image and the currently idle non-CPU GPU types, and runs a fixed command that writes `gemcp-autodl-smoke-ok` before exiting. Its hard limits are one GPU, 5 seconds of workload runtime, 1,980 milli-CNY/hour, and 100 milli-CNY total authorization. A failed Job, failed stop/delete operation, or unconfirmed deletion produces a non-zero exit code. This direct smoke path does not use MCP, the scheduler, Runner callbacks, or Watchdog.
+
+The generic Job command remains available when an exact image and resource specification must be reviewed manually:
+
 1. Copy the matching example outside the repository or into a Git-ignored protected directory:
    - Public Elastic: `examples/phase0-elastic-job.json`
    - Private Cloud: `examples/phase0-private-job.json`
