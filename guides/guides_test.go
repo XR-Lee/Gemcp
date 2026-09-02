@@ -100,6 +100,7 @@ func TestLocalDevBootstrapMatchesBinary(t *testing.T) {
 		filepath.Join("..", "scripts", "local-http-smoke.sh"),
 		filepath.Join("..", "scripts", "local-cpu-loop.sh"),
 		filepath.Join("..", "deploy", "env.local.example"),
+		filepath.Join("..", "docs", "tester-brief.md"),
 	} {
 		info, err := os.Stat(filename)
 		if err != nil {
@@ -145,6 +146,18 @@ func TestLocalDevBootstrapMatchesBinary(t *testing.T) {
 				if !strings.Contains(body, required) {
 					t.Fatalf("%s does not contain %q", filename, required)
 				}
+			}
+		case strings.HasSuffix(filename, "tester-brief.md"):
+			for _, required := range []string{
+				"registers **33** tools", "Lab → Project, Agents, Finance, Alerts, Provider, Images",
+				"request_image_bake", "fail-closed", "invents no `image_uuid`",
+			} {
+				if !strings.Contains(body, required) {
+					t.Fatalf("%s does not contain %q", filename, required)
+				}
+			}
+			if strings.Contains(body, "registers **30** tools") {
+				t.Fatalf("%s still advertises 30 MCP tools", filename)
 			}
 		}
 	}

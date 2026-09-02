@@ -70,9 +70,9 @@ These should work on a fresh local control plane:
 
 1. Create a Study from Research. Recording a Graph node must **not** start a workload.
 2. Open Evidence. Experiments that never entered the Graph are marked orphaned. That badge is intended.
-3. Open Lab → Project, Agents, Finance, Alerts, Provider. If AutoDL was skipped, Provider should show that it is not configured; saving a real token later enables the live views.
+3. Open Lab → Project, Agents, Finance, Alerts, Provider, Images. If AutoDL was skipped, Provider should show that it is not configured; saving a real token later enables the live views. Images is the Lab bake workspace: a `configure` Agent can request a bake, but Owner digest confirmation is the only start of AutoDL Pro. This tree's control plane is fail-closed for live Pro create, so Confirm records Lab `failed` and invents no `image_uuid`. That is not a Graph or Experiment regression.
 4. From Agents, download the non-secret Owner / Agent guides. The live copies are also `/docs/owner-mcp.md` and `/docs/agent-mcp.md`.
-5. Connect an MCP client to `http://127.0.0.1:8080/mcp` (loopback HTTP is supported; production remains HTTPS). The server currently registers **30** tools. Call `get_usage_guide`, `get_research_workspace`, `get_experiment_catalog`, and `get_next_actions`. For the local CPU path, a token with only `read,submit,cancel` can register the loopback compute stub, host Environment, and catalog `modelnet40-mini`. `./scripts/local-cpu-loop.sh` does that, prepares argv against `examples/local-cpu/train.py`, and has the Owner confirm the digest. Do **not** call `submit_prepared_experiment` yourself unless you have that same Owner-confirmed digest.
+5. Connect an MCP client to `http://127.0.0.1:8080/mcp` (loopback HTTP is supported; production remains HTTPS). The server currently registers **33** tools. Call `get_usage_guide`, `get_research_workspace`, `get_experiment_catalog`, and `get_next_actions`. For the local CPU path, a token with only `read,submit,cancel` can register the loopback compute stub, host Environment, and catalog `modelnet40-mini`. `./scripts/local-cpu-loop.sh` does that, prepares argv against `examples/local-cpu/train.py`, and has the Owner confirm the digest. Do **not** call `submit_prepared_experiment` yourself unless you have that same Owner-confirmed digest. `configure` can `request_image_bake`; that write is zero-cost and does not start AutoDL Pro.
 
 Grok: `grok mcp list` and `grok mcp doctor gemcp-project`. If doctor says the folder is untrusted, grant trust with top-level `grok --trust` in this directory, then run doctor again. There is no `grok mcp doctor --trust` flag.
 
@@ -107,7 +107,7 @@ Known unfinished or out of scope for this test:
 - **No public-repository URL onboarding.** Registration is still name + SSH URL + Deploy Key + verify.
 - **No `gemcp.yaml` named workloads, dataset snapshots, build sessions, or cross-node asset placement.**
 - **Scheduler disabled:** accepted prepared and Advanced submissions stay `queued` and create no compute resource. The current local `.env` template turns the scheduler and Cloud SSH on so `local-cpu-loop.sh` can finish. **Nodes hidden:** expected only while both Self-hosted and Cloud SSH flags are false.
-- **Provider / Diagnostics / paid AutoDL / two physical GPUs / Watchdog-while-down / SMTP / `/root/autodl-fs` persistence** still need authorized live resources. Failures there without those resources are not product regressions.
+- **Provider / Diagnostics / paid AutoDL / Images live Pro create / two physical GPUs / Watchdog-while-down / SMTP / `/root/autodl-fs` persistence** still need authorized live resources. Failures there without those resources are not product regressions. Live Pro create stays fail-closed on this tree: Confirm must not invent an image UUID.
 
 ## What to report
 
