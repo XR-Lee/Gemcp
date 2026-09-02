@@ -55,6 +55,8 @@ describe('BakeView', () => {
     await flushPromises()
     expect(wrapper.text()).toContain('torch-mamba')
     expect(wrapper.text()).toContain('requested')
+    expect(wrapper.text()).toContain('fail-closed')
+    expect(wrapper.text()).toContain('invents no image UUID')
     expect(fetchMock.mock.calls.some((call) => String(call[0]).includes('/confirm'))).toBe(false)
 
     await wrapper.get('tbody tr').trigger('click')

@@ -41,7 +41,7 @@ The remote MCP endpoint uses the official Go SDK's Streamable HTTP transport. Ag
 
 ## Provider boundary
 
-The production AutoDL adapter uses documented Developer APIs; browser automation is excluded. Production scheduling supports **AutoDL Private Cloud Job** (`autodl_private`) and **AutoDL Public Elastic Job** (`autodl_elastic`). Public Pro remains a phase-zero read-only client and is not a production scheduling fallback.
+The production AutoDL adapter uses documented Developer APIs; browser automation is excluded. Production scheduling supports **AutoDL Private Cloud Job** (`autodl_private`) and **AutoDL Public Elastic Job** (`autodl_elastic`). Public Pro is not a production Experiment scheduling fallback. Lab image bake can request a Pro image through Owner-confirmed digest; the shipped bake provider is fail-closed until a live Pro client is wired.
 
 The two production AutoDL backends have separate contracts. Private Cloud uses `https://private.autodl.com`, has no Developer wallet endpoint, exposes non-regional GPU inventory, and uses one `cuda_v` selector. Public Elastic uses `https://api.autodl.com`, requires an enterprise-verified account for Elastic deployment APIs, queries GPU inventory one region at a time, and creates deployments with `container_template.dc_list` plus a CUDA range. A Public Elastic stock count represents individual idle GPUs and does not prove that multiple cards are available in one machine.
 

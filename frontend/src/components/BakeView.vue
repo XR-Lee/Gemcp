@@ -141,7 +141,7 @@ watch(() => selected.value?.id, () => { confirmed.value = false })
 <template>
   <section class="diagnostic-workspace page-workspace">
     <div class="section-heading page-section-heading">
-      <div><h2>{{ t('Image bake', '镜像 Bake') }}</h2><p>{{ t('Lab image factory. Confirming the digest starts AutoDL Pro. This is not a research run.', '实验室镜像工厂。确认摘要后才启动 AutoDL Pro。这不是科研 run。') }}</p></div>
+      <div><h2>{{ t('Image bake', '镜像 Bake') }}</h2><p>{{ t('Lab image factory, not a research run. Owner digest confirmation is the only start of AutoDL Pro. This control plane is fail-closed for live Pro create, so Confirm stays Lab-only and invents no image UUID.', '实验室镜像工厂，不是科研 run。只有 Owner 确认摘要才会启动 AutoDL Pro。当前控制平面对直播 Pro 创建是 fail-closed：确认后只留 Lab 记录，不会编造 image UUID。') }}</p></div>
       <button class="icon-button" type="button" :title="t('Refresh bakes', '刷新 Bake')" :disabled="loading" @click="load"><RefreshCw :size="17" :class="{ spinning: loading }" /></button>
     </div>
 

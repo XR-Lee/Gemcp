@@ -431,6 +431,7 @@ async function mockLogin(page: Page) {
 
 async function mockConsole(page: Page, counters?: { providerQueries?: number; selfHosted?: boolean; schedulerEnabled?: boolean }) {
   let submittedDiagnostic: typeof queuedDiagnostic | typeof cancelledDiagnostic = queuedDiagnostic
+  let listedImageBake: typeof requestedImageBake | (typeof requestedImageBake & { image_uuid: string; instance_uuid: string }) = requestedImageBake
   await page.route('**/docs/*.md', async (route) => {
     const path = new URL(route.request().url()).pathname
     const body = path.endsWith('/agent-mcp.md')
@@ -586,11 +587,12 @@ async function mockConsole(page: Page, counters?: { providerQueries?: number; se
       })
     }
     if (path === `/api/v1/projects/${project.id}/image-bakes` && route.request().method() === 'GET') {
-      return fulfill(route, { bakes: [requestedImageBake] })
+      return fulfill(route, { bakes: [listedImageBake] })
     }
     if (path === `/api/v1/projects/${project.id}/image-bakes/${requestedImageBake.id}/confirm` && route.request().method() === 'POST') {
       expect(route.request().postDataJSON()).toEqual({ confirmation_digest: requestedImageBake.confirmation_digest })
-      return fulfill(route, { ...requestedImageBake, status: 'finished', image_uuid: 'image-baked12345', instance_uuid: 'pro-instance-1' })
+      listedImageBake = { ...requestedImageBake, status: 'finished', image_uuid: 'image-baked12345', instance_uuid: 'pro-instance-1' }
+      return fulfill(route, listedImageBake)
     }
     if (path === `/api/v1/projects/${project.id}/agent-tokens` && route.request().method() === 'GET') return fulfill(route, agentTokenList)
     if (path === `/api/v1/projects/${project.id}/agent-readiness` && route.request().method() === 'GET') return fulfill(route, agentReadiness)
@@ -897,7 +899,7 @@ test('Lab image bake workspace lists a requested bake without starting Pro until
   await expect(page.getByRole('button', { name: 'Confirm and start Pro' })).toBeDisabled()
   await page.getByRole('checkbox').check()
   await page.getByRole('button', { name: 'Confirm and start Pro' }).click()
-  await expect(page.getByText('image-baked12345', { exact: true })).toBeVisible()
+  await expect(page.getByText('image-baked12345', { exact: true }).first()).toBeVisible()
 })
 
 test('Owner finance analytics and Project budget changes fit desktop and mobile', async ({ page }) => {

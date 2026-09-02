@@ -7,7 +7,7 @@ Gemcp provides an Owner-only live resource view for the configured AutoDL execut
 - Public Elastic at `https://api.autodl.com`, stored as Provider backend `elastic` and execution backend `autodl_elastic`;
 - Private Cloud at `https://private.autodl.com`, stored as Provider backend `private` and execution backend `autodl_private`.
 
-Public Pro remains available only to the phase-zero read probe. It is not a production scheduling fallback because Gemcp does not implement its instance create and cleanup lifecycle.
+Public Pro is not a production Experiment scheduling fallback. Phase-zero can still read Pro. Lab → Images can persist a zero-cost bake request through MCP `configure`; Owner digest confirmation is the only start of Pro. This tree's control plane uses a fail-closed bake provider, so Confirm marks the Lab record `failed` and does not create a Pro instance or invent an `image_uuid`. Finished bake UUIDs register through the existing Environment path.
 
 The controlplane decrypts the configured Developer Token only inside the server process and returns normalized credential-free responses. Gemcp identifies persisted owned resources and permits bounded lifecycle operations on those resources only.
 
