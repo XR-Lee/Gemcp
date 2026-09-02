@@ -71,11 +71,15 @@ A Study belongs to one Project. Plans, nodes, and edges belong to one Study.
 
 ```text
 Project
+  ├── Repository
+  │     └── ExperimentCatalogRow (Setting, 方法, 实现, metric, 结果, link, hash, research branch)
   └── Study
         ├── IterationPlan (current plus superseded history)
         ├── ResearchNode (question, hypothesis, plan, run, result, observation, decision; optional occurred_at + commit_sha)
         └── ResearchEdge (leads_to, compares, supersedes, supports, contradicts, produced)
 ```
+
+The experiment catalog is bound to a registered repository, not to the Graph. It stores table-ready raw rows extracted from research branches so later analysis and paper tables can reuse Setting / 方法 / 实现 / metric / 结果 / link / hash without putting every run on the 128-node Graph. Catalog ingest never starts a workload.
 
 Constraints:
 
@@ -97,6 +101,8 @@ The Graph is the execution contract. External harnesses stay outside Gemcp; MCP 
 - `prepare_experiment` (`submit`): when a Study exists, `from_node_id` must be a connected hypothesis or a plan under that Study. Isolated nodes cannot prepare. The origin is bound into the confirmation digest.
 - `submit_prepared_experiment` (`submit`): creates the Experiment and writes the `run` node. Bind failure is an error, not a silent skip.
 - `close_run` (`submit`): the only way to write a `result` on that run after the Experiment is terminal. It also writes a highlight observation linked to the originating hypothesis. Monitor with `get_experiment`; do not SSH or infer metrics from logs.
+- `get_experiment_catalog` (`read`): return registered repository identity plus extracted catalog rows. Never starts a workload.
+- `record_experiment_catalog` (`submit`): persist raw experiment rows from research branches of a registered repository. Never starts a workload.
 
 Calling `get_next_actions` before spending is an Agent operating requirement, not a separately persisted server precondition. The server enforces the Graph boundary at the write operations: `prepare_experiment` requires a connected hypothesis or plan `from_node_id`, submission binds the `run`, and `close_run` writes the terminal `result` plus the highlight observation.
 

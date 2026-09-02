@@ -377,6 +377,16 @@ const completedDiagnostic = {
   ],
   created_at: '2026-07-17T02:05:00Z', updated_at: '2026-07-17T02:07:00Z',
 }
+const requestedImageBake = {
+  id: 'image-bake-1', project_id: project.id, repository_id: repositories[0].id, name: 'torch-mamba', backend: 'autodl_pro',
+  base_image_uuid: 'image-6c15b8aad2', commit_sha: '0123456789012345678901234567890123456789', recipe_path: 'requirements.gemcp.txt',
+  status: 'requested', confirmation_digest: `sha256:${'e'.repeat(64)}`, requested_by: 'agent-token-active-1', requested_by_type: 'agent_token',
+  proposal: {
+    backend: 'autodl_pro', name: 'torch-mamba', base_image_uuid: 'image-6c15b8aad2',
+    repository_id: repositories[0].id, commit_sha: '0123456789012345678901234567890123456789', recipe_path: 'requirements.gemcp.txt',
+  },
+  estimated_cost_milli: 0, created_at: '2026-09-02T00:00:00Z', updated_at: '2026-09-02T00:00:00Z',
+}
 const queuedDiagnostic = {
   ...completedDiagnostic, id: 'diagnostic-queued-1',
   experiment: {
@@ -568,6 +578,20 @@ async function mockConsole(page: Page, counters?: { providerQueries?: number; se
       return fulfill(route, cancelledDiagnostic)
     }
     if (path === `/api/v1/projects/${project.id}/diagnostics/${queuedDiagnostic.id}`) return fulfill(route, submittedDiagnostic)
+    if (path === `/api/v1/projects/${project.id}/image-bakes/options`) {
+      return fulfill(route, {
+        project_id: project.id, backend: 'autodl_pro', default_recipe_path: 'requirements.gemcp.txt',
+        repositories: [{ id: repositories[0].id, name: repositories[0].name, default_branch: 'main' }],
+        base_images: [{ uuid: 'image-6c15b8aad2', name: 'torch' }], generated_at: '2026-09-02T00:00:00Z',
+      })
+    }
+    if (path === `/api/v1/projects/${project.id}/image-bakes` && route.request().method() === 'GET') {
+      return fulfill(route, { bakes: [requestedImageBake] })
+    }
+    if (path === `/api/v1/projects/${project.id}/image-bakes/${requestedImageBake.id}/confirm` && route.request().method() === 'POST') {
+      expect(route.request().postDataJSON()).toEqual({ confirmation_digest: requestedImageBake.confirmation_digest })
+      return fulfill(route, { ...requestedImageBake, status: 'finished', image_uuid: 'image-baked12345', instance_uuid: 'pro-instance-1' })
+    }
     if (path === `/api/v1/projects/${project.id}/agent-tokens` && route.request().method() === 'GET') return fulfill(route, agentTokenList)
     if (path === `/api/v1/projects/${project.id}/agent-readiness` && route.request().method() === 'GET') return fulfill(route, agentReadiness)
     if (path === `/api/v1/projects/${project.id}/agent-enrollments` && route.request().method() === 'POST') {
@@ -602,6 +626,28 @@ async function mockConsole(page: Page, counters?: { providerQueries?: number; se
     if (path === '/api/v1/repositories') return fulfill(route, repositories)
     if (path === '/api/v1/experiments') return fulfill(route, experiments)
     if (path === `/api/v1/projects/${project.id}/research`) return fulfill(route, researchWorkspace)
+    if (path === `/api/v1/projects/${project.id}/experiment-catalog`) {
+      return fulfill(route, {
+        project_id: project.id,
+        generated_at: '2026-07-17T02:00:00Z',
+        repositories: [{
+          id: repositories[0].id, name: repositories[0].name, ssh_url: repositories[0].ssh_url,
+          default_branch: repositories[0].default_branch, status: repositories[0].status,
+          last_verified_at: repositories[0].last_verified_at, rows: [{
+            id: 'catalog-row-1', repository_id: repositories[0].id,
+            branch: 'autoresearch/sprint-beat-sast-20260817',
+            setting: 'G2 seed-2 best-checkpoint Mean U-spec',
+            method: 'U-spec unified organizer',
+            implementation: 'SPRINT_G2_DECISION.md',
+            metric: '90.4114',
+            result: 'promote_U-spec versus SAST -0.4986 pp',
+            link: 'SPRINT_G2_DECISION.md',
+            hash: '79b9a11f8e7ad9bb384ff4a5c3354b5d1adfc9c0',
+            created_at: '2026-07-17T02:00:00Z', updated_at: '2026-07-17T02:00:00Z',
+          }],
+        }],
+      })
+    }
     if (path === `/api/v1/projects/${project.id}/operations`) return fulfill(route, operationsFeed)
     if (path === `/api/v1/experiments/${experiments[0].id}/attempts`) return fulfill(route, attemptHistory)
     if (path === `/api/v1/experiments/${experiments[0].id}`) return fulfill(route, experiments[0])
@@ -682,6 +728,16 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await expect(page.getByText('Record the current smoke-run accuracy as the first Graph result.')).toBeVisible()
   await expect(page.getByText('Record a hypothesis')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Research Graph' })).toBeVisible()
+  const catalog = page.getByTestId('repo-experiment-catalog')
+  await expect(catalog).toBeVisible()
+  await expect(catalog).toContainText('原始注册数据')
+  await expect(catalog).toContainText('分析数据')
+  await expect(catalog).toContainText('git@github.com:research/dynamic-point-mamba.git')
+  await expect(catalog).toContainText('Setting')
+  await expect(catalog).toContainText('方法')
+  await expect(catalog).toContainText('实现')
+  await expect(catalog).toContainText('90.4114')
+  await catalog.screenshot({ path: process.env.CATALOG_SCREENSHOT || '/tmp/repo-catalog-panel.png' })
   await expect(page.getByText('Agent Readiness')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Copy readiness', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Attach prompt' }).click()
@@ -827,6 +883,21 @@ test('backend diagnostics preflight, execution analysis and cancellation fit des
   await page.setViewportSize({ width: 390, height: 844 })
   await expectNoPageOverflow(page)
   await page.screenshot({ path: '/tmp/gemcp-diagnostics-mobile.png', fullPage: true })
+})
+
+test('Lab image bake workspace lists a requested bake without starting Pro until confirm', async ({ page }) => {
+  await mockConsole(page)
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Images', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Image bake' })).toBeVisible()
+  await expect(page.getByText('torch-mamba', { exact: true }).first()).toBeVisible()
+  await page.getByRole('row').filter({ hasText: 'torch-mamba' }).click()
+  await expect(page.getByText(requestedImageBake.confirmation_digest, { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Confirm and start Pro' })).toBeDisabled()
+  await page.getByRole('checkbox').check()
+  await page.getByRole('button', { name: 'Confirm and start Pro' }).click()
+  await expect(page.getByText('image-baked12345', { exact: true })).toBeVisible()
 })
 
 test('Owner finance analytics and Project budget changes fit desktop and mobile', async ({ page }) => {

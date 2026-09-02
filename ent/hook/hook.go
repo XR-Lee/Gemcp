@@ -153,6 +153,18 @@ func (f ExperimentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, 
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ExperimentMutation", m)
 }
 
+// The ExperimentCatalogRowFunc type is an adapter to allow the use of ordinary
+// function as ExperimentCatalogRow mutator.
+type ExperimentCatalogRowFunc func(context.Context, *ent.ExperimentCatalogRowMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ExperimentCatalogRowFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ExperimentCatalogRowMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ExperimentCatalogRowMutation", m)
+}
+
 // The ExperimentProposalFunc type is an adapter to allow the use of ordinary
 // function as ExperimentProposal mutator.
 type ExperimentProposalFunc func(context.Context, *ent.ExperimentProposalMutation) (ent.Value, error)
@@ -175,6 +187,18 @@ func (f IdempotencyRecordFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.IdempotencyRecordMutation", m)
+}
+
+// The ImageBakeFunc type is an adapter to allow the use of ordinary
+// function as ImageBake mutator.
+type ImageBakeFunc func(context.Context, *ent.ImageBakeMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ImageBakeFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ImageBakeMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ImageBakeMutation", m)
 }
 
 // The IterationPlanFunc type is an adapter to allow the use of ordinary

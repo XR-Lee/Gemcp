@@ -15,6 +15,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/agenttoken"
 	"github.com/XR-Lee/Gemcp/ent/datasetbinding"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/experimentcatalogrow"
 	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
 	"github.com/XR-Lee/Gemcp/ent/iterationplan"
@@ -28,19 +29,20 @@ import (
 // AgentTokenQuery is the builder for querying AgentToken entities.
 type AgentTokenQuery struct {
 	config
-	ctx                     *QueryContext
-	order                   []agenttoken.OrderOption
-	inters                  []Interceptor
-	predicates              []predicate.AgentToken
-	withProject             *ProjectQuery
-	withExperiments         *ExperimentQuery
-	withIdempotencyRecords  *IdempotencyRecordQuery
-	withExperimentProposals *ExperimentProposalQuery
-	withWorkspaceDatasets   *WorkspaceDatasetQuery
-	withDatasetBindings     *DatasetBindingQuery
-	withStudies             *StudyQuery
-	withIterationPlans      *IterationPlanQuery
-	withResearchNodes       *ResearchNodeQuery
+	ctx                       *QueryContext
+	order                     []agenttoken.OrderOption
+	inters                    []Interceptor
+	predicates                []predicate.AgentToken
+	withProject               *ProjectQuery
+	withExperiments           *ExperimentQuery
+	withIdempotencyRecords    *IdempotencyRecordQuery
+	withExperimentProposals   *ExperimentProposalQuery
+	withWorkspaceDatasets     *WorkspaceDatasetQuery
+	withDatasetBindings       *DatasetBindingQuery
+	withStudies               *StudyQuery
+	withIterationPlans        *IterationPlanQuery
+	withResearchNodes         *ResearchNodeQuery
+	withExperimentCatalogRows *ExperimentCatalogRowQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -275,6 +277,28 @@ func (_q *AgentTokenQuery) QueryResearchNodes() *ResearchNodeQuery {
 	return query
 }
 
+// QueryExperimentCatalogRows chains the current query on the "experiment_catalog_rows" edge.
+func (_q *AgentTokenQuery) QueryExperimentCatalogRows() *ExperimentCatalogRowQuery {
+	query := (&ExperimentCatalogRowClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(agenttoken.Table, agenttoken.FieldID, selector),
+			sqlgraph.To(experimentcatalogrow.Table, experimentcatalogrow.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, agenttoken.ExperimentCatalogRowsTable, agenttoken.ExperimentCatalogRowsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
 // First returns the first AgentToken entity from the query.
 // Returns a *NotFoundError when no AgentToken was found.
 func (_q *AgentTokenQuery) First(ctx context.Context) (*AgentToken, error) {
@@ -462,20 +486,21 @@ func (_q *AgentTokenQuery) Clone() *AgentTokenQuery {
 		return nil
 	}
 	return &AgentTokenQuery{
-		config:                  _q.config,
-		ctx:                     _q.ctx.Clone(),
-		order:                   append([]agenttoken.OrderOption{}, _q.order...),
-		inters:                  append([]Interceptor{}, _q.inters...),
-		predicates:              append([]predicate.AgentToken{}, _q.predicates...),
-		withProject:             _q.withProject.Clone(),
-		withExperiments:         _q.withExperiments.Clone(),
-		withIdempotencyRecords:  _q.withIdempotencyRecords.Clone(),
-		withExperimentProposals: _q.withExperimentProposals.Clone(),
-		withWorkspaceDatasets:   _q.withWorkspaceDatasets.Clone(),
-		withDatasetBindings:     _q.withDatasetBindings.Clone(),
-		withStudies:             _q.withStudies.Clone(),
-		withIterationPlans:      _q.withIterationPlans.Clone(),
-		withResearchNodes:       _q.withResearchNodes.Clone(),
+		config:                    _q.config,
+		ctx:                       _q.ctx.Clone(),
+		order:                     append([]agenttoken.OrderOption{}, _q.order...),
+		inters:                    append([]Interceptor{}, _q.inters...),
+		predicates:                append([]predicate.AgentToken{}, _q.predicates...),
+		withProject:               _q.withProject.Clone(),
+		withExperiments:           _q.withExperiments.Clone(),
+		withIdempotencyRecords:    _q.withIdempotencyRecords.Clone(),
+		withExperimentProposals:   _q.withExperimentProposals.Clone(),
+		withWorkspaceDatasets:     _q.withWorkspaceDatasets.Clone(),
+		withDatasetBindings:       _q.withDatasetBindings.Clone(),
+		withStudies:               _q.withStudies.Clone(),
+		withIterationPlans:        _q.withIterationPlans.Clone(),
+		withResearchNodes:         _q.withResearchNodes.Clone(),
+		withExperimentCatalogRows: _q.withExperimentCatalogRows.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -581,6 +606,17 @@ func (_q *AgentTokenQuery) WithResearchNodes(opts ...func(*ResearchNodeQuery)) *
 	return _q
 }
 
+// WithExperimentCatalogRows tells the query-builder to eager-load the nodes that are connected to
+// the "experiment_catalog_rows" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *AgentTokenQuery) WithExperimentCatalogRows(opts ...func(*ExperimentCatalogRowQuery)) *AgentTokenQuery {
+	query := (&ExperimentCatalogRowClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withExperimentCatalogRows = query
+	return _q
+}
+
 // GroupBy is used to group vertices by one or more fields/columns.
 // It is often used with aggregate functions, like: count, max, mean, min, sum.
 //
@@ -659,7 +695,7 @@ func (_q *AgentTokenQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*A
 	var (
 		nodes       = []*AgentToken{}
 		_spec       = _q.querySpec()
-		loadedTypes = [9]bool{
+		loadedTypes = [10]bool{
 			_q.withProject != nil,
 			_q.withExperiments != nil,
 			_q.withIdempotencyRecords != nil,
@@ -669,6 +705,7 @@ func (_q *AgentTokenQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*A
 			_q.withStudies != nil,
 			_q.withIterationPlans != nil,
 			_q.withResearchNodes != nil,
+			_q.withExperimentCatalogRows != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -754,6 +791,15 @@ func (_q *AgentTokenQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*A
 		if err := _q.loadResearchNodes(ctx, query, nodes,
 			func(n *AgentToken) { n.Edges.ResearchNodes = []*ResearchNode{} },
 			func(n *AgentToken, e *ResearchNode) { n.Edges.ResearchNodes = append(n.Edges.ResearchNodes, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withExperimentCatalogRows; query != nil {
+		if err := _q.loadExperimentCatalogRows(ctx, query, nodes,
+			func(n *AgentToken) { n.Edges.ExperimentCatalogRows = []*ExperimentCatalogRow{} },
+			func(n *AgentToken, e *ExperimentCatalogRow) {
+				n.Edges.ExperimentCatalogRows = append(n.Edges.ExperimentCatalogRows, e)
+			}); err != nil {
 			return nil, err
 		}
 	}
@@ -1029,6 +1075,39 @@ func (_q *AgentTokenQuery) loadResearchNodes(ctx context.Context, query *Researc
 	}
 	query.Where(predicate.ResearchNode(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(agenttoken.ResearchNodesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.AgentTokenID
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "agent_token_id" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "agent_token_id" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *AgentTokenQuery) loadExperimentCatalogRows(ctx context.Context, query *ExperimentCatalogRowQuery, nodes []*AgentToken, init func(*AgentToken), assign func(*AgentToken, *ExperimentCatalogRow)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*AgentToken)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(experimentcatalogrow.FieldAgentTokenID)
+	}
+	query.Where(predicate.ExperimentCatalogRow(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(agenttoken.ExperimentCatalogRowsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

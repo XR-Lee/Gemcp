@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { Bot, Check, Clipboard, FlaskConical, GitBranch, Network, Plus, Sparkles } from '@lucide/vue'
 import { motion } from 'motion-v'
-import type { AgentReadiness, Experiment, Project, Repository, ResearchWorkspace, RuntimeStatus } from '../api'
+import type { AgentReadiness, Experiment, ExperimentCatalog, Project, Repository, ResearchWorkspace, RuntimeStatus } from '../api'
 import { localizedState, useI18n } from '../i18n'
 import { buildResearchAttachPrompt } from '../researchAttachPrompt'
 import { layoutResearchGraph } from '../researchGraphLayout'
@@ -22,6 +22,7 @@ const props = defineProps<{
   readiness?: AgentReadiness | null
   readinessLoading?: boolean
   runtime?: RuntimeStatus | null
+  catalog?: ExperimentCatalog | null
 }>()
 const emit = defineEmits<{
   selectStudy: [studyID: string]
@@ -79,6 +80,18 @@ const graphLayout = computed(() => layoutResearchGraph({
   edges: edges.value,
   focusNodeIDs: focusNodeIDs.value,
 }))
+const catalogRepositories = computed(() => {
+  if (props.catalog?.repositories?.length) return props.catalog.repositories
+  return (props.repositories ?? []).map((repository) => ({
+    id: repository.id,
+    name: repository.name,
+    ssh_url: repository.ssh_url,
+    default_branch: repository.default_branch,
+    status: repository.status,
+    last_verified_at: repository.last_verified_at,
+    rows: [],
+  }))
+})
 function dateTime(value?: string) {
   if (!value) return t('Not set', '未设置')
   return new Intl.DateTimeFormat(languageTag.value, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
@@ -115,6 +128,81 @@ function dateTime(value?: string) {
       @handshake="emit('handshake')"
       @open-nodes="emit('openNodes')"
     />
+
+    <section v-if="catalogRepositories.length" class="research-catalog" data-testid="repo-experiment-catalog">
+      <div class="section-heading">
+        <div>
+          <h2>{{ t('Registered experiment repository', '已注册实验仓库') }}</h2>
+          <p>{{ t('Original registration next to extracted research-branch rows. Catalog ingest never starts a workload.', '原始注册数据与研究分支分析数据并排。写入目录不会启动作业。') }}</p>
+        </div>
+        <span class="live-label">{{ catalogRepositories.length }} {{ t('repositories', '个仓库') }}</span>
+      </div>
+      <article v-for="repository in catalogRepositories" :key="repository.id" class="catalog-repo">
+        <header>
+          <span class="research-kicker"><GitBranch :size="13" />{{ repository.name }}</span>
+          <strong>{{ repository.name }}</strong>
+        </header>
+        <div class="catalog-panels">
+          <section class="catalog-panel" data-testid="catalog-registration">
+            <h3>原始注册数据</h3>
+            <dl>
+              <div>
+                <dt>{{ t('Name', '名称') }}</dt>
+                <dd>{{ repository.name }}</dd>
+              </div>
+              <div>
+                <dt>ssh_url</dt>
+                <dd><code>{{ repository.ssh_url }}</code></dd>
+              </div>
+              <div>
+                <dt>{{ t('Default branch', '默认分支') }}</dt>
+                <dd><code>{{ repository.default_branch }}</code></dd>
+              </div>
+              <div>
+                <dt>{{ t('Status', '状态') }}</dt>
+                <dd>{{ localizedState(repository.status) }}</dd>
+              </div>
+              <div>
+                <dt>{{ t('Last verified', '上次验证') }}</dt>
+                <dd>{{ dateTime(repository.last_verified_at) }}</dd>
+              </div>
+            </dl>
+          </section>
+          <section class="catalog-panel catalog-analysis" data-testid="catalog-analysis">
+            <h3>分析数据</h3>
+            <div v-if="repository.rows.length" class="table-scroll">
+              <table class="data-table catalog-table">
+                <thead>
+                  <tr>
+                    <th>{{ t('Branch', '分支') }}</th>
+                    <th>Setting</th>
+                    <th>方法</th>
+                    <th>实现</th>
+                    <th>metric</th>
+                    <th>结果</th>
+                    <th>link</th>
+                    <th>hash</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="row in repository.rows" :key="row.id">
+                    <td><code>{{ row.branch }}</code></td>
+                    <td>{{ row.setting }}</td>
+                    <td>{{ row.method }}</td>
+                    <td>{{ row.implementation }}</td>
+                    <td>{{ row.metric }}</td>
+                    <td>{{ row.result }}</td>
+                    <td><code>{{ row.link }}</code></td>
+                    <td><code>{{ row.hash }}</code></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p v-else class="catalog-empty">{{ t('No extracted rows yet. Ask the Agent to record research-branch experiments into the catalog.', '还没有提取行。让 Agent 把研究分支的实验写入目录。') }}</p>
+          </section>
+        </div>
+      </article>
+    </section>
 
     <div v-if="loading && !workspace" class="research-loading">{{ t('Loading research workspace...', '正在加载研究工作区...') }}</div>
 

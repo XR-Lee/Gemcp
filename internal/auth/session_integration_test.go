@@ -51,3 +51,34 @@ func TestSessionLifecycle(t *testing.T) {
 		t.Fatalf("Authenticate() after logout error = %v", err)
 	}
 }
+
+func TestLoginSkipsPasswordWhenEnabled(t *testing.T) {
+	client := enttest.Open(t, dialect.SQLite, "file:auth-skip?mode=memory&cache=shared&_fk=1")
+	defer client.Close()
+	key, _ := secrets.GenerateMasterKey()
+	box, _ := secrets.New(key)
+	hash, _ := HashPassword("correct horse battery staple")
+	ctx := context.Background()
+	tenant, err := client.Tenant.Create().SetName("Test").Save(ctx)
+	if err != nil {
+		t.Fatalf("create tenant: %v", err)
+	}
+	_, err = client.User.Create().SetTenantID(tenant.ID).SetEmail("owner@example.com").SetPasswordHash(hash).Save(ctx)
+	if err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+
+	required := NewService(client, box, time.Hour)
+	if _, err := required.Login(ctx, "owner@example.com", "wrong password"); !errors.Is(err, ErrInvalidCredentials) {
+		t.Fatalf("required Login() error = %v", err)
+	}
+
+	skipped := NewService(client, box, time.Hour, WithSkipPassword(true))
+	credentials, err := skipped.Login(ctx, "owner@example.com", "")
+	if err != nil {
+		t.Fatalf("skipped Login() error = %v", err)
+	}
+	if credentials.User.Email != "owner@example.com" {
+		t.Fatalf("skipped principal: %+v", credentials.User)
+	}
+}

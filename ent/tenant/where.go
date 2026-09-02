@@ -814,6 +814,29 @@ func HasDiagnosticRunsWith(preds ...predicate.DiagnosticRun) predicate.Tenant {
 	})
 }
 
+// HasImageBakes applies the HasEdge predicate on the "image_bakes" edge.
+func HasImageBakes() predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ImageBakesTable, ImageBakesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasImageBakesWith applies the HasEdge predicate on the "image_bakes" edge with a given conditions (other predicates).
+func HasImageBakesWith(preds ...predicate.ImageBake) predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := newImageBakesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasExperimentProposals applies the HasEdge predicate on the "experiment_proposals" edge.
 func HasExperimentProposals() predicate.Tenant {
 	return predicate.Tenant(func(s *sql.Selector) {
@@ -967,6 +990,29 @@ func HasResearchEdges() predicate.Tenant {
 func HasResearchEdgesWith(preds ...predicate.ResearchEdge) predicate.Tenant {
 	return predicate.Tenant(func(s *sql.Selector) {
 		step := newResearchEdgesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasExperimentCatalogRows applies the HasEdge predicate on the "experiment_catalog_rows" edge.
+func HasExperimentCatalogRows() predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ExperimentCatalogRowsTable, ExperimentCatalogRowsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasExperimentCatalogRowsWith applies the HasEdge predicate on the "experiment_catalog_rows" edge with a given conditions (other predicates).
+func HasExperimentCatalogRowsWith(preds ...predicate.ExperimentCatalogRow) predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := newExperimentCatalogRowsStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

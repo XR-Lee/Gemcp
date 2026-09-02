@@ -36,6 +36,7 @@ func (AgentToken) Edges() []ent.Edge {
 		edge.To("studies", Study.Type),
 		edge.To("iteration_plans", IterationPlan.Type),
 		edge.To("research_nodes", ResearchNode.Type),
+		edge.To("experiment_catalog_rows", ExperimentCatalogRow.Type),
 	}
 }
 

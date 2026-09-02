@@ -11,6 +11,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent"
 	"github.com/XR-Lee/Gemcp/ent/auditevent"
 	"github.com/XR-Lee/Gemcp/ent/environment"
+	"github.com/XR-Lee/Gemcp/ent/imagebake"
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
 	"github.com/XR-Lee/Gemcp/internal/provider"
@@ -19,8 +20,8 @@ import (
 )
 
 const (
-	BackendElastic = "autodl_elastic"
-	BackendPrivate = "autodl_private"
+	BackendElastic  = "autodl_elastic"
+	BackendPrivate  = "autodl_private"
 	maxEnvironments = 16
 )
 
@@ -75,8 +76,8 @@ type ListResult struct {
 }
 
 type Service struct {
-	client   *ent.Client
-	images   ImageReader
+	client *ent.Client
+	images ImageReader
 }
 
 func NewService(client *ent.Client, images ImageReader) *Service {
@@ -297,6 +298,15 @@ func (s *Service) authorizeImage(ctx context.Context, tenantID, projectID int, b
 		return err
 	}
 	if existing {
+		return nil
+	}
+	baked, bakeErr := s.client.ImageBake.Query().Where(
+		imagebake.ProjectIDEQ(projectID), imagebake.StatusEQ(imagebake.StatusFinished), imagebake.ImageUUIDEQ(imageUUID),
+	).Exist(ctx)
+	if bakeErr != nil {
+		return bakeErr
+	}
+	if baked {
 		return nil
 	}
 	providerBackend := "elastic"

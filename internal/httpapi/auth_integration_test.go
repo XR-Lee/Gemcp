@@ -90,3 +90,26 @@ func TestAuthHTTPContract(t *testing.T) {
 		t.Fatalf("logout status = %d, body=%s", logoutResponse.Code, logoutResponse.Body)
 	}
 }
+
+func TestAuthHTTPSkipsPasswordWhenEnabled(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	client := enttest.Open(t, dialect.SQLite, "file:httpauth-skip?mode=memory&cache=shared&_fk=1")
+	defer client.Close()
+	key, _ := secrets.GenerateMasterKey()
+	box, _ := secrets.New(key)
+	passwordHash, _ := auth.HashPassword("correct horse battery staple")
+	ctx := context.Background()
+	tenant, _ := client.Tenant.Create().SetName("Test").Save(ctx)
+	_, _ = client.User.Create().SetTenantID(tenant.ID).SetEmail("owner@example.com").SetPasswordHash(passwordHash).Save(ctx)
+
+	handlers := NewAuthHandlers(auth.NewService(client, box, time.Hour, auth.WithSkipPassword(true)), true)
+	router := gin.New()
+	router.POST("/login", handlers.Login)
+	loginRequest := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(`{"email":"owner@example.com"}`))
+	loginRequest.Header.Set("Content-Type", "application/json")
+	loginResponse := httptest.NewRecorder()
+	router.ServeHTTP(loginResponse, loginRequest)
+	if loginResponse.Code != http.StatusOK {
+		t.Fatalf("skip-password login status = %d, body=%s", loginResponse.Code, loginResponse.Body)
+	}
+}

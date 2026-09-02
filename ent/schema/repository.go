@@ -29,9 +29,11 @@ func (Repository) Fields() []ent.Field {
 func (Repository) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.From("project", Project.Type).Ref("repositories").Field("project_id").Unique().Required().Immutable(),
+		edge.To("image_bakes", ImageBake.Type),
 		edge.To("experiments", Experiment.Type),
 		edge.To("experiment_proposals", ExperimentProposal.Type),
 		edge.To("studies", Study.Type),
+		edge.To("experiment_catalog_rows", ExperimentCatalogRow.Type),
 	}
 }
 

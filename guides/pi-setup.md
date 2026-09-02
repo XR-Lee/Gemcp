@@ -14,7 +14,7 @@ Complete these steps yourself. Do not ask the human to copy a Token or write MCP
 
 1. Confirm the complete link starts with `{{GEMCP_PUBLIC_URL}}/agent/setup#code=`. Do not pass the complete link to a search, preview, or Web-fetch tool; request only `{{GEMCP_PUBLIC_URL}}/agent/setup` when reading these public instructions.
 2. Identify which client you are: Pi, Codex, OpenCode, Claude Code, or Grok. Stay in the research repository directory.
-3. Claim the fragment code, write a **directory-local** MCP config for that client, then discover all twenty-eight direct tools and verify `get_usage_guide`, `get_project_options`, and `get_project_cost`.
+3. Claim the fragment code, write a **directory-local** MCP config for that client, then discover all thirty-three direct tools and verify `get_usage_guide`, `get_project_options`, and `get_project_cost`.
 4. Complete enrollment so the Owner-selected scopes activate. Never expose the stored credential. The setup link becomes unusable after successful verification.
 
 ```http
@@ -32,7 +32,7 @@ After the four checks pass:
 POST {{GEMCP_PUBLIC_URL}}/api/v1/agent-enrollments/complete
 Content-Type: application/json
 
-{"code":"<same fragment code>","client":"<pi|codex|opencode|claude-code|grok>","tool_count":28,"checks":["tools","guide","options","cost"]}
+{"code":"<same fragment code>","client":"<pi|codex|opencode|claude-code|grok>","tool_count":30,"checks":["tools","guide","options","cost"]}
 ```
 
 `client` is a short identifier for the MCP host you configured, for example `claude-code`, `codex`, `opencode`, `grok`, or `pi-mcp-adapter/<version>`.
@@ -50,7 +50,7 @@ curl --fail --silent --show-error \
 unset setup_link
 ```
 
-Require the final output to begin with `GEMCP_PI_SETUP_OK`, discover all twenty-eight direct tools, and report all four checks: `tools,guide,options,cost`.
+Require the final output to begin with `GEMCP_PI_SETUP_OK`, discover all thirty-three direct tools, and report all four checks: `tools,guide,options,cost`.
 
 The installer stores the bearer credential in the Pi agent directory's `mcp.json` with mode `0600`, stores a credential-free receipt, and installs a local Gemcp CLI for the current session. Run `/reload` once when convenient. After reload, use the native `gemcp_*` tools. Before reload, use the `current_session_cli` command printed by the installer through Bash.
 
@@ -124,7 +124,7 @@ Set `GEMCP_AGENT_TOKEN` from the claim response, then verify with `grok mcp list
 
 Setup and read-only verification do not create paid resources. For normal work:
 
-- keep the Owner Study and research Graph current; call `get_next_actions` before spending and `close_run` after a terminal Experiment; those Graph tools never start a workload;
+- keep the Owner Study and research Graph current; call `get_next_actions` before spending and `close_run` after a terminal Experiment; extract research-branch experiment rows with `record_experiment_catalog`; those Graph and catalog tools never start a workload;
 - report only controlled workflow phases through `report_agent_activity`; never send prompts, reasoning, source contents, environment variables, or credentials;
 - inspect the intended repository entry point and call `prepare_experiment` with an ordered argv;
 - let Gemcp resolve repository defaults, the full commit SHA, resources, checks, cost, and idempotency;

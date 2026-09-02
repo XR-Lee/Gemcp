@@ -3,6 +3,7 @@ export type BuildInfo = {
   version: string
   commit: string
   built_at: string
+  password_required?: boolean
 }
 
 export type User = {
@@ -358,6 +359,61 @@ export type ProjectEnvironment = {
   is_default: boolean
   status: string
 }
+
+export type ImageBakeStatus =
+  | 'requested' | 'confirmed' | 'provisioning' | 'installing' | 'stopping' | 'saving'
+  | 'finished' | 'failed' | 'cancelled'
+
+export type ImageBakeProposal = {
+  backend: string
+  name: string
+  base_image_uuid: string
+  repository_id: string
+  commit_sha: string
+  recipe_path: string
+}
+
+export type ImageBake = {
+  id: string
+  project_id: string
+  repository_id: string
+  name: string
+  backend: string
+  base_image_uuid: string
+  commit_sha: string
+  recipe_path: string
+  status: ImageBakeStatus
+  confirmation_digest: string
+  requested_by: string
+  requested_by_type: string
+  confirmed_by?: string
+  confirmed_at?: string
+  image_uuid?: string
+  instance_uuid?: string
+  failure_reason?: string
+  proposal: ImageBakeProposal
+  estimated_cost_milli: number
+  created_at: string
+  updated_at: string
+}
+
+export type ImageBakeInput = {
+  name: string
+  backend?: string
+  base_image_uuid: string
+  repository_id?: string
+  commit_sha: string
+  recipe_path?: string
+}
+
+export type ImageBakeOptions = {
+  project_id: string
+  backend: string
+  default_recipe_path: string
+  repositories: { id: string; name: string; default_branch: string }[]
+  base_images: { uuid: string; name: string }[]
+  generated_at: string
+}
 export type OperationsFeed = { activities: AgentActivity[]; proposals: ProposalActivity[]; generated_at: string }
 
 export type ResearchPlanStep = { title: string; detail?: string }
@@ -440,6 +496,34 @@ export type ResearchWorkspace = {
   studies: ResearchStudySummary[]
   study?: ResearchStudy
   next_actions?: ResearchNextAction[]
+  generated_at: string
+}
+export type ExperimentCatalogRow = {
+  id: string
+  repository_id: string
+  branch: string
+  setting: string
+  method: string
+  implementation: string
+  metric: string
+  result: string
+  link?: string
+  hash: string
+  created_at: string
+  updated_at: string
+}
+export type ExperimentCatalogRepository = {
+  id: string
+  name: string
+  ssh_url: string
+  default_branch: string
+  status: string
+  last_verified_at?: string
+  rows: ExperimentCatalogRow[]
+}
+export type ExperimentCatalog = {
+  project_id: string
+  repositories: ExperimentCatalogRepository[]
   generated_at: string
 }
 
@@ -1204,6 +1288,12 @@ export const api = {
     const query = params.toString()
     return request<ResearchWorkspace>(`/api/v1/projects/${encodeURIComponent(projectID)}/research${query ? `?${query}` : ''}`)
   },
+  experimentCatalog: (projectID: string, repositoryID = '') => {
+    const params = new URLSearchParams()
+    if (repositoryID) params.set('repository_id', repositoryID)
+    const query = params.toString()
+    return request<ExperimentCatalog>(`/api/v1/projects/${encodeURIComponent(projectID)}/experiment-catalog${query ? `?${query}` : ''}`)
+  },
   updateResearch: (projectID: string, payload: {
     study?: { id?: string; name: string; question: string; summary?: string; status?: string; repository_id?: string }
     plan?: { study_id?: string; goal: string; next_action: string; rationale?: string; steps?: ResearchPlanStep[] }
@@ -1230,6 +1320,24 @@ export const api = {
     request<DiagnosticRun>(`/api/v1/projects/${encodeURIComponent(projectID)}/diagnostics/${encodeURIComponent(runID)}`),
   cancelDiagnostic: (projectID: string, runID: string) =>
     request<DiagnosticRun>(`/api/v1/projects/${encodeURIComponent(projectID)}/diagnostics/${encodeURIComponent(runID)}/cancel`, { method: 'POST' }),
+  imageBakeOptions: (projectID: string) =>
+    request<ImageBakeOptions>(`/api/v1/projects/${encodeURIComponent(projectID)}/image-bakes/options`),
+  imageBakes: (projectID: string) =>
+    request<{ bakes: ImageBake[] }>(`/api/v1/projects/${encodeURIComponent(projectID)}/image-bakes`),
+  imageBake: (projectID: string, bakeID: string) =>
+    request<ImageBake>(`/api/v1/projects/${encodeURIComponent(projectID)}/image-bakes/${encodeURIComponent(bakeID)}`),
+  requestImageBake: (projectID: string, payload: ImageBakeInput) =>
+    request<ImageBake>(`/api/v1/projects/${encodeURIComponent(projectID)}/image-bakes`, {
+      method: 'POST', body: JSON.stringify(payload),
+    }),
+  confirmImageBake: (projectID: string, bakeID: string, confirmationDigest: string) =>
+    request<ImageBake>(`/api/v1/projects/${encodeURIComponent(projectID)}/image-bakes/${encodeURIComponent(bakeID)}/confirm`, {
+      method: 'POST', body: JSON.stringify({ confirmation_digest: confirmationDigest }),
+    }),
+  cancelImageBake: (projectID: string, bakeID: string) =>
+    request<ImageBake>(`/api/v1/projects/${encodeURIComponent(projectID)}/image-bakes/${encodeURIComponent(bakeID)}/cancel`, {
+      method: 'POST',
+    }),
   finance: async (period: string, projectID = '') => {
     const params = new URLSearchParams({ period })
     if (projectID) params.set('project_id', projectID)

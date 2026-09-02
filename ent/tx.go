@@ -36,10 +36,14 @@ type Tx struct {
 	Environment *EnvironmentClient
 	// Experiment is the client for interacting with the Experiment builders.
 	Experiment *ExperimentClient
+	// ExperimentCatalogRow is the client for interacting with the ExperimentCatalogRow builders.
+	ExperimentCatalogRow *ExperimentCatalogRowClient
 	// ExperimentProposal is the client for interacting with the ExperimentProposal builders.
 	ExperimentProposal *ExperimentProposalClient
 	// IdempotencyRecord is the client for interacting with the IdempotencyRecord builders.
 	IdempotencyRecord *IdempotencyRecordClient
+	// ImageBake is the client for interacting with the ImageBake builders.
+	ImageBake *ImageBakeClient
 	// IterationPlan is the client for interacting with the IterationPlan builders.
 	IterationPlan *IterationPlanClient
 	// NodeAssignment is the client for interacting with the NodeAssignment builders.
@@ -229,8 +233,10 @@ func (tx *Tx) init() {
 	tx.DiagnosticRun = NewDiagnosticRunClient(tx.config)
 	tx.Environment = NewEnvironmentClient(tx.config)
 	tx.Experiment = NewExperimentClient(tx.config)
+	tx.ExperimentCatalogRow = NewExperimentCatalogRowClient(tx.config)
 	tx.ExperimentProposal = NewExperimentProposalClient(tx.config)
 	tx.IdempotencyRecord = NewIdempotencyRecordClient(tx.config)
+	tx.ImageBake = NewImageBakeClient(tx.config)
 	tx.IterationPlan = NewIterationPlanClient(tx.config)
 	tx.NodeAssignment = NewNodeAssignmentClient(tx.config)
 	tx.NodeCommand = NewNodeCommandClient(tx.config)

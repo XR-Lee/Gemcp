@@ -74,6 +74,8 @@ const (
 	EdgeCloudSSHAssignments = "cloud_ssh_assignments"
 	// EdgeDiagnosticRuns holds the string denoting the diagnostic_runs edge name in mutations.
 	EdgeDiagnosticRuns = "diagnostic_runs"
+	// EdgeImageBakes holds the string denoting the image_bakes edge name in mutations.
+	EdgeImageBakes = "image_bakes"
 	// EdgeExperimentProposals holds the string denoting the experiment_proposals edge name in mutations.
 	EdgeExperimentProposals = "experiment_proposals"
 	// EdgeWorkspaceDatasets holds the string denoting the workspace_datasets edge name in mutations.
@@ -88,6 +90,8 @@ const (
 	EdgeResearchNodes = "research_nodes"
 	// EdgeResearchEdges holds the string denoting the research_edges edge name in mutations.
 	EdgeResearchEdges = "research_edges"
+	// EdgeExperimentCatalogRows holds the string denoting the experiment_catalog_rows edge name in mutations.
+	EdgeExperimentCatalogRows = "experiment_catalog_rows"
 	// Table holds the table name of the project in the database.
 	Table = "projects"
 	// TenantTable is the table that holds the tenant relation/edge.
@@ -195,6 +199,13 @@ const (
 	DiagnosticRunsInverseTable = "diagnostic_runs"
 	// DiagnosticRunsColumn is the table column denoting the diagnostic_runs relation/edge.
 	DiagnosticRunsColumn = "project_id"
+	// ImageBakesTable is the table that holds the image_bakes relation/edge.
+	ImageBakesTable = "image_bakes"
+	// ImageBakesInverseTable is the table name for the ImageBake entity.
+	// It exists in this package in order to avoid circular dependency with the "imagebake" package.
+	ImageBakesInverseTable = "image_bakes"
+	// ImageBakesColumn is the table column denoting the image_bakes relation/edge.
+	ImageBakesColumn = "project_id"
 	// ExperimentProposalsTable is the table that holds the experiment_proposals relation/edge.
 	ExperimentProposalsTable = "experiment_proposals"
 	// ExperimentProposalsInverseTable is the table name for the ExperimentProposal entity.
@@ -244,6 +255,13 @@ const (
 	ResearchEdgesInverseTable = "research_edges"
 	// ResearchEdgesColumn is the table column denoting the research_edges relation/edge.
 	ResearchEdgesColumn = "project_id"
+	// ExperimentCatalogRowsTable is the table that holds the experiment_catalog_rows relation/edge.
+	ExperimentCatalogRowsTable = "experiment_catalog_rows"
+	// ExperimentCatalogRowsInverseTable is the table name for the ExperimentCatalogRow entity.
+	// It exists in this package in order to avoid circular dependency with the "experimentcatalogrow" package.
+	ExperimentCatalogRowsInverseTable = "experiment_catalog_rows"
+	// ExperimentCatalogRowsColumn is the table column denoting the experiment_catalog_rows relation/edge.
+	ExperimentCatalogRowsColumn = "project_id"
 )
 
 // Columns holds all SQL columns for project fields.
@@ -622,6 +640,20 @@ func ByDiagnosticRuns(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// ByImageBakesCount orders the results by image_bakes count.
+func ByImageBakesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newImageBakesStep(), opts...)
+	}
+}
+
+// ByImageBakes orders the results by image_bakes terms.
+func ByImageBakes(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newImageBakesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByExperimentProposalsCount orders the results by experiment_proposals count.
 func ByExperimentProposalsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -717,6 +749,20 @@ func ByResearchEdgesCount(opts ...sql.OrderTermOption) OrderOption {
 func ByResearchEdges(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	return func(s *sql.Selector) {
 		sqlgraph.OrderByNeighborTerms(s, newResearchEdgesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByExperimentCatalogRowsCount orders the results by experiment_catalog_rows count.
+func ByExperimentCatalogRowsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newExperimentCatalogRowsStep(), opts...)
+	}
+}
+
+// ByExperimentCatalogRows orders the results by experiment_catalog_rows terms.
+func ByExperimentCatalogRows(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newExperimentCatalogRowsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
 func newTenantStep() *sqlgraph.Step {
@@ -824,6 +870,13 @@ func newDiagnosticRunsStep() *sqlgraph.Step {
 		sqlgraph.Edge(sqlgraph.O2M, false, DiagnosticRunsTable, DiagnosticRunsColumn),
 	)
 }
+func newImageBakesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ImageBakesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ImageBakesTable, ImageBakesColumn),
+	)
+}
 func newExperimentProposalsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -871,5 +924,12 @@ func newResearchEdgesStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(ResearchEdgesInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, ResearchEdgesTable, ResearchEdgesColumn),
+	)
+}
+func newExperimentCatalogRowsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ExperimentCatalogRowsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ExperimentCatalogRowsTable, ExperimentCatalogRowsColumn),
 	)
 }

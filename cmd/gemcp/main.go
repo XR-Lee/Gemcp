@@ -151,6 +151,9 @@ func runServer() error {
 	if !cfg.SchedulerEnabled {
 		slog.Info("execution dispatch disabled; queued experiments will not run")
 	}
+	if cfg.SkipPassword {
+		slog.Info("owner password check disabled for local development")
+	}
 
 	errCh := make(chan error, 1)
 	go func() {

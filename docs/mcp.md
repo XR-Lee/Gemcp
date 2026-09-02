@@ -20,13 +20,13 @@ Create a short-lived **MCP setup link** from the Owner console and let the Agent
 
 The Owner sends one URL from `/agent/setup#code=...`. The Agent reads the public setup instructions at `/agent/setup` and enrolls its own MCP client. The code remains in the URL fragment and is not sent by link previews or ordinary page requests.
 
-Claiming creates a short-lived `read`-only credential. After the Agent discovers all twenty-eight tools and verifies guide, options, and cost, completion activates the Owner-selected scopes and lifetime. Claim and complete are retry-safe if the final response is lost.
+Claiming creates a short-lived `read`-only credential. After the Agent discovers all thirty-three tools and verifies guide, options, and cost, completion activates the Owner-selected scopes and lifetime. Claim and complete are retry-safe if the final response is lost.
 
 ## Pi with pi-mcp-adapter
 
 Pi can run the fixed installer from the same configured origin when `pi-mcp-adapter` is already installed.
 
-The installer merges a `gemcp-<project>` server into `<Pi agent dir>/mcp.json`, preserves existing servers, writes mode `0600`, exposes all twenty-eight bounded Gemcp tools through `directTools`, and verifies tool discovery plus guide, options, and cost calls. A local credential-reading helper supports the current session without printing the Token. One `/reload` activates native `gemcp-<project>_*` tools through the adapter.
+The installer merges a `gemcp-<project>` server into `<Pi agent dir>/mcp.json`, preserves existing servers, writes mode `0600`, exposes all thirty-three bounded Gemcp tools through `directTools`, and verifies tool discovery plus guide, options, and cost calls. A local credential-reading helper supports the current session without printing the Token. One `/reload` activates native `gemcp-<project>_*` tools through the adapter.
 
 Claimed credentials remain `read`-only and expire at the setup deadline until verification completes. Completion activates the Owner-selected scopes and lifetime, clears the setup capability, and leaves only a credential-free local receipt. The complete API and installer are retry-safe if the final response is lost.
 
@@ -284,9 +284,13 @@ Study, hypothesis, run, result, highlight observation, and orphan have one defin
 - `update_research_workspace`: create or update a Study, replace the active plan, or record a Graph node; historical nodes should set `occurred_at` from the evidence committer date and optional `commit_sha`. Requires `submit` and never starts a workload.
 - `get_next_actions`: return the next scientific step for the selected Study from its hypotheses, runs, and observations — a decision or Experiment proposal, not only a legal-edge checklist.
 - `close_run`: write a result node on a terminal Experiment that already has a Graph run, and a highlight observation linked to the originating hypothesis; omit `metric_name` to copy the prepared `expected_metric` from the Experiment; optionally attach the full Git commit containing a durable result manifest as `result_commit_sha`; requires `submit`.
+- `get_experiment_catalog`: return registered repository identity plus extracted catalog rows (Setting, method, implementation, metric, result, link, hash, branch) without starting a workload.
+- `record_experiment_catalog`: persist raw experiment rows from research branches of a registered GitHub repository; requires `submit` and never starts a workload.
 - `prepare_experiment`: resolve a repository/ref, safe argv, compatible defaults, preflight checks, cost, and a short-lived immutable proposal without reserving budget. `runtime_preset` may be `smoke` (300s), `probe` (3600s), `train` (up to the Project max runtime), or `provision` (Gemcp-owned AutoDL dataset fetch; omit argv). Optional `install_dependencies` runs `python -m pip install --user` from the verified commit. AutoDL probe/train require a Project dataset binding under `/root/autodl-fs/`. When a Study exists, `from_node_id` must be a connected hypothesis, or a plan that traces back to a hypothesis through `leads_to` parents, and is bound into the confirmation digest. Isolated nodes and plans hanging only off the question cannot prepare. For experimental Cloud SSH, omit `image` and optionally omit repository; pass `argv` and optional `cwd`. Do not invent SSH credentials, wrap argv in a shell, or write wget/curl/conda.
 - `list_dataset_bindings` / `register_dataset_binding` / `remove_dataset_binding`: Project AutoDL or Cloud SSH dataset roots, optional catalog (`scanobjectnn-objbg` or local CPU `modelnet40-mini`) and HTTPS sources, and `GEMCP_DATASET_*` injection; AutoDL write tools require `configure`. Catalog `modelnet40-mini` also accepts `submit` when `GEMCP_LOCAL_PROCESS_ENABLED` is on so a skip_provider smoke token can register the CPU fixture. Registration never uploads data; `runtime_preset=provision` downloads allowlisted sources.
-- `register_environment` / `remove_environment`: register or disable a Provider-visible AutoDL image for the Project, or ensure the Cloud SSH host Environment (`backend=ssh_cloud` or `image_uuid` `host`/`cpu`/`local`). AutoDL writes require `configure`. The local CPU host Environment accepts `submit` when `GEMCP_LOCAL_PROCESS_ENABLED` is on.
+- `register_environment` / `remove_environment`: register or disable a Provider-visible AutoDL image for the Project, or ensure the Cloud SSH host Environment (`backend=ssh_cloud` or `image_uuid` `host`/`cpu`/`local`). AutoDL writes require `configure`. The local CPU host Environment accepts `submit` when `GEMCP_LOCAL_PROCESS_ENABLED` is on. A finished image bake `image_uuid` is accepted.
+- `request_image_bake`: persist a zero-cost `requested` AutoDL Pro bake with a confirmation digest. Requires `configure`. Does not create a Pro instance, Experiment, Graph node, or budget reservation.
+- `get_image_bake` / `list_image_bakes`: observe bake status and a finished `image_uuid`. Requires `read`. There is no MCP tool that starts paid Pro.
 - `register_ssh_cloud_node`: register a Cloud SSH host for the Token's Project. Remote hosts require `operate_nodes`. The loopback CPU stub (empty host or `127.0.0.1`) accepts `submit` when `GEMCP_LOCAL_PROCESS_ENABLED` is on and is probed immediately. Credentials are write-only. With local process enabled, omitted loopback host/user/password become `127.0.0.1` / `$USER` / `local-process`.
 - `rotate_ssh_cloud_node_credential`: replace the encrypted SSH password or private key; requires `operate_nodes`.
 - `submit_prepared_experiment`: submit one confirmed proposal by ID and digest after re-validating the Graph origin; identical retries return the same Experiment and bind its Graph run node. A doomed bind is rejected before budget is reserved. If the Graph changes in that instant, the response carries the submitted Experiment plus `graph_bind_warning` — fix the Graph and retry this same submit instead of preparing again. Agents do not auto-submit. The Owner console can confirm the same digest and start the Experiment.
@@ -302,10 +306,10 @@ Scope mapping:
 
 | Scope | Required for |
 | --- | --- |
-| `read` | usage guide, options, research workspace, next actions, experiment queries, artifact listing, and cost queries |
+| `read` | usage guide, options, research workspace, next actions, experiment queries, artifact listing, cost queries, and image bake status |
 | `submit` | research updates, close_run, prepare, prepared submission, Advanced direct submission, and the local CPU stub (`register_ssh_cloud_node` loopback, host Environment, catalog `modelnet40-mini`) when `GEMCP_LOCAL_PROCESS_ENABLED` is on. While that flag is on, MCP requests are verified as if the token also held `configure` and `operate_nodes`; the stored token scopes never change, so turning the flag off restores the token's real authority |
 | `cancel` | `cancel_experiment` |
-| `configure` | register and verify Project repositories; register or disable trusted-workspace dataset paths and AutoDL dataset bindings |
+| `configure` | register and verify Project repositories; register or disable trusted-workspace dataset paths and AutoDL dataset bindings; request a zero-cost image bake |
 | `operate_nodes` | register Cloud SSH hosts and rotate their credentials; off by default in production and not included in `configure`. skip_provider local setup tokens include it |
 
 Issue the minimum scopes needed by the third-party Agent.

@@ -70,9 +70,11 @@ type AgentTokenEdges struct {
 	IterationPlans []*IterationPlan `json:"iteration_plans,omitempty"`
 	// ResearchNodes holds the value of the research_nodes edge.
 	ResearchNodes []*ResearchNode `json:"research_nodes,omitempty"`
+	// ExperimentCatalogRows holds the value of the experiment_catalog_rows edge.
+	ExperimentCatalogRows []*ExperimentCatalogRow `json:"experiment_catalog_rows,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [9]bool
+	loadedTypes [10]bool
 }
 
 // ProjectOrErr returns the Project value or an error if the edge
@@ -156,6 +158,15 @@ func (e AgentTokenEdges) ResearchNodesOrErr() ([]*ResearchNode, error) {
 		return e.ResearchNodes, nil
 	}
 	return nil, &NotLoadedError{edge: "research_nodes"}
+}
+
+// ExperimentCatalogRowsOrErr returns the ExperimentCatalogRows value or an error if the edge
+// was not loaded in eager-loading.
+func (e AgentTokenEdges) ExperimentCatalogRowsOrErr() ([]*ExperimentCatalogRow, error) {
+	if e.loadedTypes[9] {
+		return e.ExperimentCatalogRows, nil
+	}
+	return nil, &NotLoadedError{edge: "experiment_catalog_rows"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -326,6 +337,11 @@ func (_m *AgentToken) QueryIterationPlans() *IterationPlanQuery {
 // QueryResearchNodes queries the "research_nodes" edge of the AgentToken entity.
 func (_m *AgentToken) QueryResearchNodes() *ResearchNodeQuery {
 	return NewAgentTokenClient(_m.config).QueryResearchNodes(_m)
+}
+
+// QueryExperimentCatalogRows queries the "experiment_catalog_rows" edge of the AgentToken entity.
+func (_m *AgentToken) QueryExperimentCatalogRows() *ExperimentCatalogRowQuery {
+	return NewAgentTokenClient(_m.config).QueryExperimentCatalogRows(_m)
 }
 
 // Update returns a builder for updating this AgentToken.

@@ -46,6 +46,7 @@ var (
 	ErrEdgeLimit          = errors.New("research graph edge limit reached")
 	ErrStudyConflict      = errors.New("study name is already used in this Project")
 	ErrChoice             = errors.New("study selector is required")
+	ErrCatalogLimit       = errors.New("experiment catalog row limit reached")
 	namePattern           = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9 ._-]{0,79}$`)
 	metricPattern         = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9._-]{0,79}$`)
 	evidenceCommitPattern = regexp.MustCompile(`(?i)^[0-9a-f]{7,64}$`)

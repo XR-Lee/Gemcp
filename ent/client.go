@@ -27,8 +27,10 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/diagnosticrun"
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/experimentcatalogrow"
 	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
+	"github.com/XR-Lee/Gemcp/ent/imagebake"
 	"github.com/XR-Lee/Gemcp/ent/iterationplan"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/nodecommand"
@@ -83,10 +85,14 @@ type Client struct {
 	Environment *EnvironmentClient
 	// Experiment is the client for interacting with the Experiment builders.
 	Experiment *ExperimentClient
+	// ExperimentCatalogRow is the client for interacting with the ExperimentCatalogRow builders.
+	ExperimentCatalogRow *ExperimentCatalogRowClient
 	// ExperimentProposal is the client for interacting with the ExperimentProposal builders.
 	ExperimentProposal *ExperimentProposalClient
 	// IdempotencyRecord is the client for interacting with the IdempotencyRecord builders.
 	IdempotencyRecord *IdempotencyRecordClient
+	// ImageBake is the client for interacting with the ImageBake builders.
+	ImageBake *ImageBakeClient
 	// IterationPlan is the client for interacting with the IterationPlan builders.
 	IterationPlan *IterationPlanClient
 	// NodeAssignment is the client for interacting with the NodeAssignment builders.
@@ -156,8 +162,10 @@ func (c *Client) init() {
 	c.DiagnosticRun = NewDiagnosticRunClient(c.config)
 	c.Environment = NewEnvironmentClient(c.config)
 	c.Experiment = NewExperimentClient(c.config)
+	c.ExperimentCatalogRow = NewExperimentCatalogRowClient(c.config)
 	c.ExperimentProposal = NewExperimentProposalClient(c.config)
 	c.IdempotencyRecord = NewIdempotencyRecordClient(c.config)
+	c.ImageBake = NewImageBakeClient(c.config)
 	c.IterationPlan = NewIterationPlanClient(c.config)
 	c.NodeAssignment = NewNodeAssignmentClient(c.config)
 	c.NodeCommand = NewNodeCommandClient(c.config)
@@ -285,8 +293,10 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		DiagnosticRun:         NewDiagnosticRunClient(cfg),
 		Environment:           NewEnvironmentClient(cfg),
 		Experiment:            NewExperimentClient(cfg),
+		ExperimentCatalogRow:  NewExperimentCatalogRowClient(cfg),
 		ExperimentProposal:    NewExperimentProposalClient(cfg),
 		IdempotencyRecord:     NewIdempotencyRecordClient(cfg),
+		ImageBake:             NewImageBakeClient(cfg),
 		IterationPlan:         NewIterationPlanClient(cfg),
 		NodeAssignment:        NewNodeAssignmentClient(cfg),
 		NodeCommand:           NewNodeCommandClient(cfg),
@@ -341,8 +351,10 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		DiagnosticRun:         NewDiagnosticRunClient(cfg),
 		Environment:           NewEnvironmentClient(cfg),
 		Experiment:            NewExperimentClient(cfg),
+		ExperimentCatalogRow:  NewExperimentCatalogRowClient(cfg),
 		ExperimentProposal:    NewExperimentProposalClient(cfg),
 		IdempotencyRecord:     NewIdempotencyRecordClient(cfg),
+		ImageBake:             NewImageBakeClient(cfg),
 		IterationPlan:         NewIterationPlanClient(cfg),
 		NodeAssignment:        NewNodeAssignmentClient(cfg),
 		NodeCommand:           NewNodeCommandClient(cfg),
@@ -398,12 +410,12 @@ func (c *Client) Use(hooks ...Hook) {
 		c.AgentEnrollment, c.AgentToken, c.Attempt, c.AuditEvent, c.BudgetEntry,
 		c.CloudSSHAssignment, c.CloudSSHNode, c.CloudSSHProjectAccess,
 		c.DatasetBinding, c.DiagnosticRun, c.Environment, c.Experiment,
-		c.ExperimentProposal, c.IdempotencyRecord, c.IterationPlan, c.NodeAssignment,
-		c.NodeCommand, c.NodeEnrollment, c.NodeEvent, c.NodeProjectAccess,
-		c.Notification, c.NotificationSetting, c.Project, c.ProviderAccount,
-		c.ProviderResource, c.RecordMixin, c.Repository, c.ResearchEdge,
-		c.ResearchNode, c.ResourceProfile, c.SelfHostedNode, c.ServiceHeartbeat,
-		c.Session, c.Study, c.Tenant, c.User, c.WorkspaceDataset,
+		c.ExperimentCatalogRow, c.ExperimentProposal, c.IdempotencyRecord, c.ImageBake,
+		c.IterationPlan, c.NodeAssignment, c.NodeCommand, c.NodeEnrollment,
+		c.NodeEvent, c.NodeProjectAccess, c.Notification, c.NotificationSetting,
+		c.Project, c.ProviderAccount, c.ProviderResource, c.RecordMixin, c.Repository,
+		c.ResearchEdge, c.ResearchNode, c.ResourceProfile, c.SelfHostedNode,
+		c.ServiceHeartbeat, c.Session, c.Study, c.Tenant, c.User, c.WorkspaceDataset,
 	} {
 		n.Use(hooks...)
 	}
@@ -416,12 +428,12 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.AgentEnrollment, c.AgentToken, c.Attempt, c.AuditEvent, c.BudgetEntry,
 		c.CloudSSHAssignment, c.CloudSSHNode, c.CloudSSHProjectAccess,
 		c.DatasetBinding, c.DiagnosticRun, c.Environment, c.Experiment,
-		c.ExperimentProposal, c.IdempotencyRecord, c.IterationPlan, c.NodeAssignment,
-		c.NodeCommand, c.NodeEnrollment, c.NodeEvent, c.NodeProjectAccess,
-		c.Notification, c.NotificationSetting, c.Project, c.ProviderAccount,
-		c.ProviderResource, c.RecordMixin, c.Repository, c.ResearchEdge,
-		c.ResearchNode, c.ResourceProfile, c.SelfHostedNode, c.ServiceHeartbeat,
-		c.Session, c.Study, c.Tenant, c.User, c.WorkspaceDataset,
+		c.ExperimentCatalogRow, c.ExperimentProposal, c.IdempotencyRecord, c.ImageBake,
+		c.IterationPlan, c.NodeAssignment, c.NodeCommand, c.NodeEnrollment,
+		c.NodeEvent, c.NodeProjectAccess, c.Notification, c.NotificationSetting,
+		c.Project, c.ProviderAccount, c.ProviderResource, c.RecordMixin, c.Repository,
+		c.ResearchEdge, c.ResearchNode, c.ResourceProfile, c.SelfHostedNode,
+		c.ServiceHeartbeat, c.Session, c.Study, c.Tenant, c.User, c.WorkspaceDataset,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -454,10 +466,14 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Environment.mutate(ctx, m)
 	case *ExperimentMutation:
 		return c.Experiment.mutate(ctx, m)
+	case *ExperimentCatalogRowMutation:
+		return c.ExperimentCatalogRow.mutate(ctx, m)
 	case *ExperimentProposalMutation:
 		return c.ExperimentProposal.mutate(ctx, m)
 	case *IdempotencyRecordMutation:
 		return c.IdempotencyRecord.mutate(ctx, m)
+	case *ImageBakeMutation:
+		return c.ImageBake.mutate(ctx, m)
 	case *IterationPlanMutation:
 		return c.IterationPlan.mutate(ctx, m)
 	case *NodeAssignmentMutation:
@@ -919,6 +935,22 @@ func (c *AgentTokenClient) QueryResearchNodes(_m *AgentToken) *ResearchNodeQuery
 			sqlgraph.From(agenttoken.Table, agenttoken.FieldID, id),
 			sqlgraph.To(researchnode.Table, researchnode.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, agenttoken.ResearchNodesTable, agenttoken.ResearchNodesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryExperimentCatalogRows queries the experiment_catalog_rows edge of a AgentToken.
+func (c *AgentTokenClient) QueryExperimentCatalogRows(_m *AgentToken) *ExperimentCatalogRowQuery {
+	query := (&ExperimentCatalogRowClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(agenttoken.Table, agenttoken.FieldID, id),
+			sqlgraph.To(experimentcatalogrow.Table, experimentcatalogrow.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, agenttoken.ExperimentCatalogRowsTable, agenttoken.ExperimentCatalogRowsColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -3001,6 +3033,203 @@ func (c *ExperimentClient) mutate(ctx context.Context, m *ExperimentMutation) (V
 	}
 }
 
+// ExperimentCatalogRowClient is a client for the ExperimentCatalogRow schema.
+type ExperimentCatalogRowClient struct {
+	config
+}
+
+// NewExperimentCatalogRowClient returns a client for the ExperimentCatalogRow from the given config.
+func NewExperimentCatalogRowClient(c config) *ExperimentCatalogRowClient {
+	return &ExperimentCatalogRowClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `experimentcatalogrow.Hooks(f(g(h())))`.
+func (c *ExperimentCatalogRowClient) Use(hooks ...Hook) {
+	c.hooks.ExperimentCatalogRow = append(c.hooks.ExperimentCatalogRow, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `experimentcatalogrow.Intercept(f(g(h())))`.
+func (c *ExperimentCatalogRowClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ExperimentCatalogRow = append(c.inters.ExperimentCatalogRow, interceptors...)
+}
+
+// Create returns a builder for creating a ExperimentCatalogRow entity.
+func (c *ExperimentCatalogRowClient) Create() *ExperimentCatalogRowCreate {
+	mutation := newExperimentCatalogRowMutation(c.config, OpCreate)
+	return &ExperimentCatalogRowCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ExperimentCatalogRow entities.
+func (c *ExperimentCatalogRowClient) CreateBulk(builders ...*ExperimentCatalogRowCreate) *ExperimentCatalogRowCreateBulk {
+	return &ExperimentCatalogRowCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ExperimentCatalogRowClient) MapCreateBulk(slice any, setFunc func(*ExperimentCatalogRowCreate, int)) *ExperimentCatalogRowCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ExperimentCatalogRowCreateBulk{err: fmt.Errorf("calling to ExperimentCatalogRowClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ExperimentCatalogRowCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ExperimentCatalogRowCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ExperimentCatalogRow.
+func (c *ExperimentCatalogRowClient) Update() *ExperimentCatalogRowUpdate {
+	mutation := newExperimentCatalogRowMutation(c.config, OpUpdate)
+	return &ExperimentCatalogRowUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ExperimentCatalogRowClient) UpdateOne(_m *ExperimentCatalogRow) *ExperimentCatalogRowUpdateOne {
+	mutation := newExperimentCatalogRowMutation(c.config, OpUpdateOne, withExperimentCatalogRow(_m))
+	return &ExperimentCatalogRowUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ExperimentCatalogRowClient) UpdateOneID(id int) *ExperimentCatalogRowUpdateOne {
+	mutation := newExperimentCatalogRowMutation(c.config, OpUpdateOne, withExperimentCatalogRowID(id))
+	return &ExperimentCatalogRowUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ExperimentCatalogRow.
+func (c *ExperimentCatalogRowClient) Delete() *ExperimentCatalogRowDelete {
+	mutation := newExperimentCatalogRowMutation(c.config, OpDelete)
+	return &ExperimentCatalogRowDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ExperimentCatalogRowClient) DeleteOne(_m *ExperimentCatalogRow) *ExperimentCatalogRowDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ExperimentCatalogRowClient) DeleteOneID(id int) *ExperimentCatalogRowDeleteOne {
+	builder := c.Delete().Where(experimentcatalogrow.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ExperimentCatalogRowDeleteOne{builder}
+}
+
+// Query returns a query builder for ExperimentCatalogRow.
+func (c *ExperimentCatalogRowClient) Query() *ExperimentCatalogRowQuery {
+	return &ExperimentCatalogRowQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeExperimentCatalogRow},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ExperimentCatalogRow entity by its id.
+func (c *ExperimentCatalogRowClient) Get(ctx context.Context, id int) (*ExperimentCatalogRow, error) {
+	return c.Query().Where(experimentcatalogrow.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ExperimentCatalogRowClient) GetX(ctx context.Context, id int) *ExperimentCatalogRow {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTenant queries the tenant edge of a ExperimentCatalogRow.
+func (c *ExperimentCatalogRowClient) QueryTenant(_m *ExperimentCatalogRow) *TenantQuery {
+	query := (&TenantClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(experimentcatalogrow.Table, experimentcatalogrow.FieldID, id),
+			sqlgraph.To(tenant.Table, tenant.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, experimentcatalogrow.TenantTable, experimentcatalogrow.TenantColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryProject queries the project edge of a ExperimentCatalogRow.
+func (c *ExperimentCatalogRowClient) QueryProject(_m *ExperimentCatalogRow) *ProjectQuery {
+	query := (&ProjectClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(experimentcatalogrow.Table, experimentcatalogrow.FieldID, id),
+			sqlgraph.To(project.Table, project.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, experimentcatalogrow.ProjectTable, experimentcatalogrow.ProjectColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryRepository queries the repository edge of a ExperimentCatalogRow.
+func (c *ExperimentCatalogRowClient) QueryRepository(_m *ExperimentCatalogRow) *RepositoryQuery {
+	query := (&RepositoryClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(experimentcatalogrow.Table, experimentcatalogrow.FieldID, id),
+			sqlgraph.To(repository.Table, repository.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, experimentcatalogrow.RepositoryTable, experimentcatalogrow.RepositoryColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryAgentToken queries the agent_token edge of a ExperimentCatalogRow.
+func (c *ExperimentCatalogRowClient) QueryAgentToken(_m *ExperimentCatalogRow) *AgentTokenQuery {
+	query := (&AgentTokenClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(experimentcatalogrow.Table, experimentcatalogrow.FieldID, id),
+			sqlgraph.To(agenttoken.Table, agenttoken.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, experimentcatalogrow.AgentTokenTable, experimentcatalogrow.AgentTokenColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *ExperimentCatalogRowClient) Hooks() []Hook {
+	return c.hooks.ExperimentCatalogRow
+}
+
+// Interceptors returns the client interceptors.
+func (c *ExperimentCatalogRowClient) Interceptors() []Interceptor {
+	return c.inters.ExperimentCatalogRow
+}
+
+func (c *ExperimentCatalogRowClient) mutate(ctx context.Context, m *ExperimentCatalogRowMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ExperimentCatalogRowCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ExperimentCatalogRowUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ExperimentCatalogRowUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ExperimentCatalogRowDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ExperimentCatalogRow mutation op: %q", m.Op())
+	}
+}
+
 // ExperimentProposalClient is a client for the ExperimentProposal schema.
 type ExperimentProposalClient struct {
 	config
@@ -3424,6 +3653,187 @@ func (c *IdempotencyRecordClient) mutate(ctx context.Context, m *IdempotencyReco
 		return (&IdempotencyRecordDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown IdempotencyRecord mutation op: %q", m.Op())
+	}
+}
+
+// ImageBakeClient is a client for the ImageBake schema.
+type ImageBakeClient struct {
+	config
+}
+
+// NewImageBakeClient returns a client for the ImageBake from the given config.
+func NewImageBakeClient(c config) *ImageBakeClient {
+	return &ImageBakeClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `imagebake.Hooks(f(g(h())))`.
+func (c *ImageBakeClient) Use(hooks ...Hook) {
+	c.hooks.ImageBake = append(c.hooks.ImageBake, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `imagebake.Intercept(f(g(h())))`.
+func (c *ImageBakeClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ImageBake = append(c.inters.ImageBake, interceptors...)
+}
+
+// Create returns a builder for creating a ImageBake entity.
+func (c *ImageBakeClient) Create() *ImageBakeCreate {
+	mutation := newImageBakeMutation(c.config, OpCreate)
+	return &ImageBakeCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ImageBake entities.
+func (c *ImageBakeClient) CreateBulk(builders ...*ImageBakeCreate) *ImageBakeCreateBulk {
+	return &ImageBakeCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ImageBakeClient) MapCreateBulk(slice any, setFunc func(*ImageBakeCreate, int)) *ImageBakeCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ImageBakeCreateBulk{err: fmt.Errorf("calling to ImageBakeClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ImageBakeCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ImageBakeCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ImageBake.
+func (c *ImageBakeClient) Update() *ImageBakeUpdate {
+	mutation := newImageBakeMutation(c.config, OpUpdate)
+	return &ImageBakeUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ImageBakeClient) UpdateOne(_m *ImageBake) *ImageBakeUpdateOne {
+	mutation := newImageBakeMutation(c.config, OpUpdateOne, withImageBake(_m))
+	return &ImageBakeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ImageBakeClient) UpdateOneID(id int) *ImageBakeUpdateOne {
+	mutation := newImageBakeMutation(c.config, OpUpdateOne, withImageBakeID(id))
+	return &ImageBakeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ImageBake.
+func (c *ImageBakeClient) Delete() *ImageBakeDelete {
+	mutation := newImageBakeMutation(c.config, OpDelete)
+	return &ImageBakeDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ImageBakeClient) DeleteOne(_m *ImageBake) *ImageBakeDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ImageBakeClient) DeleteOneID(id int) *ImageBakeDeleteOne {
+	builder := c.Delete().Where(imagebake.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ImageBakeDeleteOne{builder}
+}
+
+// Query returns a query builder for ImageBake.
+func (c *ImageBakeClient) Query() *ImageBakeQuery {
+	return &ImageBakeQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeImageBake},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ImageBake entity by its id.
+func (c *ImageBakeClient) Get(ctx context.Context, id int) (*ImageBake, error) {
+	return c.Query().Where(imagebake.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ImageBakeClient) GetX(ctx context.Context, id int) *ImageBake {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTenant queries the tenant edge of a ImageBake.
+func (c *ImageBakeClient) QueryTenant(_m *ImageBake) *TenantQuery {
+	query := (&TenantClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(imagebake.Table, imagebake.FieldID, id),
+			sqlgraph.To(tenant.Table, tenant.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, imagebake.TenantTable, imagebake.TenantColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryProject queries the project edge of a ImageBake.
+func (c *ImageBakeClient) QueryProject(_m *ImageBake) *ProjectQuery {
+	query := (&ProjectClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(imagebake.Table, imagebake.FieldID, id),
+			sqlgraph.To(project.Table, project.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, imagebake.ProjectTable, imagebake.ProjectColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryRepository queries the repository edge of a ImageBake.
+func (c *ImageBakeClient) QueryRepository(_m *ImageBake) *RepositoryQuery {
+	query := (&RepositoryClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(imagebake.Table, imagebake.FieldID, id),
+			sqlgraph.To(repository.Table, repository.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, imagebake.RepositoryTable, imagebake.RepositoryColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *ImageBakeClient) Hooks() []Hook {
+	return c.hooks.ImageBake
+}
+
+// Interceptors returns the client interceptors.
+func (c *ImageBakeClient) Interceptors() []Interceptor {
+	return c.inters.ImageBake
+}
+
+func (c *ImageBakeClient) mutate(ctx context.Context, m *ImageBakeMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ImageBakeCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ImageBakeUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ImageBakeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ImageBakeDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ImageBake mutation op: %q", m.Op())
 	}
 }
 
@@ -5191,6 +5601,22 @@ func (c *ProjectClient) QueryDiagnosticRuns(_m *Project) *DiagnosticRunQuery {
 	return query
 }
 
+// QueryImageBakes queries the image_bakes edge of a Project.
+func (c *ProjectClient) QueryImageBakes(_m *Project) *ImageBakeQuery {
+	query := (&ImageBakeClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, id),
+			sqlgraph.To(imagebake.Table, imagebake.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.ImageBakesTable, project.ImageBakesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryExperimentProposals queries the experiment_proposals edge of a Project.
 func (c *ProjectClient) QueryExperimentProposals(_m *Project) *ExperimentProposalQuery {
 	query := (&ExperimentProposalClient{config: c.config}).Query()
@@ -5296,6 +5722,22 @@ func (c *ProjectClient) QueryResearchEdges(_m *Project) *ResearchEdgeQuery {
 			sqlgraph.From(project.Table, project.FieldID, id),
 			sqlgraph.To(researchedge.Table, researchedge.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, project.ResearchEdgesTable, project.ResearchEdgesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryExperimentCatalogRows queries the experiment_catalog_rows edge of a Project.
+func (c *ProjectClient) QueryExperimentCatalogRows(_m *Project) *ExperimentCatalogRowQuery {
+	query := (&ExperimentCatalogRowClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, id),
+			sqlgraph.To(experimentcatalogrow.Table, experimentcatalogrow.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.ExperimentCatalogRowsTable, project.ExperimentCatalogRowsColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -5963,6 +6405,22 @@ func (c *RepositoryClient) QueryProject(_m *Repository) *ProjectQuery {
 	return query
 }
 
+// QueryImageBakes queries the image_bakes edge of a Repository.
+func (c *RepositoryClient) QueryImageBakes(_m *Repository) *ImageBakeQuery {
+	query := (&ImageBakeClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(repository.Table, repository.FieldID, id),
+			sqlgraph.To(imagebake.Table, imagebake.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, repository.ImageBakesTable, repository.ImageBakesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryExperiments queries the experiments edge of a Repository.
 func (c *RepositoryClient) QueryExperiments(_m *Repository) *ExperimentQuery {
 	query := (&ExperimentClient{config: c.config}).Query()
@@ -6004,6 +6462,22 @@ func (c *RepositoryClient) QueryStudies(_m *Repository) *StudyQuery {
 			sqlgraph.From(repository.Table, repository.FieldID, id),
 			sqlgraph.To(study.Table, study.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, repository.StudiesTable, repository.StudiesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryExperimentCatalogRows queries the experiment_catalog_rows edge of a Repository.
+func (c *RepositoryClient) QueryExperimentCatalogRows(_m *Repository) *ExperimentCatalogRowQuery {
+	query := (&ExperimentCatalogRowClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(repository.Table, repository.FieldID, id),
+			sqlgraph.To(experimentcatalogrow.Table, experimentcatalogrow.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, repository.ExperimentCatalogRowsTable, repository.ExperimentCatalogRowsColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -7875,6 +8349,22 @@ func (c *TenantClient) QueryDiagnosticRuns(_m *Tenant) *DiagnosticRunQuery {
 	return query
 }
 
+// QueryImageBakes queries the image_bakes edge of a Tenant.
+func (c *TenantClient) QueryImageBakes(_m *Tenant) *ImageBakeQuery {
+	query := (&ImageBakeClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, id),
+			sqlgraph.To(imagebake.Table, imagebake.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.ImageBakesTable, tenant.ImageBakesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryExperimentProposals queries the experiment_proposals edge of a Tenant.
 func (c *TenantClient) QueryExperimentProposals(_m *Tenant) *ExperimentProposalQuery {
 	query := (&ExperimentProposalClient{config: c.config}).Query()
@@ -7980,6 +8470,22 @@ func (c *TenantClient) QueryResearchEdges(_m *Tenant) *ResearchEdgeQuery {
 			sqlgraph.From(tenant.Table, tenant.FieldID, id),
 			sqlgraph.To(researchedge.Table, researchedge.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, tenant.ResearchEdgesTable, tenant.ResearchEdgesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryExperimentCatalogRows queries the experiment_catalog_rows edge of a Tenant.
+func (c *TenantClient) QueryExperimentCatalogRows(_m *Tenant) *ExperimentCatalogRowQuery {
+	query := (&ExperimentCatalogRowClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, id),
+			sqlgraph.To(experimentcatalogrow.Table, experimentcatalogrow.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.ExperimentCatalogRowsTable, tenant.ExperimentCatalogRowsColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -8379,21 +8885,23 @@ type (
 	hooks struct {
 		AgentEnrollment, AgentToken, Attempt, AuditEvent, BudgetEntry,
 		CloudSSHAssignment, CloudSSHNode, CloudSSHProjectAccess, DatasetBinding,
-		DiagnosticRun, Environment, Experiment, ExperimentProposal, IdempotencyRecord,
-		IterationPlan, NodeAssignment, NodeCommand, NodeEnrollment, NodeEvent,
-		NodeProjectAccess, Notification, NotificationSetting, Project, ProviderAccount,
-		ProviderResource, RecordMixin, Repository, ResearchEdge, ResearchNode,
-		ResourceProfile, SelfHostedNode, ServiceHeartbeat, Session, Study, Tenant,
-		User, WorkspaceDataset []ent.Hook
+		DiagnosticRun, Environment, Experiment, ExperimentCatalogRow,
+		ExperimentProposal, IdempotencyRecord, ImageBake, IterationPlan,
+		NodeAssignment, NodeCommand, NodeEnrollment, NodeEvent, NodeProjectAccess,
+		Notification, NotificationSetting, Project, ProviderAccount, ProviderResource,
+		RecordMixin, Repository, ResearchEdge, ResearchNode, ResourceProfile,
+		SelfHostedNode, ServiceHeartbeat, Session, Study, Tenant, User,
+		WorkspaceDataset []ent.Hook
 	}
 	inters struct {
 		AgentEnrollment, AgentToken, Attempt, AuditEvent, BudgetEntry,
 		CloudSSHAssignment, CloudSSHNode, CloudSSHProjectAccess, DatasetBinding,
-		DiagnosticRun, Environment, Experiment, ExperimentProposal, IdempotencyRecord,
-		IterationPlan, NodeAssignment, NodeCommand, NodeEnrollment, NodeEvent,
-		NodeProjectAccess, Notification, NotificationSetting, Project, ProviderAccount,
-		ProviderResource, RecordMixin, Repository, ResearchEdge, ResearchNode,
-		ResourceProfile, SelfHostedNode, ServiceHeartbeat, Session, Study, Tenant,
-		User, WorkspaceDataset []ent.Interceptor
+		DiagnosticRun, Environment, Experiment, ExperimentCatalogRow,
+		ExperimentProposal, IdempotencyRecord, ImageBake, IterationPlan,
+		NodeAssignment, NodeCommand, NodeEnrollment, NodeEvent, NodeProjectAccess,
+		Notification, NotificationSetting, Project, ProviderAccount, ProviderResource,
+		RecordMixin, Repository, ResearchEdge, ResearchNode, ResourceProfile,
+		SelfHostedNode, ServiceHeartbeat, Session, Study, Tenant, User,
+		WorkspaceDataset []ent.Interceptor
 	}
 )

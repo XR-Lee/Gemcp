@@ -13,6 +13,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/agenttoken"
 	"github.com/XR-Lee/Gemcp/ent/datasetbinding"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/experimentcatalogrow"
 	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
 	"github.com/XR-Lee/Gemcp/ent/iterationplan"
@@ -281,6 +282,21 @@ func (_c *AgentTokenCreate) AddResearchNodes(v ...*ResearchNode) *AgentTokenCrea
 		ids[i] = v[i].ID
 	}
 	return _c.AddResearchNodeIDs(ids...)
+}
+
+// AddExperimentCatalogRowIDs adds the "experiment_catalog_rows" edge to the ExperimentCatalogRow entity by IDs.
+func (_c *AgentTokenCreate) AddExperimentCatalogRowIDs(ids ...int) *AgentTokenCreate {
+	_c.mutation.AddExperimentCatalogRowIDs(ids...)
+	return _c
+}
+
+// AddExperimentCatalogRows adds the "experiment_catalog_rows" edges to the ExperimentCatalogRow entity.
+func (_c *AgentTokenCreate) AddExperimentCatalogRows(v ...*ExperimentCatalogRow) *AgentTokenCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddExperimentCatalogRowIDs(ids...)
 }
 
 // Mutation returns the AgentTokenMutation object of the builder.
@@ -607,6 +623,22 @@ func (_c *AgentTokenCreate) createSpec() (*AgentToken, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(researchnode.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ExperimentCatalogRowsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.ExperimentCatalogRowsTable,
+			Columns: []string{agenttoken.ExperimentCatalogRowsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentcatalogrow.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

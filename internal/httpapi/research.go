@@ -31,6 +31,20 @@ func (h *ResearchHandlers) Get(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": result})
 }
 
+func (h *ResearchHandlers) Catalog(c *gin.Context) {
+	principal, ok := currentPrincipal(c)
+	if !ok {
+		writeError(c, http.StatusUnauthorized, "UNAUTHENTICATED", "authentication required")
+		return
+	}
+	result, err := h.service.OwnerCatalog(c.Request.Context(), principal.TenantID, c.Param("id"), c.Query("repository_id"))
+	if err != nil {
+		h.writeError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": result})
+}
+
 func (h *ResearchHandlers) Update(c *gin.Context) {
 	principal, ok := currentPrincipal(c)
 	if !ok {
@@ -71,6 +85,8 @@ func (h *ResearchHandlers) writeError(c *gin.Context, err error) {
 		writeError(c, http.StatusConflict, "RESEARCH_EDGE_LIMIT", "research graph edge limit reached")
 	case errors.Is(err, research.ErrStudyConflict):
 		writeError(c, http.StatusConflict, "STUDY_CONFLICT", "study name is already used in this Project")
+	case errors.Is(err, research.ErrCatalogLimit):
+		writeError(c, http.StatusConflict, "EXPERIMENT_CATALOG_LIMIT", "experiment catalog row limit reached")
 	case errors.Is(err, research.ErrForbidden):
 		writeError(c, http.StatusForbidden, "FORBIDDEN", "operation is not allowed")
 	default:

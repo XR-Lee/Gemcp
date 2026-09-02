@@ -753,6 +753,29 @@ func HasResearchNodesWith(preds ...predicate.ResearchNode) predicate.AgentToken 
 	})
 }
 
+// HasExperimentCatalogRows applies the HasEdge predicate on the "experiment_catalog_rows" edge.
+func HasExperimentCatalogRows() predicate.AgentToken {
+	return predicate.AgentToken(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ExperimentCatalogRowsTable, ExperimentCatalogRowsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasExperimentCatalogRowsWith applies the HasEdge predicate on the "experiment_catalog_rows" edge with a given conditions (other predicates).
+func HasExperimentCatalogRowsWith(preds ...predicate.ExperimentCatalogRow) predicate.AgentToken {
+	return predicate.AgentToken(func(s *sql.Selector) {
+		step := newExperimentCatalogRowsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.AgentToken) predicate.AgentToken {
 	return predicate.AgentToken(sql.AndPredicates(predicates...))

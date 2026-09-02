@@ -720,6 +720,74 @@ var (
 			},
 		},
 	}
+	// ExperimentCatalogRowsColumns holds the columns for the "experiment_catalog_rows" table.
+	ExperimentCatalogRowsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "public_id", Type: field.TypeUUID, Unique: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "branch", Type: field.TypeString, Size: 255},
+		{Name: "setting", Type: field.TypeString, Size: 400},
+		{Name: "method", Type: field.TypeString, Size: 160},
+		{Name: "implementation", Type: field.TypeString, Size: 2147483647},
+		{Name: "metric", Type: field.TypeString, Size: 160},
+		{Name: "result", Type: field.TypeString, Size: 2147483647},
+		{Name: "link", Type: field.TypeString, Nullable: true, Size: 512},
+		{Name: "commit_hash", Type: field.TypeString, Size: 64},
+		{Name: "agent_token_id", Type: field.TypeInt, Nullable: true},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "repository_id", Type: field.TypeInt},
+		{Name: "tenant_id", Type: field.TypeInt},
+	}
+	// ExperimentCatalogRowsTable holds the schema information for the "experiment_catalog_rows" table.
+	ExperimentCatalogRowsTable = &schema.Table{
+		Name:       "experiment_catalog_rows",
+		Columns:    ExperimentCatalogRowsColumns,
+		PrimaryKey: []*schema.Column{ExperimentCatalogRowsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "experiment_catalog_rows_agent_tokens_experiment_catalog_rows",
+				Columns:    []*schema.Column{ExperimentCatalogRowsColumns[12]},
+				RefColumns: []*schema.Column{AgentTokensColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+			{
+				Symbol:     "experiment_catalog_rows_projects_experiment_catalog_rows",
+				Columns:    []*schema.Column{ExperimentCatalogRowsColumns[13]},
+				RefColumns: []*schema.Column{ProjectsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "experiment_catalog_rows_repositories_experiment_catalog_rows",
+				Columns:    []*schema.Column{ExperimentCatalogRowsColumns[14]},
+				RefColumns: []*schema.Column{RepositoriesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "experiment_catalog_rows_tenants_experiment_catalog_rows",
+				Columns:    []*schema.Column{ExperimentCatalogRowsColumns[15]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "experimentcatalogrow_repository_id_branch_commit_hash_setting",
+				Unique:  true,
+				Columns: []*schema.Column{ExperimentCatalogRowsColumns[14], ExperimentCatalogRowsColumns[4], ExperimentCatalogRowsColumns[11], ExperimentCatalogRowsColumns[5]},
+			},
+			{
+				Name:    "experimentcatalogrow_project_id_repository_id_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{ExperimentCatalogRowsColumns[13], ExperimentCatalogRowsColumns[14], ExperimentCatalogRowsColumns[3]},
+			},
+			{
+				Name:    "experimentcatalogrow_repository_id_branch",
+				Unique:  false,
+				Columns: []*schema.Column{ExperimentCatalogRowsColumns[14], ExperimentCatalogRowsColumns[4]},
+			},
+		},
+	}
 	// ExperimentProposalsColumns holds the columns for the "experiment_proposals" table.
 	ExperimentProposalsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -863,6 +931,70 @@ var (
 				Name:    "idempotencyrecord_expires_at",
 				Unique:  false,
 				Columns: []*schema.Column{IdempotencyRecordsColumns[6]},
+			},
+		},
+	}
+	// ImageBakesColumns holds the columns for the "image_bakes" table.
+	ImageBakesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "public_id", Type: field.TypeUUID, Unique: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "backend", Type: field.TypeEnum, Enums: []string{"autodl_pro"}, Default: "autodl_pro"},
+		{Name: "name", Type: field.TypeString, Size: 120},
+		{Name: "base_image_uuid", Type: field.TypeString, Size: 512},
+		{Name: "commit_sha", Type: field.TypeString, Size: 64},
+		{Name: "recipe_path", Type: field.TypeString, Size: 256, Default: "requirements.gemcp.txt"},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"requested", "confirmed", "provisioning", "installing", "stopping", "saving", "finished", "failed", "cancelled"}, Default: "requested"},
+		{Name: "confirmation_digest", Type: field.TypeString, Size: 80},
+		{Name: "requested_by", Type: field.TypeString, Size: 120},
+		{Name: "requested_by_type", Type: field.TypeEnum, Enums: []string{"user", "agent_token"}, Default: "agent_token"},
+		{Name: "confirmed_by", Type: field.TypeString, Nullable: true, Size: 120},
+		{Name: "confirmed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "image_uuid", Type: field.TypeString, Nullable: true, Size: 512},
+		{Name: "instance_uuid", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "failure_reason", Type: field.TypeString, Nullable: true, Size: 512},
+		{Name: "proposal", Type: field.TypeJSON},
+		{Name: "estimated_cost_milli", Type: field.TypeInt64, Default: 0},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "repository_id", Type: field.TypeInt},
+		{Name: "tenant_id", Type: field.TypeInt},
+	}
+	// ImageBakesTable holds the schema information for the "image_bakes" table.
+	ImageBakesTable = &schema.Table{
+		Name:       "image_bakes",
+		Columns:    ImageBakesColumns,
+		PrimaryKey: []*schema.Column{ImageBakesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "image_bakes_projects_image_bakes",
+				Columns:    []*schema.Column{ImageBakesColumns[20]},
+				RefColumns: []*schema.Column{ProjectsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "image_bakes_repositories_image_bakes",
+				Columns:    []*schema.Column{ImageBakesColumns[21]},
+				RefColumns: []*schema.Column{RepositoriesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "image_bakes_tenants_image_bakes",
+				Columns:    []*schema.Column{ImageBakesColumns[22]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "imagebake_project_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{ImageBakesColumns[20], ImageBakesColumns[2]},
+			},
+			{
+				Name:    "imagebake_project_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{ImageBakesColumns[20], ImageBakesColumns[9]},
 			},
 		},
 	}
@@ -2056,8 +2188,10 @@ var (
 		DiagnosticRunsTable,
 		EnvironmentsTable,
 		ExperimentsTable,
+		ExperimentCatalogRowsTable,
 		ExperimentProposalsTable,
 		IdempotencyRecordsTable,
+		ImageBakesTable,
 		IterationPlansTable,
 		NodeAssignmentsTable,
 		NodeCommandsTable,
@@ -2117,6 +2251,10 @@ func init() {
 	ExperimentsTable.ForeignKeys[3].RefTable = RepositoriesTable
 	ExperimentsTable.ForeignKeys[4].RefTable = ResourceProfilesTable
 	ExperimentsTable.ForeignKeys[5].RefTable = TenantsTable
+	ExperimentCatalogRowsTable.ForeignKeys[0].RefTable = AgentTokensTable
+	ExperimentCatalogRowsTable.ForeignKeys[1].RefTable = ProjectsTable
+	ExperimentCatalogRowsTable.ForeignKeys[2].RefTable = RepositoriesTable
+	ExperimentCatalogRowsTable.ForeignKeys[3].RefTable = TenantsTable
 	ExperimentProposalsTable.ForeignKeys[0].RefTable = AgentTokensTable
 	ExperimentProposalsTable.ForeignKeys[1].RefTable = EnvironmentsTable
 	ExperimentProposalsTable.ForeignKeys[2].RefTable = ExperimentsTable
@@ -2127,6 +2265,9 @@ func init() {
 	IdempotencyRecordsTable.ForeignKeys[0].RefTable = AgentTokensTable
 	IdempotencyRecordsTable.ForeignKeys[1].RefTable = ExperimentsTable
 	IdempotencyRecordsTable.ForeignKeys[2].RefTable = TenantsTable
+	ImageBakesTable.ForeignKeys[0].RefTable = ProjectsTable
+	ImageBakesTable.ForeignKeys[1].RefTable = RepositoriesTable
+	ImageBakesTable.ForeignKeys[2].RefTable = TenantsTable
 	IterationPlansTable.ForeignKeys[0].RefTable = AgentTokensTable
 	IterationPlansTable.ForeignKeys[1].RefTable = ProjectsTable
 	IterationPlansTable.ForeignKeys[2].RefTable = StudiesTable

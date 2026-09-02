@@ -230,6 +230,18 @@ describe('API security headers', () => {
     })
   })
 
+  it('reads the experiment catalog through the Owner project endpoint', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true, status: 200, json: async () => ({ data: { project_id: 'project/id', repositories: [], generated_at: '2026-07-17T00:00:00Z' } }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await api.experimentCatalog('project/id')
+
+    const [path] = fetchMock.mock.calls[0]
+    expect(path).toBe('/api/v1/projects/project%2Fid/experiment-catalog')
+  })
+
   it('adds the current CSRF token to state-changing Owner requests', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -331,5 +343,33 @@ describe('API security headers', () => {
     expect(JSON.parse(String(fetchMock.mock.calls[1][1].body))).toMatchObject({
       confirmed: true, idempotency_key: 'diagnostic-test-key', confirmation_digest: `sha256:${'b'.repeat(64)}`,
     })
+  })
+
+  it('requests and confirms image bakes through CSRF-protected Owner routes', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true, status: 200, json: async () => ({ data: {} }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    setCSRFToken('csrf-image-bake')
+
+    await api.imageBakeOptions('project/id')
+    await api.imageBakes('project/id')
+    await api.requestImageBake('project/id', {
+      name: 'torch-mamba', base_image_uuid: 'image-base12345', commit_sha: 'a'.repeat(40),
+    })
+    await api.confirmImageBake('project/id', 'bake/id', 'sha256:digest')
+    await api.cancelImageBake('project/id', 'bake/id')
+
+    expect(fetchMock.mock.calls.map(([path]) => path)).toEqual([
+      '/api/v1/projects/project%2Fid/image-bakes/options',
+      '/api/v1/projects/project%2Fid/image-bakes',
+      '/api/v1/projects/project%2Fid/image-bakes',
+      '/api/v1/projects/project%2Fid/image-bakes/bake%2Fid/confirm',
+      '/api/v1/projects/project%2Fid/image-bakes/bake%2Fid/cancel',
+    ])
+    expect(fetchMock.mock.calls[2][1].method).toBe('POST')
+    expect((fetchMock.mock.calls[2][1].headers as Headers).get('X-CSRF-Token')).toBe('csrf-image-bake')
+    expect(JSON.parse(String(fetchMock.mock.calls[3][1].body))).toEqual({ confirmation_digest: 'sha256:digest' })
+    expect((fetchMock.mock.calls[3][1].headers as Headers).get('X-CSRF-Token')).toBe('csrf-image-bake')
   })
 })

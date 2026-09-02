@@ -274,7 +274,8 @@ func (s *Service) createSubmission(ctx context.Context, principal agentauth.Prin
 			return result, ErrExperimentCap
 		}
 	}
-	period, err := budgetPeriod(s.now().UTC(), projectRecord.Timezone)
+	now := s.now().UTC()
+	period, err := budgetPeriod(now, projectRecord.Timezone)
 	if err != nil {
 		return result, err
 	}
@@ -312,6 +313,7 @@ func (s *Service) createSubmission(ctx context.Context, principal agentauth.Prin
 		SetSecretNames(input.SecretNames).
 		SetOutputPath(outputPath).
 		SetReservedCostMilli(reservation).
+		SetNextAttemptAt(now).
 		Save(ctx)
 	if err != nil {
 		return result, err
@@ -333,7 +335,7 @@ func (s *Service) createSubmission(ctx context.Context, principal agentauth.Prin
 		SetExperimentID(record.ID).
 		SetKeyHash(keyHash).
 		SetRequestFingerprint(fingerprint).
-		SetExpiresAt(s.now().UTC().Add(idempotencyRetention)).
+		SetExpiresAt(now.Add(idempotencyRetention)).
 		Save(ctx); err != nil {
 		return result, err
 	}

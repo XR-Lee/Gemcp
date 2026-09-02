@@ -15,6 +15,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/agenttoken"
 	"github.com/XR-Lee/Gemcp/ent/datasetbinding"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/experimentcatalogrow"
 	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
 	"github.com/XR-Lee/Gemcp/ent/iterationplan"
@@ -277,6 +278,21 @@ func (_u *AgentTokenUpdate) AddResearchNodes(v ...*ResearchNode) *AgentTokenUpda
 	return _u.AddResearchNodeIDs(ids...)
 }
 
+// AddExperimentCatalogRowIDs adds the "experiment_catalog_rows" edge to the ExperimentCatalogRow entity by IDs.
+func (_u *AgentTokenUpdate) AddExperimentCatalogRowIDs(ids ...int) *AgentTokenUpdate {
+	_u.mutation.AddExperimentCatalogRowIDs(ids...)
+	return _u
+}
+
+// AddExperimentCatalogRows adds the "experiment_catalog_rows" edges to the ExperimentCatalogRow entity.
+func (_u *AgentTokenUpdate) AddExperimentCatalogRows(v ...*ExperimentCatalogRow) *AgentTokenUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddExperimentCatalogRowIDs(ids...)
+}
+
 // Mutation returns the AgentTokenMutation object of the builder.
 func (_u *AgentTokenUpdate) Mutation() *AgentTokenMutation {
 	return _u.mutation
@@ -448,6 +464,27 @@ func (_u *AgentTokenUpdate) RemoveResearchNodes(v ...*ResearchNode) *AgentTokenU
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveResearchNodeIDs(ids...)
+}
+
+// ClearExperimentCatalogRows clears all "experiment_catalog_rows" edges to the ExperimentCatalogRow entity.
+func (_u *AgentTokenUpdate) ClearExperimentCatalogRows() *AgentTokenUpdate {
+	_u.mutation.ClearExperimentCatalogRows()
+	return _u
+}
+
+// RemoveExperimentCatalogRowIDs removes the "experiment_catalog_rows" edge to ExperimentCatalogRow entities by IDs.
+func (_u *AgentTokenUpdate) RemoveExperimentCatalogRowIDs(ids ...int) *AgentTokenUpdate {
+	_u.mutation.RemoveExperimentCatalogRowIDs(ids...)
+	return _u
+}
+
+// RemoveExperimentCatalogRows removes "experiment_catalog_rows" edges to ExperimentCatalogRow entities.
+func (_u *AgentTokenUpdate) RemoveExperimentCatalogRows(v ...*ExperimentCatalogRow) *AgentTokenUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveExperimentCatalogRowIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -924,6 +961,51 @@ func (_u *AgentTokenUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.ExperimentCatalogRowsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.ExperimentCatalogRowsTable,
+			Columns: []string{agenttoken.ExperimentCatalogRowsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentcatalogrow.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedExperimentCatalogRowsIDs(); len(nodes) > 0 && !_u.mutation.ExperimentCatalogRowsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.ExperimentCatalogRowsTable,
+			Columns: []string{agenttoken.ExperimentCatalogRowsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentcatalogrow.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ExperimentCatalogRowsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.ExperimentCatalogRowsTable,
+			Columns: []string{agenttoken.ExperimentCatalogRowsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentcatalogrow.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{agenttoken.Label}
@@ -1184,6 +1266,21 @@ func (_u *AgentTokenUpdateOne) AddResearchNodes(v ...*ResearchNode) *AgentTokenU
 	return _u.AddResearchNodeIDs(ids...)
 }
 
+// AddExperimentCatalogRowIDs adds the "experiment_catalog_rows" edge to the ExperimentCatalogRow entity by IDs.
+func (_u *AgentTokenUpdateOne) AddExperimentCatalogRowIDs(ids ...int) *AgentTokenUpdateOne {
+	_u.mutation.AddExperimentCatalogRowIDs(ids...)
+	return _u
+}
+
+// AddExperimentCatalogRows adds the "experiment_catalog_rows" edges to the ExperimentCatalogRow entity.
+func (_u *AgentTokenUpdateOne) AddExperimentCatalogRows(v ...*ExperimentCatalogRow) *AgentTokenUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddExperimentCatalogRowIDs(ids...)
+}
+
 // Mutation returns the AgentTokenMutation object of the builder.
 func (_u *AgentTokenUpdateOne) Mutation() *AgentTokenMutation {
 	return _u.mutation
@@ -1355,6 +1452,27 @@ func (_u *AgentTokenUpdateOne) RemoveResearchNodes(v ...*ResearchNode) *AgentTok
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveResearchNodeIDs(ids...)
+}
+
+// ClearExperimentCatalogRows clears all "experiment_catalog_rows" edges to the ExperimentCatalogRow entity.
+func (_u *AgentTokenUpdateOne) ClearExperimentCatalogRows() *AgentTokenUpdateOne {
+	_u.mutation.ClearExperimentCatalogRows()
+	return _u
+}
+
+// RemoveExperimentCatalogRowIDs removes the "experiment_catalog_rows" edge to ExperimentCatalogRow entities by IDs.
+func (_u *AgentTokenUpdateOne) RemoveExperimentCatalogRowIDs(ids ...int) *AgentTokenUpdateOne {
+	_u.mutation.RemoveExperimentCatalogRowIDs(ids...)
+	return _u
+}
+
+// RemoveExperimentCatalogRows removes "experiment_catalog_rows" edges to ExperimentCatalogRow entities.
+func (_u *AgentTokenUpdateOne) RemoveExperimentCatalogRows(v ...*ExperimentCatalogRow) *AgentTokenUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveExperimentCatalogRowIDs(ids...)
 }
 
 // Where appends a list predicates to the AgentTokenUpdate builder.
@@ -1854,6 +1972,51 @@ func (_u *AgentTokenUpdateOne) sqlSave(ctx context.Context) (_node *AgentToken, 
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(researchnode.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ExperimentCatalogRowsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.ExperimentCatalogRowsTable,
+			Columns: []string{agenttoken.ExperimentCatalogRowsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentcatalogrow.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedExperimentCatalogRowsIDs(); len(nodes) > 0 && !_u.mutation.ExperimentCatalogRowsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.ExperimentCatalogRowsTable,
+			Columns: []string{agenttoken.ExperimentCatalogRowsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentcatalogrow.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ExperimentCatalogRowsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agenttoken.ExperimentCatalogRowsTable,
+			Columns: []string{agenttoken.ExperimentCatalogRowsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentcatalogrow.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

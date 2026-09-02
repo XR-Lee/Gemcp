@@ -58,6 +58,8 @@ const (
 	EdgeIterationPlans = "iteration_plans"
 	// EdgeResearchNodes holds the string denoting the research_nodes edge name in mutations.
 	EdgeResearchNodes = "research_nodes"
+	// EdgeExperimentCatalogRows holds the string denoting the experiment_catalog_rows edge name in mutations.
+	EdgeExperimentCatalogRows = "experiment_catalog_rows"
 	// Table holds the table name of the agenttoken in the database.
 	Table = "agent_tokens"
 	// ProjectTable is the table that holds the project relation/edge.
@@ -123,6 +125,13 @@ const (
 	ResearchNodesInverseTable = "research_nodes"
 	// ResearchNodesColumn is the table column denoting the research_nodes relation/edge.
 	ResearchNodesColumn = "agent_token_id"
+	// ExperimentCatalogRowsTable is the table that holds the experiment_catalog_rows relation/edge.
+	ExperimentCatalogRowsTable = "experiment_catalog_rows"
+	// ExperimentCatalogRowsInverseTable is the table name for the ExperimentCatalogRow entity.
+	// It exists in this package in order to avoid circular dependency with the "experimentcatalogrow" package.
+	ExperimentCatalogRowsInverseTable = "experiment_catalog_rows"
+	// ExperimentCatalogRowsColumn is the table column denoting the experiment_catalog_rows relation/edge.
+	ExperimentCatalogRowsColumn = "agent_token_id"
 )
 
 // Columns holds all SQL columns for agenttoken fields.
@@ -397,6 +406,20 @@ func ByResearchNodes(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newResearchNodesStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByExperimentCatalogRowsCount orders the results by experiment_catalog_rows count.
+func ByExperimentCatalogRowsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newExperimentCatalogRowsStep(), opts...)
+	}
+}
+
+// ByExperimentCatalogRows orders the results by experiment_catalog_rows terms.
+func ByExperimentCatalogRows(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newExperimentCatalogRowsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newProjectStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -458,5 +481,12 @@ func newResearchNodesStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(ResearchNodesInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, ResearchNodesTable, ResearchNodesColumn),
+	)
+}
+func newExperimentCatalogRowsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ExperimentCatalogRowsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ExperimentCatalogRowsTable, ExperimentCatalogRowsColumn),
 	)
 }

@@ -22,7 +22,9 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/diagnosticrun"
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/experimentcatalogrow"
 	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
+	"github.com/XR-Lee/Gemcp/ent/imagebake"
 	"github.com/XR-Lee/Gemcp/ent/iterationplan"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/nodeprojectaccess"
@@ -41,32 +43,34 @@ import (
 // ProjectQuery is the builder for querying Project entities.
 type ProjectQuery struct {
 	config
-	ctx                     *QueryContext
-	order                   []project.OrderOption
-	inters                  []Interceptor
-	predicates              []predicate.Project
-	withTenant              *TenantQuery
-	withEnvironments        *EnvironmentQuery
-	withResourceProfiles    *ResourceProfileQuery
-	withRepositories        *RepositoryQuery
-	withAgentTokens         *AgentTokenQuery
-	withAgentEnrollments    *AgentEnrollmentQuery
-	withExperiments         *ExperimentQuery
-	withAttempts            *AttemptQuery
-	withProviderResources   *ProviderResourceQuery
-	withBudgetEntries       *BudgetEntryQuery
-	withNodeAccess          *NodeProjectAccessQuery
-	withNodeAssignments     *NodeAssignmentQuery
-	withCloudSSHAccess      *CloudSSHProjectAccessQuery
-	withCloudSSHAssignments *CloudSSHAssignmentQuery
-	withDiagnosticRuns      *DiagnosticRunQuery
-	withExperimentProposals *ExperimentProposalQuery
-	withWorkspaceDatasets   *WorkspaceDatasetQuery
-	withDatasetBindings     *DatasetBindingQuery
-	withStudies             *StudyQuery
-	withIterationPlans      *IterationPlanQuery
-	withResearchNodes       *ResearchNodeQuery
-	withResearchEdges       *ResearchEdgeQuery
+	ctx                       *QueryContext
+	order                     []project.OrderOption
+	inters                    []Interceptor
+	predicates                []predicate.Project
+	withTenant                *TenantQuery
+	withEnvironments          *EnvironmentQuery
+	withResourceProfiles      *ResourceProfileQuery
+	withRepositories          *RepositoryQuery
+	withAgentTokens           *AgentTokenQuery
+	withAgentEnrollments      *AgentEnrollmentQuery
+	withExperiments           *ExperimentQuery
+	withAttempts              *AttemptQuery
+	withProviderResources     *ProviderResourceQuery
+	withBudgetEntries         *BudgetEntryQuery
+	withNodeAccess            *NodeProjectAccessQuery
+	withNodeAssignments       *NodeAssignmentQuery
+	withCloudSSHAccess        *CloudSSHProjectAccessQuery
+	withCloudSSHAssignments   *CloudSSHAssignmentQuery
+	withDiagnosticRuns        *DiagnosticRunQuery
+	withImageBakes            *ImageBakeQuery
+	withExperimentProposals   *ExperimentProposalQuery
+	withWorkspaceDatasets     *WorkspaceDatasetQuery
+	withDatasetBindings       *DatasetBindingQuery
+	withStudies               *StudyQuery
+	withIterationPlans        *IterationPlanQuery
+	withResearchNodes         *ResearchNodeQuery
+	withResearchEdges         *ResearchEdgeQuery
+	withExperimentCatalogRows *ExperimentCatalogRowQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -433,6 +437,28 @@ func (_q *ProjectQuery) QueryDiagnosticRuns() *DiagnosticRunQuery {
 	return query
 }
 
+// QueryImageBakes chains the current query on the "image_bakes" edge.
+func (_q *ProjectQuery) QueryImageBakes() *ImageBakeQuery {
+	query := (&ImageBakeClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, selector),
+			sqlgraph.To(imagebake.Table, imagebake.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.ImageBakesTable, project.ImageBakesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
 // QueryExperimentProposals chains the current query on the "experiment_proposals" edge.
 func (_q *ProjectQuery) QueryExperimentProposals() *ExperimentProposalQuery {
 	query := (&ExperimentProposalClient{config: _q.config}).Query()
@@ -580,6 +606,28 @@ func (_q *ProjectQuery) QueryResearchEdges() *ResearchEdgeQuery {
 			sqlgraph.From(project.Table, project.FieldID, selector),
 			sqlgraph.To(researchedge.Table, researchedge.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, project.ResearchEdgesTable, project.ResearchEdgesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryExperimentCatalogRows chains the current query on the "experiment_catalog_rows" edge.
+func (_q *ProjectQuery) QueryExperimentCatalogRows() *ExperimentCatalogRowQuery {
+	query := (&ExperimentCatalogRowClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, selector),
+			sqlgraph.To(experimentcatalogrow.Table, experimentcatalogrow.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.ExperimentCatalogRowsTable, project.ExperimentCatalogRowsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -774,33 +822,35 @@ func (_q *ProjectQuery) Clone() *ProjectQuery {
 		return nil
 	}
 	return &ProjectQuery{
-		config:                  _q.config,
-		ctx:                     _q.ctx.Clone(),
-		order:                   append([]project.OrderOption{}, _q.order...),
-		inters:                  append([]Interceptor{}, _q.inters...),
-		predicates:              append([]predicate.Project{}, _q.predicates...),
-		withTenant:              _q.withTenant.Clone(),
-		withEnvironments:        _q.withEnvironments.Clone(),
-		withResourceProfiles:    _q.withResourceProfiles.Clone(),
-		withRepositories:        _q.withRepositories.Clone(),
-		withAgentTokens:         _q.withAgentTokens.Clone(),
-		withAgentEnrollments:    _q.withAgentEnrollments.Clone(),
-		withExperiments:         _q.withExperiments.Clone(),
-		withAttempts:            _q.withAttempts.Clone(),
-		withProviderResources:   _q.withProviderResources.Clone(),
-		withBudgetEntries:       _q.withBudgetEntries.Clone(),
-		withNodeAccess:          _q.withNodeAccess.Clone(),
-		withNodeAssignments:     _q.withNodeAssignments.Clone(),
-		withCloudSSHAccess:      _q.withCloudSSHAccess.Clone(),
-		withCloudSSHAssignments: _q.withCloudSSHAssignments.Clone(),
-		withDiagnosticRuns:      _q.withDiagnosticRuns.Clone(),
-		withExperimentProposals: _q.withExperimentProposals.Clone(),
-		withWorkspaceDatasets:   _q.withWorkspaceDatasets.Clone(),
-		withDatasetBindings:     _q.withDatasetBindings.Clone(),
-		withStudies:             _q.withStudies.Clone(),
-		withIterationPlans:      _q.withIterationPlans.Clone(),
-		withResearchNodes:       _q.withResearchNodes.Clone(),
-		withResearchEdges:       _q.withResearchEdges.Clone(),
+		config:                    _q.config,
+		ctx:                       _q.ctx.Clone(),
+		order:                     append([]project.OrderOption{}, _q.order...),
+		inters:                    append([]Interceptor{}, _q.inters...),
+		predicates:                append([]predicate.Project{}, _q.predicates...),
+		withTenant:                _q.withTenant.Clone(),
+		withEnvironments:          _q.withEnvironments.Clone(),
+		withResourceProfiles:      _q.withResourceProfiles.Clone(),
+		withRepositories:          _q.withRepositories.Clone(),
+		withAgentTokens:           _q.withAgentTokens.Clone(),
+		withAgentEnrollments:      _q.withAgentEnrollments.Clone(),
+		withExperiments:           _q.withExperiments.Clone(),
+		withAttempts:              _q.withAttempts.Clone(),
+		withProviderResources:     _q.withProviderResources.Clone(),
+		withBudgetEntries:         _q.withBudgetEntries.Clone(),
+		withNodeAccess:            _q.withNodeAccess.Clone(),
+		withNodeAssignments:       _q.withNodeAssignments.Clone(),
+		withCloudSSHAccess:        _q.withCloudSSHAccess.Clone(),
+		withCloudSSHAssignments:   _q.withCloudSSHAssignments.Clone(),
+		withDiagnosticRuns:        _q.withDiagnosticRuns.Clone(),
+		withImageBakes:            _q.withImageBakes.Clone(),
+		withExperimentProposals:   _q.withExperimentProposals.Clone(),
+		withWorkspaceDatasets:     _q.withWorkspaceDatasets.Clone(),
+		withDatasetBindings:       _q.withDatasetBindings.Clone(),
+		withStudies:               _q.withStudies.Clone(),
+		withIterationPlans:        _q.withIterationPlans.Clone(),
+		withResearchNodes:         _q.withResearchNodes.Clone(),
+		withResearchEdges:         _q.withResearchEdges.Clone(),
+		withExperimentCatalogRows: _q.withExperimentCatalogRows.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -972,6 +1022,17 @@ func (_q *ProjectQuery) WithDiagnosticRuns(opts ...func(*DiagnosticRunQuery)) *P
 	return _q
 }
 
+// WithImageBakes tells the query-builder to eager-load the nodes that are connected to
+// the "image_bakes" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ProjectQuery) WithImageBakes(opts ...func(*ImageBakeQuery)) *ProjectQuery {
+	query := (&ImageBakeClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withImageBakes = query
+	return _q
+}
+
 // WithExperimentProposals tells the query-builder to eager-load the nodes that are connected to
 // the "experiment_proposals" edge. The optional arguments are used to configure the query builder of the edge.
 func (_q *ProjectQuery) WithExperimentProposals(opts ...func(*ExperimentProposalQuery)) *ProjectQuery {
@@ -1046,6 +1107,17 @@ func (_q *ProjectQuery) WithResearchEdges(opts ...func(*ResearchEdgeQuery)) *Pro
 		opt(query)
 	}
 	_q.withResearchEdges = query
+	return _q
+}
+
+// WithExperimentCatalogRows tells the query-builder to eager-load the nodes that are connected to
+// the "experiment_catalog_rows" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ProjectQuery) WithExperimentCatalogRows(opts ...func(*ExperimentCatalogRowQuery)) *ProjectQuery {
+	query := (&ExperimentCatalogRowClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withExperimentCatalogRows = query
 	return _q
 }
 
@@ -1127,7 +1199,7 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 	var (
 		nodes       = []*Project{}
 		_spec       = _q.querySpec()
-		loadedTypes = [22]bool{
+		loadedTypes = [24]bool{
 			_q.withTenant != nil,
 			_q.withEnvironments != nil,
 			_q.withResourceProfiles != nil,
@@ -1143,6 +1215,7 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 			_q.withCloudSSHAccess != nil,
 			_q.withCloudSSHAssignments != nil,
 			_q.withDiagnosticRuns != nil,
+			_q.withImageBakes != nil,
 			_q.withExperimentProposals != nil,
 			_q.withWorkspaceDatasets != nil,
 			_q.withDatasetBindings != nil,
@@ -1150,6 +1223,7 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 			_q.withIterationPlans != nil,
 			_q.withResearchNodes != nil,
 			_q.withResearchEdges != nil,
+			_q.withExperimentCatalogRows != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -1278,6 +1352,13 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 			return nil, err
 		}
 	}
+	if query := _q.withImageBakes; query != nil {
+		if err := _q.loadImageBakes(ctx, query, nodes,
+			func(n *Project) { n.Edges.ImageBakes = []*ImageBake{} },
+			func(n *Project, e *ImageBake) { n.Edges.ImageBakes = append(n.Edges.ImageBakes, e) }); err != nil {
+			return nil, err
+		}
+	}
 	if query := _q.withExperimentProposals; query != nil {
 		if err := _q.loadExperimentProposals(ctx, query, nodes,
 			func(n *Project) { n.Edges.ExperimentProposals = []*ExperimentProposal{} },
@@ -1328,6 +1409,15 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 		if err := _q.loadResearchEdges(ctx, query, nodes,
 			func(n *Project) { n.Edges.ResearchEdges = []*ResearchEdge{} },
 			func(n *Project, e *ResearchEdge) { n.Edges.ResearchEdges = append(n.Edges.ResearchEdges, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withExperimentCatalogRows; query != nil {
+		if err := _q.loadExperimentCatalogRows(ctx, query, nodes,
+			func(n *Project) { n.Edges.ExperimentCatalogRows = []*ExperimentCatalogRow{} },
+			func(n *Project, e *ExperimentCatalogRow) {
+				n.Edges.ExperimentCatalogRows = append(n.Edges.ExperimentCatalogRows, e)
+			}); err != nil {
 			return nil, err
 		}
 	}
@@ -1783,6 +1873,36 @@ func (_q *ProjectQuery) loadDiagnosticRuns(ctx context.Context, query *Diagnosti
 	}
 	return nil
 }
+func (_q *ProjectQuery) loadImageBakes(ctx context.Context, query *ImageBakeQuery, nodes []*Project, init func(*Project), assign func(*Project, *ImageBake)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Project)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(imagebake.FieldProjectID)
+	}
+	query.Where(predicate.ImageBake(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(project.ImageBakesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ProjectID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "project_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
 func (_q *ProjectQuery) loadExperimentProposals(ctx context.Context, query *ExperimentProposalQuery, nodes []*Project, init func(*Project), assign func(*Project, *ExperimentProposal)) error {
 	fks := make([]driver.Value, 0, len(nodes))
 	nodeids := make(map[int]*Project)
@@ -1978,6 +2098,36 @@ func (_q *ProjectQuery) loadResearchEdges(ctx context.Context, query *ResearchEd
 	}
 	query.Where(predicate.ResearchEdge(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(project.ResearchEdgesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ProjectID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "project_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *ProjectQuery) loadExperimentCatalogRows(ctx context.Context, query *ExperimentCatalogRowQuery, nodes []*Project, init func(*Project), assign func(*Project, *ExperimentCatalogRow)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Project)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(experimentcatalogrow.FieldProjectID)
+	}
+	query.Where(predicate.ExperimentCatalogRow(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(project.ExperimentCatalogRowsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

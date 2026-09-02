@@ -22,6 +22,7 @@ import (
 	"github.com/XR-Lee/Gemcp/internal/experiment"
 	"github.com/XR-Lee/Gemcp/internal/finance"
 	"github.com/XR-Lee/Gemcp/internal/httpapi"
+	"github.com/XR-Lee/Gemcp/internal/imagebake"
 	"github.com/XR-Lee/Gemcp/internal/mcpserver"
 	"github.com/XR-Lee/Gemcp/internal/nodeaccess"
 	"github.com/XR-Lee/Gemcp/internal/notification"
@@ -74,11 +75,14 @@ func New(deps Dependencies) *http.Server {
 
 	api := router.Group("/api/v1")
 	api.GET("/version", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"data": deps.Build})
+		c.JSON(http.StatusOK, gin.H{"data": gin.H{
+			"name": deps.Build.Name, "version": deps.Build.Version, "commit": deps.Build.Commit, "built_at": deps.Build.BuiltAt,
+			"password_required": !deps.Config.SkipPassword,
+		}})
 	})
 
 	setupHandlers := httpapi.NewSetupHandlers(setupservice.NewService(deps.Ent, deps.Secrets), deps.Config.BootstrapToken)
-	authHandlers := httpapi.NewAuthHandlers(auth.NewService(deps.Ent, deps.Secrets, 12*time.Hour), deps.Config.SecureCookies)
+	authHandlers := httpapi.NewAuthHandlers(auth.NewService(deps.Ent, deps.Secrets, 12*time.Hour, auth.WithSkipPassword(deps.Config.SkipPassword)), deps.Config.SecureCookies)
 	api.GET("/setup/status", setupHandlers.Status)
 	api.POST("/setup", setupHandlers.Initialize)
 	api.POST("/auth/login", authHandlers.Login)
@@ -201,6 +205,7 @@ func New(deps Dependencies) *http.Server {
 	researchHandlers := httpapi.NewResearchHandlers(researchService)
 	protected.GET("/projects/:id/research", researchHandlers.Get)
 	protected.PUT("/projects/:id/research", researchHandlers.Update)
+	protected.GET("/projects/:id/experiment-catalog", researchHandlers.Catalog)
 	diagnosticService := diagnostic.NewService(
 		deps.Ent, deps.Secrets, repositoryService, providerService, runtimeOperations, experimentService,
 		diagnostic.Config{SourceMaxBytes: deps.Config.RunnerSourceMaxBytes, SelfHostedEnabled: deps.Config.SelfHostedEnabled},
@@ -213,6 +218,15 @@ func New(deps Dependencies) *http.Server {
 	protected.GET("/projects/:id/diagnostics/:runID", diagnosticHandlers.Get)
 	protected.POST("/projects/:id/diagnostics/:runID/cancel", diagnosticHandlers.Cancel)
 
+	bakeService := imagebake.NewService(deps.Ent, imagebake.NewFailClosedProvider(), providerService)
+	bakeHandlers := httpapi.NewImageBakeHandlers(bakeService)
+	protected.GET("/projects/:id/image-bakes/options", bakeHandlers.Options)
+	protected.GET("/projects/:id/image-bakes", bakeHandlers.List)
+	protected.POST("/projects/:id/image-bakes", bakeHandlers.Create)
+	protected.GET("/projects/:id/image-bakes/:bakeID", bakeHandlers.Get)
+	protected.POST("/projects/:id/image-bakes/:bakeID/confirm", bakeHandlers.Confirm)
+	protected.POST("/projects/:id/image-bakes/:bakeID/cancel", bakeHandlers.Cancel)
+
 	agentAuthService := agentauth.NewService(deps.Ent, deps.Secrets)
 	mcpHandler := mcpserver.New(
 		agentAuthService, experimentService, deps.Build.Version, nil,
@@ -220,6 +234,7 @@ func New(deps Dependencies) *http.Server {
 		mcpserver.WithEnvironments(environmentService),
 		mcpserver.WithResearch(researchService),
 		mcpserver.WithSSHCloud(deps.SSHCloud),
+		mcpserver.WithImageBakes(bakeService),
 	).Handler()
 	router.Any("/mcp", gin.WrapH(mcpHandler))
 

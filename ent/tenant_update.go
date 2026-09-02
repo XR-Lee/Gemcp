@@ -20,8 +20,10 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/datasetbinding"
 	"github.com/XR-Lee/Gemcp/ent/diagnosticrun"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/experimentcatalogrow"
 	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
+	"github.com/XR-Lee/Gemcp/ent/imagebake"
 	"github.com/XR-Lee/Gemcp/ent/iterationplan"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/nodecommand"
@@ -405,6 +407,21 @@ func (_u *TenantUpdate) AddDiagnosticRuns(v ...*DiagnosticRun) *TenantUpdate {
 	return _u.AddDiagnosticRunIDs(ids...)
 }
 
+// AddImageBakeIDs adds the "image_bakes" edge to the ImageBake entity by IDs.
+func (_u *TenantUpdate) AddImageBakeIDs(ids ...int) *TenantUpdate {
+	_u.mutation.AddImageBakeIDs(ids...)
+	return _u
+}
+
+// AddImageBakes adds the "image_bakes" edges to the ImageBake entity.
+func (_u *TenantUpdate) AddImageBakes(v ...*ImageBake) *TenantUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddImageBakeIDs(ids...)
+}
+
 // AddExperimentProposalIDs adds the "experiment_proposals" edge to the ExperimentProposal entity by IDs.
 func (_u *TenantUpdate) AddExperimentProposalIDs(ids ...int) *TenantUpdate {
 	_u.mutation.AddExperimentProposalIDs(ids...)
@@ -508,6 +525,21 @@ func (_u *TenantUpdate) AddResearchEdges(v ...*ResearchEdge) *TenantUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.AddResearchEdgeIDs(ids...)
+}
+
+// AddExperimentCatalogRowIDs adds the "experiment_catalog_rows" edge to the ExperimentCatalogRow entity by IDs.
+func (_u *TenantUpdate) AddExperimentCatalogRowIDs(ids ...int) *TenantUpdate {
+	_u.mutation.AddExperimentCatalogRowIDs(ids...)
+	return _u
+}
+
+// AddExperimentCatalogRows adds the "experiment_catalog_rows" edges to the ExperimentCatalogRow entity.
+func (_u *TenantUpdate) AddExperimentCatalogRows(v ...*ExperimentCatalogRow) *TenantUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddExperimentCatalogRowIDs(ids...)
 }
 
 // Mutation returns the TenantMutation object of the builder.
@@ -956,6 +988,27 @@ func (_u *TenantUpdate) RemoveDiagnosticRuns(v ...*DiagnosticRun) *TenantUpdate 
 	return _u.RemoveDiagnosticRunIDs(ids...)
 }
 
+// ClearImageBakes clears all "image_bakes" edges to the ImageBake entity.
+func (_u *TenantUpdate) ClearImageBakes() *TenantUpdate {
+	_u.mutation.ClearImageBakes()
+	return _u
+}
+
+// RemoveImageBakeIDs removes the "image_bakes" edge to ImageBake entities by IDs.
+func (_u *TenantUpdate) RemoveImageBakeIDs(ids ...int) *TenantUpdate {
+	_u.mutation.RemoveImageBakeIDs(ids...)
+	return _u
+}
+
+// RemoveImageBakes removes "image_bakes" edges to ImageBake entities.
+func (_u *TenantUpdate) RemoveImageBakes(v ...*ImageBake) *TenantUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveImageBakeIDs(ids...)
+}
+
 // ClearExperimentProposals clears all "experiment_proposals" edges to the ExperimentProposal entity.
 func (_u *TenantUpdate) ClearExperimentProposals() *TenantUpdate {
 	_u.mutation.ClearExperimentProposals()
@@ -1101,6 +1154,27 @@ func (_u *TenantUpdate) RemoveResearchEdges(v ...*ResearchEdge) *TenantUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveResearchEdgeIDs(ids...)
+}
+
+// ClearExperimentCatalogRows clears all "experiment_catalog_rows" edges to the ExperimentCatalogRow entity.
+func (_u *TenantUpdate) ClearExperimentCatalogRows() *TenantUpdate {
+	_u.mutation.ClearExperimentCatalogRows()
+	return _u
+}
+
+// RemoveExperimentCatalogRowIDs removes the "experiment_catalog_rows" edge to ExperimentCatalogRow entities by IDs.
+func (_u *TenantUpdate) RemoveExperimentCatalogRowIDs(ids ...int) *TenantUpdate {
+	_u.mutation.RemoveExperimentCatalogRowIDs(ids...)
+	return _u
+}
+
+// RemoveExperimentCatalogRows removes "experiment_catalog_rows" edges to ExperimentCatalogRow entities.
+func (_u *TenantUpdate) RemoveExperimentCatalogRows(v ...*ExperimentCatalogRow) *TenantUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveExperimentCatalogRowIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -2120,6 +2194,51 @@ func (_u *TenantUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.ImageBakesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ImageBakesTable,
+			Columns: []string{tenant.ImageBakesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(imagebake.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedImageBakesIDs(); len(nodes) > 0 && !_u.mutation.ImageBakesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ImageBakesTable,
+			Columns: []string{tenant.ImageBakesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(imagebake.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ImageBakesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ImageBakesTable,
+			Columns: []string{tenant.ImageBakesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(imagebake.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _u.mutation.ExperimentProposalsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -2428,6 +2547,51 @@ func (_u *TenantUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(researchedge.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ExperimentCatalogRowsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ExperimentCatalogRowsTable,
+			Columns: []string{tenant.ExperimentCatalogRowsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentcatalogrow.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedExperimentCatalogRowsIDs(); len(nodes) > 0 && !_u.mutation.ExperimentCatalogRowsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ExperimentCatalogRowsTable,
+			Columns: []string{tenant.ExperimentCatalogRowsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentcatalogrow.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ExperimentCatalogRowsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ExperimentCatalogRowsTable,
+			Columns: []string{tenant.ExperimentCatalogRowsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentcatalogrow.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -2804,6 +2968,21 @@ func (_u *TenantUpdateOne) AddDiagnosticRuns(v ...*DiagnosticRun) *TenantUpdateO
 	return _u.AddDiagnosticRunIDs(ids...)
 }
 
+// AddImageBakeIDs adds the "image_bakes" edge to the ImageBake entity by IDs.
+func (_u *TenantUpdateOne) AddImageBakeIDs(ids ...int) *TenantUpdateOne {
+	_u.mutation.AddImageBakeIDs(ids...)
+	return _u
+}
+
+// AddImageBakes adds the "image_bakes" edges to the ImageBake entity.
+func (_u *TenantUpdateOne) AddImageBakes(v ...*ImageBake) *TenantUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddImageBakeIDs(ids...)
+}
+
 // AddExperimentProposalIDs adds the "experiment_proposals" edge to the ExperimentProposal entity by IDs.
 func (_u *TenantUpdateOne) AddExperimentProposalIDs(ids ...int) *TenantUpdateOne {
 	_u.mutation.AddExperimentProposalIDs(ids...)
@@ -2907,6 +3086,21 @@ func (_u *TenantUpdateOne) AddResearchEdges(v ...*ResearchEdge) *TenantUpdateOne
 		ids[i] = v[i].ID
 	}
 	return _u.AddResearchEdgeIDs(ids...)
+}
+
+// AddExperimentCatalogRowIDs adds the "experiment_catalog_rows" edge to the ExperimentCatalogRow entity by IDs.
+func (_u *TenantUpdateOne) AddExperimentCatalogRowIDs(ids ...int) *TenantUpdateOne {
+	_u.mutation.AddExperimentCatalogRowIDs(ids...)
+	return _u
+}
+
+// AddExperimentCatalogRows adds the "experiment_catalog_rows" edges to the ExperimentCatalogRow entity.
+func (_u *TenantUpdateOne) AddExperimentCatalogRows(v ...*ExperimentCatalogRow) *TenantUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddExperimentCatalogRowIDs(ids...)
 }
 
 // Mutation returns the TenantMutation object of the builder.
@@ -3355,6 +3549,27 @@ func (_u *TenantUpdateOne) RemoveDiagnosticRuns(v ...*DiagnosticRun) *TenantUpda
 	return _u.RemoveDiagnosticRunIDs(ids...)
 }
 
+// ClearImageBakes clears all "image_bakes" edges to the ImageBake entity.
+func (_u *TenantUpdateOne) ClearImageBakes() *TenantUpdateOne {
+	_u.mutation.ClearImageBakes()
+	return _u
+}
+
+// RemoveImageBakeIDs removes the "image_bakes" edge to ImageBake entities by IDs.
+func (_u *TenantUpdateOne) RemoveImageBakeIDs(ids ...int) *TenantUpdateOne {
+	_u.mutation.RemoveImageBakeIDs(ids...)
+	return _u
+}
+
+// RemoveImageBakes removes "image_bakes" edges to ImageBake entities.
+func (_u *TenantUpdateOne) RemoveImageBakes(v ...*ImageBake) *TenantUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveImageBakeIDs(ids...)
+}
+
 // ClearExperimentProposals clears all "experiment_proposals" edges to the ExperimentProposal entity.
 func (_u *TenantUpdateOne) ClearExperimentProposals() *TenantUpdateOne {
 	_u.mutation.ClearExperimentProposals()
@@ -3500,6 +3715,27 @@ func (_u *TenantUpdateOne) RemoveResearchEdges(v ...*ResearchEdge) *TenantUpdate
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveResearchEdgeIDs(ids...)
+}
+
+// ClearExperimentCatalogRows clears all "experiment_catalog_rows" edges to the ExperimentCatalogRow entity.
+func (_u *TenantUpdateOne) ClearExperimentCatalogRows() *TenantUpdateOne {
+	_u.mutation.ClearExperimentCatalogRows()
+	return _u
+}
+
+// RemoveExperimentCatalogRowIDs removes the "experiment_catalog_rows" edge to ExperimentCatalogRow entities by IDs.
+func (_u *TenantUpdateOne) RemoveExperimentCatalogRowIDs(ids ...int) *TenantUpdateOne {
+	_u.mutation.RemoveExperimentCatalogRowIDs(ids...)
+	return _u
+}
+
+// RemoveExperimentCatalogRows removes "experiment_catalog_rows" edges to ExperimentCatalogRow entities.
+func (_u *TenantUpdateOne) RemoveExperimentCatalogRows(v ...*ExperimentCatalogRow) *TenantUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveExperimentCatalogRowIDs(ids...)
 }
 
 // Where appends a list predicates to the TenantUpdate builder.
@@ -4549,6 +4785,51 @@ func (_u *TenantUpdateOne) sqlSave(ctx context.Context) (_node *Tenant, err erro
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.ImageBakesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ImageBakesTable,
+			Columns: []string{tenant.ImageBakesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(imagebake.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedImageBakesIDs(); len(nodes) > 0 && !_u.mutation.ImageBakesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ImageBakesTable,
+			Columns: []string{tenant.ImageBakesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(imagebake.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ImageBakesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ImageBakesTable,
+			Columns: []string{tenant.ImageBakesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(imagebake.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _u.mutation.ExperimentProposalsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -4857,6 +5138,51 @@ func (_u *TenantUpdateOne) sqlSave(ctx context.Context) (_node *Tenant, err erro
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(researchedge.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ExperimentCatalogRowsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ExperimentCatalogRowsTable,
+			Columns: []string{tenant.ExperimentCatalogRowsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentcatalogrow.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedExperimentCatalogRowsIDs(); len(nodes) > 0 && !_u.mutation.ExperimentCatalogRowsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ExperimentCatalogRowsTable,
+			Columns: []string{tenant.ExperimentCatalogRowsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentcatalogrow.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ExperimentCatalogRowsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ExperimentCatalogRowsTable,
+			Columns: []string{tenant.ExperimentCatalogRowsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentcatalogrow.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

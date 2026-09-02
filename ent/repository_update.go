@@ -12,7 +12,9 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/experimentcatalogrow"
 	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
+	"github.com/XR-Lee/Gemcp/ent/imagebake"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 	"github.com/XR-Lee/Gemcp/ent/repository"
 	"github.com/XR-Lee/Gemcp/ent/study"
@@ -187,6 +189,21 @@ func (_u *RepositoryUpdate) ClearLastVerifiedAt() *RepositoryUpdate {
 	return _u
 }
 
+// AddImageBakeIDs adds the "image_bakes" edge to the ImageBake entity by IDs.
+func (_u *RepositoryUpdate) AddImageBakeIDs(ids ...int) *RepositoryUpdate {
+	_u.mutation.AddImageBakeIDs(ids...)
+	return _u
+}
+
+// AddImageBakes adds the "image_bakes" edges to the ImageBake entity.
+func (_u *RepositoryUpdate) AddImageBakes(v ...*ImageBake) *RepositoryUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddImageBakeIDs(ids...)
+}
+
 // AddExperimentIDs adds the "experiments" edge to the Experiment entity by IDs.
 func (_u *RepositoryUpdate) AddExperimentIDs(ids ...int) *RepositoryUpdate {
 	_u.mutation.AddExperimentIDs(ids...)
@@ -232,9 +249,45 @@ func (_u *RepositoryUpdate) AddStudies(v ...*Study) *RepositoryUpdate {
 	return _u.AddStudyIDs(ids...)
 }
 
+// AddExperimentCatalogRowIDs adds the "experiment_catalog_rows" edge to the ExperimentCatalogRow entity by IDs.
+func (_u *RepositoryUpdate) AddExperimentCatalogRowIDs(ids ...int) *RepositoryUpdate {
+	_u.mutation.AddExperimentCatalogRowIDs(ids...)
+	return _u
+}
+
+// AddExperimentCatalogRows adds the "experiment_catalog_rows" edges to the ExperimentCatalogRow entity.
+func (_u *RepositoryUpdate) AddExperimentCatalogRows(v ...*ExperimentCatalogRow) *RepositoryUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddExperimentCatalogRowIDs(ids...)
+}
+
 // Mutation returns the RepositoryMutation object of the builder.
 func (_u *RepositoryUpdate) Mutation() *RepositoryMutation {
 	return _u.mutation
+}
+
+// ClearImageBakes clears all "image_bakes" edges to the ImageBake entity.
+func (_u *RepositoryUpdate) ClearImageBakes() *RepositoryUpdate {
+	_u.mutation.ClearImageBakes()
+	return _u
+}
+
+// RemoveImageBakeIDs removes the "image_bakes" edge to ImageBake entities by IDs.
+func (_u *RepositoryUpdate) RemoveImageBakeIDs(ids ...int) *RepositoryUpdate {
+	_u.mutation.RemoveImageBakeIDs(ids...)
+	return _u
+}
+
+// RemoveImageBakes removes "image_bakes" edges to ImageBake entities.
+func (_u *RepositoryUpdate) RemoveImageBakes(v ...*ImageBake) *RepositoryUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveImageBakeIDs(ids...)
 }
 
 // ClearExperiments clears all "experiments" edges to the Experiment entity.
@@ -298,6 +351,27 @@ func (_u *RepositoryUpdate) RemoveStudies(v ...*Study) *RepositoryUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveStudyIDs(ids...)
+}
+
+// ClearExperimentCatalogRows clears all "experiment_catalog_rows" edges to the ExperimentCatalogRow entity.
+func (_u *RepositoryUpdate) ClearExperimentCatalogRows() *RepositoryUpdate {
+	_u.mutation.ClearExperimentCatalogRows()
+	return _u
+}
+
+// RemoveExperimentCatalogRowIDs removes the "experiment_catalog_rows" edge to ExperimentCatalogRow entities by IDs.
+func (_u *RepositoryUpdate) RemoveExperimentCatalogRowIDs(ids ...int) *RepositoryUpdate {
+	_u.mutation.RemoveExperimentCatalogRowIDs(ids...)
+	return _u
+}
+
+// RemoveExperimentCatalogRows removes "experiment_catalog_rows" edges to ExperimentCatalogRow entities.
+func (_u *RepositoryUpdate) RemoveExperimentCatalogRows(v ...*ExperimentCatalogRow) *RepositoryUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveExperimentCatalogRowIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -428,6 +502,51 @@ func (_u *RepositoryUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	if _u.mutation.LastVerifiedAtCleared() {
 		_spec.ClearField(repository.FieldLastVerifiedAt, field.TypeTime)
 	}
+	if _u.mutation.ImageBakesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   repository.ImageBakesTable,
+			Columns: []string{repository.ImageBakesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(imagebake.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedImageBakesIDs(); len(nodes) > 0 && !_u.mutation.ImageBakesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   repository.ImageBakesTable,
+			Columns: []string{repository.ImageBakesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(imagebake.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ImageBakesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   repository.ImageBakesTable,
+			Columns: []string{repository.ImageBakesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(imagebake.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _u.mutation.ExperimentsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -556,6 +675,51 @@ func (_u *RepositoryUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(study.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ExperimentCatalogRowsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   repository.ExperimentCatalogRowsTable,
+			Columns: []string{repository.ExperimentCatalogRowsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentcatalogrow.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedExperimentCatalogRowsIDs(); len(nodes) > 0 && !_u.mutation.ExperimentCatalogRowsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   repository.ExperimentCatalogRowsTable,
+			Columns: []string{repository.ExperimentCatalogRowsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentcatalogrow.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ExperimentCatalogRowsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   repository.ExperimentCatalogRowsTable,
+			Columns: []string{repository.ExperimentCatalogRowsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentcatalogrow.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -739,6 +903,21 @@ func (_u *RepositoryUpdateOne) ClearLastVerifiedAt() *RepositoryUpdateOne {
 	return _u
 }
 
+// AddImageBakeIDs adds the "image_bakes" edge to the ImageBake entity by IDs.
+func (_u *RepositoryUpdateOne) AddImageBakeIDs(ids ...int) *RepositoryUpdateOne {
+	_u.mutation.AddImageBakeIDs(ids...)
+	return _u
+}
+
+// AddImageBakes adds the "image_bakes" edges to the ImageBake entity.
+func (_u *RepositoryUpdateOne) AddImageBakes(v ...*ImageBake) *RepositoryUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddImageBakeIDs(ids...)
+}
+
 // AddExperimentIDs adds the "experiments" edge to the Experiment entity by IDs.
 func (_u *RepositoryUpdateOne) AddExperimentIDs(ids ...int) *RepositoryUpdateOne {
 	_u.mutation.AddExperimentIDs(ids...)
@@ -784,9 +963,45 @@ func (_u *RepositoryUpdateOne) AddStudies(v ...*Study) *RepositoryUpdateOne {
 	return _u.AddStudyIDs(ids...)
 }
 
+// AddExperimentCatalogRowIDs adds the "experiment_catalog_rows" edge to the ExperimentCatalogRow entity by IDs.
+func (_u *RepositoryUpdateOne) AddExperimentCatalogRowIDs(ids ...int) *RepositoryUpdateOne {
+	_u.mutation.AddExperimentCatalogRowIDs(ids...)
+	return _u
+}
+
+// AddExperimentCatalogRows adds the "experiment_catalog_rows" edges to the ExperimentCatalogRow entity.
+func (_u *RepositoryUpdateOne) AddExperimentCatalogRows(v ...*ExperimentCatalogRow) *RepositoryUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddExperimentCatalogRowIDs(ids...)
+}
+
 // Mutation returns the RepositoryMutation object of the builder.
 func (_u *RepositoryUpdateOne) Mutation() *RepositoryMutation {
 	return _u.mutation
+}
+
+// ClearImageBakes clears all "image_bakes" edges to the ImageBake entity.
+func (_u *RepositoryUpdateOne) ClearImageBakes() *RepositoryUpdateOne {
+	_u.mutation.ClearImageBakes()
+	return _u
+}
+
+// RemoveImageBakeIDs removes the "image_bakes" edge to ImageBake entities by IDs.
+func (_u *RepositoryUpdateOne) RemoveImageBakeIDs(ids ...int) *RepositoryUpdateOne {
+	_u.mutation.RemoveImageBakeIDs(ids...)
+	return _u
+}
+
+// RemoveImageBakes removes "image_bakes" edges to ImageBake entities.
+func (_u *RepositoryUpdateOne) RemoveImageBakes(v ...*ImageBake) *RepositoryUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveImageBakeIDs(ids...)
 }
 
 // ClearExperiments clears all "experiments" edges to the Experiment entity.
@@ -850,6 +1065,27 @@ func (_u *RepositoryUpdateOne) RemoveStudies(v ...*Study) *RepositoryUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveStudyIDs(ids...)
+}
+
+// ClearExperimentCatalogRows clears all "experiment_catalog_rows" edges to the ExperimentCatalogRow entity.
+func (_u *RepositoryUpdateOne) ClearExperimentCatalogRows() *RepositoryUpdateOne {
+	_u.mutation.ClearExperimentCatalogRows()
+	return _u
+}
+
+// RemoveExperimentCatalogRowIDs removes the "experiment_catalog_rows" edge to ExperimentCatalogRow entities by IDs.
+func (_u *RepositoryUpdateOne) RemoveExperimentCatalogRowIDs(ids ...int) *RepositoryUpdateOne {
+	_u.mutation.RemoveExperimentCatalogRowIDs(ids...)
+	return _u
+}
+
+// RemoveExperimentCatalogRows removes "experiment_catalog_rows" edges to ExperimentCatalogRow entities.
+func (_u *RepositoryUpdateOne) RemoveExperimentCatalogRows(v ...*ExperimentCatalogRow) *RepositoryUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveExperimentCatalogRowIDs(ids...)
 }
 
 // Where appends a list predicates to the RepositoryUpdate builder.
@@ -1010,6 +1246,51 @@ func (_u *RepositoryUpdateOne) sqlSave(ctx context.Context) (_node *Repository, 
 	if _u.mutation.LastVerifiedAtCleared() {
 		_spec.ClearField(repository.FieldLastVerifiedAt, field.TypeTime)
 	}
+	if _u.mutation.ImageBakesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   repository.ImageBakesTable,
+			Columns: []string{repository.ImageBakesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(imagebake.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedImageBakesIDs(); len(nodes) > 0 && !_u.mutation.ImageBakesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   repository.ImageBakesTable,
+			Columns: []string{repository.ImageBakesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(imagebake.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ImageBakesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   repository.ImageBakesTable,
+			Columns: []string{repository.ImageBakesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(imagebake.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _u.mutation.ExperimentsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -1138,6 +1419,51 @@ func (_u *RepositoryUpdateOne) sqlSave(ctx context.Context) (_node *Repository, 
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(study.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ExperimentCatalogRowsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   repository.ExperimentCatalogRowsTable,
+			Columns: []string{repository.ExperimentCatalogRowsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentcatalogrow.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedExperimentCatalogRowsIDs(); len(nodes) > 0 && !_u.mutation.ExperimentCatalogRowsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   repository.ExperimentCatalogRowsTable,
+			Columns: []string{repository.ExperimentCatalogRowsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentcatalogrow.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ExperimentCatalogRowsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   repository.ExperimentCatalogRowsTable,
+			Columns: []string{repository.ExperimentCatalogRowsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentcatalogrow.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

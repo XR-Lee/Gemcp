@@ -13,7 +13,9 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/experimentcatalogrow"
 	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
+	"github.com/XR-Lee/Gemcp/ent/imagebake"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/repository"
@@ -23,14 +25,16 @@ import (
 // RepositoryQuery is the builder for querying Repository entities.
 type RepositoryQuery struct {
 	config
-	ctx                     *QueryContext
-	order                   []repository.OrderOption
-	inters                  []Interceptor
-	predicates              []predicate.Repository
-	withProject             *ProjectQuery
-	withExperiments         *ExperimentQuery
-	withExperimentProposals *ExperimentProposalQuery
-	withStudies             *StudyQuery
+	ctx                       *QueryContext
+	order                     []repository.OrderOption
+	inters                    []Interceptor
+	predicates                []predicate.Repository
+	withProject               *ProjectQuery
+	withImageBakes            *ImageBakeQuery
+	withExperiments           *ExperimentQuery
+	withExperimentProposals   *ExperimentProposalQuery
+	withStudies               *StudyQuery
+	withExperimentCatalogRows *ExperimentCatalogRowQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -82,6 +86,28 @@ func (_q *RepositoryQuery) QueryProject() *ProjectQuery {
 			sqlgraph.From(repository.Table, repository.FieldID, selector),
 			sqlgraph.To(project.Table, project.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, true, repository.ProjectTable, repository.ProjectColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryImageBakes chains the current query on the "image_bakes" edge.
+func (_q *RepositoryQuery) QueryImageBakes() *ImageBakeQuery {
+	query := (&ImageBakeClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(repository.Table, repository.FieldID, selector),
+			sqlgraph.To(imagebake.Table, imagebake.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, repository.ImageBakesTable, repository.ImageBakesColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -148,6 +174,28 @@ func (_q *RepositoryQuery) QueryStudies() *StudyQuery {
 			sqlgraph.From(repository.Table, repository.FieldID, selector),
 			sqlgraph.To(study.Table, study.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, repository.StudiesTable, repository.StudiesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryExperimentCatalogRows chains the current query on the "experiment_catalog_rows" edge.
+func (_q *RepositoryQuery) QueryExperimentCatalogRows() *ExperimentCatalogRowQuery {
+	query := (&ExperimentCatalogRowClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(repository.Table, repository.FieldID, selector),
+			sqlgraph.To(experimentcatalogrow.Table, experimentcatalogrow.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, repository.ExperimentCatalogRowsTable, repository.ExperimentCatalogRowsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -342,15 +390,17 @@ func (_q *RepositoryQuery) Clone() *RepositoryQuery {
 		return nil
 	}
 	return &RepositoryQuery{
-		config:                  _q.config,
-		ctx:                     _q.ctx.Clone(),
-		order:                   append([]repository.OrderOption{}, _q.order...),
-		inters:                  append([]Interceptor{}, _q.inters...),
-		predicates:              append([]predicate.Repository{}, _q.predicates...),
-		withProject:             _q.withProject.Clone(),
-		withExperiments:         _q.withExperiments.Clone(),
-		withExperimentProposals: _q.withExperimentProposals.Clone(),
-		withStudies:             _q.withStudies.Clone(),
+		config:                    _q.config,
+		ctx:                       _q.ctx.Clone(),
+		order:                     append([]repository.OrderOption{}, _q.order...),
+		inters:                    append([]Interceptor{}, _q.inters...),
+		predicates:                append([]predicate.Repository{}, _q.predicates...),
+		withProject:               _q.withProject.Clone(),
+		withImageBakes:            _q.withImageBakes.Clone(),
+		withExperiments:           _q.withExperiments.Clone(),
+		withExperimentProposals:   _q.withExperimentProposals.Clone(),
+		withStudies:               _q.withStudies.Clone(),
+		withExperimentCatalogRows: _q.withExperimentCatalogRows.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -365,6 +415,17 @@ func (_q *RepositoryQuery) WithProject(opts ...func(*ProjectQuery)) *RepositoryQ
 		opt(query)
 	}
 	_q.withProject = query
+	return _q
+}
+
+// WithImageBakes tells the query-builder to eager-load the nodes that are connected to
+// the "image_bakes" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *RepositoryQuery) WithImageBakes(opts ...func(*ImageBakeQuery)) *RepositoryQuery {
+	query := (&ImageBakeClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withImageBakes = query
 	return _q
 }
 
@@ -398,6 +459,17 @@ func (_q *RepositoryQuery) WithStudies(opts ...func(*StudyQuery)) *RepositoryQue
 		opt(query)
 	}
 	_q.withStudies = query
+	return _q
+}
+
+// WithExperimentCatalogRows tells the query-builder to eager-load the nodes that are connected to
+// the "experiment_catalog_rows" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *RepositoryQuery) WithExperimentCatalogRows(opts ...func(*ExperimentCatalogRowQuery)) *RepositoryQuery {
+	query := (&ExperimentCatalogRowClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withExperimentCatalogRows = query
 	return _q
 }
 
@@ -479,11 +551,13 @@ func (_q *RepositoryQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*R
 	var (
 		nodes       = []*Repository{}
 		_spec       = _q.querySpec()
-		loadedTypes = [4]bool{
+		loadedTypes = [6]bool{
 			_q.withProject != nil,
+			_q.withImageBakes != nil,
 			_q.withExperiments != nil,
 			_q.withExperimentProposals != nil,
 			_q.withStudies != nil,
+			_q.withExperimentCatalogRows != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -510,6 +584,13 @@ func (_q *RepositoryQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*R
 			return nil, err
 		}
 	}
+	if query := _q.withImageBakes; query != nil {
+		if err := _q.loadImageBakes(ctx, query, nodes,
+			func(n *Repository) { n.Edges.ImageBakes = []*ImageBake{} },
+			func(n *Repository, e *ImageBake) { n.Edges.ImageBakes = append(n.Edges.ImageBakes, e) }); err != nil {
+			return nil, err
+		}
+	}
 	if query := _q.withExperiments; query != nil {
 		if err := _q.loadExperiments(ctx, query, nodes,
 			func(n *Repository) { n.Edges.Experiments = []*Experiment{} },
@@ -530,6 +611,15 @@ func (_q *RepositoryQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*R
 		if err := _q.loadStudies(ctx, query, nodes,
 			func(n *Repository) { n.Edges.Studies = []*Study{} },
 			func(n *Repository, e *Study) { n.Edges.Studies = append(n.Edges.Studies, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withExperimentCatalogRows; query != nil {
+		if err := _q.loadExperimentCatalogRows(ctx, query, nodes,
+			func(n *Repository) { n.Edges.ExperimentCatalogRows = []*ExperimentCatalogRow{} },
+			func(n *Repository, e *ExperimentCatalogRow) {
+				n.Edges.ExperimentCatalogRows = append(n.Edges.ExperimentCatalogRows, e)
+			}); err != nil {
 			return nil, err
 		}
 	}
@@ -562,6 +652,36 @@ func (_q *RepositoryQuery) loadProject(ctx context.Context, query *ProjectQuery,
 		for i := range nodes {
 			assign(nodes[i], n)
 		}
+	}
+	return nil
+}
+func (_q *RepositoryQuery) loadImageBakes(ctx context.Context, query *ImageBakeQuery, nodes []*Repository, init func(*Repository), assign func(*Repository, *ImageBake)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Repository)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(imagebake.FieldRepositoryID)
+	}
+	query.Where(predicate.ImageBake(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(repository.ImageBakesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.RepositoryID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "repository_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
 	}
 	return nil
 }
@@ -659,6 +779,36 @@ func (_q *RepositoryQuery) loadStudies(ctx context.Context, query *StudyQuery, n
 		node, ok := nodeids[*fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "repository_id" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *RepositoryQuery) loadExperimentCatalogRows(ctx context.Context, query *ExperimentCatalogRowQuery, nodes []*Repository, init func(*Repository), assign func(*Repository, *ExperimentCatalogRow)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Repository)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(experimentcatalogrow.FieldRepositoryID)
+	}
+	query.Where(predicate.ExperimentCatalogRow(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(repository.ExperimentCatalogRowsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.RepositoryID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "repository_id" returned %v for node %v`, fk, n.ID)
 		}
 		assign(node, n)
 	}
