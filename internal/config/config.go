@@ -28,6 +28,7 @@ type Config struct {
 	SelfHostedEnabled        bool
 	SSHCloudEnabled          bool
 	LocalProcessEnabled      bool
+	SkipPassword             bool
 	SchedulerEnabled         bool
 	GlobalConcurrency        int
 	SchedulerPollInterval    time.Duration
@@ -78,6 +79,15 @@ func Load() (Config, error) {
 	schedulerEnabled, err := boolOrDefault("GEMCP_SCHEDULER_ENABLED", localDevelopment)
 	if err != nil {
 		return Config{}, err
+	}
+	// Owner password is a local-dev nuisance switch only. Production and any
+	// misspelled environment keep the check even if the flag is set.
+	skipPassword := false
+	if localDevelopment {
+		skipPassword, err = boolOrDefault("GEMCP_DEV_SKIP_PASSWORD", true)
+		if err != nil {
+			return Config{}, err
+		}
 	}
 	globalConcurrency, err := intOrDefault("GEMCP_GLOBAL_CONCURRENCY", 1)
 	if err != nil {
@@ -150,6 +160,7 @@ func Load() (Config, error) {
 		SelfHostedEnabled:        selfHostedEnabled,
 		SSHCloudEnabled:          sshCloudEnabled,
 		LocalProcessEnabled:      localProcessEnabled,
+		SkipPassword:             skipPassword,
 		SchedulerEnabled:         schedulerEnabled,
 		GlobalConcurrency:        globalConcurrency,
 		SchedulerPollInterval:    schedulerPollInterval,

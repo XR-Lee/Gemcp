@@ -524,6 +524,18 @@ label small { color: #858e88; font-size: 10px; font-weight: 500; }
 .contract-actions span { color: var(--muted); font-size: 12px; line-height: 17px; }
 .graph-link-badge { color: var(--success); font-size: 11px; letter-spacing: 0.02em; }
 .graph-link-badge[data-orphan="true"] { color: var(--accent-deep); }
+.research-catalog { margin-top: 16px; padding: 16px 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; display: grid; gap: 14px; }
+.catalog-repo { display: grid; gap: 10px; }
+.catalog-repo header { display: grid; gap: 4px; }
+.catalog-repo header strong { font-size: 16px; line-height: 22px; }
+.catalog-panels { display: grid; grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.6fr); gap: 12px; }
+.catalog-panel { min-width: 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: #fffdf8; }
+.catalog-panel h3 { margin: 0 0 10px; font-size: 13px; }
+.catalog-panel dl { margin: 0; display: grid; gap: 8px; }
+.catalog-panel dt { color: #778079; font-size: 10px; font-weight: 750; text-transform: uppercase; }
+.catalog-panel dd { margin: 2px 0 0; color: #3e4842; font-size: 12px; overflow-wrap: anywhere; }
+.catalog-table td { white-space: normal; max-width: 220px; height: auto; vertical-align: top; overflow-wrap: anywhere; }
+.catalog-empty { margin: 0; color: #717b74; font-size: 12px; }
 .research-hypotheses { margin-top: 16px; padding: 16px 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; display: grid; gap: 12px; }
 .research-hypotheses .section-heading { margin-bottom: 4px; }
 .hypothesis-card { padding: 14px 16px; border: 1px solid var(--line); border-radius: 10px; background: #fffdf8; display: grid; gap: 10px; }
@@ -1065,6 +1077,7 @@ label small { color: #858e88; font-size: 10px; font-weight: 500; }
   .research-heading { padding: 14px; }
   .research-heading-actions { width: 100%; flex-wrap: wrap; }
   .research-summary { grid-template-columns: 1fr; }
+  .catalog-panels { grid-template-columns: 1fr; }
   .graph-shell { height: 360px; max-height: 360px; }
   .graph-shell.is-fullscreen { height: 100dvh; max-height: none; }
   .graph-stage:has(.graph-detail) { grid-template-columns: 1fr; }

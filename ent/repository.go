@@ -55,15 +55,19 @@ type Repository struct {
 type RepositoryEdges struct {
 	// Project holds the value of the project edge.
 	Project *Project `json:"project,omitempty"`
+	// ImageBakes holds the value of the image_bakes edge.
+	ImageBakes []*ImageBake `json:"image_bakes,omitempty"`
 	// Experiments holds the value of the experiments edge.
 	Experiments []*Experiment `json:"experiments,omitempty"`
 	// ExperimentProposals holds the value of the experiment_proposals edge.
 	ExperimentProposals []*ExperimentProposal `json:"experiment_proposals,omitempty"`
 	// Studies holds the value of the studies edge.
 	Studies []*Study `json:"studies,omitempty"`
+	// ExperimentCatalogRows holds the value of the experiment_catalog_rows edge.
+	ExperimentCatalogRows []*ExperimentCatalogRow `json:"experiment_catalog_rows,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [4]bool
+	loadedTypes [6]bool
 }
 
 // ProjectOrErr returns the Project value or an error if the edge
@@ -77,10 +81,19 @@ func (e RepositoryEdges) ProjectOrErr() (*Project, error) {
 	return nil, &NotLoadedError{edge: "project"}
 }
 
+// ImageBakesOrErr returns the ImageBakes value or an error if the edge
+// was not loaded in eager-loading.
+func (e RepositoryEdges) ImageBakesOrErr() ([]*ImageBake, error) {
+	if e.loadedTypes[1] {
+		return e.ImageBakes, nil
+	}
+	return nil, &NotLoadedError{edge: "image_bakes"}
+}
+
 // ExperimentsOrErr returns the Experiments value or an error if the edge
 // was not loaded in eager-loading.
 func (e RepositoryEdges) ExperimentsOrErr() ([]*Experiment, error) {
-	if e.loadedTypes[1] {
+	if e.loadedTypes[2] {
 		return e.Experiments, nil
 	}
 	return nil, &NotLoadedError{edge: "experiments"}
@@ -89,7 +102,7 @@ func (e RepositoryEdges) ExperimentsOrErr() ([]*Experiment, error) {
 // ExperimentProposalsOrErr returns the ExperimentProposals value or an error if the edge
 // was not loaded in eager-loading.
 func (e RepositoryEdges) ExperimentProposalsOrErr() ([]*ExperimentProposal, error) {
-	if e.loadedTypes[2] {
+	if e.loadedTypes[3] {
 		return e.ExperimentProposals, nil
 	}
 	return nil, &NotLoadedError{edge: "experiment_proposals"}
@@ -98,10 +111,19 @@ func (e RepositoryEdges) ExperimentProposalsOrErr() ([]*ExperimentProposal, erro
 // StudiesOrErr returns the Studies value or an error if the edge
 // was not loaded in eager-loading.
 func (e RepositoryEdges) StudiesOrErr() ([]*Study, error) {
-	if e.loadedTypes[3] {
+	if e.loadedTypes[4] {
 		return e.Studies, nil
 	}
 	return nil, &NotLoadedError{edge: "studies"}
+}
+
+// ExperimentCatalogRowsOrErr returns the ExperimentCatalogRows value or an error if the edge
+// was not loaded in eager-loading.
+func (e RepositoryEdges) ExperimentCatalogRowsOrErr() ([]*ExperimentCatalogRow, error) {
+	if e.loadedTypes[5] {
+		return e.ExperimentCatalogRows, nil
+	}
+	return nil, &NotLoadedError{edge: "experiment_catalog_rows"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -235,6 +257,11 @@ func (_m *Repository) QueryProject() *ProjectQuery {
 	return NewRepositoryClient(_m.config).QueryProject(_m)
 }
 
+// QueryImageBakes queries the "image_bakes" edge of the Repository entity.
+func (_m *Repository) QueryImageBakes() *ImageBakeQuery {
+	return NewRepositoryClient(_m.config).QueryImageBakes(_m)
+}
+
 // QueryExperiments queries the "experiments" edge of the Repository entity.
 func (_m *Repository) QueryExperiments() *ExperimentQuery {
 	return NewRepositoryClient(_m.config).QueryExperiments(_m)
@@ -248,6 +275,11 @@ func (_m *Repository) QueryExperimentProposals() *ExperimentProposalQuery {
 // QueryStudies queries the "studies" edge of the Repository entity.
 func (_m *Repository) QueryStudies() *StudyQuery {
 	return NewRepositoryClient(_m.config).QueryStudies(_m)
+}
+
+// QueryExperimentCatalogRows queries the "experiment_catalog_rows" edge of the Repository entity.
+func (_m *Repository) QueryExperimentCatalogRows() *ExperimentCatalogRowQuery {
+	return NewRepositoryClient(_m.config).QueryExperimentCatalogRows(_m)
 }
 
 // Update returns a builder for updating this Repository.

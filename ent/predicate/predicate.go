@@ -42,11 +42,17 @@ type Environment func(*sql.Selector)
 // Experiment is the predicate function for experiment builders.
 type Experiment func(*sql.Selector)
 
+// ExperimentCatalogRow is the predicate function for experimentcatalogrow builders.
+type ExperimentCatalogRow func(*sql.Selector)
+
 // ExperimentProposal is the predicate function for experimentproposal builders.
 type ExperimentProposal func(*sql.Selector)
 
 // IdempotencyRecord is the predicate function for idempotencyrecord builders.
 type IdempotencyRecord func(*sql.Selector)
+
+// ImageBake is the predicate function for imagebake builders.
+type ImageBake func(*sql.Selector)
 
 // IterationPlan is the predicate function for iterationplan builders.
 type IterationPlan func(*sql.Selector)

@@ -17,6 +17,7 @@ func TestLoadDefaults(t *testing.T) {
 	t.Setenv("GEMCP_SCHEDULER_ENABLED", "")
 	t.Setenv("GEMCP_LOCAL_PROCESS_ENABLED", "")
 	t.Setenv("GEMCP_SSH_CLOUD_ENABLED", "")
+	t.Setenv("GEMCP_DEV_SKIP_PASSWORD", "")
 
 	cfg, err := Load()
 	if err != nil {
@@ -39,6 +40,9 @@ func TestLoadDefaults(t *testing.T) {
 	}
 	if cfg.PublicURL != "http://127.0.0.1:8080" {
 		t.Fatalf("development PublicURL = %q", cfg.PublicURL)
+	}
+	if !cfg.SkipPassword {
+		t.Fatal("development SkipPassword defaulted to false")
 	}
 }
 
@@ -64,6 +68,21 @@ func TestLoadProductionDefaultsDisableAutoMigrate(t *testing.T) {
 	}
 	if cfg.AutoMigrate {
 		t.Fatal("production AutoMigrate defaulted to true")
+	}
+	if cfg.SkipPassword {
+		t.Fatal("production SkipPassword defaulted to true")
+	}
+}
+
+func TestProductionIgnoresDevSkipPassword(t *testing.T) {
+	t.Setenv("GEMCP_ENV", "production")
+	t.Setenv("GEMCP_DEV_SKIP_PASSWORD", "true")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.SkipPassword {
+		t.Fatal("production honored GEMCP_DEV_SKIP_PASSWORD")
 	}
 }
 
@@ -179,11 +198,12 @@ func TestNonDevelopmentEnvironmentsStayOptIn(t *testing.T) {
 		t.Setenv("GEMCP_SSH_CLOUD_ENABLED", "")
 		t.Setenv("GEMCP_LOCAL_PROCESS_ENABLED", "")
 		t.Setenv("GEMCP_SCHEDULER_ENABLED", "")
+		t.Setenv("GEMCP_DEV_SKIP_PASSWORD", "")
 		cfg, err := Load()
 		if err != nil {
 			t.Fatal(err)
 		}
-		if cfg.AutoMigrate || cfg.SSHCloudEnabled || cfg.LocalProcessEnabled || cfg.SchedulerEnabled {
+		if cfg.AutoMigrate || cfg.SSHCloudEnabled || cfg.LocalProcessEnabled || cfg.SchedulerEnabled || cfg.SkipPassword {
 			t.Fatalf("%q must not default powerful capabilities on: %+v", environment, cfg)
 		}
 	}

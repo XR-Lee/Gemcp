@@ -20,7 +20,9 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/diagnosticrun"
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/experimentcatalogrow"
 	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
+	"github.com/XR-Lee/Gemcp/ent/imagebake"
 	"github.com/XR-Lee/Gemcp/ent/iterationplan"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/nodeprojectaccess"
@@ -414,6 +416,21 @@ func (_c *ProjectCreate) AddDiagnosticRuns(v ...*DiagnosticRun) *ProjectCreate {
 	return _c.AddDiagnosticRunIDs(ids...)
 }
 
+// AddImageBakeIDs adds the "image_bakes" edge to the ImageBake entity by IDs.
+func (_c *ProjectCreate) AddImageBakeIDs(ids ...int) *ProjectCreate {
+	_c.mutation.AddImageBakeIDs(ids...)
+	return _c
+}
+
+// AddImageBakes adds the "image_bakes" edges to the ImageBake entity.
+func (_c *ProjectCreate) AddImageBakes(v ...*ImageBake) *ProjectCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddImageBakeIDs(ids...)
+}
+
 // AddExperimentProposalIDs adds the "experiment_proposals" edge to the ExperimentProposal entity by IDs.
 func (_c *ProjectCreate) AddExperimentProposalIDs(ids ...int) *ProjectCreate {
 	_c.mutation.AddExperimentProposalIDs(ids...)
@@ -517,6 +534,21 @@ func (_c *ProjectCreate) AddResearchEdges(v ...*ResearchEdge) *ProjectCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddResearchEdgeIDs(ids...)
+}
+
+// AddExperimentCatalogRowIDs adds the "experiment_catalog_rows" edge to the ExperimentCatalogRow entity by IDs.
+func (_c *ProjectCreate) AddExperimentCatalogRowIDs(ids ...int) *ProjectCreate {
+	_c.mutation.AddExperimentCatalogRowIDs(ids...)
+	return _c
+}
+
+// AddExperimentCatalogRows adds the "experiment_catalog_rows" edges to the ExperimentCatalogRow entity.
+func (_c *ProjectCreate) AddExperimentCatalogRows(v ...*ExperimentCatalogRow) *ProjectCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddExperimentCatalogRowIDs(ids...)
 }
 
 // Mutation returns the ProjectMutation object of the builder.
@@ -1008,6 +1040,22 @@ func (_c *ProjectCreate) createSpec() (*Project, *sqlgraph.CreateSpec) {
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
+	if nodes := _c.mutation.ImageBakesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.ImageBakesTable,
+			Columns: []string{project.ImageBakesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(imagebake.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
 	if nodes := _c.mutation.ExperimentProposalsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -1113,6 +1161,22 @@ func (_c *ProjectCreate) createSpec() (*Project, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(researchedge.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ExperimentCatalogRowsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.ExperimentCatalogRowsTable,
+			Columns: []string{project.ExperimentCatalogRowsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentcatalogrow.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { Eye, EyeOff, LoaderCircle, LogIn } from '@lucide/vue'
 import { APIError, api, type BuildInfo, type User } from '../api'
 import { useI18n } from '../i18n'
@@ -14,6 +14,7 @@ const password = ref('')
 const showPassword = ref(false)
 const submitting = ref(false)
 const error = ref('')
+const passwordRequired = computed(() => props.build?.password_required !== false)
 const { t } = useI18n()
 
 async function login() {
@@ -45,7 +46,7 @@ async function login() {
       </div>
       <form @submit.prevent="login">
         <label>{{ t('Email', '邮箱') }}<input v-model="email" type="email" autocomplete="username" required autofocus /></label>
-        <label>{{ t('Password', '密码') }}<span class="password-field"><input v-model="password" :type="showPassword ? 'text' : 'password'" autocomplete="current-password" required /><button type="button" :title="showPassword ? t('Hide password', '隐藏密码') : t('Show password', '显示密码')" @click="showPassword = !showPassword"><EyeOff v-if="showPassword" :size="17" /><Eye v-else :size="17" /></button></span></label>
+        <label v-if="passwordRequired">{{ t('Password', '密码') }}<span class="password-field"><input v-model="password" :type="showPassword ? 'text' : 'password'" autocomplete="current-password" required /><button type="button" :title="showPassword ? t('Hide password', '隐藏密码') : t('Show password', '显示密码')" @click="showPassword = !showPassword"><EyeOff v-if="showPassword" :size="17" /><Eye v-else :size="17" /></button></span></label>
         <div v-if="error" class="form-error" role="alert">{{ error }}</div>
         <button class="primary-button auth-submit" type="submit" :disabled="submitting">
           <LoaderCircle v-if="submitting" :size="16" class="spinning" /><LogIn v-else :size="16" />{{ t('Sign in', '登录') }}

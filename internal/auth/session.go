@@ -19,10 +19,21 @@ var ErrInvalidSession = errors.New("invalid or expired session")
 var ErrInvalidCSRF = errors.New("invalid CSRF token")
 
 type Service struct {
-	client *ent.Client
-	box    *secrets.Box
-	ttl    time.Duration
-	now    func() time.Time
+	client       *ent.Client
+	box          *secrets.Box
+	ttl          time.Duration
+	now          func() time.Time
+	skipPassword bool
+}
+
+type ServiceOption func(*Service)
+
+func WithSkipPassword(skip bool) ServiceOption {
+	return func(service *Service) {
+		if service != nil {
+			service.skipPassword = skip
+		}
+	}
 }
 
 type SessionCredentials struct {
@@ -42,11 +53,19 @@ type Principal struct {
 	SessionID      int    `json:"-"`
 }
 
-func NewService(client *ent.Client, box *secrets.Box, ttl time.Duration) *Service {
+func NewService(client *ent.Client, box *secrets.Box, ttl time.Duration, options ...ServiceOption) *Service {
 	if ttl <= 0 {
 		ttl = 12 * time.Hour
 	}
-	return &Service{client: client, box: box, ttl: ttl, now: time.Now}
+	service := &Service{client: client, box: box, ttl: ttl, now: time.Now}
+	for _, option := range options {
+		option(service)
+	}
+	return service
+}
+
+func (s *Service) SkipPassword() bool {
+	return s != nil && s.skipPassword
 }
 
 func (s *Service) Login(ctx context.Context, email, password string) (SessionCredentials, error) {
@@ -64,7 +83,7 @@ func (s *Service) Login(ctx context.Context, email, password string) (SessionCre
 		}
 		return credentials, fmt.Errorf("query owner: %w", err)
 	}
-	if !VerifyPassword(account.PasswordHash, password) {
+	if !s.skipPassword && !VerifyPassword(account.PasswordHash, password) {
 		return credentials, ErrInvalidCredentials
 	}
 

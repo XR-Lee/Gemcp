@@ -5,7 +5,7 @@ This document is for an AI or automation Agent connected to a Gemcp MCP server. 
 ## Non-negotiable rules
 
 1. Treat the Agent Token as a secret. Never print it, commit it, place it in experiment arguments, or include it in chat or logs.
-2. Treat the research Graph as the execution contract ([Hypothesis–experiment Graph contract](../docs/graph-contract.md)). Call `get_next_actions` before spending. Keep the Owner-facing Study current with `get_research_workspace`. Never place prompts, private reasoning, credentials, or environment dumps in research text. Recording a Graph node never starts a workload.
+2. Treat the research Graph as the execution contract ([Hypothesis–experiment Graph contract](../docs/graph-contract.md)). Call `get_next_actions` before spending. Keep the Owner-facing Study current with `get_research_workspace`. For a registered GitHub repository, extract raw experiment rows from distinct research branches into `record_experiment_catalog` (Setting, 方法, 实现, metric, 结果, link, hash) and confirm with `get_experiment_catalog`. That catalog is table-ready evidence, not the Graph, and never starts a workload. Never place prompts, private reasoning, credentials, or environment dumps in research text. Recording a Graph node never starts a workload.
 3. Report controlled workflow transitions with `report_agent_activity`. Never send prompts, private reasoning, arbitrary free text, environment variables, credentials, or source contents as activity.
 4. Use `prepare_experiment` as the normal execution path. Let Gemcp resolve the repository, moving ref, full commit SHA, compatible defaults, preflight checks, cost, and idempotency.
 5. Submit normal workloads as an ordered `argv`. Do not wrap it in a shell, add output-path wrappers, or interpolate typed values into shell text.
@@ -35,7 +35,7 @@ A 401 response means the Token is missing, malformed, expired, revoked, or no lo
 
 ## Project configuration scope
 
-The optional `configure` scope lets an Agent maintain bounded inputs inside its authenticated Project. It does not authorize paid execution, a new host workspace root, arbitrary mounts, Provider access, or cross-Project changes.
+The optional `configure` scope lets an Agent maintain bounded inputs inside its authenticated Project. It does not authorize paid execution, a new host workspace root, arbitrary mounts, Provider access, or cross-Project changes. `request_image_bake` writes a zero-cost requested bake; Owner digest confirmation in the Lab Images workspace is the only start of AutoDL Pro. There is no MCP tool that starts Pro.
 
 To onboard a GitHub SSH repository:
 
@@ -79,6 +79,8 @@ Cloud SSH injects `GEMCP_DATASET_*` for already-present host paths. It does not 
 ## Research workspace
 
 The Owner console starts from a Study, an iteration plan, and a research Graph. Infrastructure remains in a separate Lab layer. Call `get_next_actions` and `get_research_workspace` before preparing work. After a terminal Experiment, call `close_run` instead of free-form result nodes.
+
+Registered GitHub repositories also have a bounded **experiment catalog**, separate from the 128-node Graph. Walk research branches (`autoresearch/*`, documented tags, result writeups, `EXPERIMENTS.md`, `experiment_graph.yaml`) and persist one row per distinct Setting with `record_experiment_catalog`. Copy numbers from the checkout; do not invent metrics. Each row must include Setting, 方法 (`method`), 实现 (`implementation`), metric, 结果 (`result`), link, and hash. `get_experiment_catalog` returns the same rows plus the repository registration (`ssh_url`, default branch, status, last verified) for the Owner panel. Catalog writes never start a workload and never create an Experiment, Proposal, or budget reservation.
 
 A typical update is:
 
@@ -279,10 +281,15 @@ The optional context is limited to repository remote, ref, and Experiment ID. `m
 | `remove_dataset_binding` | Disable a dataset binding without deleting data | `configure` |
 | `register_environment` | Register a Provider-visible AutoDL image as a Project Environment | `configure` |
 | `remove_environment` | Disable a Project Environment | `configure` |
+| `request_image_bake` | Request a zero-cost AutoDL Pro image bake; does not create a Pro instance | `configure` |
+| `get_image_bake` | Get one image bake, including a finished `image_uuid` | `read` |
+| `list_image_bakes` | List recent Project image bakes | `read` |
 | `get_research_workspace` | Return Studies, the selected plan, Graph, hypothesis records, and next actions | `read` |
 | `update_research_workspace` | Create or update a Study, plan, or Graph node without starting a workload | `submit` |
 | `get_next_actions` | Propose the next decision or Experiment from the hypothesis and its evidence | `read` |
 | `close_run` | Write a result and a highlight observation on a terminal Experiment that already has a run | `submit` |
+| `get_experiment_catalog` | Return registered repository identity and extracted experiment catalog rows | `read` |
+| `record_experiment_catalog` | Persist research-branch experiment rows (Setting, 方法, 实现, metric, 结果, link, hash) without starting a workload | `submit` |
 | `report_agent_activity` | Report a controlled workflow phase without prompts or reasoning | `submit` |
 | `prepare_experiment` | Resolve a zero-cost argv proposal; bind a connected `from_node_id` into the digest when a Study exists | `submit` |
 | `submit_prepared_experiment` | Submit one confirmed proposal and bind its Graph run node | `submit` |

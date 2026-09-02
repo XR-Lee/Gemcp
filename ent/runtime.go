@@ -17,8 +17,10 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/diagnosticrun"
 	"github.com/XR-Lee/Gemcp/ent/environment"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/experimentcatalogrow"
 	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
+	"github.com/XR-Lee/Gemcp/ent/imagebake"
 	"github.com/XR-Lee/Gemcp/ent/iterationplan"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/nodecommand"
@@ -792,6 +794,127 @@ func init() {
 	experimentDescNextAttemptAt := experimentFields[37].Descriptor()
 	// experiment.DefaultNextAttemptAt holds the default value on creation for the next_attempt_at field.
 	experiment.DefaultNextAttemptAt = experimentDescNextAttemptAt.Default.(func() time.Time)
+	experimentcatalogrowMixin := schema.ExperimentCatalogRow{}.Mixin()
+	experimentcatalogrowMixinFields0 := experimentcatalogrowMixin[0].Fields()
+	_ = experimentcatalogrowMixinFields0
+	experimentcatalogrowFields := schema.ExperimentCatalogRow{}.Fields()
+	_ = experimentcatalogrowFields
+	// experimentcatalogrowDescPublicID is the schema descriptor for public_id field.
+	experimentcatalogrowDescPublicID := experimentcatalogrowMixinFields0[0].Descriptor()
+	// experimentcatalogrow.DefaultPublicID holds the default value on creation for the public_id field.
+	experimentcatalogrow.DefaultPublicID = experimentcatalogrowDescPublicID.Default.(func() uuid.UUID)
+	// experimentcatalogrowDescCreatedAt is the schema descriptor for created_at field.
+	experimentcatalogrowDescCreatedAt := experimentcatalogrowMixinFields0[1].Descriptor()
+	// experimentcatalogrow.DefaultCreatedAt holds the default value on creation for the created_at field.
+	experimentcatalogrow.DefaultCreatedAt = experimentcatalogrowDescCreatedAt.Default.(func() time.Time)
+	// experimentcatalogrowDescUpdatedAt is the schema descriptor for updated_at field.
+	experimentcatalogrowDescUpdatedAt := experimentcatalogrowMixinFields0[2].Descriptor()
+	// experimentcatalogrow.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	experimentcatalogrow.DefaultUpdatedAt = experimentcatalogrowDescUpdatedAt.Default.(func() time.Time)
+	// experimentcatalogrow.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	experimentcatalogrow.UpdateDefaultUpdatedAt = experimentcatalogrowDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// experimentcatalogrowDescBranch is the schema descriptor for branch field.
+	experimentcatalogrowDescBranch := experimentcatalogrowFields[4].Descriptor()
+	// experimentcatalogrow.BranchValidator is a validator for the "branch" field. It is called by the builders before save.
+	experimentcatalogrow.BranchValidator = func() func(string) error {
+		validators := experimentcatalogrowDescBranch.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(branch string) error {
+			for _, fn := range fns {
+				if err := fn(branch); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// experimentcatalogrowDescSetting is the schema descriptor for setting field.
+	experimentcatalogrowDescSetting := experimentcatalogrowFields[5].Descriptor()
+	// experimentcatalogrow.SettingValidator is a validator for the "setting" field. It is called by the builders before save.
+	experimentcatalogrow.SettingValidator = func() func(string) error {
+		validators := experimentcatalogrowDescSetting.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(setting string) error {
+			for _, fn := range fns {
+				if err := fn(setting); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// experimentcatalogrowDescMethod is the schema descriptor for method field.
+	experimentcatalogrowDescMethod := experimentcatalogrowFields[6].Descriptor()
+	// experimentcatalogrow.MethodValidator is a validator for the "method" field. It is called by the builders before save.
+	experimentcatalogrow.MethodValidator = func() func(string) error {
+		validators := experimentcatalogrowDescMethod.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(method string) error {
+			for _, fn := range fns {
+				if err := fn(method); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// experimentcatalogrowDescImplementation is the schema descriptor for implementation field.
+	experimentcatalogrowDescImplementation := experimentcatalogrowFields[7].Descriptor()
+	// experimentcatalogrow.ImplementationValidator is a validator for the "implementation" field. It is called by the builders before save.
+	experimentcatalogrow.ImplementationValidator = experimentcatalogrowDescImplementation.Validators[0].(func(string) error)
+	// experimentcatalogrowDescMetric is the schema descriptor for metric field.
+	experimentcatalogrowDescMetric := experimentcatalogrowFields[8].Descriptor()
+	// experimentcatalogrow.MetricValidator is a validator for the "metric" field. It is called by the builders before save.
+	experimentcatalogrow.MetricValidator = func() func(string) error {
+		validators := experimentcatalogrowDescMetric.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(metric string) error {
+			for _, fn := range fns {
+				if err := fn(metric); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// experimentcatalogrowDescResult is the schema descriptor for result field.
+	experimentcatalogrowDescResult := experimentcatalogrowFields[9].Descriptor()
+	// experimentcatalogrow.ResultValidator is a validator for the "result" field. It is called by the builders before save.
+	experimentcatalogrow.ResultValidator = experimentcatalogrowDescResult.Validators[0].(func(string) error)
+	// experimentcatalogrowDescLink is the schema descriptor for link field.
+	experimentcatalogrowDescLink := experimentcatalogrowFields[10].Descriptor()
+	// experimentcatalogrow.LinkValidator is a validator for the "link" field. It is called by the builders before save.
+	experimentcatalogrow.LinkValidator = experimentcatalogrowDescLink.Validators[0].(func(string) error)
+	// experimentcatalogrowDescCommitHash is the schema descriptor for commit_hash field.
+	experimentcatalogrowDescCommitHash := experimentcatalogrowFields[11].Descriptor()
+	// experimentcatalogrow.CommitHashValidator is a validator for the "commit_hash" field. It is called by the builders before save.
+	experimentcatalogrow.CommitHashValidator = func() func(string) error {
+		validators := experimentcatalogrowDescCommitHash.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(commit_hash string) error {
+			for _, fn := range fns {
+				if err := fn(commit_hash); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
 	experimentproposalMixin := schema.ExperimentProposal{}.Mixin()
 	experimentproposalMixinFields0 := experimentproposalMixin[0].Fields()
 	_ = experimentproposalMixinFields0
@@ -906,6 +1029,161 @@ func init() {
 	idempotencyrecord.DefaultUpdatedAt = idempotencyrecordDescUpdatedAt.Default.(func() time.Time)
 	// idempotencyrecord.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	idempotencyrecord.UpdateDefaultUpdatedAt = idempotencyrecordDescUpdatedAt.UpdateDefault.(func() time.Time)
+	imagebakeMixin := schema.ImageBake{}.Mixin()
+	imagebakeMixinFields0 := imagebakeMixin[0].Fields()
+	_ = imagebakeMixinFields0
+	imagebakeFields := schema.ImageBake{}.Fields()
+	_ = imagebakeFields
+	// imagebakeDescPublicID is the schema descriptor for public_id field.
+	imagebakeDescPublicID := imagebakeMixinFields0[0].Descriptor()
+	// imagebake.DefaultPublicID holds the default value on creation for the public_id field.
+	imagebake.DefaultPublicID = imagebakeDescPublicID.Default.(func() uuid.UUID)
+	// imagebakeDescCreatedAt is the schema descriptor for created_at field.
+	imagebakeDescCreatedAt := imagebakeMixinFields0[1].Descriptor()
+	// imagebake.DefaultCreatedAt holds the default value on creation for the created_at field.
+	imagebake.DefaultCreatedAt = imagebakeDescCreatedAt.Default.(func() time.Time)
+	// imagebakeDescUpdatedAt is the schema descriptor for updated_at field.
+	imagebakeDescUpdatedAt := imagebakeMixinFields0[2].Descriptor()
+	// imagebake.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	imagebake.DefaultUpdatedAt = imagebakeDescUpdatedAt.Default.(func() time.Time)
+	// imagebake.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	imagebake.UpdateDefaultUpdatedAt = imagebakeDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// imagebakeDescName is the schema descriptor for name field.
+	imagebakeDescName := imagebakeFields[4].Descriptor()
+	// imagebake.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	imagebake.NameValidator = func() func(string) error {
+		validators := imagebakeDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// imagebakeDescBaseImageUUID is the schema descriptor for base_image_uuid field.
+	imagebakeDescBaseImageUUID := imagebakeFields[5].Descriptor()
+	// imagebake.BaseImageUUIDValidator is a validator for the "base_image_uuid" field. It is called by the builders before save.
+	imagebake.BaseImageUUIDValidator = func() func(string) error {
+		validators := imagebakeDescBaseImageUUID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(base_image_uuid string) error {
+			for _, fn := range fns {
+				if err := fn(base_image_uuid); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// imagebakeDescCommitSha is the schema descriptor for commit_sha field.
+	imagebakeDescCommitSha := imagebakeFields[6].Descriptor()
+	// imagebake.CommitShaValidator is a validator for the "commit_sha" field. It is called by the builders before save.
+	imagebake.CommitShaValidator = func() func(string) error {
+		validators := imagebakeDescCommitSha.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(commit_sha string) error {
+			for _, fn := range fns {
+				if err := fn(commit_sha); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// imagebakeDescRecipePath is the schema descriptor for recipe_path field.
+	imagebakeDescRecipePath := imagebakeFields[7].Descriptor()
+	// imagebake.DefaultRecipePath holds the default value on creation for the recipe_path field.
+	imagebake.DefaultRecipePath = imagebakeDescRecipePath.Default.(string)
+	// imagebake.RecipePathValidator is a validator for the "recipe_path" field. It is called by the builders before save.
+	imagebake.RecipePathValidator = func() func(string) error {
+		validators := imagebakeDescRecipePath.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(recipe_path string) error {
+			for _, fn := range fns {
+				if err := fn(recipe_path); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// imagebakeDescConfirmationDigest is the schema descriptor for confirmation_digest field.
+	imagebakeDescConfirmationDigest := imagebakeFields[9].Descriptor()
+	// imagebake.ConfirmationDigestValidator is a validator for the "confirmation_digest" field. It is called by the builders before save.
+	imagebake.ConfirmationDigestValidator = func() func(string) error {
+		validators := imagebakeDescConfirmationDigest.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(confirmation_digest string) error {
+			for _, fn := range fns {
+				if err := fn(confirmation_digest); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// imagebakeDescRequestedBy is the schema descriptor for requested_by field.
+	imagebakeDescRequestedBy := imagebakeFields[10].Descriptor()
+	// imagebake.RequestedByValidator is a validator for the "requested_by" field. It is called by the builders before save.
+	imagebake.RequestedByValidator = func() func(string) error {
+		validators := imagebakeDescRequestedBy.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(requested_by string) error {
+			for _, fn := range fns {
+				if err := fn(requested_by); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// imagebakeDescConfirmedBy is the schema descriptor for confirmed_by field.
+	imagebakeDescConfirmedBy := imagebakeFields[12].Descriptor()
+	// imagebake.ConfirmedByValidator is a validator for the "confirmed_by" field. It is called by the builders before save.
+	imagebake.ConfirmedByValidator = imagebakeDescConfirmedBy.Validators[0].(func(string) error)
+	// imagebakeDescImageUUID is the schema descriptor for image_uuid field.
+	imagebakeDescImageUUID := imagebakeFields[14].Descriptor()
+	// imagebake.ImageUUIDValidator is a validator for the "image_uuid" field. It is called by the builders before save.
+	imagebake.ImageUUIDValidator = imagebakeDescImageUUID.Validators[0].(func(string) error)
+	// imagebakeDescInstanceUUID is the schema descriptor for instance_uuid field.
+	imagebakeDescInstanceUUID := imagebakeFields[15].Descriptor()
+	// imagebake.InstanceUUIDValidator is a validator for the "instance_uuid" field. It is called by the builders before save.
+	imagebake.InstanceUUIDValidator = imagebakeDescInstanceUUID.Validators[0].(func(string) error)
+	// imagebakeDescFailureReason is the schema descriptor for failure_reason field.
+	imagebakeDescFailureReason := imagebakeFields[16].Descriptor()
+	// imagebake.FailureReasonValidator is a validator for the "failure_reason" field. It is called by the builders before save.
+	imagebake.FailureReasonValidator = imagebakeDescFailureReason.Validators[0].(func(string) error)
+	// imagebakeDescProposal is the schema descriptor for proposal field.
+	imagebakeDescProposal := imagebakeFields[17].Descriptor()
+	// imagebake.DefaultProposal holds the default value on creation for the proposal field.
+	imagebake.DefaultProposal = imagebakeDescProposal.Default.(map[string]interface{})
+	// imagebakeDescEstimatedCostMilli is the schema descriptor for estimated_cost_milli field.
+	imagebakeDescEstimatedCostMilli := imagebakeFields[18].Descriptor()
+	// imagebake.DefaultEstimatedCostMilli holds the default value on creation for the estimated_cost_milli field.
+	imagebake.DefaultEstimatedCostMilli = imagebakeDescEstimatedCostMilli.Default.(int64)
+	// imagebake.EstimatedCostMilliValidator is a validator for the "estimated_cost_milli" field. It is called by the builders before save.
+	imagebake.EstimatedCostMilliValidator = imagebakeDescEstimatedCostMilli.Validators[0].(func(int64) error)
 	iterationplanMixin := schema.IterationPlan{}.Mixin()
 	iterationplanMixinFields0 := iterationplanMixin[0].Fields()
 	_ = iterationplanMixinFields0

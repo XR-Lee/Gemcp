@@ -120,3 +120,14 @@ type ProInstance struct {
 	StartedAt    *time.Time `json:"-"`
 	ProviderData any        `json:"-"`
 }
+
+type ProInstanceCreate struct {
+	Name      string `json:"name"`
+	ImageUUID string `json:"image_uuid"`
+	Command   string `json:"cmd,omitempty"`
+}
+
+type ProImageSave struct {
+	InstanceUUID string `json:"instance_uuid"`
+	Name         string `json:"name"`
+}

@@ -85,6 +85,8 @@ type ProjectEdges struct {
 	CloudSSHAssignments []*CloudSSHAssignment `json:"cloud_ssh_assignments,omitempty"`
 	// DiagnosticRuns holds the value of the diagnostic_runs edge.
 	DiagnosticRuns []*DiagnosticRun `json:"diagnostic_runs,omitempty"`
+	// ImageBakes holds the value of the image_bakes edge.
+	ImageBakes []*ImageBake `json:"image_bakes,omitempty"`
 	// ExperimentProposals holds the value of the experiment_proposals edge.
 	ExperimentProposals []*ExperimentProposal `json:"experiment_proposals,omitempty"`
 	// WorkspaceDatasets holds the value of the workspace_datasets edge.
@@ -99,9 +101,11 @@ type ProjectEdges struct {
 	ResearchNodes []*ResearchNode `json:"research_nodes,omitempty"`
 	// ResearchEdges holds the value of the research_edges edge.
 	ResearchEdges []*ResearchEdge `json:"research_edges,omitempty"`
+	// ExperimentCatalogRows holds the value of the experiment_catalog_rows edge.
+	ExperimentCatalogRows []*ExperimentCatalogRow `json:"experiment_catalog_rows,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [22]bool
+	loadedTypes [24]bool
 }
 
 // TenantOrErr returns the Tenant value or an error if the edge
@@ -241,10 +245,19 @@ func (e ProjectEdges) DiagnosticRunsOrErr() ([]*DiagnosticRun, error) {
 	return nil, &NotLoadedError{edge: "diagnostic_runs"}
 }
 
+// ImageBakesOrErr returns the ImageBakes value or an error if the edge
+// was not loaded in eager-loading.
+func (e ProjectEdges) ImageBakesOrErr() ([]*ImageBake, error) {
+	if e.loadedTypes[15] {
+		return e.ImageBakes, nil
+	}
+	return nil, &NotLoadedError{edge: "image_bakes"}
+}
+
 // ExperimentProposalsOrErr returns the ExperimentProposals value or an error if the edge
 // was not loaded in eager-loading.
 func (e ProjectEdges) ExperimentProposalsOrErr() ([]*ExperimentProposal, error) {
-	if e.loadedTypes[15] {
+	if e.loadedTypes[16] {
 		return e.ExperimentProposals, nil
 	}
 	return nil, &NotLoadedError{edge: "experiment_proposals"}
@@ -253,7 +266,7 @@ func (e ProjectEdges) ExperimentProposalsOrErr() ([]*ExperimentProposal, error) 
 // WorkspaceDatasetsOrErr returns the WorkspaceDatasets value or an error if the edge
 // was not loaded in eager-loading.
 func (e ProjectEdges) WorkspaceDatasetsOrErr() ([]*WorkspaceDataset, error) {
-	if e.loadedTypes[16] {
+	if e.loadedTypes[17] {
 		return e.WorkspaceDatasets, nil
 	}
 	return nil, &NotLoadedError{edge: "workspace_datasets"}
@@ -262,7 +275,7 @@ func (e ProjectEdges) WorkspaceDatasetsOrErr() ([]*WorkspaceDataset, error) {
 // DatasetBindingsOrErr returns the DatasetBindings value or an error if the edge
 // was not loaded in eager-loading.
 func (e ProjectEdges) DatasetBindingsOrErr() ([]*DatasetBinding, error) {
-	if e.loadedTypes[17] {
+	if e.loadedTypes[18] {
 		return e.DatasetBindings, nil
 	}
 	return nil, &NotLoadedError{edge: "dataset_bindings"}
@@ -271,7 +284,7 @@ func (e ProjectEdges) DatasetBindingsOrErr() ([]*DatasetBinding, error) {
 // StudiesOrErr returns the Studies value or an error if the edge
 // was not loaded in eager-loading.
 func (e ProjectEdges) StudiesOrErr() ([]*Study, error) {
-	if e.loadedTypes[18] {
+	if e.loadedTypes[19] {
 		return e.Studies, nil
 	}
 	return nil, &NotLoadedError{edge: "studies"}
@@ -280,7 +293,7 @@ func (e ProjectEdges) StudiesOrErr() ([]*Study, error) {
 // IterationPlansOrErr returns the IterationPlans value or an error if the edge
 // was not loaded in eager-loading.
 func (e ProjectEdges) IterationPlansOrErr() ([]*IterationPlan, error) {
-	if e.loadedTypes[19] {
+	if e.loadedTypes[20] {
 		return e.IterationPlans, nil
 	}
 	return nil, &NotLoadedError{edge: "iteration_plans"}
@@ -289,7 +302,7 @@ func (e ProjectEdges) IterationPlansOrErr() ([]*IterationPlan, error) {
 // ResearchNodesOrErr returns the ResearchNodes value or an error if the edge
 // was not loaded in eager-loading.
 func (e ProjectEdges) ResearchNodesOrErr() ([]*ResearchNode, error) {
-	if e.loadedTypes[20] {
+	if e.loadedTypes[21] {
 		return e.ResearchNodes, nil
 	}
 	return nil, &NotLoadedError{edge: "research_nodes"}
@@ -298,10 +311,19 @@ func (e ProjectEdges) ResearchNodesOrErr() ([]*ResearchNode, error) {
 // ResearchEdgesOrErr returns the ResearchEdges value or an error if the edge
 // was not loaded in eager-loading.
 func (e ProjectEdges) ResearchEdgesOrErr() ([]*ResearchEdge, error) {
-	if e.loadedTypes[21] {
+	if e.loadedTypes[22] {
 		return e.ResearchEdges, nil
 	}
 	return nil, &NotLoadedError{edge: "research_edges"}
+}
+
+// ExperimentCatalogRowsOrErr returns the ExperimentCatalogRows value or an error if the edge
+// was not loaded in eager-loading.
+func (e ProjectEdges) ExperimentCatalogRowsOrErr() ([]*ExperimentCatalogRow, error) {
+	if e.loadedTypes[23] {
+		return e.ExperimentCatalogRows, nil
+	}
+	return nil, &NotLoadedError{edge: "experiment_catalog_rows"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -510,6 +532,11 @@ func (_m *Project) QueryDiagnosticRuns() *DiagnosticRunQuery {
 	return NewProjectClient(_m.config).QueryDiagnosticRuns(_m)
 }
 
+// QueryImageBakes queries the "image_bakes" edge of the Project entity.
+func (_m *Project) QueryImageBakes() *ImageBakeQuery {
+	return NewProjectClient(_m.config).QueryImageBakes(_m)
+}
+
 // QueryExperimentProposals queries the "experiment_proposals" edge of the Project entity.
 func (_m *Project) QueryExperimentProposals() *ExperimentProposalQuery {
 	return NewProjectClient(_m.config).QueryExperimentProposals(_m)
@@ -543,6 +570,11 @@ func (_m *Project) QueryResearchNodes() *ResearchNodeQuery {
 // QueryResearchEdges queries the "research_edges" edge of the Project entity.
 func (_m *Project) QueryResearchEdges() *ResearchEdgeQuery {
 	return NewProjectClient(_m.config).QueryResearchEdges(_m)
+}
+
+// QueryExperimentCatalogRows queries the "experiment_catalog_rows" edge of the Project entity.
+func (_m *Project) QueryExperimentCatalogRows() *ExperimentCatalogRowQuery {
+	return NewProjectClient(_m.config).QueryExperimentCatalogRows(_m)
 }
 
 // Update returns a builder for updating this Project.

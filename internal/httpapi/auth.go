@@ -23,7 +23,7 @@ type AuthHandlers struct {
 
 type loginRequest struct {
 	Email    string `json:"email" binding:"required"`
-	Password string `json:"password" binding:"required"`
+	Password string `json:"password"`
 }
 
 func NewAuthHandlers(service *auth.Service, secureCookies bool) *AuthHandlers {
@@ -33,6 +33,10 @@ func NewAuthHandlers(service *auth.Service, secureCookies bool) *AuthHandlers {
 func (h *AuthHandlers) Login(c *gin.Context) {
 	var request loginRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
+		writeError(c, http.StatusBadRequest, "INVALID_REQUEST", "email is required")
+		return
+	}
+	if !h.service.SkipPassword() && strings.TrimSpace(request.Password) == "" {
 		writeError(c, http.StatusBadRequest, "INVALID_REQUEST", "email and password are required")
 		return
 	}

@@ -208,3 +208,45 @@ func TestClientRejectsInsecureProviderURL(t *testing.T) {
 		t.Fatal("NewClient() accepted insecure URL")
 	}
 }
+
+func TestProCreateAndSaveFailClosedOnProviderError(t *testing.T) {
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"code":"Error","msg":"not implemented","data":null}`))
+	}))
+	if _, _, err := client.ProCreateInstance(context.Background(), ProInstanceCreate{Name: "bake", ImageUUID: "image-1"}); err == nil {
+		t.Fatal("ProCreateInstance succeeded on Provider error")
+	}
+	if _, err := client.ProStopInstance(context.Background(), "instance-1"); err == nil {
+		t.Fatal("ProStopInstance succeeded on Provider error")
+	}
+	if _, _, err := client.ProSaveImage(context.Background(), ProImageSave{InstanceUUID: "instance-1", Name: "bake"}); err == nil {
+		t.Fatal("ProSaveImage succeeded on Provider error")
+	}
+}
+
+func TestProCreateAndSaveSuccessContract(t *testing.T) {
+	client := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/dev/instance/pro/create":
+			_, _ = w.Write([]byte(`{"code":"Success","data":{"uuid":"pro-1","name":"bake","status":"running"},"msg":""}`))
+		case "/api/v1/dev/instance/pro/stop":
+			_, _ = w.Write([]byte(`{"code":"Success","data":{},"msg":""}`))
+		case "/api/v1/dev/instance/pro/image/save":
+			_, _ = w.Write([]byte(`{"code":"Success","data":{"image_uuid":"image-baked12345","image_name":"bake"},"msg":""}`))
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	instance, _, err := client.ProCreateInstance(context.Background(), ProInstanceCreate{Name: "bake", ImageUUID: "image-1", Command: "python -m pip install --user -r requirements.gemcp.txt"})
+	if err != nil || instance.UUID != "pro-1" {
+		t.Fatalf("ProCreateInstance = %+v, %v", instance, err)
+	}
+	if _, err := client.ProStopInstance(context.Background(), instance.UUID); err != nil {
+		t.Fatalf("ProStopInstance error = %v", err)
+	}
+	image, _, err := client.ProSaveImage(context.Background(), ProImageSave{InstanceUUID: instance.UUID, Name: "bake"})
+	if err != nil || image.UUID != "image-baked12345" {
+		t.Fatalf("ProSaveImage = %+v, %v", image, err)
+	}
+}

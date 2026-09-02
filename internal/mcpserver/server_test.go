@@ -17,6 +17,7 @@ import (
 	"github.com/XR-Lee/Gemcp/internal/datasetcatalog"
 	"github.com/XR-Lee/Gemcp/internal/environmentcatalog"
 	"github.com/XR-Lee/Gemcp/internal/experiment"
+	"github.com/XR-Lee/Gemcp/internal/imagebake"
 	repositoryservice "github.com/XR-Lee/Gemcp/internal/repository"
 	"github.com/XR-Lee/Gemcp/internal/research"
 	"github.com/XR-Lee/Gemcp/internal/secrets"
@@ -122,8 +123,8 @@ func TestStreamableHTTPToolsWithAgentToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListTools() error = %v", err)
 	}
-	if len(tools.Tools) != 28 {
-		t.Fatalf("tool count = %d, want 28", len(tools.Tools))
+	if len(tools.Tools) != 33 {
+		t.Fatalf("tool count = %d, want 33", len(tools.Tools))
 	}
 	if !strings.Contains(serverInstructions, "never call submit_prepared_experiment until the Owner explicitly confirms that digest") || !strings.Contains(serverInstructions, "submit scope are limits and technical capabilities, not financial approval") {
 		t.Fatal("MCP server instructions omit the exact-digest Owner approval boundary")
@@ -133,10 +134,12 @@ func TestStreamableHTTPToolsWithAgentToken(t *testing.T) {
 		toolNames[tool.Name] = true
 	}
 	if !toolNames["get_research_workspace"] || !toolNames["update_research_workspace"] || !toolNames["get_next_actions"] || !toolNames["close_run"] ||
+		!toolNames["get_experiment_catalog"] || !toolNames["record_experiment_catalog"] ||
 		!toolNames["report_agent_activity"] || !toolNames["prepare_experiment"] || !toolNames["submit_prepared_experiment"] || !toolNames["submit_experiment"] ||
 		!toolNames["register_repository"] || !toolNames["verify_repository"] || !toolNames["register_workspace_dataset"] ||
 		!toolNames["list_dataset_bindings"] || !toolNames["register_dataset_binding"] || !toolNames["remove_dataset_binding"] ||
-		!toolNames["register_environment"] || !toolNames["remove_environment"] {
+		!toolNames["register_environment"] || !toolNames["remove_environment"] ||
+		!toolNames["request_image_bake"] || !toolNames["get_image_bake"] || !toolNames["list_image_bakes"] {
 		t.Fatalf("prepared and Advanced tools are not all registered: %+v", toolNames)
 	}
 	usage, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "get_usage_guide", Arguments: map[string]any{}})
@@ -464,6 +467,108 @@ func TestRegisterLocalCPUStubAllowsSubmitWithoutOperateNodes(t *testing.T) {
 	}})
 	if err != nil || dataset.IsError {
 		t.Fatalf("modelnet40-mini with submit = %+v, %v", dataset, err)
+	}
+}
+
+func TestImageBakeMCPConfigureRequestDoesNotStartPro(t *testing.T) {
+	client := enttest.Open(t, dialect.SQLite, "file:mcp-bake?mode=memory&cache=shared&_fk=1")
+	defer client.Close()
+	ctx := context.Background()
+	tenant, _ := client.Tenant.Create().SetName("Test").Save(ctx)
+	project, _ := client.Project.Create().
+		SetTenantID(tenant.ID).SetName("Project").SetSlug("project").
+		SetMonthlyBudgetMilli(100000).SetMaxExperimentMilli(20000).SetMaxRuntimeSeconds(3600).
+		Save(ctx)
+	_, _ = client.Repository.Create().
+		SetProjectID(project.ID).SetName("main").SetSSHURL("git@github.com:XR-Lee/Gemcp.git").SetSSHHost("github.com").
+		SetHostKeyFingerprint("SHA256:test").SetStatus("active").Save(ctx)
+	key, _ := secrets.GenerateMasterKey()
+	box, _ := secrets.New(key)
+	rawConfigure, prefixConfigure, _ := secrets.RandomToken("gmc", 32)
+	_, _ = client.AgentToken.Create().
+		SetProjectID(project.ID).SetLabel("configure-agent").SetPrefix(prefixConfigure).
+		SetTokenHash(box.Digest("agent-token", rawConfigure)).SetScopes([]string{"read", "configure"}).Save(ctx)
+	rawSubmit, prefixSubmit, _ := secrets.RandomToken("gmc", 32)
+	_, _ = client.AgentToken.Create().
+		SetProjectID(project.ID).SetLabel("submit-agent").SetPrefix(prefixSubmit).
+		SetTokenHash(box.Digest("agent-token", rawSubmit)).SetScopes([]string{"read", "submit"}).Save(ctx)
+	fake := imagebake.NewFakeProvider("image-baked12345")
+	bakeService := imagebake.NewService(client, fake, nil)
+	handler := New(
+		agentauth.NewService(client, box),
+		experiment.NewService(client, box, allowCommitVerifier{}),
+		"test", nil, WithImageBakes(bakeService),
+	).Handler()
+	httpServer := httptest.NewServer(handler)
+	defer httpServer.Close()
+
+	connect := func(token string) *mcp.ClientSession {
+		t.Helper()
+		httpClient := &http.Client{Transport: bearerTransport{token: token, base: http.DefaultTransport}}
+		mcpClient := mcp.NewClient(&mcp.Implementation{Name: "gemcp-test", Version: "test"}, nil)
+		session, err := mcpClient.Connect(ctx, &mcp.StreamableClientTransport{
+			Endpoint: httpServer.URL, HTTPClient: httpClient,
+		}, nil)
+		if err != nil {
+			t.Fatalf("Connect() error = %v", err)
+		}
+		return session
+	}
+
+	submitSession := connect(rawSubmit)
+	denied, err := submitSession.CallTool(ctx, &mcp.CallToolParams{Name: "request_image_bake", Arguments: map[string]any{
+		"name": "torch-mamba", "base_image_uuid": "image-base12345", "commit_sha": strings.Repeat("a", 40),
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !denied.IsError {
+		t.Fatalf("submit-only request_image_bake succeeded: %+v", denied)
+	}
+	if fake.CreateCount() != 0 {
+		t.Fatalf("submit-only request started Pro: %d", fake.CreateCount())
+	}
+	_ = submitSession.Close()
+
+	configureSession := connect(rawConfigure)
+	defer configureSession.Close()
+	requested, err := configureSession.CallTool(ctx, &mcp.CallToolParams{Name: "request_image_bake", Arguments: map[string]any{
+		"name": "torch-mamba", "base_image_uuid": "image-base12345", "commit_sha": strings.Repeat("a", 40),
+	}})
+	if err != nil || requested.IsError {
+		t.Fatalf("request_image_bake = %+v, %v", requested, err)
+	}
+	var view imagebake.View
+	decodeStructured(t, requested.StructuredContent, &view)
+	if view.Status != "requested" || view.ConfirmationDigest == "" || view.ImageUUID != "" {
+		t.Fatalf("requested bake = %+v", view)
+	}
+	if fake.CreateCount() != 0 {
+		t.Fatalf("configure request started Pro: %d", fake.CreateCount())
+	}
+	got, err := configureSession.CallTool(ctx, &mcp.CallToolParams{Name: "get_image_bake", Arguments: map[string]any{"bake_id": view.ID}})
+	if err != nil || got.IsError {
+		t.Fatalf("get_image_bake = %+v, %v", got, err)
+	}
+	listed, err := configureSession.CallTool(ctx, &mcp.CallToolParams{Name: "list_image_bakes", Arguments: map[string]any{}})
+	if err != nil || listed.IsError {
+		t.Fatalf("list_image_bakes = %+v, %v", listed, err)
+	}
+	tools, err := configureSession.ListTools(ctx, nil)
+	if err != nil {
+		t.Fatalf("ListTools() error = %v", err)
+	}
+	for _, tool := range tools.Tools {
+		if tool.Name == "submit_image_bake" || strings.Contains(tool.Name, "start_image_bake") {
+			t.Fatalf("MCP must not expose a tool that starts Pro: %s", tool.Name)
+		}
+	}
+	experiments, nodes, budget, err := bakeService.SideEffectCounts(ctx, project.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if experiments != 0 || nodes != 0 || budget != 0 {
+		t.Fatalf("MCP request side effects experiments=%d nodes=%d budget=%d", experiments, nodes, budget)
 	}
 }
 

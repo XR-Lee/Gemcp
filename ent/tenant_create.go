@@ -19,8 +19,10 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/datasetbinding"
 	"github.com/XR-Lee/Gemcp/ent/diagnosticrun"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/experimentcatalogrow"
 	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
+	"github.com/XR-Lee/Gemcp/ent/imagebake"
 	"github.com/XR-Lee/Gemcp/ent/iterationplan"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/nodecommand"
@@ -426,6 +428,21 @@ func (_c *TenantCreate) AddDiagnosticRuns(v ...*DiagnosticRun) *TenantCreate {
 	return _c.AddDiagnosticRunIDs(ids...)
 }
 
+// AddImageBakeIDs adds the "image_bakes" edge to the ImageBake entity by IDs.
+func (_c *TenantCreate) AddImageBakeIDs(ids ...int) *TenantCreate {
+	_c.mutation.AddImageBakeIDs(ids...)
+	return _c
+}
+
+// AddImageBakes adds the "image_bakes" edges to the ImageBake entity.
+func (_c *TenantCreate) AddImageBakes(v ...*ImageBake) *TenantCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddImageBakeIDs(ids...)
+}
+
 // AddExperimentProposalIDs adds the "experiment_proposals" edge to the ExperimentProposal entity by IDs.
 func (_c *TenantCreate) AddExperimentProposalIDs(ids ...int) *TenantCreate {
 	_c.mutation.AddExperimentProposalIDs(ids...)
@@ -529,6 +546,21 @@ func (_c *TenantCreate) AddResearchEdges(v ...*ResearchEdge) *TenantCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddResearchEdgeIDs(ids...)
+}
+
+// AddExperimentCatalogRowIDs adds the "experiment_catalog_rows" edge to the ExperimentCatalogRow entity by IDs.
+func (_c *TenantCreate) AddExperimentCatalogRowIDs(ids ...int) *TenantCreate {
+	_c.mutation.AddExperimentCatalogRowIDs(ids...)
+	return _c
+}
+
+// AddExperimentCatalogRows adds the "experiment_catalog_rows" edges to the ExperimentCatalogRow entity.
+func (_c *TenantCreate) AddExperimentCatalogRows(v ...*ExperimentCatalogRow) *TenantCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddExperimentCatalogRowIDs(ids...)
 }
 
 // Mutation returns the TenantMutation object of the builder.
@@ -993,6 +1025,22 @@ func (_c *TenantCreate) createSpec() (*Tenant, *sqlgraph.CreateSpec) {
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
+	if nodes := _c.mutation.ImageBakesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ImageBakesTable,
+			Columns: []string{tenant.ImageBakesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(imagebake.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
 	if nodes := _c.mutation.ExperimentProposalsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -1098,6 +1146,22 @@ func (_c *TenantCreate) createSpec() (*Tenant, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(researchedge.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ExperimentCatalogRowsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ExperimentCatalogRowsTable,
+			Columns: []string{tenant.ExperimentCatalogRowsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentcatalogrow.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

@@ -205,4 +205,73 @@ describe('ResearchView', () => {
     await document.body.querySelector<HTMLButtonElement>('.attach-prompt-form .primary-button')?.click()
     expect(writeText).toHaveBeenCalledWith(prompt.value)
   })
+
+  it('shows 原始注册数据 and 分析数据 for a registered DynamicPointMamba repository', () => {
+    useI18n().setLocale('en')
+    const wrapper = mount(ResearchView, {
+      props: {
+        workspace,
+        loading: false,
+        selectedStudyId: 'study-1',
+        repositories: [{
+          id: 'repo-dpm', project_id: 'project-id', name: 'DynamicPointMamba',
+          ssh_url: 'git@github.com:XR-Lee/DynamicPointMamba.git', default_branch: 'main', status: 'active',
+          last_verified_at: '2026-08-21T00:00:00Z',
+        }],
+        catalog: {
+          project_id: 'project-id',
+          generated_at: '2026-08-31T00:00:00Z',
+          repositories: [{
+            id: 'repo-dpm', name: 'DynamicPointMamba',
+            ssh_url: 'git@github.com:XR-Lee/DynamicPointMamba.git', default_branch: 'main', status: 'active',
+            last_verified_at: '2026-08-21T00:00:00Z',
+            rows: [{
+              id: 'row-1', repository_id: 'repo-dpm',
+              branch: 'autoresearch/sprint-beat-sast-20260817',
+              setting: 'G2 seed-2 best-checkpoint Mean U-spec',
+              method: 'U-spec unified organizer',
+              implementation: 'SPRINT_G2_DECISION.md frozen analyzer',
+              metric: '90.4114',
+              result: 'promote_U-spec versus SAST -0.4986 pp',
+              link: 'SPRINT_G2_DECISION.md',
+              hash: '79b9a11f8e7ad9bb384ff4a5c3354b5d1adfc9c0',
+              created_at: '2026-08-31T00:00:00Z', updated_at: '2026-08-31T00:00:00Z',
+            }, {
+              id: 'row-2', repository_id: 'repo-dpm',
+              branch: 'autoresearch/learnable-membership-20260829',
+              setting: 'M1M3 G-0prime objbg Coad u0',
+              method: 'select_t_star',
+              implementation: 'M1M3_G0PRIME_RESULTS.md',
+              metric: '6.1962',
+              result: 'T*=objbg Coad(u0)=6.1962 pp',
+              link: 'M1M3_G0PRIME_RESULTS.md',
+              hash: 'ea6b1b5e64b9fa9815bc0ac6852a3c723e03b5e5',
+              created_at: '2026-08-31T00:00:00Z', updated_at: '2026-08-31T00:00:00Z',
+            }],
+          }],
+        },
+      },
+      global: { stubs: flowStubs },
+    })
+    const panel = wrapper.get('[data-testid="repo-experiment-catalog"]')
+    expect(panel.text()).toContain('原始注册数据')
+    expect(panel.text()).toContain('分析数据')
+    expect(panel.text()).toContain('git@github.com:XR-Lee/DynamicPointMamba.git')
+    expect(panel.text()).toContain('main')
+    expect(panel.text()).toContain('active')
+    expect(panel.text()).toContain('Setting')
+    expect(panel.text()).toContain('方法')
+    expect(panel.text()).toContain('实现')
+    expect(panel.text()).toContain('metric')
+    expect(panel.text()).toContain('结果')
+    expect(panel.text()).toContain('link')
+    expect(panel.text()).toContain('hash')
+    expect(panel.text()).toContain('G2 seed-2 best-checkpoint Mean U-spec')
+    expect(panel.text()).toContain('U-spec unified organizer')
+    expect(panel.text()).toContain('SPRINT_G2_DECISION.md frozen analyzer')
+    expect(panel.text()).toContain('90.4114')
+    expect(panel.text()).toContain('promote_U-spec versus SAST -0.4986 pp')
+    expect(panel.text()).toContain('79b9a11f8e7ad9bb384ff4a5c3354b5d1adfc9c0')
+    expect(panel.text()).toContain('autoresearch/learnable-membership-20260829')
+  })
 })

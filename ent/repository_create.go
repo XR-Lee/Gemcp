@@ -11,7 +11,9 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/XR-Lee/Gemcp/ent/experiment"
+	"github.com/XR-Lee/Gemcp/ent/experimentcatalogrow"
 	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
+	"github.com/XR-Lee/Gemcp/ent/imagebake"
 	"github.com/XR-Lee/Gemcp/ent/project"
 	"github.com/XR-Lee/Gemcp/ent/repository"
 	"github.com/XR-Lee/Gemcp/ent/study"
@@ -180,6 +182,21 @@ func (_c *RepositoryCreate) SetProject(v *Project) *RepositoryCreate {
 	return _c.SetProjectID(v.ID)
 }
 
+// AddImageBakeIDs adds the "image_bakes" edge to the ImageBake entity by IDs.
+func (_c *RepositoryCreate) AddImageBakeIDs(ids ...int) *RepositoryCreate {
+	_c.mutation.AddImageBakeIDs(ids...)
+	return _c
+}
+
+// AddImageBakes adds the "image_bakes" edges to the ImageBake entity.
+func (_c *RepositoryCreate) AddImageBakes(v ...*ImageBake) *RepositoryCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddImageBakeIDs(ids...)
+}
+
 // AddExperimentIDs adds the "experiments" edge to the Experiment entity by IDs.
 func (_c *RepositoryCreate) AddExperimentIDs(ids ...int) *RepositoryCreate {
 	_c.mutation.AddExperimentIDs(ids...)
@@ -223,6 +240,21 @@ func (_c *RepositoryCreate) AddStudies(v ...*Study) *RepositoryCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddStudyIDs(ids...)
+}
+
+// AddExperimentCatalogRowIDs adds the "experiment_catalog_rows" edge to the ExperimentCatalogRow entity by IDs.
+func (_c *RepositoryCreate) AddExperimentCatalogRowIDs(ids ...int) *RepositoryCreate {
+	_c.mutation.AddExperimentCatalogRowIDs(ids...)
+	return _c
+}
+
+// AddExperimentCatalogRows adds the "experiment_catalog_rows" edges to the ExperimentCatalogRow entity.
+func (_c *RepositoryCreate) AddExperimentCatalogRows(v ...*ExperimentCatalogRow) *RepositoryCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddExperimentCatalogRowIDs(ids...)
 }
 
 // Mutation returns the RepositoryMutation object of the builder.
@@ -435,6 +467,22 @@ func (_c *RepositoryCreate) createSpec() (*Repository, *sqlgraph.CreateSpec) {
 		_node.ProjectID = nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
+	if nodes := _c.mutation.ImageBakesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   repository.ImageBakesTable,
+			Columns: []string{repository.ImageBakesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(imagebake.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
 	if nodes := _c.mutation.ExperimentsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -476,6 +524,22 @@ func (_c *RepositoryCreate) createSpec() (*Repository, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(study.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ExperimentCatalogRowsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   repository.ExperimentCatalogRowsTable,
+			Columns: []string{repository.ExperimentCatalogRowsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(experimentcatalogrow.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

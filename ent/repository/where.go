@@ -834,6 +834,29 @@ func HasProjectWith(preds ...predicate.Project) predicate.Repository {
 	})
 }
 
+// HasImageBakes applies the HasEdge predicate on the "image_bakes" edge.
+func HasImageBakes() predicate.Repository {
+	return predicate.Repository(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ImageBakesTable, ImageBakesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasImageBakesWith applies the HasEdge predicate on the "image_bakes" edge with a given conditions (other predicates).
+func HasImageBakesWith(preds ...predicate.ImageBake) predicate.Repository {
+	return predicate.Repository(func(s *sql.Selector) {
+		step := newImageBakesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasExperiments applies the HasEdge predicate on the "experiments" edge.
 func HasExperiments() predicate.Repository {
 	return predicate.Repository(func(s *sql.Selector) {
@@ -895,6 +918,29 @@ func HasStudies() predicate.Repository {
 func HasStudiesWith(preds ...predicate.Study) predicate.Repository {
 	return predicate.Repository(func(s *sql.Selector) {
 		step := newStudiesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasExperimentCatalogRows applies the HasEdge predicate on the "experiment_catalog_rows" edge.
+func HasExperimentCatalogRows() predicate.Repository {
+	return predicate.Repository(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ExperimentCatalogRowsTable, ExperimentCatalogRowsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasExperimentCatalogRowsWith applies the HasEdge predicate on the "experiment_catalog_rows" edge with a given conditions (other predicates).
+func HasExperimentCatalogRowsWith(preds ...predicate.ExperimentCatalogRow) predicate.Repository {
+	return predicate.Repository(func(s *sql.Selector) {
+		step := newExperimentCatalogRowsStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

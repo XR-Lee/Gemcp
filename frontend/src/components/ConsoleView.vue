@@ -10,6 +10,7 @@ import {
   Cpu,
   FlaskConical,
   GitBranch,
+  Images,
   KeyRound,
   LoaderCircle,
   LogOut,
@@ -23,7 +24,7 @@ import {
   WalletCards,
   X,
 } from '@lucide/vue'
-import { APIError, api, type AgentReadiness, type Attempt, type BuildInfo, type DatasetBinding, type DatasetCatalogEntry, type Experiment, type OperationsFeed, type Project, type ProjectEnvironment, type ProposalActivity, type Repository, type ResearchWorkspace, type RuntimeStatus, type User } from '../api'
+import { APIError, api, type AgentReadiness, type Attempt, type BuildInfo, type DatasetBinding, type DatasetCatalogEntry, type Experiment, type ExperimentCatalog, type OperationsFeed, type Project, type ProjectEnvironment, type ProposalActivity, type Repository, type ResearchWorkspace, type RuntimeStatus, type User } from '../api'
 import { localizedState, useI18n } from '../i18n'
 import { pickDefaultProjectID } from '../projectSelect'
 import { draftStudyFromRepository, repositoryNameFromSSHURL } from '../studyImport'
@@ -35,6 +36,7 @@ import ProviderView from './ProviderView.vue'
 import NotificationView from './NotificationView.vue'
 import AgentView from './AgentView.vue'
 import NodeView from './NodeView.vue'
+import BakeView from './BakeView.vue'
 import DiagnosticsView from './DiagnosticsView.vue'
 import ExperimentDetail from './ExperimentDetail.vue'
 import ResearchView from './ResearchView.vue'
@@ -45,7 +47,7 @@ import WorkbenchSelect from './WorkbenchSelect.vue'
 const props = defineProps<{ build: BuildInfo | null; user: User }>()
 const emit = defineEmits<{ signedOut: [] }>()
 
-type ViewName = 'research' | 'experiments' | 'diagnostics' | 'finance' | 'projects' | 'agents' | 'nodes' | 'provider' | 'notifications'
+type ViewName = 'research' | 'experiments' | 'diagnostics' | 'images' | 'finance' | 'projects' | 'agents' | 'nodes' | 'provider' | 'notifications'
 const activeView = ref<ViewName>('research')
 const projects = ref<Project[]>([])
 const selectedProjectID = ref('')
@@ -55,6 +57,7 @@ const experiments = ref<Experiment[]>([])
 const runtimeStatus = ref<RuntimeStatus | null>(null)
 const operationsFeed = ref<OperationsFeed | null>(null)
 const researchWorkspace = ref<ResearchWorkspace | null>(null)
+const experimentCatalog = ref<ExperimentCatalog | null>(null)
 const hasActiveAgent = ref(false)
 const agentReadiness = ref<AgentReadiness | null>(null)
 const studyDialog = ref(false)
@@ -117,6 +120,7 @@ const viewTitle = computed(() => ({
   research: t('Research', '研究'),
   experiments: t('Evidence', '证据'),
   diagnostics: t('Diagnostics', '诊断'),
+  images: t('Images', '镜像'),
   finance: t('Budget and ledger', '预算与账本'),
   projects: t('Project configuration', 'Project 配置'),
   agents: t('Agent access', 'Agent 访问'),
@@ -158,6 +162,7 @@ async function refreshProject(showSpinner = true) {
     experiments.value = []
     operationsFeed.value = null
     researchWorkspace.value = null
+    experimentCatalog.value = null
     hasActiveAgent.value = false
     agentReadiness.value = null
     datasetBindings.value = []
@@ -173,11 +178,15 @@ async function refreshProject(showSpinner = true) {
       if (caught instanceof APIError && caught.status === 401) throw caught
       return null
     })
-    const [loadedRepositories, loadedExperiments, loadedOperations, loadedResearch, loadedAgents, loadedReadiness, loadedBindings, loadedSources, loadedEnvironments] = await Promise.all([
+    const [loadedRepositories, loadedExperiments, loadedOperations, loadedResearch, loadedCatalog, loadedAgents, loadedReadiness, loadedBindings, loadedSources, loadedEnvironments] = await Promise.all([
       api.repositories(projectID),
       api.experiments(projectID),
       api.operations(projectID),
       api.research(projectID, selectedStudyID.value),
+      api.experimentCatalog(projectID).catch((caught) => {
+        if (caught instanceof APIError && caught.status === 401) throw caught
+        return { project_id: projectID, repositories: [], generated_at: new Date().toISOString() }
+      }),
       api.agentTokens(projectID),
       readinessRequest,
       api.datasetBindings(projectID),
@@ -189,6 +198,7 @@ async function refreshProject(showSpinner = true) {
     experiments.value = loadedExperiments
     operationsFeed.value = loadedOperations
     researchWorkspace.value = loadedResearch
+    experimentCatalog.value = loadedCatalog
     hasActiveAgent.value = (loadedAgents.tokens ?? []).some((token) => token.status === 'active')
     agentReadiness.value = loadedReadiness
     datasetBindings.value = loadedBindings
@@ -212,10 +222,14 @@ async function refreshLive() {
   const projectID = selectedProjectID.value
   try {
     const selectedID = selectedExperiment.value?.id
-    const [loadedExperiments, loadedOperations, loadedResearch, detail, history] = await Promise.all([
+    const [loadedExperiments, loadedOperations, loadedResearch, loadedCatalog, detail, history] = await Promise.all([
       api.experiments(projectID),
       api.operations(projectID),
       api.research(projectID, selectedStudyID.value),
+      api.experimentCatalog(projectID).catch((caught) => {
+        if (caught instanceof APIError && caught.status === 401) throw caught
+        return experimentCatalog.value ?? { project_id: projectID, repositories: [], generated_at: new Date().toISOString() }
+      }),
       selectedID ? api.experiment(projectID, selectedID) : Promise.resolve(null),
       selectedID ? api.attempts(projectID, selectedID) : Promise.resolve([]),
     ])
@@ -223,6 +237,7 @@ async function refreshLive() {
     experiments.value = loadedExperiments
     operationsFeed.value = loadedOperations
     researchWorkspace.value = loadedResearch
+    experimentCatalog.value = loadedCatalog
     if (loadedResearch.study) selectedStudyID.value = loadedResearch.study.id
     if (detail && selectedExperiment.value?.id === detail.id) {
       selectedExperiment.value = detail
@@ -657,6 +672,7 @@ onMounted(async () => {
         <button class="nav-item" :class="{ active: activeView === 'experiments' }" type="button" :aria-label="t('Evidence', '证据')" :title="t('Evidence', '证据')" @click="activeView = 'experiments'"><FlaskConical :size="17" /><span>{{ t('Evidence', '证据') }}</span></button>
         <p class="nav-group">{{ t('Lab', '实验室') }}</p>
         <button class="nav-item" :class="{ active: activeView === 'diagnostics' }" type="button" :aria-label="t('Diagnostics', '诊断')" :title="t('Diagnostics', '诊断')" @click="activeView = 'diagnostics'"><Stethoscope :size="17" /><span>{{ t('Diagnostics', '诊断') }}</span></button>
+        <button class="nav-item" :class="{ active: activeView === 'images' }" type="button" :aria-label="t('Images', '镜像')" :title="t('Images', '镜像')" @click="activeView = 'images'"><Images :size="17" /><span>{{ t('Images', '镜像') }}</span></button>
         <button class="nav-item" :class="{ active: activeView === 'finance' }" type="button" :aria-label="t('Finance', '财务')" :title="t('Finance', '财务')" @click="activeView = 'finance'"><WalletCards :size="17" /><span>{{ t('Finance', '财务') }}</span></button>
         <button class="nav-item" :class="{ active: activeView === 'projects' }" type="button" aria-label="Project" title="Project" @click="activeView = 'projects'"><Boxes :size="17" /><span>Project</span></button>
         <button class="nav-item" :class="{ active: activeView === 'agents' }" type="button" :aria-label="t('Agents', 'Agent')" :title="t('Agents', 'Agent')" @click="activeView = 'agents'"><Bot :size="17" /><span>Agent</span></button>
@@ -689,7 +705,7 @@ onMounted(async () => {
         <span><strong>{{ t('Scheduler is disabled', '调度器已关闭') }}</strong>{{ t('Prepared proposals can still be confirmed, but their Experiments remain queued. Set GEMCP_SCHEDULER_ENABLED=true and restart Gemcp when an execution backend is ready.', '准备好的提案仍可确认，但对应 Experiment 会保持 queued。执行后端就绪后，请设置 GEMCP_SCHEDULER_ENABLED=true 并重启 Gemcp。') }}</span>
       </div>
 
-      <ResearchView v-if="activeView === 'research'" :workspace="researchWorkspace" :loading="loading" :selected-study-id="selectedStudyID" :project="selectedProject" :repositories="repositories" :experiments="experiments" :has-active-agent="hasActiveAgent" :readiness="agentReadiness" :readiness-loading="loading" :runtime="runtimeStatus" @select-study="selectStudy" @open-experiment="openExperimentByID" @create-study="openCreateStudy" @open-agents="activeView = 'agents'" @handshake="activeView = 'agents'" @open-nodes="activeView = 'nodes'" />
+      <ResearchView v-if="activeView === 'research'" :workspace="researchWorkspace" :loading="loading" :selected-study-id="selectedStudyID" :project="selectedProject" :repositories="repositories" :experiments="experiments" :has-active-agent="hasActiveAgent" :readiness="agentReadiness" :readiness-loading="loading" :runtime="runtimeStatus" :catalog="experimentCatalog" @select-study="selectStudy" @open-experiment="openExperimentByID" @create-study="openCreateStudy" @open-agents="activeView = 'agents'" @handshake="activeView = 'agents'" @open-nodes="activeView = 'nodes'" />
 
       <section v-else-if="activeView === 'experiments'" class="page-workspace">
         <div class="section-heading page-section-heading"><div><h2>{{ t('Evidence', '证据') }}</h2><p>{{ t('Linked Experiments remain the execution evidence behind the Graph.', '关联的 Experiment 仍是 Graph 背后的执行证据。') }}</p></div><div class="segmented-control" :aria-label="t('Experiment state filter', '实验状态筛选')"><button v-for="filter in ['all', 'queued', 'running', 'succeeded', 'failed']" :key="filter" type="button" :class="{ active: stateFilter === filter }" @click="stateFilter = filter">{{ filter === 'all' ? t('all', '全部') : stateLabel(filter) }}</button></div></div>
@@ -698,6 +714,8 @@ onMounted(async () => {
       </section>
 
       <DiagnosticsView v-else-if="activeView === 'diagnostics'" :active="true" :project="selectedProject" @unauthorized="emit('signedOut')" />
+
+      <BakeView v-else-if="activeView === 'images'" :active="true" :project="selectedProject" @unauthorized="emit('signedOut')" />
 
       <section v-else-if="activeView === 'projects'" class="page-workspace project-workspace">
         <div class="section-heading page-section-heading"><div><h2>{{ selectedProject?.name ?? 'Project' }}</h2><p>{{ selectedProject?.slug }} / {{ selectedProject?.status }}</p></div><span class="version-chip">{{ selectedProject?.timezone }}</span></div>

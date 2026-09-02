@@ -13,6 +13,7 @@ import (
 	"github.com/XR-Lee/Gemcp/internal/datasetcatalog"
 	"github.com/XR-Lee/Gemcp/internal/environmentcatalog"
 	"github.com/XR-Lee/Gemcp/internal/experiment"
+	"github.com/XR-Lee/Gemcp/internal/imagebake"
 	gitrepository "github.com/XR-Lee/Gemcp/internal/repository"
 	"github.com/XR-Lee/Gemcp/internal/research"
 	"github.com/XR-Lee/Gemcp/internal/sshcloud"
@@ -33,6 +34,7 @@ type Server struct {
 	datasets     *workspacecatalog.Service
 	bindings     *datasetcatalog.Service
 	environments *environmentcatalog.Service
+	bakes        *imagebake.Service
 	research     *research.Service
 	sshCloud     *sshcloud.Service
 	logger       *slog.Logger
@@ -49,7 +51,7 @@ type UsageGuide struct {
 	Markdown    string   `json:"markdown"`
 }
 
-const serverInstructions = "Treat the research Graph as the execution contract. Call get_next_actions before spending; it proposes the next decision or Experiment from the hypothesis, its runs, and its observations. Keep the Owner-facing Study current with get_research_workspace. Never include prompts, private reasoning, credentials, or environment dumps in research text. prepare_experiment requires a connected hypothesis or plan from_node_id when a Study exists; isolated nodes cannot prepare; that origin is bound into the confirmation digest. Project budget and submit scope are limits and technical capabilities, not financial approval. Show the immutable proposal and exact confirmation digest to the Owner, and never call submit_prepared_experiment until the Owner explicitly confirms that digest. submit_prepared_experiment writes the run node; bind failure is an error. Poll get_experiment for state, log_tail, and metrics; never SSH, fetch remote files, or infer metrics from logs. close_run is the only way to record a result after a terminal Experiment and also writes a highlight observation on the originating hypothesis; omit metric_name to copy the prepared expected_metric from the Experiment; result_commit_sha may attach the full Git commit containing its durable result manifest. Linking a Graph node never starts a workload. submit_experiment is rejected when an active Study exists."
+const serverInstructions = "Treat the research Graph as the execution contract. Call get_next_actions before spending; it proposes the next decision or Experiment from the hypothesis, its runs, and its observations. Keep the Owner-facing Study current with get_research_workspace. For a registered GitHub repository, extract raw experiment rows from distinct research branches into record_experiment_catalog (Setting, 方法/method, 实现/implementation, metric, 结果/result, link, hash). That catalog is the table-ready evidence store and is not the Graph; it never starts a workload. Confirm with get_experiment_catalog. Never include prompts, private reasoning, credentials, or environment dumps in research text. prepare_experiment requires a connected hypothesis or plan from_node_id when a Study exists; isolated nodes cannot prepare; that origin is bound into the confirmation digest. Project budget and submit scope are limits and technical capabilities, not financial approval. Show the immutable proposal and exact confirmation digest to the Owner, and never call submit_prepared_experiment until the Owner explicitly confirms that digest. submit_prepared_experiment writes the run node; bind failure is an error. Poll get_experiment for state, log_tail, and metrics; never SSH, fetch remote files, or infer metrics from logs. close_run is the only way to record a result after a terminal Experiment and also writes a highlight observation on the originating hypothesis; omit metric_name to copy the prepared expected_metric from the Experiment; result_commit_sha may attach the full Git commit containing its durable result manifest. Linking a Graph node never starts a workload. submit_experiment is rejected when an active Study exists."
 
 type Option func(*Server)
 
@@ -76,6 +78,12 @@ func WithSSHCloud(service *sshcloud.Service) Option {
 func WithEnvironments(service *environmentcatalog.Service) Option {
 	return func(server *Server) {
 		server.environments = service
+	}
+}
+
+func WithImageBakes(service *imagebake.Service) Option {
+	return func(server *Server) {
+		server.bakes = service
 	}
 }
 
@@ -130,6 +138,15 @@ func New(agentAuth *agentauth.Service, experiments *experiment.Service, version 
 		Name: "remove_environment", Description: "Disable one Project Environment. Requires configure scope.",
 	}, server.removeEnvironment)
 	mcp.AddTool(mcpServer, &mcp.Tool{
+		Name: "request_image_bake", Description: "Request a zero-cost AutoDL Pro image bake. This persists a requested record with a confirmation digest and does not create a Pro instance, Experiment, Graph node, or budget reservation. Owner digest confirmation in the console starts the bake. Requires configure.",
+	}, server.requestImageBake)
+	mcp.AddTool(mcpServer, &mcp.Tool{
+		Name: "get_image_bake", Description: "Get one Project image bake, including status and a finished image_uuid. This never starts Pro.",
+	}, server.getImageBake)
+	mcp.AddTool(mcpServer, &mcp.Tool{
+		Name: "list_image_bakes", Description: "List recent Project image bakes. This never starts Pro.",
+	}, server.listImageBakes)
+	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "get_research_workspace", Description: "Return Studies, the selected iteration plan, and the research Graph for the authenticated Project. This never starts a workload.",
 	}, server.getResearchWorkspace)
 	mcp.AddTool(mcpServer, &mcp.Tool{
@@ -141,6 +158,12 @@ func New(agentAuth *agentauth.Service, experiments *experiment.Service, version 
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "close_run", Description: "Record a result and a highlight observation on a terminal Experiment that already has a Graph run. The observation is linked to the originating hypothesis. Copy the metric from get_experiment or omit it to use the prepared expected_metric. Optional highlight sets the observation title. Do not infer metrics from logs. An optional full result_commit_sha can attach its durable Git manifest commit. Requires submit scope.",
 	}, server.closeRun)
+	mcp.AddTool(mcpServer, &mcp.Tool{
+		Name: "get_experiment_catalog", Description: "Return registered repository identity plus extracted experiment catalog rows (Setting, method, implementation, metric, result, link, hash, branch). This never starts a workload.",
+	}, server.getExperimentCatalog)
+	mcp.AddTool(mcpServer, &mcp.Tool{
+		Name: "record_experiment_catalog", Description: "Persist raw experiment rows extracted from research branches of a registered GitHub repository. Each row needs Setting, method (方法), implementation (实现), metric, result (结果), link, and hash. This never starts a workload. Requires submit scope.",
+	}, server.recordExperimentCatalog)
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "report_agent_activity", Description: "Report a controlled workflow phase so the Owner console can show what the Agent is doing without collecting prompts or reasoning.",
 	}, server.reportAgentActivity)
@@ -479,6 +502,42 @@ func (s *Server) registerSSHCloudHostEnvironment(ctx context.Context, principal 
 	}, nil
 }
 
+func (s *Server) requestImageBake(ctx context.Context, request *mcp.CallToolRequest, input imagebake.RequestInput) (*mcp.CallToolResult, imagebake.View, error) {
+	principal, err := principalFrom(request)
+	if err != nil {
+		return nil, imagebake.View{}, err
+	}
+	if s.bakes == nil {
+		return nil, imagebake.View{}, errors.New("image bake service is unavailable")
+	}
+	view, err := s.bakes.Request(ctx, principal, input)
+	return nil, view, s.configurationToolError("request_image_bake", err)
+}
+
+func (s *Server) getImageBake(ctx context.Context, request *mcp.CallToolRequest, input imagebake.GetInput) (*mcp.CallToolResult, imagebake.View, error) {
+	principal, err := principalFrom(request)
+	if err != nil {
+		return nil, imagebake.View{}, err
+	}
+	if s.bakes == nil {
+		return nil, imagebake.View{}, errors.New("image bake service is unavailable")
+	}
+	view, err := s.bakes.Get(ctx, principal, input.BakeID)
+	return nil, view, s.configurationToolError("get_image_bake", err)
+}
+
+func (s *Server) listImageBakes(ctx context.Context, request *mcp.CallToolRequest, _ emptyInput) (*mcp.CallToolResult, imagebake.ListResult, error) {
+	principal, err := principalFrom(request)
+	if err != nil {
+		return nil, imagebake.ListResult{}, err
+	}
+	if s.bakes == nil {
+		return nil, imagebake.ListResult{}, errors.New("image bake service is unavailable")
+	}
+	result, err := s.bakes.List(ctx, principal)
+	return nil, result, s.configurationToolError("list_image_bakes", err)
+}
+
 func (s *Server) removeEnvironment(ctx context.Context, request *mcp.CallToolRequest, input environmentcatalog.RemoveInput) (*mcp.CallToolResult, environmentcatalog.View, error) {
 	principal, err := principalFrom(request)
 	if err != nil {
@@ -537,6 +596,30 @@ func (s *Server) closeRun(ctx context.Context, request *mcp.CallToolRequest, inp
 	}
 	output, err := s.research.AgentCloseRun(ctx, principal, input)
 	return nil, output, s.researchToolError("close_run", err)
+}
+
+func (s *Server) getExperimentCatalog(ctx context.Context, request *mcp.CallToolRequest, input research.CatalogListInput) (*mcp.CallToolResult, research.CatalogView, error) {
+	principal, err := principalFrom(request)
+	if err != nil {
+		return nil, research.CatalogView{}, err
+	}
+	if s.research == nil {
+		return nil, research.CatalogView{}, errors.New("research workspace service is unavailable")
+	}
+	output, err := s.research.AgentCatalog(ctx, principal, input)
+	return nil, output, s.researchToolError("get_experiment_catalog", err)
+}
+
+func (s *Server) recordExperimentCatalog(ctx context.Context, request *mcp.CallToolRequest, input research.CatalogRecordInput) (*mcp.CallToolResult, research.CatalogView, error) {
+	principal, err := principalFrom(request)
+	if err != nil {
+		return nil, research.CatalogView{}, err
+	}
+	if s.research == nil {
+		return nil, research.CatalogView{}, errors.New("research workspace service is unavailable")
+	}
+	output, err := s.research.AgentRecordCatalog(ctx, principal, input)
+	return nil, output, s.researchToolError("record_experiment_catalog", err)
 }
 
 func (s *Server) reportAgentActivity(ctx context.Context, request *mcp.CallToolRequest, input experiment.ReportActivityInput) (*mcp.CallToolResult, experiment.ReportActivityResult, error) {
@@ -708,7 +791,7 @@ func (s *Server) researchToolError(tool string, err error) error {
 	}
 	for _, public := range []error{
 		research.ErrForbidden, research.ErrNotFound, research.ErrChoice, research.ErrStudyLimit,
-		research.ErrNodeLimit, research.ErrEdgeLimit, research.ErrStudyConflict,
+		research.ErrNodeLimit, research.ErrEdgeLimit, research.ErrStudyConflict, research.ErrCatalogLimit,
 	} {
 		if errors.Is(err, public) {
 			return public
@@ -758,6 +841,10 @@ func (s *Server) configurationToolError(tool string, err error) error {
 	if errors.As(err, &environmentValidation) {
 		return errors.New(environmentValidation.Message)
 	}
+	var bakeValidation *imagebake.ValidationError
+	if errors.As(err, &bakeValidation) {
+		return errors.New(bakeValidation.Message)
+	}
 	for _, public := range []error{
 		experiment.ErrForbidden,
 		gitrepository.ErrNotFound, gitrepository.ErrNotActive, gitrepository.ErrVerificationFailed, gitrepository.ErrConflict,
@@ -766,6 +853,8 @@ func (s *Server) configurationToolError(tool string, err error) error {
 		datasetcatalog.ErrForbidden, datasetcatalog.ErrNotFound, datasetcatalog.ErrProject, datasetcatalog.ErrConflict, datasetcatalog.ErrLimit,
 		environmentcatalog.ErrForbidden, environmentcatalog.ErrNotFound, environmentcatalog.ErrProject, environmentcatalog.ErrConflict,
 		environmentcatalog.ErrLimit, environmentcatalog.ErrImage,
+		imagebake.ErrForbidden, imagebake.ErrNotFound, imagebake.ErrProject, imagebake.ErrBusy,
+		imagebake.ErrDigestMismatch, imagebake.ErrNotRequested, imagebake.ErrNotCancellable,
 	} {
 		if errors.Is(err, public) {
 			return public

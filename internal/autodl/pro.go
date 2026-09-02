@@ -18,3 +18,18 @@ func (c *Client) ProImages(ctx context.Context, pageIndex, pageSize int) (Page[I
 		"page_size":  pageSize,
 	}, requestOptions{idempotent: true})
 }
+
+func (c *Client) ProCreateInstance(ctx context.Context, spec ProInstanceCreate) (ProInstance, string, error) {
+	return doJSON[ProInstance](ctx, c, http.MethodPost, "/api/v1/dev/instance/pro/create", spec, requestOptions{})
+}
+
+func (c *Client) ProStopInstance(ctx context.Context, instanceUUID string) (string, error) {
+	_, requestID, err := doJSON[map[string]any](ctx, c, http.MethodPost, "/api/v1/dev/instance/pro/stop", map[string]string{
+		"instance_uuid": instanceUUID,
+	}, requestOptions{})
+	return requestID, err
+}
+
+func (c *Client) ProSaveImage(ctx context.Context, spec ProImageSave) (Image, string, error) {
+	return doJSON[Image](ctx, c, http.MethodPost, "/api/v1/dev/instance/pro/image/save", spec, requestOptions{})
+}

@@ -44,6 +44,7 @@ func (Project) Edges() []ent.Edge {
 		edge.To("cloud_ssh_access", CloudSSHProjectAccess.Type),
 		edge.To("cloud_ssh_assignments", CloudSSHAssignment.Type),
 		edge.To("diagnostic_runs", DiagnosticRun.Type),
+		edge.To("image_bakes", ImageBake.Type),
 		edge.To("experiment_proposals", ExperimentProposal.Type),
 		edge.To("workspace_datasets", WorkspaceDataset.Type),
 		edge.To("dataset_bindings", DatasetBinding.Type),
@@ -51,6 +52,7 @@ func (Project) Edges() []ent.Edge {
 		edge.To("iteration_plans", IterationPlan.Type),
 		edge.To("research_nodes", ResearchNode.Type),
 		edge.To("research_edges", ResearchEdge.Type),
+		edge.To("experiment_catalog_rows", ExperimentCatalogRow.Type),
 	}
 }
 

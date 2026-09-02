@@ -231,6 +231,28 @@ function match(url: URL, method: string, body?: unknown): Response | null {
     return json({ experiment: experiments[0], idempotent: false })
   }
   if (path === `/api/v1/projects/${projectID}/research`) return json(research)
+  if (path === `/api/v1/projects/${projectID}/experiment-catalog`) {
+    return json({
+      project_id: projectID,
+      generated_at: '2026-08-17T18:05:00Z',
+      repositories: [{
+        id: repositories[0].id, name: repositories[0].name, ssh_url: repositories[0].ssh_url,
+        default_branch: repositories[0].default_branch, status: repositories[0].status,
+        last_verified_at: repositories[0].last_verified_at, rows: [{
+          id: 'catalog-row-1', repository_id: repositories[0].id,
+          branch: 'autoresearch/sprint-beat-sast-20260817',
+          setting: 'G2 seed-2 best-checkpoint Mean U-spec',
+          method: 'U-spec unified organizer',
+          implementation: 'SPRINT_G2_DECISION.md',
+          metric: '90.4114',
+          result: 'promote_U-spec versus SAST -0.4986 pp',
+          link: 'SPRINT_G2_DECISION.md',
+          hash: '79b9a11f8e7ad9bb384ff4a5c3354b5d1adfc9c0',
+          created_at: '2026-08-17T18:00:00Z', updated_at: '2026-08-17T18:00:00Z',
+        }],
+      }],
+    })
+  }
   if (path === `/api/v1/projects/${projectID}/operations`) {
     return json({
       activities: [{
@@ -271,6 +293,27 @@ function match(url: URL, method: string, body?: unknown): Response | null {
         { id: 'gpu_connectivity', runtime_seconds: 180, requires_pytorch: false, checks_cuda_compute: false },
         { id: 'pytorch_cuda', runtime_seconds: 300, requires_pytorch: true, checks_cuda_compute: true },
       ],
+    })
+  }
+  if (path === `/api/v1/projects/${projectID}/image-bakes/options`) {
+    return json({
+      project_id: projectID, backend: 'autodl_pro', default_recipe_path: 'requirements.gemcp.txt',
+      repositories: [{ id: repositories[0].id, name: repositories[0].name, default_branch: 'main' }],
+      base_images: [{ uuid: 'image-6c15b8aad2', name: 'torch' }], generated_at: '2026-08-17T18:00:00Z',
+    })
+  }
+  if (path === `/api/v1/projects/${projectID}/image-bakes`) {
+    return json({
+      bakes: [{
+        id: 'image-bake-1', project_id: projectID, repository_id: repositories[0].id, name: 'torch-mamba', backend: 'autodl_pro',
+        base_image_uuid: 'image-6c15b8aad2', commit_sha: 'a'.repeat(40), recipe_path: 'requirements.gemcp.txt',
+        status: 'requested', confirmation_digest: `sha256:${'e'.repeat(64)}`, requested_by: 'owner-id', requested_by_type: 'user',
+        proposal: {
+          backend: 'autodl_pro', name: 'torch-mamba', base_image_uuid: 'image-6c15b8aad2',
+          repository_id: repositories[0].id, commit_sha: 'a'.repeat(40), recipe_path: 'requirements.gemcp.txt',
+        },
+        estimated_cost_milli: 0, created_at: '2026-08-17T17:00:00Z', updated_at: '2026-08-17T17:00:00Z',
+      }],
     })
   }
   if (path === `/api/v1/projects/${projectID}/diagnostics`) {
