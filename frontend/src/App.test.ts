@@ -171,7 +171,7 @@ describe('App', () => {
 
     const wrapper = mount(App)
     await flushPromises()
-    expect(wrapper.get('button[aria-label="Images"]').exists()).toBe(true)
+    expect(wrapper.find('button[aria-label="Images"]').exists()).toBe(true)
     await wrapper.get('button[aria-label="Images"]').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('Image bake')
