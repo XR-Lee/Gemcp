@@ -11,15 +11,24 @@ const nodes = [
     occurred_at: '2026-07-28T18:00:00Z', created_at: '2026-07-28T18:00:00Z', updated_at: '2026-07-28T18:00:00Z',
   },
   {
+    id: 'node-hypothesis-1', kind: 'hypothesis', title: 'Background noise caps accuracy',
+    summary: 'Old traversal lets desk points into the neighborhood.',
+    status: 'open', branch: 'autoresearch/objbg-baseline',
+    occurred_at: '2026-07-28T18:02:00Z', created_at: '2026-07-28T18:02:00Z', updated_at: '2026-07-28T18:02:00Z',
+  },
+  {
     id: 'node-result-1', kind: 'result', title: 'OBJ-BG smoke accuracy',
     summary: 'The existing smoke Experiment reached 86.4 overall accuracy.',
     status: 'succeeded', metric_name: 'overall_accuracy', metric_value: 86.4,
     experiment_id: 'experiment-1', experiment_state: 'succeeded',
-    occurred_at: '2026-07-28T18:05:00Z', commit_sha: '0123456789ab',
+    occurred_at: '2026-07-28T18:05:00Z', commit_sha: '0123456789ab', branch: 'autoresearch/objbg-baseline',
     created_at: '2026-07-28T18:05:00Z', updated_at: '2026-07-28T18:05:00Z',
   },
 ]
-const edges = [{ id: 'edge-1', from_id: 'node-question-1', to_id: 'node-result-1', relation: 'produced' }]
+const edges = [
+  { id: 'edge-0', from_id: 'node-question-1', to_id: 'node-hypothesis-1', relation: 'leads_to' },
+  { id: 'edge-1', from_id: 'node-hypothesis-1', to_id: 'node-result-1', relation: 'produced' },
+]
 const layout = layoutResearchGraph({ nodes, edges })
 
 // The stub renders the real ResearchGraphNode through node-types, exactly like
@@ -86,10 +95,25 @@ describe('ResearchGraphCanvas', () => {
       attachTo: document.body,
       global: { stubs: flowStubs },
     })
-    await wrapper.findAll('.flow-node')[1].trigger('dblclick')
+    await wrapper.get('[data-kind="result"]').trigger('dblclick')
     await flushPromises()
     expect(wrapper.emitted('openExperiment')).toEqual([['experiment-1']])
     expect(wrapper.find('.graph-detail').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('shows the git branch on the node-detail sidebar', async () => {
+    useI18n().setLocale('en')
+    const wrapper = mount(ResearchGraphCanvas, {
+      props: { nodes, edges, layout },
+      attachTo: document.body,
+      global: { stubs: flowStubs },
+    })
+    await wrapper.get('[data-kind="hypothesis"]').trigger('dblclick')
+    await flushPromises()
+    expect(wrapper.find('.graph-detail').text()).toContain('Background noise caps accuracy')
+    expect(wrapper.find('.graph-detail').text()).toContain('autoresearch/objbg-baseline')
+    expect(wrapper.find('.graph-detail').text()).toMatch(/Branch|分支/)
     wrapper.unmount()
   })
 
@@ -101,7 +125,7 @@ describe('ResearchGraphCanvas', () => {
       global: { stubs: flowStubs },
     })
     // A real double-click dispatches click, click, then dblclick.
-    const linked = wrapper.findAll('.flow-node')[1]
+    const linked = wrapper.get('[data-kind="result"]')
     await linked.trigger('click')
     await linked.trigger('click')
     await linked.trigger('dblclick')

@@ -280,7 +280,7 @@ Study, hypothesis, run, result, highlight observation, and orphan have one defin
 - `list_workspace_datasets`: declared dataset paths below Owner-approved trusted workspace roots.
 - `register_workspace_dataset`: declare one normalized relative dataset path without authorizing a new host root; requires `configure`.
 - `remove_workspace_dataset`: disable one declaration without deleting host data; requires `configure`.
-- `get_research_workspace`: return Studies, the selected iteration plan, the research Graph, hypothesis records, and next actions without starting a workload.
+- `get_research_workspace`: return Studies, the selected iteration plan, the research Graph (nodes include git `branch` when known), hypothesis records, and next actions without starting a workload.
 - `update_research_workspace`: create or update a Study, replace the active plan, or record a Graph node; historical nodes should set `occurred_at` from the evidence committer date and optional `commit_sha`. Requires `submit` and never starts a workload.
 - `get_next_actions`: return the next scientific step for the selected Study from its hypotheses, runs, and observations — a decision or Experiment proposal, not only a legal-edge checklist.
 - `close_run`: write a result node on a terminal Experiment that already has a Graph run, and a highlight observation linked to the originating hypothesis; omit `metric_name` to copy the prepared `expected_metric` from the Experiment; optionally attach the full Git commit containing a durable result manifest as `result_commit_sha`; requires `submit`.

@@ -513,6 +513,7 @@ export type ResearchNode = {
   experiment_state?: string
   occurred_at?: string
   commit_sha?: string
+  branch?: string
   created_at: string
   updated_at: string
 }
