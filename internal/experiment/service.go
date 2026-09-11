@@ -24,6 +24,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/study"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
 	"github.com/XR-Lee/Gemcp/internal/datasetcatalog"
+	gitrepository "github.com/XR-Lee/Gemcp/internal/repository"
 	"github.com/XR-Lee/Gemcp/internal/secrets"
 	"github.com/XR-Lee/Gemcp/internal/sshcloud"
 	"github.com/XR-Lee/Gemcp/internal/validation"
@@ -561,7 +562,18 @@ func repositorySnapshot(record *ent.Repository, projectID string) map[string]any
 	return map[string]any{
 		"id": record.PublicID.String(), "project_id": projectID, "name": record.Name, "ssh_url": record.SSHURL,
 		"default_branch": record.DefaultBranch, "host_key_fingerprint": record.HostKeyFingerprint,
+		"access": repositoryAccess(record),
 	}
+}
+
+func repositoryAccess(record *ent.Repository) string {
+	if record == nil {
+		return ""
+	}
+	if strings.TrimSpace(record.DeployPrivateKeyCiphertext) == "" && record.Status == repository.StatusActive {
+		return gitrepository.AccessPublicHTTPS
+	}
+	return gitrepository.AccessSSHDeploy
 }
 
 func environmentSnapshot(record *ent.Environment) map[string]any {
@@ -619,6 +631,30 @@ func makeView(record *ent.Experiment) View {
 func snapshotString(snapshot map[string]any, key string) string {
 	value, _ := snapshot[key].(string)
 	return value
+}
+
+func snapshotStringMap(snapshot map[string]any, key string) map[string]string {
+	switch values := snapshot[key].(type) {
+	case map[string]string:
+		result := make(map[string]string, len(values))
+		for name, value := range values {
+			result[name] = value
+		}
+		return result
+	case map[string]any:
+		result := make(map[string]string, len(values))
+		for name, value := range values {
+			if item, ok := value.(string); ok && item != "" {
+				result[name] = item
+			}
+		}
+		if len(result) == 0 {
+			return nil
+		}
+		return result
+	default:
+		return nil
+	}
 }
 
 func snapshotStrings(snapshot map[string]any, key string) []string {

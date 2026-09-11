@@ -28,6 +28,42 @@ func TestInspectAcceptsGitGlobalCommitHeader(t *testing.T) {
 	}
 }
 
+func TestReadRootFileAcceptsPrefixedGitArchive(t *testing.T) {
+	payload, err := ReadRootFile(memoryArchive{data: prefixedArchive(t, "repo/gemcp.yaml", "version: 1\n")}, "gemcp.yaml", 1<<20)
+	if err != nil || string(payload) != "version: 1\n" {
+		t.Fatalf("ReadRootFile() = %q, %v", payload, err)
+	}
+}
+
+func TestReadRootFileRejectsNestedCopies(t *testing.T) {
+	if _, err := ReadRootFile(memoryArchive{data: prefixedArchive(t, "repo/nested/gemcp.yaml", "version: 1\n")}, "gemcp.yaml", 1<<20); err == nil {
+		t.Fatal("nested gemcp.yaml was accepted")
+	}
+}
+
+func prefixedArchive(t *testing.T, name, body string) []byte {
+	t.Helper()
+	var output bytes.Buffer
+	gzipWriter := gzip.NewWriter(&output)
+	tarWriter := tar.NewWriter(gzipWriter)
+	if err := tarWriter.WriteHeader(&tar.Header{Name: "pax_global_header", Typeflag: tar.TypeXGlobalHeader, PAXRecords: map[string]string{"comment": strings.Repeat("a", 40)}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := tarWriter.WriteHeader(&tar.Header{Name: name, Typeflag: tar.TypeReg, Mode: 0o644, Size: int64(len(body))}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tarWriter.Write([]byte(body)); err != nil {
+		t.Fatal(err)
+	}
+	if err := tarWriter.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := gzipWriter.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return output.Bytes()
+}
+
 func TestInspectRejectsUntrustedGlobalMetadata(t *testing.T) {
 	for name, records := range map[string]map[string]string{
 		"non-hex commit": {"comment": strings.Repeat("z", 40)},

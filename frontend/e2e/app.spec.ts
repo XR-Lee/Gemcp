@@ -188,6 +188,7 @@ const operationsFeed = {
     id: 'proposal-paid-1', status: 'prepared', eligible: true, agent_label: 'training-agent', agent_token_prefix: 'gmc_abcd123',
     repository_name: repositories[0].name, requested_ref: 'autoresearch/m1-gapdelta-confirm-20260824', commit_sha: experiments[0].commit_sha,
     display_command: experiments[0].command, backend: 'autodl_elastic', environment_name: 'public-elastic', image: 'base-image-1',
+    repository_access: 'public_https', repository_url: repositories[0].ssh_url, from_node_id: 'node-h1', dataset: 'scanobjectnn-objbg', workload: 'objbg-smoke',
     resource_profile_name: 'one-rtx-4090', gpu_models: ['RTX 4090'], gpu_num: 1, runtime_preset: 'train', max_runtime_seconds: 57600,
     reserved_cost_milli: 20000, checks: [{ id: 'budget', status: 'pass', summary: 'Project budget can reserve the proposal' }],
     confirmation_digest: `sha256:${'c'.repeat(64)}`, created_at: '2026-08-27T16:04:00Z', updated_at: '2026-08-27T16:04:00Z',
@@ -818,6 +819,10 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await expect(confirmationDialog.getByText(operationsFeed.proposals[0].confirmation_digest, { exact: true })).toBeVisible()
   await expect(confirmationDialog.getByText('CNY 20.000', { exact: true })).toBeVisible()
   await expect(confirmationDialog.getByText(operationsFeed.proposals[0].display_command, { exact: true })).toBeVisible()
+  await expect(confirmationDialog.getByText('Public HTTPS', { exact: true })).toBeVisible()
+  await expect(confirmationDialog.getByText('objbg-smoke', { exact: true })).toBeVisible()
+  await expect(confirmationDialog.getByText('scanobjectnn-objbg', { exact: true })).toBeVisible()
+  await expect(confirmationDialog.getByText('node-h1', { exact: true })).toBeVisible()
   await expect(confirmationDialog.getByRole('button', { name: 'Confirm and start' })).toBeDisabled()
   await page.screenshot({ path: '/tmp/gemcp-proposal-confirmation.png', fullPage: true })
   await page.setViewportSize({ width: 390, height: 844 })

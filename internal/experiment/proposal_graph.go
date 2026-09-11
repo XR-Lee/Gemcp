@@ -122,6 +122,12 @@ func proposalStoredProjectSnapshot(resolved proposalResolved) map[string]any {
 	if resolved.dataset != "" {
 		snapshot["dataset"] = resolved.dataset
 	}
+	if resolved.workload != "" {
+		snapshot["workload"] = resolved.workload
+		if len(resolved.parameters) > 0 {
+			snapshot["workload_parameters"] = resolved.parameters
+		}
+	}
 	return snapshot
 }
 

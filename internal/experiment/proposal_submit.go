@@ -163,7 +163,8 @@ func (s *Service) currentProposal(ctx context.Context, principal agentauth.Princ
 		ref: record.RequestedRef, commitSHA: record.CommitSha, execution: executionSpec, preset: record.RuntimePreset,
 		runtime: record.MaxRuntimeSeconds, reservation: reservation, expiresAt: record.ExpiresAt,
 		fromNodeID: snapshotString(record.ProjectSnapshot, "from_node_id"), expectedMetric: snapshotString(record.ProjectSnapshot, "expected_metric"),
-		dataset: snapshotString(record.ProjectSnapshot, "dataset"),
+		dataset:  snapshotString(record.ProjectSnapshot, "dataset"),
+		workload: snapshotString(record.ProjectSnapshot, "workload"), parameters: snapshotStringMap(record.ProjectSnapshot, "workload_parameters"),
 	}
 	bindings, err := queryActiveDatasetBindings(ctx, s.client.DatasetBinding.Query(), projectRecord.ID, string(profileRecord.Backend))
 	if err != nil {
@@ -254,7 +255,8 @@ func (s *Service) createPreparedExperiment(ctx context.Context, principal agenta
 		ref: proposalRecord.RequestedRef, commitSHA: proposalRecord.CommitSha, execution: executionSpec, preset: proposalRecord.RuntimePreset,
 		runtime: proposalRecord.MaxRuntimeSeconds, reservation: reservation, expiresAt: proposalRecord.ExpiresAt,
 		fromNodeID: snapshotString(proposalRecord.ProjectSnapshot, "from_node_id"), expectedMetric: snapshotString(proposalRecord.ProjectSnapshot, "expected_metric"),
-		dataset: snapshotString(proposalRecord.ProjectSnapshot, "dataset"),
+		dataset:  snapshotString(proposalRecord.ProjectSnapshot, "dataset"),
+		workload: snapshotString(proposalRecord.ProjectSnapshot, "workload"), parameters: snapshotStringMap(proposalRecord.ProjectSnapshot, "workload_parameters"),
 	}
 	bindings, err := queryActiveDatasetBindings(ctx, tx.DatasetBinding.Query(), projectRecord.ID, string(profileRecord.Backend))
 	if err != nil {

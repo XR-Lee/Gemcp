@@ -1,0 +1,21 @@
+version: 1
+
+workloads:
+  local-smoke:
+    entrypoint:
+      - python3
+      - train.py
+    arguments:
+      - flag: --epochs
+        parameter: epochs
+    runtime_preset: smoke
+    datasets:
+      - modelnet40-mini
+    parameters:
+      epochs:
+        type: integer
+        minimum: 1
+        maximum: 5
+        default: 1
+    outputs:
+      metrics: metrics.json

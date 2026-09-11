@@ -105,7 +105,7 @@ Known unfinished or out of scope for this test:
 - **No tracing / OpenTelemetry.** Not implemented.
 - **Node protocol is still `v1`.** There is no protocol v2 in this repo.
 - **Public-repository URL onboarding is on this tree.** Paste `https://github.com/owner/repository` or the SSH form. Public repositories activate without a Deploy Key. Private repositories still use a read-only Deploy Key + verify.
-- **No `gemcp.yaml` named workloads, dataset snapshots, build sessions, or cross-node asset placement.**
+- **`gemcp.yaml` named workloads are on this tree.** `prepare_experiment` accepts `workload` plus typed `parameters` from a version-1 manifest at the verified commit root. Dataset snapshots, build sessions, and cross-node asset placement are still later.
 - **Scheduler disabled:** accepted prepared and Advanced submissions stay `queued` and create no compute resource. The current local `.env` template turns the scheduler and Cloud SSH on so `local-cpu-loop.sh` can finish. **Nodes hidden:** expected only while both Self-hosted and Cloud SSH flags are false.
 - **Provider / Diagnostics / paid AutoDL / Images live Pro create / two physical GPUs / Watchdog-while-down / SMTP / `/root/autodl-fs` persistence** still need authorized live resources. Failures there without those resources are not product regressions. Live Pro create stays fail-closed on this tree: Confirm must not invent an image UUID.
 

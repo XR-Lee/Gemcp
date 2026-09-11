@@ -93,6 +93,8 @@ type proposalResolved struct {
 	bindings            []datasetcatalog.View
 	installDependencies bool
 	requirementsFile    string
+	workload            string
+	parameters          map[string]string
 }
 
 type proposalPair struct {
@@ -338,6 +340,42 @@ func (s *Service) resolveProposal(ctx context.Context, principal agentauth.Princ
 	if err := filterProposalBindings(&resolved, input.Dataset); err != nil {
 		return result, nil, err
 	}
+	if named, namedErr := s.resolveNamedWorkload(ctx, repositoryRecord, commitSHA, input); namedErr != nil {
+		return result, nil, namedErr
+	} else if named.Name != "" {
+		executionSpec = named.Spec
+		resolved.execution = named.Spec
+		resolved.workload = named.Name
+		resolved.parameters = named.Parameters
+		if strings.TrimSpace(input.RuntimePreset) == "" && named.RuntimePreset != "" {
+			preset, runtimeSeconds, err = resolveProposalRuntimeLimit(named.RuntimePreset, input.MaxRuntimeSeconds, projectRecord.MaxRuntimeSeconds)
+			if err != nil {
+				return result, nil, err
+			}
+			resolved.preset = preset
+			resolved.runtime = runtimeSeconds
+			if !unmeteredBackend(profileRecord.Backend) {
+				billable, billableErr := billableRuntimeSeconds(runtimeSeconds, projectRecord.TimeoutExtensionSeconds, projectRecord.TerminationGraceSeconds)
+				if billableErr != nil {
+					return result, nil, billableErr
+				}
+				reservation, err = reserveCost(profileRecord.PriceToMilli, profileRecord.GpuNum, billable)
+				if err != nil {
+					return result, nil, err
+				}
+				resolved.reservation = reservation
+			}
+		}
+		if strings.TrimSpace(input.Dataset) == "" && named.Dataset != "" {
+			resolved.dataset = named.Dataset
+			if err := filterProposalBindings(&resolved, named.Dataset); err != nil {
+				return result, nil, err
+			}
+		}
+		if cwd == "" && named.WorkingDirectory != "" {
+			resolved.cwd = named.WorkingDirectory
+		}
+	}
 	if input.InstallDependencies {
 		requirementsFile, reqErr := normalizeRequirementsFile(input.RequirementsFile)
 		if reqErr != nil {
@@ -351,11 +389,18 @@ func (s *Service) resolveProposal(ctx context.Context, principal agentauth.Princ
 
 func proposalExecutionSpec(input PrepareInput) (executioncmd.Spec, error) {
 	preset := strings.ToLower(strings.TrimSpace(input.RuntimePreset))
+	workloadName := strings.TrimSpace(input.Workload)
 	if preset == "provision" {
-		if len(input.Argv) > 0 {
-			return executioncmd.Spec{}, fmt.Errorf("provision uses a Gemcp-owned fetch; omit argv")
+		if len(input.Argv) > 0 || workloadName != "" {
+			return executioncmd.Spec{}, fmt.Errorf("provision uses a Gemcp-owned fetch; omit argv and workload")
 		}
 		return executioncmd.Argv([]string{provisionProgram})
+	}
+	if workloadName != "" {
+		if len(input.Argv) > 0 {
+			return executioncmd.Spec{}, fmt.Errorf("named workload and argv are mutually exclusive")
+		}
+		return executioncmd.Spec{Mode: executioncmd.ModeArgv}, nil
 	}
 	return executioncmd.Argv(input.Argv)
 }
@@ -1112,6 +1157,8 @@ func proposalDigestMaterial(resolved proposalResolved) []byte {
 		ReservationMilli int64             `json:"reservation_milli"`
 		FromNodeID       string            `json:"from_node_id,omitempty"`
 		ExpectedMetric   string            `json:"expected_metric,omitempty"`
+		Workload         string            `json:"workload,omitempty"`
+		Parameters       map[string]string `json:"parameters,omitempty"`
 		ExpiresAt        time.Time         `json:"expires_at"`
 		Host             string            `json:"host,omitempty"`
 		User             string            `json:"user,omitempty"`
@@ -1124,6 +1171,7 @@ func proposalDigestMaterial(resolved proposalResolved) []byte {
 		RequestedRef: resolved.ref, CommitSHA: resolved.commitSHA, Execution: resolved.execution,
 		RuntimePreset: resolved.preset, RuntimeSeconds: resolved.runtime, ReservationMilli: resolved.reservation,
 		FromNodeID: resolved.fromNodeID, ExpectedMetric: resolved.expectedMetric,
+		Workload: resolved.workload, Parameters: resolved.parameters,
 		ExpiresAt: resolved.expiresAt.UTC().Truncate(time.Microsecond),
 		Host:      resolved.sshHost, User: resolved.sshUser, WorkingDirectory: proposalWorkingDirectory(resolved),
 		Isolation: proposalIsolation(resolved),
@@ -1153,6 +1201,7 @@ func preparedProposal(resolved proposalResolved, digest string, createdAt time.T
 			ID: resolved.repository.PublicID.String(), Name: resolved.repository.Name, SSHURL: resolved.repository.SSHURL,
 			HostKeyFingerprint: resolved.repository.HostKeyFingerprint, RequestedRef: resolved.ref,
 			CommitSHA: resolved.commitSHA, DefaultBranch: resolved.repository.DefaultBranch,
+			Access: repositoryAccess(resolved.repository),
 		}
 	}
 	return PreparedProposal{
@@ -1181,6 +1230,7 @@ func preparedProposal(resolved proposalResolved, digest string, createdAt time.T
 		TimeoutExtensionSeconds: resolved.project.TimeoutExtensionSeconds, TerminationGraceSeconds: resolved.project.TerminationGraceSeconds,
 		ReservedCostMilli: resolved.reservation, ReservedCostCNY: milliCNY(resolved.reservation), Checks: append([]ProposalCheck(nil), resolved.checks...),
 		ConfirmationDigest: digest, FromNodeID: resolved.fromNodeID, ExpectedMetric: resolved.expectedMetric,
+		Workload: resolved.workload, Parameters: resolved.parameters, Dataset: resolved.dataset,
 		InstallDependencies: resolved.installDependencies, RequirementsFile: resolved.requirementsFile,
 		ExpiresAt: resolved.expiresAt, CreatedAt: createdAt,
 	}
