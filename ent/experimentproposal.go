@@ -37,7 +37,7 @@ type ExperimentProposal struct {
 	// ProjectID holds the value of the "project_id" field.
 	ProjectID int `json:"project_id,omitempty"`
 	// AgentTokenID holds the value of the "agent_token_id" field.
-	AgentTokenID int `json:"agent_token_id,omitempty"`
+	AgentTokenID *int `json:"agent_token_id,omitempty"`
 	// RepositoryID holds the value of the "repository_id" field.
 	RepositoryID *int `json:"repository_id,omitempty"`
 	// EnvironmentID holds the value of the "environment_id" field.
@@ -258,7 +258,8 @@ func (_m *ExperimentProposal) assignValues(columns []string, values []any) error
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field agent_token_id", values[i])
 			} else if value.Valid {
-				_m.AgentTokenID = int(value.Int64)
+				_m.AgentTokenID = new(int)
+				*_m.AgentTokenID = int(value.Int64)
 			}
 		case experimentproposal.FieldRepositoryID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -499,8 +500,10 @@ func (_m *ExperimentProposal) String() string {
 	builder.WriteString("project_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ProjectID))
 	builder.WriteString(", ")
-	builder.WriteString("agent_token_id=")
-	builder.WriteString(fmt.Sprintf("%v", _m.AgentTokenID))
+	if v := _m.AgentTokenID; v != nil {
+		builder.WriteString("agent_token_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	if v := _m.RepositoryID; v != nil {
 		builder.WriteString("repository_id=")

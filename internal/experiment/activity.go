@@ -236,6 +236,8 @@ func (s *Service) OwnerOperations(ctx context.Context, tenantID int, projectID s
 		}
 		if token, edgeErr := proposal.Edges.AgentTokenOrErr(); edgeErr == nil {
 			view.AgentLabel, view.AgentTokenPrefix = token.Label, token.Prefix
+		} else {
+			view.AgentLabel = "Owner"
 		}
 		if experimentRecord, edgeErr := proposal.Edges.ExperimentOrErr(); edgeErr == nil {
 			view.ExperimentID = experimentRecord.PublicID.String()

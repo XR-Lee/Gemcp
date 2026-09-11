@@ -112,16 +112,9 @@ func (s *Service) OwnerSubmitPrepared(ctx context.Context, tenantID int, actorID
 	if err != nil {
 		return SubmitPreparedResult{}, err
 	}
-	token, err := record.Edges.AgentTokenOrErr()
+	principal, err := s.preparedSubmitPrincipal(ctx, tenantID, actorID, projectRecord, record)
 	if err != nil {
-		token, err = s.client.AgentToken.Query().Where(agenttoken.IDEQ(record.AgentTokenID)).Only(ctx)
-		if err != nil {
-			return SubmitPreparedResult{}, err
-		}
-	}
-	principal := agentauth.Principal{
-		TenantID: tenantID, ProjectID: projectRecord.ID, ProjectPublicID: projectRecord.PublicID.String(),
-		TokenID: token.ID, TokenPublicID: token.PublicID.String(), Scopes: []string{"submit", "read"},
+		return SubmitPreparedResult{}, err
 	}
 	result, err := s.SubmitPrepared(ctx, principal, SubmitPreparedInput{
 		ProposalID: proposalPublicID, ConfirmationDigest: input.ConfirmationDigest,
@@ -149,6 +142,44 @@ func (s *Service) OwnerCost(ctx context.Context, tenantID int, projectPublicID s
 		return CostView{}, err
 	}
 	return s.Cost(ctx, principal)
+}
+
+func (s *Service) OwnerPrepare(ctx context.Context, tenantID int, actorID, projectPublicID string, input PrepareInput) (PrepareResult, error) {
+	principal, err := s.ownerSubmitPrincipal(ctx, tenantID, projectPublicID, actorID)
+	if err != nil {
+		return PrepareResult{}, err
+	}
+	return s.Prepare(ctx, principal, input)
+}
+
+func (s *Service) ownerSubmitPrincipal(ctx context.Context, tenantID int, projectPublicID, actorID string) (agentauth.Principal, error) {
+	principal, err := s.ownerPrincipal(ctx, tenantID, projectPublicID)
+	if err != nil {
+		return agentauth.Principal{}, err
+	}
+	principal.Scopes = []string{"read", "submit"}
+	principal.UserPublicID = strings.TrimSpace(actorID)
+	return principal, nil
+}
+
+func (s *Service) preparedSubmitPrincipal(ctx context.Context, tenantID int, actorID string, projectRecord *ent.Project, record *ent.ExperimentProposal) (agentauth.Principal, error) {
+	principal := agentauth.Principal{
+		TenantID: tenantID, ProjectID: projectRecord.ID, ProjectPublicID: projectRecord.PublicID.String(),
+		UserPublicID: strings.TrimSpace(actorID), Scopes: []string{"submit", "read"},
+	}
+	if record.AgentTokenID == nil {
+		return principal, nil
+	}
+	token, err := record.Edges.AgentTokenOrErr()
+	if err != nil {
+		token, err = s.client.AgentToken.Query().Where(agenttoken.IDEQ(*record.AgentTokenID)).Only(ctx)
+		if err != nil {
+			return agentauth.Principal{}, err
+		}
+	}
+	principal.TokenID = token.ID
+	principal.TokenPublicID = token.PublicID.String()
+	return principal, nil
 }
 
 func (s *Service) ownerPrincipal(ctx context.Context, tenantID int, value string) (agentauth.Principal, error) {

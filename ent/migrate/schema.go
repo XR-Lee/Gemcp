@@ -813,7 +813,7 @@ var (
 		{Name: "confirmation_digest", Type: field.TypeString, Size: 80},
 		{Name: "expires_at", Type: field.TypeTime},
 		{Name: "submitted_at", Type: field.TypeTime, Nullable: true},
-		{Name: "agent_token_id", Type: field.TypeInt},
+		{Name: "agent_token_id", Type: field.TypeInt, Nullable: true},
 		{Name: "environment_id", Type: field.TypeInt},
 		{Name: "experiment_id", Type: field.TypeInt, Unique: true, Nullable: true},
 		{Name: "project_id", Type: field.TypeInt},
@@ -831,7 +831,7 @@ var (
 				Symbol:     "experiment_proposals_agent_tokens_experiment_proposals",
 				Columns:    []*schema.Column{ExperimentProposalsColumns[23]},
 				RefColumns: []*schema.Column{AgentTokensColumns[0]},
-				OnDelete:   schema.NoAction,
+				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "experiment_proposals_environments_experiment_proposals",

@@ -88,6 +88,14 @@ func (_c *ExperimentProposalCreate) SetAgentTokenID(v int) *ExperimentProposalCr
 	return _c
 }
 
+// SetNillableAgentTokenID sets the "agent_token_id" field if the given value is not nil.
+func (_c *ExperimentProposalCreate) SetNillableAgentTokenID(v *int) *ExperimentProposalCreate {
+	if v != nil {
+		_c.SetAgentTokenID(*v)
+	}
+	return _c
+}
+
 // SetRepositoryID sets the "repository_id" field.
 func (_c *ExperimentProposalCreate) SetRepositoryID(v int) *ExperimentProposalCreate {
 	_c.mutation.SetRepositoryID(v)
@@ -375,9 +383,6 @@ func (_c *ExperimentProposalCreate) check() error {
 	if _, ok := _c.mutation.ProjectID(); !ok {
 		return &ValidationError{Name: "project_id", err: errors.New(`ent: missing required field "ExperimentProposal.project_id"`)}
 	}
-	if _, ok := _c.mutation.AgentTokenID(); !ok {
-		return &ValidationError{Name: "agent_token_id", err: errors.New(`ent: missing required field "ExperimentProposal.agent_token_id"`)}
-	}
 	if _, ok := _c.mutation.EnvironmentID(); !ok {
 		return &ValidationError{Name: "environment_id", err: errors.New(`ent: missing required field "ExperimentProposal.environment_id"`)}
 	}
@@ -493,9 +498,6 @@ func (_c *ExperimentProposalCreate) check() error {
 	}
 	if len(_c.mutation.ProjectIDs()) == 0 {
 		return &ValidationError{Name: "project", err: errors.New(`ent: missing required edge "ExperimentProposal.project"`)}
-	}
-	if len(_c.mutation.AgentTokenIDs()) == 0 {
-		return &ValidationError{Name: "agent_token", err: errors.New(`ent: missing required edge "ExperimentProposal.agent_token"`)}
 	}
 	if len(_c.mutation.EnvironmentIDs()) == 0 {
 		return &ValidationError{Name: "environment", err: errors.New(`ent: missing required edge "ExperimentProposal.environment"`)}
@@ -665,7 +667,7 @@ func (_c *ExperimentProposalCreate) createSpec() (*ExperimentProposal, *sqlgraph
 		for _, k := range nodes {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.AgentTokenID = nodes[0]
+		_node.AgentTokenID = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	if nodes := _c.mutation.RepositoryIDs(); len(nodes) > 0 {

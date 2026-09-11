@@ -166,7 +166,7 @@ Let a `configure` Agent finish Public Elastic setup without an Owner-baked image
 
 ### Repository readiness and Owner prepared experiments
 
-Owner and Agent registration accept a GitHub HTTPS or SSH URL. Public repositories activate over anonymous HTTPS with no Deploy Key; private repositories keep the read-only Deploy Key path. Owner confirmation now shows digest-bound Graph origin, dataset, named workload, repository access, working directory, and dependency install. `prepare_experiment` resolves a reviewed `gemcp.yaml` workload into the same argv proposal. Standing approvals, Owner-authored prepare without an Agent Token, dataset snapshots, and build sessions remain later. The released Agent path already removes preliminary options, cost, UUID, full-SHA, reservation calculation, caller idempotency, and shell-command assembly from the common single-repository workflow.
+Owner and Agent registration accept a GitHub HTTPS or SSH URL. Public repositories activate over anonymous HTTPS with no Deploy Key; private repositories keep the read-only Deploy Key path. Owner confirmation now shows digest-bound Graph origin, dataset, named workload, repository access, working directory, and dependency install. `prepare_experiment` resolves a reviewed `gemcp.yaml` workload into the same argv proposal. Owners can prepare that same proposal from Evidence without an Agent Token. Standing approvals, dataset snapshots, and build sessions remain later. The released Agent path already removes preliminary options, cost, UUID, full-SHA, reservation calculation, caller idempotency, and shell-command assembly from the common single-repository workflow.
 
 ## Further validation
 

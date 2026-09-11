@@ -21088,7 +21088,7 @@ func (m *ExperimentProposalMutation) AgentTokenID() (r int, exists bool) {
 // OldAgentTokenID returns the old "agent_token_id" field's value of the ExperimentProposal entity.
 // If the ExperimentProposal object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *ExperimentProposalMutation) OldAgentTokenID(ctx context.Context) (v int, err error) {
+func (m *ExperimentProposalMutation) OldAgentTokenID(ctx context.Context) (v *int, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldAgentTokenID is only allowed on UpdateOne operations")
 	}
@@ -21102,9 +21102,22 @@ func (m *ExperimentProposalMutation) OldAgentTokenID(ctx context.Context) (v int
 	return oldValue.AgentTokenID, nil
 }
 
+// ClearAgentTokenID clears the value of the "agent_token_id" field.
+func (m *ExperimentProposalMutation) ClearAgentTokenID() {
+	m.agent_token = nil
+	m.clearedFields[experimentproposal.FieldAgentTokenID] = struct{}{}
+}
+
+// AgentTokenIDCleared returns if the "agent_token_id" field was cleared in this mutation.
+func (m *ExperimentProposalMutation) AgentTokenIDCleared() bool {
+	_, ok := m.clearedFields[experimentproposal.FieldAgentTokenID]
+	return ok
+}
+
 // ResetAgentTokenID resets all changes to the "agent_token_id" field.
 func (m *ExperimentProposalMutation) ResetAgentTokenID() {
 	m.agent_token = nil
+	delete(m.clearedFields, experimentproposal.FieldAgentTokenID)
 }
 
 // SetRepositoryID sets the "repository_id" field.
@@ -22146,7 +22159,7 @@ func (m *ExperimentProposalMutation) ClearAgentToken() {
 
 // AgentTokenCleared reports if the "agent_token" edge to the AgentToken entity was cleared.
 func (m *ExperimentProposalMutation) AgentTokenCleared() bool {
-	return m.clearedagent_token
+	return m.AgentTokenIDCleared() || m.clearedagent_token
 }
 
 // AgentTokenIDs returns the "agent_token" edge IDs in the mutation.
@@ -22821,6 +22834,9 @@ func (m *ExperimentProposalMutation) AddField(name string, value ent.Value) erro
 // mutation.
 func (m *ExperimentProposalMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(experimentproposal.FieldAgentTokenID) {
+		fields = append(fields, experimentproposal.FieldAgentTokenID)
+	}
 	if m.FieldCleared(experimentproposal.FieldRepositoryID) {
 		fields = append(fields, experimentproposal.FieldRepositoryID)
 	}
@@ -22844,6 +22860,9 @@ func (m *ExperimentProposalMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *ExperimentProposalMutation) ClearField(name string) error {
 	switch name {
+	case experimentproposal.FieldAgentTokenID:
+		m.ClearAgentTokenID()
+		return nil
 	case experimentproposal.FieldRepositoryID:
 		m.ClearRepositoryID()
 		return nil

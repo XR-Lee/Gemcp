@@ -24,7 +24,7 @@ import {
   WalletCards,
   X,
 } from '@lucide/vue'
-import { APIError, api, type AgentReadiness, type Attempt, type BuildInfo, type DatasetBinding, type DatasetCatalogEntry, type Experiment, type ExperimentCatalog, type OperationsFeed, type Project, type ProjectEnvironment, type ProposalActivity, type Repository, type ResearchWorkspace, type RuntimeStatus, type User } from '../api'
+import { APIError, api, type AgentReadiness, type Attempt, type BuildInfo, type DatasetBinding, type DatasetCatalogEntry, type Experiment, type ExperimentCatalog, type OperationsFeed, type PreparedProposal, type Project, type ProjectEnvironment, type ProposalActivity, type Repository, type ResearchWorkspace, type RuntimeStatus, type User } from '../api'
 import { localizedState, useI18n } from '../i18n'
 import { pickDefaultProjectID } from '../projectSelect'
 import { draftStudyFromRepository, repositoryNameFromSSHURL } from '../studyImport'
@@ -91,6 +91,20 @@ const confirmationTarget = ref<ProposalActivity | null>(null)
 const confirmationChecked = ref(false)
 const confirmationBusy = ref(false)
 const confirmationError = ref('')
+const prepareBusy = ref(false)
+const prepareError = ref('')
+const prepareForm = reactive({
+  mode: 'argv' as 'argv' | 'workload' | 'provision',
+  argv: 'python\ntools/smoke.py',
+  workload: '',
+  parameters: '',
+  ref: '',
+  fromNodeID: '',
+  expectedMetric: '',
+  dataset: '',
+  runtimePreset: 'smoke',
+  installDependencies: false,
+})
 const attemptedVerify = new Set<string>()
 const { locale, languageTag, t } = useI18n()
 const studyImportOptions = computed(() => {
@@ -104,6 +118,15 @@ const studyImportOptions = computed(() => {
 })
 const importingExistingRepository = computed(() => studyForm.importSource !== 'url' && studyForm.importSource !== 'blank')
 const importingNewRepository = computed(() => studyForm.importSource === 'url')
+const prepareOriginOptions = computed(() => {
+  const options = [{ value: '', label: t('No Graph origin', '无 Graph 起点') }]
+  for (const node of researchWorkspace.value?.study?.nodes ?? []) {
+    if (node.kind === 'hypothesis' || node.kind === 'plan') {
+      options.push({ value: node.id, label: `${node.kind} · ${node.title}` })
+    }
+  }
+  return options
+})
 const confirmationDialogOpen = computed({
   get: () => confirmationTarget.value !== null,
   set: (open: boolean) => {
@@ -284,6 +307,111 @@ function closeExperiment() {
 function openExperimentByID(experimentID: string) {
   const experiment = experiments.value.find((item) => item.id === experimentID)
   if (experiment) void openExperiment(experiment)
+}
+
+function activityFromPrepared(prepared: PreparedProposal): ProposalActivity {
+  return {
+    id: prepared.id,
+    status: 'prepared',
+    eligible: prepared.eligible,
+    agent_label: 'Owner',
+    agent_token_prefix: '',
+    repository_name: prepared.repository.name,
+    requested_ref: prepared.repository.requested_ref,
+    commit_sha: prepared.repository.commit_sha,
+    display_command: prepared.execution.display_command,
+    backend: prepared.resource.backend,
+    environment_name: prepared.resource.environment_name,
+    image: prepared.resource.image,
+    resource_profile_name: prepared.resource.resource_profile_name,
+    gpu_models: prepared.resource.gpu_models ?? [],
+    gpu_num: prepared.resource.gpu_num,
+    runtime_preset: prepared.runtime_preset,
+    max_runtime_seconds: prepared.max_runtime_seconds,
+    reserved_cost_milli: prepared.reserved_cost_milli,
+    checks: prepared.checks,
+    confirmation_digest: prepared.confirmation_digest,
+    from_node_id: prepared.from_node_id,
+    expected_metric: prepared.expected_metric,
+    dataset: prepared.dataset,
+    workload: prepared.workload,
+    parameters: prepared.parameters,
+    repository_access: prepared.repository.access,
+    repository_url: prepared.repository.ssh_url,
+    working_directory: prepared.resource.working_directory,
+    install_dependencies: prepared.install_dependencies,
+    requirements_file: prepared.requirements_file,
+    created_at: prepared.created_at,
+    updated_at: prepared.created_at,
+    expires_at: prepared.expires_at,
+  }
+}
+
+function parsePrepareLines(value: string): string[] {
+  return value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
+}
+
+function parsePrepareParameters(value: string): Record<string, string> {
+  const parameters: Record<string, string> = {}
+  for (const line of parsePrepareLines(value)) {
+    const separator = line.indexOf('=')
+    if (separator <= 0) continue
+    parameters[line.slice(0, separator).trim()] = line.slice(separator + 1).trim()
+  }
+  return parameters
+}
+
+async function prepareOwnerProposal() {
+  const projectID = selectedProjectID.value
+  if (!projectID) return
+  prepareBusy.value = true
+  prepareError.value = ''
+  try {
+    const payload: Parameters<typeof api.prepareProposal>[1] = {
+      ref: prepareForm.ref.trim() || undefined,
+      from_node_id: prepareForm.fromNodeID || undefined,
+      expected_metric: prepareForm.expectedMetric.trim() || undefined,
+      dataset: prepareForm.dataset.trim() || undefined,
+      runtime_preset: prepareForm.runtimePreset,
+      install_dependencies: prepareForm.installDependencies || undefined,
+    }
+    if (prepareForm.mode === 'provision') {
+      payload.runtime_preset = 'provision'
+    } else if (prepareForm.mode === 'workload') {
+      payload.workload = prepareForm.workload.trim()
+      const parameters = parsePrepareParameters(prepareForm.parameters)
+      if (Object.keys(parameters).length) payload.parameters = parameters
+    } else {
+      payload.argv = parsePrepareLines(prepareForm.argv)
+    }
+    const result = await api.prepareProposal(projectID, payload)
+    if (result.choice_required?.length) {
+      prepareError.value = t(
+        `Choose one ${result.choice_required[0].field}: ${result.choice_required.map((item) => item.name).join(', ')}`,
+        `请选择一个 ${result.choice_required[0].field}：${result.choice_required.map((item) => item.name).join('、')}`,
+      )
+      return
+    }
+    if (!result.proposal) {
+      prepareError.value = t('Preparation did not return a proposal.', '准备未返回提案。')
+      return
+    }
+    const activity = activityFromPrepared(result.proposal)
+    if (operationsFeed.value) {
+      operationsFeed.value = {
+        ...operationsFeed.value,
+        proposals: [activity, ...operationsFeed.value.proposals.filter((item) => item.id !== activity.id)],
+      }
+    } else {
+      operationsFeed.value = { activities: [], proposals: [activity], generated_at: activity.created_at }
+    }
+    openProposalConfirmation(activity)
+  } catch (caught) {
+    if (caught instanceof APIError && caught.status === 401) emit('signedOut')
+    else prepareError.value = caught instanceof APIError ? caught.message : t('Could not prepare this experiment.', '无法准备此实验。')
+  } finally {
+    prepareBusy.value = false
+  }
 }
 
 function openProposalConfirmation(proposal: ProposalActivity) {
@@ -709,6 +837,37 @@ onMounted(async () => {
 
       <section v-else-if="activeView === 'experiments'" class="page-workspace">
         <div class="section-heading page-section-heading"><div><h2>{{ t('Evidence', '证据') }}</h2><p>{{ t('Linked Experiments remain the execution evidence behind the Graph.', '关联的 Experiment 仍是 Graph 背后的执行证据。') }}</p></div><div class="segmented-control" :aria-label="t('Experiment state filter', '实验状态筛选')"><button v-for="filter in ['all', 'queued', 'running', 'succeeded', 'failed']" :key="filter" type="button" :class="{ active: stateFilter === filter }" @click="stateFilter = filter">{{ filter === 'all' ? t('all', '全部') : stateLabel(filter) }}</button></div></div>
+        <form class="dialog-form dataset-form owner-prepare-form" @submit.prevent="prepareOwnerProposal">
+          <div class="subsection-heading"><div><h2>{{ t('Prepare experiment', '准备实验') }}</h2><p>{{ t('Owners can prepare a zero-cost proposal here without an Agent Token. Confirm the digest before Gemcp spends.', 'Owner 可在此准备零成本提案，无需 Agent Token。确认摘要后 Gemcp 才会花费。') }}</p></div></div>
+          <label>{{ t('Kind', '类型') }}
+            <select v-model="prepareForm.mode">
+              <option value="argv">{{ t('One-shot argv', '一次性 argv') }}</option>
+              <option value="workload">{{ t('Named workload', '命名工作负载') }}</option>
+              <option value="provision">{{ t('Provision dataset', '拉取数据集') }}</option>
+            </select>
+          </label>
+          <label v-if="prepareForm.mode === 'argv'">{{ t('Arguments', '参数') }}<textarea v-model="prepareForm.argv" rows="3" required maxlength="4000" :placeholder="t('One argument per line', '一行一个参数')" spellcheck="false"></textarea></label>
+          <label v-if="prepareForm.mode === 'workload'">{{ t('Workload', '工作负载') }}<input v-model="prepareForm.workload" required maxlength="80" placeholder="objbg-smoke" spellcheck="false" /></label>
+          <label v-if="prepareForm.mode === 'workload'">{{ t('Parameters', '参数') }}<textarea v-model="prepareForm.parameters" rows="2" maxlength="2000" :placeholder="t('name=value, one per line', 'name=value，一行一个')" spellcheck="false"></textarea></label>
+          <label>{{ t('Ref', 'Ref') }}<input v-model="prepareForm.ref" maxlength="255" :placeholder="t('Default branch if omitted', '省略则用默认分支')" spellcheck="false" /></label>
+          <label>{{ t('Graph origin', 'Graph 起点') }}
+            <select v-model="prepareForm.fromNodeID">
+              <option v-for="option in prepareOriginOptions" :key="option.value || 'none'" :value="option.value">{{ option.label }}</option>
+            </select>
+          </label>
+          <label>{{ t('Runtime preset', '运行预设') }}
+            <select v-model="prepareForm.runtimePreset" :disabled="prepareForm.mode === 'provision'">
+              <option value="smoke">smoke</option>
+              <option value="probe">probe</option>
+              <option value="train">train</option>
+            </select>
+          </label>
+          <label>{{ t('Dataset', '数据集') }}<input v-model="prepareForm.dataset" maxlength="100" placeholder="scanobjectnn-objbg" spellcheck="false" /></label>
+          <label>{{ t('Expected metric', '预期指标') }}<input v-model="prepareForm.expectedMetric" maxlength="80" placeholder="overall_accuracy" spellcheck="false" /></label>
+          <label class="checkbox-row"><input v-model="prepareForm.installDependencies" type="checkbox" />{{ t('Install Python requirements from the commit', '从该提交安装 Python 依赖') }}</label>
+          <div v-if="prepareError" class="form-error" role="alert">{{ prepareError }}</div>
+          <button class="primary-button small-button" type="submit" :disabled="prepareBusy"><LoaderCircle v-if="prepareBusy" :size="16" class="spinning" /><FlaskConical v-else :size="16" />{{ t('Prepare proposal', '准备提案') }}</button>
+        </form>
         <div class="experiment-operations"><RunActivityPanel :feed="operationsFeed" :loading="operationsLoading" :confirming-proposal-id="confirmationBusy ? confirmationTarget?.id : ''" @open-experiment="openExperimentByID" @confirm-proposal="openProposalConfirmation" /></div>
         <ExperimentTable :experiments="filteredExperiments" @select="openExperiment" />
       </section>

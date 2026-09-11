@@ -38,9 +38,8 @@ func (s *Service) SubmitPrepared(ctx context.Context, principal agentauth.Princi
 	if len(digest) != 71 || !strings.HasPrefix(digest, "sha256:") {
 		return SubmitPreparedResult{}, &ValidationError{Message: "confirmation_digest must be the exact sha256 digest returned by prepare_experiment"}
 	}
-	record, err := s.client.ExperimentProposal.Query().Where(
-		experimentproposal.PublicIDEQ(proposalID), experimentproposal.ProjectIDEQ(principal.ProjectID),
-		experimentproposal.AgentTokenIDEQ(principal.TokenID),
+	record, err := scopedProposalQuery(s.client.ExperimentProposal.Query(), principal).Where(
+		experimentproposal.PublicIDEQ(proposalID),
 	).WithExperiment().Only(ctx)
 	if ent.IsNotFound(err) {
 		return SubmitPreparedResult{}, ErrProposalNotFound
@@ -90,9 +89,8 @@ func (s *Service) SubmitPrepared(ctx context.Context, principal agentauth.Princi
 		if !isRetryableTransaction(err) && !ent.IsConstraintError(err) && !errors.Is(err, errProposalRaced) {
 			return SubmitPreparedResult{}, err
 		}
-		existing, lookupErr := s.client.ExperimentProposal.Query().Where(
-			experimentproposal.IDEQ(record.ID), experimentproposal.ProjectIDEQ(principal.ProjectID),
-			experimentproposal.AgentTokenIDEQ(principal.TokenID),
+		existing, lookupErr := scopedProposalQuery(s.client.ExperimentProposal.Query(), principal).Where(
+			experimentproposal.IDEQ(record.ID),
 		).WithExperiment().Only(ctx)
 		if lookupErr == nil && existing.Status == experimentproposal.StatusSubmitted {
 			experimentRecord, edgeErr := existing.Edges.ExperimentOrErr()
@@ -184,9 +182,8 @@ func (s *Service) createPreparedExperiment(ctx context.Context, principal agenta
 		return result, err
 	}
 	defer tx.Rollback()
-	proposalRecord, err := tx.ExperimentProposal.Query().Where(
-		experimentproposal.IDEQ(proposalDatabaseID), experimentproposal.ProjectIDEQ(principal.ProjectID),
-		experimentproposal.AgentTokenIDEQ(principal.TokenID),
+	proposalRecord, err := scopedProposalQuery(tx.ExperimentProposal.Query(), principal).Where(
+		experimentproposal.IDEQ(proposalDatabaseID),
 	).WithExperiment().Only(ctx)
 	if ent.IsNotFound(err) {
 		return result, ErrProposalNotFound
@@ -292,11 +289,11 @@ func (s *Service) createPreparedExperiment(ctx context.Context, principal agenta
 	if selfHosted {
 		outputPath = "managed://experiments/" + experimentID.String() + "/outputs"
 	}
+	actorType, actorID := proposalAuditActor(principal)
 	create := tx.Experiment.Create().
 		SetPublicID(experimentID).
 		SetTenantID(principal.TenantID).
 		SetProjectID(projectRecord.ID).
-		SetAgentTokenID(principal.TokenID).
 		SetEnvironmentID(environmentRecord.ID).
 		SetResourceProfileID(profileRecord.ID).
 		SetCommitSha(proposalRecord.CommitSha).
@@ -313,6 +310,9 @@ func (s *Service) createPreparedExperiment(ctx context.Context, principal agenta
 		SetOutputPath(outputPath).
 		SetReservedCostMilli(reservation).
 		SetNextAttemptAt(now)
+	if principal.TokenID != 0 {
+		create.SetAgentTokenID(principal.TokenID)
+	}
 	if repositoryRecord != nil {
 		create.SetRepositoryID(repositoryRecord.ID)
 	}
@@ -339,7 +339,7 @@ func (s *Service) createPreparedExperiment(ctx context.Context, principal agenta
 		return result, errProposalRaced
 	}
 	if _, err := tx.AuditEvent.Create().
-		SetTenantID(principal.TenantID).SetActorType("agent_token").SetActorID(principal.TokenPublicID).
+		SetTenantID(principal.TenantID).SetActorType(actorType).SetActorID(actorID).
 		SetAction("experiment.submitted").SetTargetType("experiment").SetTargetID(experimentID.String()).
 		SetMetadata(map[string]any{
 			"project_id": projectRecord.PublicID.String(), "backend": profileRecord.Backend,
@@ -348,7 +348,7 @@ func (s *Service) createPreparedExperiment(ctx context.Context, principal agenta
 		}).Save(ctx); err != nil {
 		return result, err
 	}
-	if _, err := tx.AuditEvent.Create().SetTenantID(principal.TenantID).SetActorType("agent_token").SetActorID(principal.TokenPublicID).
+	if _, err := tx.AuditEvent.Create().SetTenantID(principal.TenantID).SetActorType(actorType).SetActorID(actorID).
 		SetAction("agent.activity").SetTargetType("project").SetTargetID(principal.ProjectPublicID).
 		SetMetadata(map[string]any{
 			"project_id": principal.ProjectPublicID, "phase": "monitoring", "proposal_id": proposalRecord.PublicID.String(),

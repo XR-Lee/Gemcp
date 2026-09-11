@@ -341,6 +341,66 @@ export type ProposalActivity = {
   expires_at: string
 }
 
+export type PrepareProposalInput = {
+  repository?: string
+  repository_remote?: string
+  ref?: string
+  argv?: string[]
+  runtime_preset?: string
+  max_runtime_seconds?: number
+  dataset?: string
+  install_dependencies?: boolean
+  from_node_id?: string
+  expected_metric?: string
+  workload?: string
+  parameters?: Record<string, string>
+}
+
+export type PreparedProposal = {
+  id: string
+  project_id: string
+  eligible: boolean
+  requires_confirmation: boolean
+  repository: {
+    id: string
+    name: string
+    ssh_url: string
+    requested_ref: string
+    commit_sha: string
+    default_branch: string
+    access?: string
+  }
+  execution: { mode: string; argv: string[]; display_command: string }
+  resource: {
+    environment_name: string
+    resource_profile_name: string
+    backend: string
+    image: string
+    gpu_models: string[]
+    gpu_num: number
+    working_directory?: string
+  }
+  runtime_preset: string
+  max_runtime_seconds: number
+  reserved_cost_milli: number
+  checks: DiagnosticCheck[]
+  confirmation_digest: string
+  from_node_id?: string
+  expected_metric?: string
+  workload?: string
+  parameters?: Record<string, string>
+  dataset?: string
+  install_dependencies?: boolean
+  requirements_file?: string
+  expires_at: string
+  created_at: string
+}
+
+export type PrepareProposalResult = {
+  proposal?: PreparedProposal
+  choice_required?: { field: string; id: string; name: string; backend?: string; detail?: string }[]
+}
+
 export type DatasetBindingSource = { url: string; relative_path: string; sha256?: string }
 export type DatasetBinding = {
   id: string
@@ -1200,6 +1260,10 @@ export const api = {
   removeEnvironment: (projectID: string, environmentID: string) =>
     request<ProjectEnvironment>(`/api/v1/projects/${encodeURIComponent(projectID)}/environments/${encodeURIComponent(environmentID)}`, {
       method: 'DELETE',
+    }),
+  prepareProposal: (projectID: string, payload: PrepareProposalInput) =>
+    request<PrepareProposalResult>(`/api/v1/projects/${encodeURIComponent(projectID)}/experiment-proposals`, {
+      method: 'POST', body: JSON.stringify(payload),
     }),
   submitPreparedProposal: (projectID: string, proposalID: string, payload: { confirmation_digest: string; confirmed: boolean }) =>
     request<{ experiment: Experiment; run_node_id?: string; idempotent: boolean }>(

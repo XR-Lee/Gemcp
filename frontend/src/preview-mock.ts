@@ -227,6 +227,27 @@ function match(url: URL, method: string, body?: unknown): Response | null {
       required_markers: ['main_split/train.h5'], status: 'disabled',
     })
   }
+  if (path === `/api/v1/projects/${projectID}/experiment-proposals` && method === 'POST') {
+    return json({
+      proposal: {
+        id: 'proposal-owner-1', project_id: projectID, eligible: true, requires_confirmation: true,
+        repository: {
+          id: repositories[0].id, name: repositories[0].name, ssh_url: repositories[0].ssh_url,
+          requested_ref: 'main', commit_sha: '0123456789012345678901234567890123456789',
+          default_branch: 'main', access: 'public_https',
+        },
+        execution: { mode: 'argv', argv: ['python', 'tools/smoke.py'], display_command: 'python tools/smoke.py' },
+        resource: {
+          environment_name: 'public-elastic', resource_profile_name: 'rtx4090', backend: 'autodl_elastic',
+          image: 'image-uuid', gpu_models: ['RTX 4090'], gpu_num: 1,
+        },
+        runtime_preset: 'smoke', max_runtime_seconds: 300, reserved_cost_milli: 3825,
+        checks: [{ id: 'budget', status: 'pass', summary: 'Budget can reserve' }],
+        confirmation_digest: 'sha256:' + 'cd'.repeat(32),
+        from_node_id: 'n-h', created_at: '2026-09-11T02:00:00Z', expires_at: '2026-09-11T04:00:00Z',
+      },
+    })
+  }
   if (path.includes('/experiment-proposals/') && path.endsWith('/submit') && method === 'POST') {
     return json({ experiment: experiments[0], idempotent: false })
   }

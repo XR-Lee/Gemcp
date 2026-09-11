@@ -548,6 +548,29 @@ async function mockConsole(page: Page, counters?: { providerQueries?: number; se
     if (path.startsWith(`/api/v1/projects/${project.id}/dataset-bindings/`) && route.request().method() === 'DELETE') {
       return fulfill(route, { ...datasetBindings[0], status: 'disabled' })
     }
+    if (path === `/api/v1/projects/${project.id}/experiment-proposals` && route.request().method() === 'POST') {
+      const body = route.request().postDataJSON()
+      expect(body.argv?.[0] || body.workload || body.runtime_preset).toBeTruthy()
+      return fulfill(route, {
+        proposal: {
+          id: 'proposal-owner-1', project_id: project.id, eligible: true, requires_confirmation: true,
+          repository: {
+            id: repositories[0].id, name: repositories[0].name, ssh_url: repositories[0].ssh_url,
+            requested_ref: body.ref || 'main', commit_sha: experiments[0].commit_sha,
+            default_branch: 'main', access: 'public_https',
+          },
+          execution: { mode: 'argv', argv: body.argv || ['python', 'tools/smoke.py'], display_command: 'python tools/smoke.py' },
+          resource: {
+            environment_name: 'public-elastic', resource_profile_name: 'one-rtx-4090', backend: 'autodl_elastic',
+            image: 'base-image-1', gpu_models: ['RTX 4090'], gpu_num: 1,
+          },
+          runtime_preset: body.runtime_preset || 'smoke', max_runtime_seconds: 300, reserved_cost_milli: 3825,
+          checks: [{ id: 'budget', status: 'pass', summary: 'Budget can reserve' }],
+          confirmation_digest: `sha256:${'d'.repeat(64)}`,
+          from_node_id: body.from_node_id, created_at: '2026-09-11T02:00:00Z', expires_at: '2026-09-11T04:00:00Z',
+        },
+      })
+    }
     if (path === `/api/v1/projects/${project.id}/experiment-proposals/proposal-paid-1/submit` && route.request().method() === 'POST') {
       expect(route.request().postDataJSON()).toEqual({
         confirmation_digest: operationsFeed.proposals[0].confirmation_digest, confirmed: true,
@@ -811,9 +834,18 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await page.getByTitle('Close').click()
 
   await page.getByRole('button', { name: 'Evidence', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Prepare experiment' })).toBeVisible()
+  await page.locator('.owner-prepare-form textarea').first().fill('python\ntools/smoke.py')
+  await page.screenshot({ path: '/tmp/gemcp-owner-prepare-form.png', fullPage: true })
+  await page.getByRole('button', { name: 'Prepare proposal' }).click()
+  const ownerPrepareDialog = page.getByRole('dialog', { name: 'Confirm prepared proposal' })
+  await expect(ownerPrepareDialog).toBeVisible()
+  await expect(ownerPrepareDialog.getByText(`sha256:${'d'.repeat(64)}`, { exact: true })).toBeVisible()
+  await page.screenshot({ path: '/tmp/gemcp-owner-prepare-confirm.png', fullPage: true })
+  await ownerPrepareDialog.getByTitle('Close').click()
   await expect(page.getByText('train · 57600s')).toBeVisible()
-  await expect(page.getByText('Prepared', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Confirm and start' }).click()
+  await expect(page.locator('.proposal-card').filter({ hasText: 'train · 57600s' }).getByText('Prepared', { exact: true })).toBeVisible()
+  await page.locator('.proposal-card').filter({ hasText: 'train · 57600s' }).getByRole('button', { name: 'Confirm and start' }).click()
   const confirmationDialog = page.getByRole('dialog', { name: 'Confirm prepared proposal' })
   await expect(confirmationDialog).toBeVisible()
   await expect(confirmationDialog.getByText(operationsFeed.proposals[0].confirmation_digest, { exact: true })).toBeVisible()

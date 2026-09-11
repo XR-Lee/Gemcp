@@ -217,6 +217,9 @@ func TestPreparedExperimentSchemaIsCredentialFreeAndExecutionMigrationIsAdditive
 			t.Fatalf("experiment_proposals column %s is missing", required)
 		}
 	}
+	if proposalColumns["agent_token_id"] == nil || !proposalColumns["agent_token_id"].Nullable {
+		t.Fatal("experiment_proposals agent_token_id must be nullable for Owner-authored prepare")
+	}
 	experimentColumns := map[string]*schema.Column{}
 	for _, column := range entmigrate.ExperimentsColumns {
 		experimentColumns[column.Name] = column

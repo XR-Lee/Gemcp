@@ -154,9 +154,6 @@ func (_u *ExperimentProposalUpdate) check() error {
 	if _u.mutation.ProjectCleared() && len(_u.mutation.ProjectIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "ExperimentProposal.project"`)
 	}
-	if _u.mutation.AgentTokenCleared() && len(_u.mutation.AgentTokenIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "ExperimentProposal.agent_token"`)
-	}
 	if _u.mutation.EnvironmentCleared() && len(_u.mutation.EnvironmentIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "ExperimentProposal.environment"`)
 	}
@@ -376,9 +373,6 @@ func (_u *ExperimentProposalUpdateOne) check() error {
 	}
 	if _u.mutation.ProjectCleared() && len(_u.mutation.ProjectIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "ExperimentProposal.project"`)
-	}
-	if _u.mutation.AgentTokenCleared() && len(_u.mutation.AgentTokenIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "ExperimentProposal.agent_token"`)
 	}
 	if _u.mutation.EnvironmentCleared() && len(_u.mutation.EnvironmentIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "ExperimentProposal.environment"`)

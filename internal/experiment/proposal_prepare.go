@@ -126,10 +126,12 @@ func (s *Service) Prepare(ctx context.Context, principal agentauth.Principal, in
 	if err != nil {
 		return PrepareResult{}, &ValidationError{Message: err.Error()}
 	}
-	if _, err := s.ReportActivity(ctx, principal, ReportActivityInput{
-		Phase: "preparing_proposal", RepositoryRemote: input.RepositoryRemote, Ref: input.Ref,
-	}); err != nil {
-		return PrepareResult{}, err
+	if principal.TokenID != 0 {
+		if _, err := s.ReportActivity(ctx, principal, ReportActivityInput{
+			Phase: "preparing_proposal", RepositoryRemote: input.RepositoryRemote, Ref: input.Ref,
+		}); err != nil {
+			return PrepareResult{}, err
+		}
 	}
 	resolved, choices, err := s.resolveProposal(ctx, principal, input, executionSpec)
 	if err != nil {
@@ -151,11 +153,11 @@ func (s *Service) Prepare(ctx context.Context, principal agentauth.Principal, in
 		return PrepareResult{}, err
 	}
 	defer tx.Rollback()
+	actorType, actorID := proposalAuditActor(principal)
 	create := tx.ExperimentProposal.Create().
 		SetPublicID(resolved.id).
 		SetTenantID(principal.TenantID).
 		SetProjectID(resolved.project.ID).
-		SetAgentTokenID(principal.TokenID).
 		SetEnvironmentID(resolved.environment.ID).
 		SetResourceProfileID(resolved.profile.ID).
 		SetRequestedRef(resolved.ref).
@@ -175,6 +177,9 @@ func (s *Service) Prepare(ctx context.Context, principal agentauth.Principal, in
 		SetReservedCostMilli(resolved.reservation).
 		SetConfirmationDigest(digest).
 		SetExpiresAt(resolved.expiresAt)
+	if principal.TokenID != 0 {
+		create.SetAgentTokenID(principal.TokenID)
+	}
 	if resolved.repository != nil {
 		create.SetRepositoryID(resolved.repository.ID)
 	}
@@ -192,8 +197,8 @@ func (s *Service) Prepare(ctx context.Context, principal agentauth.Principal, in
 	}
 	if _, err := tx.AuditEvent.Create().
 		SetTenantID(principal.TenantID).
-		SetActorType("agent_token").
-		SetActorID(principal.TokenPublicID).
+		SetActorType(actorType).
+		SetActorID(actorID).
 		SetAction("experiment.proposal_prepared").
 		SetTargetType("experiment_proposal").
 		SetTargetID(record.PublicID.String()).
@@ -207,7 +212,7 @@ func (s *Service) Prepare(ctx context.Context, principal agentauth.Principal, in
 	if resolved.repository != nil {
 		activityMeta["repository_remote"] = resolved.repository.SSHURL
 	}
-	if _, err := tx.AuditEvent.Create().SetTenantID(principal.TenantID).SetActorType("agent_token").SetActorID(principal.TokenPublicID).
+	if _, err := tx.AuditEvent.Create().SetTenantID(principal.TenantID).SetActorType(actorType).SetActorID(actorID).
 		SetAction("agent.activity").SetTargetType("project").SetTargetID(principal.ProjectPublicID).
 		SetMetadata(activityMeta).Save(ctx); err != nil {
 		return PrepareResult{}, err

@@ -4,7 +4,7 @@ Status: implementation in progress
 
 Scope: Agent MCP experiment preparation, paid confirmation, workload and dataset selection, result observation, and compatibility with the existing advanced submission path.
 
-The first implementation slice now covers durable expiring proposals, sole-repository and compatible-default resolution, server-side ref resolution, one-shot argv, version-1 `gemcp.yaml` named workloads, zero-cost preflight, digest-confirmed idempotent submission, and shell-free argv execution in AutoDL and capability-compatible Self-hosted Nodes. Prepared presets now include `smoke`, `probe`, and `train` up to Owner-unfrozen Project runtime. AutoDL Dataset Bindings inject `GEMCP_DATASET_*` from `/root/autodl-fs/` roots. The Owner console can PATCH Project policy, register those bindings, and confirm a prepared digest including Graph origin, dataset, workload, and repository access. Repository URL onboarding and public-repository readiness are on this tree: paste a GitHub HTTPS or SSH URL; public repositories skip the Deploy Key. Owner-session prepare without an Agent Token, richer generic observations, and standing approvals remain later slices.
+The first implementation slice now covers durable expiring proposals, sole-repository and compatible-default resolution, server-side ref resolution, one-shot argv, version-1 `gemcp.yaml` named workloads, zero-cost preflight, digest-confirmed idempotent submission, and shell-free argv execution in AutoDL and capability-compatible Self-hosted Nodes. Prepared presets now include `smoke`, `probe`, and `train` up to Owner-unfrozen Project runtime. AutoDL Dataset Bindings inject `GEMCP_DATASET_*` from `/root/autodl-fs/` roots. The Owner console can PATCH Project policy, register those bindings, prepare a proposal without an Agent Token, and confirm a prepared digest including Graph origin, dataset, workload, and repository access. Repository URL onboarding and public-repository readiness are on this tree: paste a GitHub HTTPS or SSH URL; public repositories skip the Deploy Key. Richer generic observations and standing approvals remain later slices.
 
 ## Summary
 
@@ -594,10 +594,10 @@ This phase is the first releasable usability improvement. For an already configu
 
 The released vertical slice is Agent-facing. It does not yet add Owner-session Proposal attribution or the corresponding Owner Console form.
 
-### Phase 1b - Owner prepared path
+### Phase 1b - Owner prepared path (on this tree)
 
-- Add Owner-session attribution to the Proposal model without fabricating an Agent Token.
-- Add the same prepare, compact review, explicit confirmation, and submission flow to the Owner Console.
+- Add Owner-session attribution to the Proposal model without fabricating an Agent Token (`agent_token_id` is optional).
+- Add the same prepare, compact review, explicit confirmation, and submission flow to the Owner Console Evidence page.
 - Reuse the authoritative resolver, preflight, digest, drift, cost, and idempotency implementation from Phase 1a.
 
 ### Phase 2 - repository readiness

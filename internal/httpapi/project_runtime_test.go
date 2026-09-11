@@ -160,6 +160,7 @@ func TestOwnerPreparedSubmitRequiresExplicitConfirmation(t *testing.T) {
 		}})
 		c.Next()
 	})
+	router.POST("/projects/:id/experiment-proposals", NewExperimentHandlers(experiment.NewService(client, box, nil)).Prepare)
 	router.POST("/projects/:id/experiment-proposals/:proposalID/submit", NewExperimentHandlers(experiment.NewService(client, box, nil)).SubmitPrepared)
 
 	response := httptest.NewRecorder()
@@ -170,5 +171,13 @@ func TestOwnerPreparedSubmitRequiresExplicitConfirmation(t *testing.T) {
 	router.ServeHTTP(response, request)
 	if response.Code != http.StatusConflict || !bytes.Contains(response.Body.Bytes(), []byte("EXPERIMENT_CONFIRMATION_REQUIRED")) {
 		t.Fatalf("unconfirmed submit status=%d body=%s", response.Code, response.Body.String())
+	}
+
+	prepare := httptest.NewRecorder()
+	prepareRequest := httptest.NewRequest(http.MethodPost, "/projects/project-id/experiment-proposals", strings.NewReader(`{`))
+	prepareRequest.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(prepare, prepareRequest)
+	if prepare.Code != http.StatusBadRequest || !bytes.Contains(prepare.Body.Bytes(), []byte("INVALID_EXPERIMENT_PREPARE")) {
+		t.Fatalf("invalid prepare status=%d body=%s", prepare.Code, prepare.Body.String())
 	}
 }
