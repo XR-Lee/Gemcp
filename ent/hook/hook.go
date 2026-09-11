@@ -309,6 +309,18 @@ func (f ProjectFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, err
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ProjectMutation", m)
 }
 
+// The ProjectWorkloadFunc type is an adapter to allow the use of ordinary
+// function as ProjectWorkload mutator.
+type ProjectWorkloadFunc func(context.Context, *ent.ProjectWorkloadMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ProjectWorkloadFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ProjectWorkloadMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ProjectWorkloadMutation", m)
+}
+
 // The ProviderAccountFunc type is an adapter to allow the use of ordinary
 // function as ProviderAccount mutator.
 type ProviderAccountFunc func(context.Context, *ent.ProviderAccountMutation) (ent.Value, error)

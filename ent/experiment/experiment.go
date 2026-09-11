@@ -126,6 +126,8 @@ const (
 	EdgeDiagnosticRun = "diagnostic_run"
 	// EdgeProposal holds the string denoting the proposal edge name in mutations.
 	EdgeProposal = "proposal"
+	// EdgeSavedWorkload holds the string denoting the saved_workload edge name in mutations.
+	EdgeSavedWorkload = "saved_workload"
 	// EdgeResearchNodes holds the string denoting the research_nodes edge name in mutations.
 	EdgeResearchNodes = "research_nodes"
 	// Table holds the table name of the experiment in the database.
@@ -228,6 +230,13 @@ const (
 	ProposalInverseTable = "experiment_proposals"
 	// ProposalColumn is the table column denoting the proposal relation/edge.
 	ProposalColumn = "experiment_id"
+	// SavedWorkloadTable is the table that holds the saved_workload relation/edge.
+	SavedWorkloadTable = "project_workloads"
+	// SavedWorkloadInverseTable is the table name for the ProjectWorkload entity.
+	// It exists in this package in order to avoid circular dependency with the "projectworkload" package.
+	SavedWorkloadInverseTable = "project_workloads"
+	// SavedWorkloadColumn is the table column denoting the saved_workload relation/edge.
+	SavedWorkloadColumn = "source_experiment_id"
 	// ResearchNodesTable is the table that holds the research_nodes relation/edge.
 	ResearchNodesTable = "research_nodes"
 	// ResearchNodesInverseTable is the table name for the ResearchNode entity.
@@ -691,6 +700,13 @@ func ByProposalField(field string, opts ...sql.OrderTermOption) OrderOption {
 	}
 }
 
+// BySavedWorkloadField orders the results by saved_workload field.
+func BySavedWorkloadField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newSavedWorkloadStep(), sql.OrderByField(field, opts...))
+	}
+}
+
 // ByResearchNodesCount orders the results by research_nodes count.
 func ByResearchNodesCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -800,6 +816,13 @@ func newProposalStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(ProposalInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2O, false, ProposalTable, ProposalColumn),
+	)
+}
+func newSavedWorkloadStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(SavedWorkloadInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2O, false, SavedWorkloadTable, SavedWorkloadColumn),
 	)
 }
 func newResearchNodesStep() *sqlgraph.Step {

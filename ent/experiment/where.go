@@ -2253,6 +2253,29 @@ func HasProposalWith(preds ...predicate.ExperimentProposal) predicate.Experiment
 	})
 }
 
+// HasSavedWorkload applies the HasEdge predicate on the "saved_workload" edge.
+func HasSavedWorkload() predicate.Experiment {
+	return predicate.Experiment(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, SavedWorkloadTable, SavedWorkloadColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasSavedWorkloadWith applies the HasEdge predicate on the "saved_workload" edge with a given conditions (other predicates).
+func HasSavedWorkloadWith(preds ...predicate.ProjectWorkload) predicate.Experiment {
+	return predicate.Experiment(func(s *sql.Selector) {
+		step := newSavedWorkloadStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasResearchNodes applies the HasEdge predicate on the "research_nodes" edge.
 func HasResearchNodes() predicate.Experiment {
 	return predicate.Experiment(func(s *sql.Selector) {

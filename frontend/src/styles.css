@@ -455,6 +455,8 @@ label small { color: #858e88; font-size: 10px; font-weight: 500; }
 .dataset-form .checkbox-row { min-height: 38px; display: flex; flex-direction: row; align-items: center; gap: 8px; font-size: 12px; }
 .dataset-form textarea { width: 100%; min-height: 64px; }
 .dataset-form > button { align-self: end; justify-self: start; }
+.saved-workload-names { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: #66736c; font-size: 10px; }
+.saved-workload-names .text-button { padding: 2px 8px; border: 1px solid #d7ddd9; border-radius: 4px; font: 700 10px/16px ui-monospace, monospace; }
 .subsection-heading { min-height: 69px; padding: 13px 18px; display: flex; align-items: center; justify-content: space-between; gap: 14px; border-bottom: 1px solid #e4e8e5; }
 .repository-table td:nth-child(3) { max-width: 330px; overflow: hidden; text-overflow: ellipsis; }
 .table-actions { display: flex; gap: 6px; }
@@ -718,10 +720,10 @@ label small { color: #858e88; font-size: 10px; font-weight: 500; }
   outline: none;
 }
 .workbench-select-item[data-highlighted] { background: #eef4ef; }
-.workbench-dialog-overlay { position: fixed; inset: 0; z-index: 40; background: #11131870; }
+.workbench-dialog-overlay { position: fixed; inset: 0; z-index: 120; background: #11131870; }
 .workbench-dialog {
   position: fixed;
-  z-index: 50;
+  z-index: 130;
   top: 50%;
   left: 50%;
   width: min(520px, calc(100vw - 28px));
@@ -735,6 +737,7 @@ label small { color: #858e88; font-size: 10px; font-weight: 500; }
 }
 .workbench-dialog:has(.attach-prompt-form) { width: min(720px, calc(100vw - 28px)); }
 .workbench-dialog:has(.proposal-confirmation-form) { width: min(760px, calc(100vw - 28px)); }
+.workbench-dialog:has(.workload-yaml) { width: min(640px, calc(100vw - 28px)); }
 .proposal-confirmation-grid { margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; overflow: hidden; background: #dfe4e0; border: 1px solid #dfe4e0; border-radius: 5px; }
 .proposal-confirmation-grid > div { min-width: 0; padding: 10px 11px; display: grid; align-content: start; gap: 4px; background: #fff; }
 .proposal-confirmation-grid .span-two { grid-column: span 2; }

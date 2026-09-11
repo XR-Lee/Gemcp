@@ -62,6 +62,8 @@ type Tx struct {
 	NotificationSetting *NotificationSettingClient
 	// Project is the client for interacting with the Project builders.
 	Project *ProjectClient
+	// ProjectWorkload is the client for interacting with the ProjectWorkload builders.
+	ProjectWorkload *ProjectWorkloadClient
 	// ProviderAccount is the client for interacting with the ProviderAccount builders.
 	ProviderAccount *ProviderAccountClient
 	// ProviderResource is the client for interacting with the ProviderResource builders.
@@ -246,6 +248,7 @@ func (tx *Tx) init() {
 	tx.Notification = NewNotificationClient(tx.config)
 	tx.NotificationSetting = NewNotificationSettingClient(tx.config)
 	tx.Project = NewProjectClient(tx.config)
+	tx.ProjectWorkload = NewProjectWorkloadClient(tx.config)
 	tx.ProviderAccount = NewProviderAccountClient(tx.config)
 	tx.ProviderResource = NewProviderResourceClient(tx.config)
 	tx.RecordMixin = NewRecordMixinClient(tx.config)

@@ -73,6 +73,7 @@ func (Experiment) Edges() []ent.Edge {
 		edge.To("idempotency_records", IdempotencyRecord.Type),
 		edge.To("diagnostic_run", DiagnosticRun.Type).Unique(),
 		edge.To("proposal", ExperimentProposal.Type).Unique(),
+		edge.To("saved_workload", ProjectWorkload.Type).Unique(),
 		edge.To("research_nodes", ResearchNode.Type),
 	}
 }

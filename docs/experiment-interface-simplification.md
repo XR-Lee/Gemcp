@@ -4,7 +4,7 @@ Status: implementation in progress
 
 Scope: Agent MCP experiment preparation, paid confirmation, workload and dataset selection, result observation, and compatibility with the existing advanced submission path.
 
-The first implementation slice now covers durable expiring proposals, sole-repository and compatible-default resolution, server-side ref resolution, one-shot argv, version-1 `gemcp.yaml` named workloads, zero-cost preflight, digest-confirmed idempotent submission, and shell-free argv execution in AutoDL and capability-compatible Self-hosted Nodes. Prepared presets now include `smoke`, `probe`, and `train` up to Owner-unfrozen Project runtime. AutoDL Dataset Bindings inject `GEMCP_DATASET_*` from `/root/autodl-fs/` roots. The Owner console can PATCH Project policy, register those bindings, prepare a proposal without an Agent Token, and confirm a prepared digest including Graph origin, dataset, workload, and repository access. Repository URL onboarding and public-repository readiness are on this tree: paste a GitHub HTTPS or SSH URL; public repositories skip the Deploy Key. Richer generic observations and standing approvals remain later slices.
+The first implementation slice now covers durable expiring proposals, sole-repository and compatible-default resolution, server-side ref resolution, one-shot argv, version-1 `gemcp.yaml` named workloads, zero-cost preflight, digest-confirmed idempotent submission, and shell-free argv execution in AutoDL and capability-compatible Self-hosted Nodes. Prepared presets now include `smoke`, `probe`, and `train` up to Owner-unfrozen Project runtime. AutoDL Dataset Bindings inject `GEMCP_DATASET_*` from `/root/autodl-fs/` roots. The Owner console can PATCH Project policy, register those bindings, prepare a proposal without an Agent Token, and confirm a prepared digest including Graph origin, dataset, workload, and repository access. After a succeeded one-shot, Evidence can save a reviewable `gemcp.yaml` draft as a Project workload without writing the source repository. Repository URL onboarding and public-repository readiness are on this tree: paste a GitHub HTTPS or SSH URL; public repositories skip the Deploy Key. Richer generic observations and standing approvals remain later slices.
 
 ## Summary
 
@@ -592,7 +592,7 @@ The Agent guide should make the prepared path normative and label direct submiss
 
 This phase is the first releasable usability improvement. For an already configured single-repository Project, it reduces the normal MCP path from discovery, accounting, manual idempotency, and direct submission to `prepare_experiment`, human confirmation, and `submit_prepared_experiment`.
 
-The released vertical slice is Agent-facing. It does not yet add Owner-session Proposal attribution or the corresponding Owner Console form.
+The released vertical slice is Agent-facing. Owner-session Proposal attribution and the Evidence prepare form are on this tree.
 
 ### Phase 1b - Owner prepared path (on this tree)
 
@@ -625,7 +625,7 @@ The released vertical slice is Agent-facing. It does not yet add Owner-session P
 - Add Project runtime presets and default resolution.
 - Add named Dataset Bindings and environment injection needed by the first real training workloads.
 - Add a small language-neutral workload result contract for `metrics.json`.
-- Allow an Owner to save a successful one-shot proposal as a Project workload.
+- Allow an Owner to save a successful one-shot proposal as a Project workload. Evidence offers `Save as workload`, previews a version-1 `gemcp.yaml` draft, and stores that named workload on the Project. Later `prepare_experiment` calls resolve `gemcp.yaml` at the verified commit first; if that file is missing or has no matching name, Gemcp uses the saved Project workload. Saving does not modify git.
 
 ### Phase 5 - dataset snapshots and artifacts
 

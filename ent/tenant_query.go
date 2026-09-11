@@ -35,6 +35,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/notificationsetting"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 	"github.com/XR-Lee/Gemcp/ent/project"
+	"github.com/XR-Lee/Gemcp/ent/projectworkload"
 	"github.com/XR-Lee/Gemcp/ent/provideraccount"
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/researchedge"
@@ -78,6 +79,7 @@ type TenantQuery struct {
 	withExperimentProposals   *ExperimentProposalQuery
 	withWorkspaceDatasets     *WorkspaceDatasetQuery
 	withDatasetBindings       *DatasetBindingQuery
+	withProjectWorkloads      *ProjectWorkloadQuery
 	withStudies               *StudyQuery
 	withIterationPlans        *IterationPlanQuery
 	withResearchNodes         *ResearchNodeQuery
@@ -669,6 +671,28 @@ func (_q *TenantQuery) QueryDatasetBindings() *DatasetBindingQuery {
 	return query
 }
 
+// QueryProjectWorkloads chains the current query on the "project_workloads" edge.
+func (_q *TenantQuery) QueryProjectWorkloads() *ProjectWorkloadQuery {
+	query := (&ProjectWorkloadClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(projectworkload.Table, projectworkload.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.ProjectWorkloadsTable, tenant.ProjectWorkloadsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
 // QueryStudies chains the current query on the "studies" edge.
 func (_q *TenantQuery) QueryStudies() *StudyQuery {
 	query := (&StudyClient{config: _q.config}).Query()
@@ -996,6 +1020,7 @@ func (_q *TenantQuery) Clone() *TenantQuery {
 		withExperimentProposals:   _q.withExperimentProposals.Clone(),
 		withWorkspaceDatasets:     _q.withWorkspaceDatasets.Clone(),
 		withDatasetBindings:       _q.withDatasetBindings.Clone(),
+		withProjectWorkloads:      _q.withProjectWorkloads.Clone(),
 		withStudies:               _q.withStudies.Clone(),
 		withIterationPlans:        _q.withIterationPlans.Clone(),
 		withResearchNodes:         _q.withResearchNodes.Clone(),
@@ -1282,6 +1307,17 @@ func (_q *TenantQuery) WithDatasetBindings(opts ...func(*DatasetBindingQuery)) *
 	return _q
 }
 
+// WithProjectWorkloads tells the query-builder to eager-load the nodes that are connected to
+// the "project_workloads" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithProjectWorkloads(opts ...func(*ProjectWorkloadQuery)) *TenantQuery {
+	query := (&ProjectWorkloadClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withProjectWorkloads = query
+	return _q
+}
+
 // WithStudies tells the query-builder to eager-load the nodes that are connected to
 // the "studies" edge. The optional arguments are used to configure the query builder of the edge.
 func (_q *TenantQuery) WithStudies(opts ...func(*StudyQuery)) *TenantQuery {
@@ -1415,7 +1451,7 @@ func (_q *TenantQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Tenan
 	var (
 		nodes       = []*Tenant{}
 		_spec       = _q.querySpec()
-		loadedTypes = [30]bool{
+		loadedTypes = [31]bool{
 			_q.withUsers != nil,
 			_q.withProviderAccounts != nil,
 			_q.withProjects != nil,
@@ -1441,6 +1477,7 @@ func (_q *TenantQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Tenan
 			_q.withExperimentProposals != nil,
 			_q.withWorkspaceDatasets != nil,
 			_q.withDatasetBindings != nil,
+			_q.withProjectWorkloads != nil,
 			_q.withStudies != nil,
 			_q.withIterationPlans != nil,
 			_q.withResearchNodes != nil,
@@ -1650,6 +1687,13 @@ func (_q *TenantQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Tenan
 		if err := _q.loadDatasetBindings(ctx, query, nodes,
 			func(n *Tenant) { n.Edges.DatasetBindings = []*DatasetBinding{} },
 			func(n *Tenant, e *DatasetBinding) { n.Edges.DatasetBindings = append(n.Edges.DatasetBindings, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withProjectWorkloads; query != nil {
+		if err := _q.loadProjectWorkloads(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.ProjectWorkloads = []*ProjectWorkload{} },
+			func(n *Tenant, e *ProjectWorkload) { n.Edges.ProjectWorkloads = append(n.Edges.ProjectWorkloads, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -2428,6 +2472,36 @@ func (_q *TenantQuery) loadDatasetBindings(ctx context.Context, query *DatasetBi
 	}
 	query.Where(predicate.DatasetBinding(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(tenant.DatasetBindingsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TenantQuery) loadProjectWorkloads(ctx context.Context, query *ProjectWorkloadQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *ProjectWorkload)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(projectworkload.FieldTenantID)
+	}
+	query.Where(predicate.ProjectWorkload(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.ProjectWorkloadsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

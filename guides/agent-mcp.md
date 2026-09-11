@@ -156,7 +156,7 @@ prepare_experiment
 Preparation creates no Experiment, Attempt, Provider resource, or budget reservation. Gemcp:
 
 - resolves the selected ref to a verified full commit SHA;
-- if `workload` is set, reads `gemcp.yaml` at that commit root and generates the argv from explicit parameter mappings;
+- if `workload` is set, reads `gemcp.yaml` at that commit root and generates the argv from explicit parameter mappings. When that file is missing or has no matching name, Gemcp uses a Project workload the Owner saved from a succeeded one-shot;
 - validates and archives that exact commit;
 - resolves compatible Environment and Resource Profile defaults;
 - checks Scheduler, Watchdog, callback, concurrency, Provider or Node readiness, image, and budget;
@@ -297,7 +297,7 @@ The optional context is limited to repository remote, ref, and Experiment ID. `m
 | `get_experiment_catalog` | Return registered repository identity and extracted experiment catalog rows | `read` |
 | `record_experiment_catalog` | Persist research-branch experiment rows (Setting, 方法, 实现, metric, 结果, link, hash) without starting a workload | `submit` |
 | `report_agent_activity` | Report a controlled workflow phase without prompts or reasoning | `submit` |
-| `prepare_experiment` | Resolve a zero-cost argv or named `gemcp.yaml` workload proposal; bind a connected `from_node_id` into the digest when a Study exists | `submit` |
+| `prepare_experiment` | Resolve a zero-cost argv or named workload proposal (`gemcp.yaml` at the commit, else a saved Project workload); bind a connected `from_node_id` into the digest when a Study exists | `submit` |
 | `submit_prepared_experiment` | Submit one confirmed proposal and bind its Graph run node | `submit` |
 | `get_project_options` | Inspect Project policy, approved IDs, and authorized Self-hosted Node readiness | `read` |
 | `get_project_cost` | Inspect budget and accounting details for Advanced use | `read` |

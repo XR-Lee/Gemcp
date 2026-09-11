@@ -24,6 +24,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 	"github.com/XR-Lee/Gemcp/ent/project"
+	"github.com/XR-Lee/Gemcp/ent/projectworkload"
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/repository"
 	"github.com/XR-Lee/Gemcp/ent/researchnode"
@@ -52,6 +53,7 @@ type ExperimentQuery struct {
 	withIdempotencyRecords  *IdempotencyRecordQuery
 	withDiagnosticRun       *DiagnosticRunQuery
 	withProposal            *ExperimentProposalQuery
+	withSavedWorkload       *ProjectWorkloadQuery
 	withResearchNodes       *ResearchNodeQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
@@ -397,6 +399,28 @@ func (_q *ExperimentQuery) QueryProposal() *ExperimentProposalQuery {
 	return query
 }
 
+// QuerySavedWorkload chains the current query on the "saved_workload" edge.
+func (_q *ExperimentQuery) QuerySavedWorkload() *ProjectWorkloadQuery {
+	query := (&ProjectWorkloadClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(experiment.Table, experiment.FieldID, selector),
+			sqlgraph.To(projectworkload.Table, projectworkload.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, experiment.SavedWorkloadTable, experiment.SavedWorkloadColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
 // QueryResearchNodes chains the current query on the "research_nodes" edge.
 func (_q *ExperimentQuery) QueryResearchNodes() *ResearchNodeQuery {
 	query := (&ResearchNodeClient{config: _q.config}).Query()
@@ -625,6 +649,7 @@ func (_q *ExperimentQuery) Clone() *ExperimentQuery {
 		withIdempotencyRecords:  _q.withIdempotencyRecords.Clone(),
 		withDiagnosticRun:       _q.withDiagnosticRun.Clone(),
 		withProposal:            _q.withProposal.Clone(),
+		withSavedWorkload:       _q.withSavedWorkload.Clone(),
 		withResearchNodes:       _q.withResearchNodes.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
@@ -786,6 +811,17 @@ func (_q *ExperimentQuery) WithProposal(opts ...func(*ExperimentProposalQuery)) 
 	return _q
 }
 
+// WithSavedWorkload tells the query-builder to eager-load the nodes that are connected to
+// the "saved_workload" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ExperimentQuery) WithSavedWorkload(opts ...func(*ProjectWorkloadQuery)) *ExperimentQuery {
+	query := (&ProjectWorkloadClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withSavedWorkload = query
+	return _q
+}
+
 // WithResearchNodes tells the query-builder to eager-load the nodes that are connected to
 // the "research_nodes" edge. The optional arguments are used to configure the query builder of the edge.
 func (_q *ExperimentQuery) WithResearchNodes(opts ...func(*ResearchNodeQuery)) *ExperimentQuery {
@@ -875,7 +911,7 @@ func (_q *ExperimentQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*E
 	var (
 		nodes       = []*Experiment{}
 		_spec       = _q.querySpec()
-		loadedTypes = [15]bool{
+		loadedTypes = [16]bool{
 			_q.withTenant != nil,
 			_q.withProject != nil,
 			_q.withAgentToken != nil,
@@ -890,6 +926,7 @@ func (_q *ExperimentQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*E
 			_q.withIdempotencyRecords != nil,
 			_q.withDiagnosticRun != nil,
 			_q.withProposal != nil,
+			_q.withSavedWorkload != nil,
 			_q.withResearchNodes != nil,
 		}
 	)
@@ -1004,6 +1041,12 @@ func (_q *ExperimentQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*E
 	if query := _q.withProposal; query != nil {
 		if err := _q.loadProposal(ctx, query, nodes, nil,
 			func(n *Experiment, e *ExperimentProposal) { n.Edges.Proposal = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withSavedWorkload; query != nil {
+		if err := _q.loadSavedWorkload(ctx, query, nodes, nil,
+			func(n *Experiment, e *ProjectWorkload) { n.Edges.SavedWorkload = e }); err != nil {
 			return nil, err
 		}
 	}
@@ -1432,6 +1475,33 @@ func (_q *ExperimentQuery) loadProposal(ctx context.Context, query *ExperimentPr
 		node, ok := nodeids[*fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "experiment_id" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *ExperimentQuery) loadSavedWorkload(ctx context.Context, query *ProjectWorkloadQuery, nodes []*Experiment, init func(*Experiment), assign func(*Experiment, *ProjectWorkload)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Experiment)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(projectworkload.FieldSourceExperimentID)
+	}
+	query.Where(predicate.ProjectWorkload(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(experiment.SavedWorkloadColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.SourceExperimentID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "source_experiment_id" returned %v for node %v`, fk, n.ID)
 		}
 		assign(node, n)
 	}

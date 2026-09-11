@@ -906,6 +906,29 @@ func HasDatasetBindingsWith(preds ...predicate.DatasetBinding) predicate.Tenant 
 	})
 }
 
+// HasProjectWorkloads applies the HasEdge predicate on the "project_workloads" edge.
+func HasProjectWorkloads() predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ProjectWorkloadsTable, ProjectWorkloadsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasProjectWorkloadsWith applies the HasEdge predicate on the "project_workloads" edge with a given conditions (other predicates).
+func HasProjectWorkloadsWith(preds ...predicate.ProjectWorkload) predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := newProjectWorkloadsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasStudies applies the HasEdge predicate on the "studies" edge.
 func HasStudies() predicate.Tenant {
 	return predicate.Tenant(func(s *sql.Selector) {

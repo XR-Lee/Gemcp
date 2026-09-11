@@ -16,6 +16,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/experiment"
 	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/project"
+	"github.com/XR-Lee/Gemcp/ent/projectworkload"
 	"github.com/XR-Lee/Gemcp/ent/repository"
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
 	"github.com/XR-Lee/Gemcp/ent/tenant"
@@ -145,11 +146,13 @@ type ExperimentEdges struct {
 	DiagnosticRun *DiagnosticRun `json:"diagnostic_run,omitempty"`
 	// Proposal holds the value of the proposal edge.
 	Proposal *ExperimentProposal `json:"proposal,omitempty"`
+	// SavedWorkload holds the value of the saved_workload edge.
+	SavedWorkload *ProjectWorkload `json:"saved_workload,omitempty"`
 	// ResearchNodes holds the value of the research_nodes edge.
 	ResearchNodes []*ResearchNode `json:"research_nodes,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [15]bool
+	loadedTypes [16]bool
 }
 
 // TenantOrErr returns the Tenant value or an error if the edge
@@ -294,10 +297,21 @@ func (e ExperimentEdges) ProposalOrErr() (*ExperimentProposal, error) {
 	return nil, &NotLoadedError{edge: "proposal"}
 }
 
+// SavedWorkloadOrErr returns the SavedWorkload value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e ExperimentEdges) SavedWorkloadOrErr() (*ProjectWorkload, error) {
+	if e.SavedWorkload != nil {
+		return e.SavedWorkload, nil
+	} else if e.loadedTypes[14] {
+		return nil, &NotFoundError{label: projectworkload.Label}
+	}
+	return nil, &NotLoadedError{edge: "saved_workload"}
+}
+
 // ResearchNodesOrErr returns the ResearchNodes value or an error if the edge
 // was not loaded in eager-loading.
 func (e ExperimentEdges) ResearchNodesOrErr() ([]*ResearchNode, error) {
-	if e.loadedTypes[14] {
+	if e.loadedTypes[15] {
 		return e.ResearchNodes, nil
 	}
 	return nil, &NotLoadedError{edge: "research_nodes"}
@@ -694,6 +708,11 @@ func (_m *Experiment) QueryDiagnosticRun() *DiagnosticRunQuery {
 // QueryProposal queries the "proposal" edge of the Experiment entity.
 func (_m *Experiment) QueryProposal() *ExperimentProposalQuery {
 	return NewExperimentClient(_m.config).QueryProposal(_m)
+}
+
+// QuerySavedWorkload queries the "saved_workload" edge of the Experiment entity.
+func (_m *Experiment) QuerySavedWorkload() *ProjectWorkloadQuery {
+	return NewExperimentClient(_m.config).QuerySavedWorkload(_m)
 }
 
 // QueryResearchNodes queries the "research_nodes" edge of the Experiment entity.

@@ -58,6 +58,9 @@ func TestRuntimeNotificationAndFinanceOperationsRequireOwner(t *testing.T) {
 	router.DELETE("/projects/:id/environments/:environmentID", NewEnvironmentHandlers(nil).Remove)
 	router.POST("/projects/:id/experiment-proposals", NewExperimentHandlers(nil).Prepare)
 	router.POST("/projects/:id/experiment-proposals/:proposalID/submit", NewExperimentHandlers(nil).SubmitPrepared)
+	router.GET("/projects/:id/workloads", NewExperimentHandlers(nil).ListWorkloads)
+	router.POST("/projects/:id/workloads/preview", NewExperimentHandlers(nil).PreviewWorkload)
+	router.POST("/projects/:id/workloads", NewExperimentHandlers(nil).SaveWorkload)
 
 	for _, request := range []*http.Request{
 		httptest.NewRequest(http.MethodGet, "/managed", nil),
@@ -80,6 +83,9 @@ func TestRuntimeNotificationAndFinanceOperationsRequireOwner(t *testing.T) {
 		httptest.NewRequest(http.MethodDelete, "/projects/project-id/environments/environment-id", nil),
 		httptest.NewRequest(http.MethodPost, "/projects/project-id/experiment-proposals", nil),
 		httptest.NewRequest(http.MethodPost, "/projects/project-id/experiment-proposals/proposal-id/submit", nil),
+		httptest.NewRequest(http.MethodGet, "/projects/project-id/workloads", nil),
+		httptest.NewRequest(http.MethodPost, "/projects/project-id/workloads/preview", nil),
+		httptest.NewRequest(http.MethodPost, "/projects/project-id/workloads", nil),
 	} {
 		response := httptest.NewRecorder()
 		router.ServeHTTP(response, request)

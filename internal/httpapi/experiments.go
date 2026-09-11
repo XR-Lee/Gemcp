@@ -139,6 +139,57 @@ func (h *ExperimentHandlers) SubmitPrepared(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": result})
 }
 
+func (h *ExperimentHandlers) ListWorkloads(c *gin.Context) {
+	principal, ok := ownerPrincipal(c)
+	if !ok {
+		return
+	}
+	result, err := h.service.OwnerListWorkloads(c.Request.Context(), principal.TenantID, c.Param("id"))
+	if err != nil {
+		h.writeError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": result.Workloads})
+}
+
+func (h *ExperimentHandlers) PreviewWorkload(c *gin.Context) {
+	principal, ok := ownerPrincipal(c)
+	if !ok {
+		return
+	}
+	var input experiment.SaveWorkloadInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		writeError(c, http.StatusBadRequest, "INVALID_PROJECT_WORKLOAD", "experiment_id and name are required")
+		return
+	}
+	result, err := h.service.OwnerPreviewWorkload(c.Request.Context(), principal.TenantID, c.Param("id"), input)
+	if err != nil {
+		h.writeError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": result})
+}
+
+func (h *ExperimentHandlers) SaveWorkload(c *gin.Context) {
+	principal, ok := ownerPrincipal(c)
+	if !ok {
+		return
+	}
+	var input experiment.SaveWorkloadInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		writeError(c, http.StatusBadRequest, "INVALID_PROJECT_WORKLOAD", "experiment_id and name are required")
+		return
+	}
+	result, err := h.service.OwnerSaveWorkload(
+		c.Request.Context(), principal.TenantID, principal.UserPublicID, c.Param("id"), input,
+	)
+	if err != nil {
+		h.writeError(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"data": result})
+}
+
 func (h *ExperimentHandlers) Operations(c *gin.Context) {
 	principal, ok := currentPrincipal(c)
 	if !ok {
@@ -183,6 +234,10 @@ func (h *ExperimentHandlers) writeError(c *gin.Context, err error) {
 		writeError(c, http.StatusConflict, "EXPERIMENT_PROPOSAL_BLOCKED", "experiment proposal preflight did not pass")
 	case errors.Is(err, experiment.ErrBudgetExceeded), errors.Is(err, experiment.ErrExperimentCap):
 		writeError(c, http.StatusConflict, "EXPERIMENT_BUDGET_REJECTED", err.Error())
+	case errors.Is(err, experiment.ErrWorkloadConflict):
+		writeError(c, http.StatusConflict, "PROJECT_WORKLOAD_CONFLICT", "a Project workload with this name already exists")
+	case errors.Is(err, experiment.ErrWorkloadLimit):
+		writeError(c, http.StatusConflict, "PROJECT_WORKLOAD_LIMIT", "Project workload limit reached")
 	default:
 		slog.Error("experiment API failed", "error", err)
 		writeError(c, http.StatusInternalServerError, "EXPERIMENT_API_FAILED", "experiment operation failed")

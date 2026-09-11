@@ -345,7 +345,7 @@ func (s *Service) resolveProposal(ctx context.Context, principal agentauth.Princ
 	if err := filterProposalBindings(&resolved, input.Dataset); err != nil {
 		return result, nil, err
 	}
-	if named, namedErr := s.resolveNamedWorkload(ctx, repositoryRecord, commitSHA, input); namedErr != nil {
+	if named, namedErr := s.resolveNamedWorkload(ctx, projectRecord, repositoryRecord, commitSHA, input); namedErr != nil {
 		return result, nil, namedErr
 	} else if named.Name != "" {
 		executionSpec = named.Spec

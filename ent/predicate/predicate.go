@@ -81,6 +81,9 @@ type NotificationSetting func(*sql.Selector)
 // Project is the predicate function for project builders.
 type Project func(*sql.Selector)
 
+// ProjectWorkload is the predicate function for projectworkload builders.
+type ProjectWorkload func(*sql.Selector)
+
 // ProviderAccount is the predicate function for provideraccount builders.
 type ProviderAccount func(*sql.Selector)
 

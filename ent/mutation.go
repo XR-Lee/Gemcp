@@ -37,6 +37,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/notificationsetting"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 	"github.com/XR-Lee/Gemcp/ent/project"
+	"github.com/XR-Lee/Gemcp/ent/projectworkload"
 	"github.com/XR-Lee/Gemcp/ent/provideraccount"
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/recordmixin"
@@ -88,6 +89,7 @@ const (
 	TypeNotification          = "Notification"
 	TypeNotificationSetting   = "NotificationSetting"
 	TypeProject               = "Project"
+	TypeProjectWorkload       = "ProjectWorkload"
 	TypeProviderAccount       = "ProviderAccount"
 	TypeProviderResource      = "ProviderResource"
 	TypeRecordMixin           = "RecordMixin"
@@ -15473,6 +15475,8 @@ type ExperimentMutation struct {
 	cleareddiagnostic_run        bool
 	proposal                     *int
 	clearedproposal              bool
+	saved_workload               *int
+	clearedsaved_workload        bool
 	research_nodes               map[int]struct{}
 	removedresearch_nodes        map[int]struct{}
 	clearedresearch_nodes        bool
@@ -17992,6 +17996,45 @@ func (m *ExperimentMutation) ResetProposal() {
 	m.clearedproposal = false
 }
 
+// SetSavedWorkloadID sets the "saved_workload" edge to the ProjectWorkload entity by id.
+func (m *ExperimentMutation) SetSavedWorkloadID(id int) {
+	m.saved_workload = &id
+}
+
+// ClearSavedWorkload clears the "saved_workload" edge to the ProjectWorkload entity.
+func (m *ExperimentMutation) ClearSavedWorkload() {
+	m.clearedsaved_workload = true
+}
+
+// SavedWorkloadCleared reports if the "saved_workload" edge to the ProjectWorkload entity was cleared.
+func (m *ExperimentMutation) SavedWorkloadCleared() bool {
+	return m.clearedsaved_workload
+}
+
+// SavedWorkloadID returns the "saved_workload" edge ID in the mutation.
+func (m *ExperimentMutation) SavedWorkloadID() (id int, exists bool) {
+	if m.saved_workload != nil {
+		return *m.saved_workload, true
+	}
+	return
+}
+
+// SavedWorkloadIDs returns the "saved_workload" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// SavedWorkloadID instead. It exists only for internal usage by the builders.
+func (m *ExperimentMutation) SavedWorkloadIDs() (ids []int) {
+	if id := m.saved_workload; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetSavedWorkload resets all changes to the "saved_workload" edge.
+func (m *ExperimentMutation) ResetSavedWorkload() {
+	m.saved_workload = nil
+	m.clearedsaved_workload = false
+}
+
 // AddResearchNodeIDs adds the "research_nodes" edge to the ResearchNode entity by ids.
 func (m *ExperimentMutation) AddResearchNodeIDs(ids ...int) {
 	if m.research_nodes == nil {
@@ -19039,7 +19082,7 @@ func (m *ExperimentMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *ExperimentMutation) AddedEdges() []string {
-	edges := make([]string, 0, 15)
+	edges := make([]string, 0, 16)
 	if m.tenant != nil {
 		edges = append(edges, experiment.EdgeTenant)
 	}
@@ -19081,6 +19124,9 @@ func (m *ExperimentMutation) AddedEdges() []string {
 	}
 	if m.proposal != nil {
 		edges = append(edges, experiment.EdgeProposal)
+	}
+	if m.saved_workload != nil {
+		edges = append(edges, experiment.EdgeSavedWorkload)
 	}
 	if m.research_nodes != nil {
 		edges = append(edges, experiment.EdgeResearchNodes)
@@ -19160,6 +19206,10 @@ func (m *ExperimentMutation) AddedIDs(name string) []ent.Value {
 		if id := m.proposal; id != nil {
 			return []ent.Value{*id}
 		}
+	case experiment.EdgeSavedWorkload:
+		if id := m.saved_workload; id != nil {
+			return []ent.Value{*id}
+		}
 	case experiment.EdgeResearchNodes:
 		ids := make([]ent.Value, 0, len(m.research_nodes))
 		for id := range m.research_nodes {
@@ -19172,7 +19222,7 @@ func (m *ExperimentMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *ExperimentMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 15)
+	edges := make([]string, 0, 16)
 	if m.removedattempts != nil {
 		edges = append(edges, experiment.EdgeAttempts)
 	}
@@ -19249,7 +19299,7 @@ func (m *ExperimentMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *ExperimentMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 15)
+	edges := make([]string, 0, 16)
 	if m.clearedtenant {
 		edges = append(edges, experiment.EdgeTenant)
 	}
@@ -19292,6 +19342,9 @@ func (m *ExperimentMutation) ClearedEdges() []string {
 	if m.clearedproposal {
 		edges = append(edges, experiment.EdgeProposal)
 	}
+	if m.clearedsaved_workload {
+		edges = append(edges, experiment.EdgeSavedWorkload)
+	}
 	if m.clearedresearch_nodes {
 		edges = append(edges, experiment.EdgeResearchNodes)
 	}
@@ -19330,6 +19383,8 @@ func (m *ExperimentMutation) EdgeCleared(name string) bool {
 		return m.cleareddiagnostic_run
 	case experiment.EdgeProposal:
 		return m.clearedproposal
+	case experiment.EdgeSavedWorkload:
+		return m.clearedsaved_workload
 	case experiment.EdgeResearchNodes:
 		return m.clearedresearch_nodes
 	}
@@ -19363,6 +19418,9 @@ func (m *ExperimentMutation) ClearEdge(name string) error {
 		return nil
 	case experiment.EdgeProposal:
 		m.ClearProposal()
+		return nil
+	case experiment.EdgeSavedWorkload:
+		m.ClearSavedWorkload()
 		return nil
 	}
 	return fmt.Errorf("unknown Experiment unique edge %s", name)
@@ -19413,6 +19471,9 @@ func (m *ExperimentMutation) ResetEdge(name string) error {
 		return nil
 	case experiment.EdgeProposal:
 		m.ResetProposal()
+		return nil
+	case experiment.EdgeSavedWorkload:
+		m.ResetSavedWorkload()
 		return nil
 	case experiment.EdgeResearchNodes:
 		m.ResetResearchNodes()
@@ -36695,6 +36756,9 @@ type ProjectMutation struct {
 	dataset_bindings               map[int]struct{}
 	removeddataset_bindings        map[int]struct{}
 	cleareddataset_bindings        bool
+	project_workloads              map[int]struct{}
+	removedproject_workloads       map[int]struct{}
+	clearedproject_workloads       bool
 	studies                        map[int]struct{}
 	removedstudies                 map[int]struct{}
 	clearedstudies                 bool
@@ -38436,6 +38500,60 @@ func (m *ProjectMutation) ResetDatasetBindings() {
 	m.removeddataset_bindings = nil
 }
 
+// AddProjectWorkloadIDs adds the "project_workloads" edge to the ProjectWorkload entity by ids.
+func (m *ProjectMutation) AddProjectWorkloadIDs(ids ...int) {
+	if m.project_workloads == nil {
+		m.project_workloads = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.project_workloads[ids[i]] = struct{}{}
+	}
+}
+
+// ClearProjectWorkloads clears the "project_workloads" edge to the ProjectWorkload entity.
+func (m *ProjectMutation) ClearProjectWorkloads() {
+	m.clearedproject_workloads = true
+}
+
+// ProjectWorkloadsCleared reports if the "project_workloads" edge to the ProjectWorkload entity was cleared.
+func (m *ProjectMutation) ProjectWorkloadsCleared() bool {
+	return m.clearedproject_workloads
+}
+
+// RemoveProjectWorkloadIDs removes the "project_workloads" edge to the ProjectWorkload entity by IDs.
+func (m *ProjectMutation) RemoveProjectWorkloadIDs(ids ...int) {
+	if m.removedproject_workloads == nil {
+		m.removedproject_workloads = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.project_workloads, ids[i])
+		m.removedproject_workloads[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedProjectWorkloads returns the removed IDs of the "project_workloads" edge to the ProjectWorkload entity.
+func (m *ProjectMutation) RemovedProjectWorkloadsIDs() (ids []int) {
+	for id := range m.removedproject_workloads {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ProjectWorkloadsIDs returns the "project_workloads" edge IDs in the mutation.
+func (m *ProjectMutation) ProjectWorkloadsIDs() (ids []int) {
+	for id := range m.project_workloads {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetProjectWorkloads resets all changes to the "project_workloads" edge.
+func (m *ProjectMutation) ResetProjectWorkloads() {
+	m.project_workloads = nil
+	m.clearedproject_workloads = false
+	m.removedproject_workloads = nil
+}
+
 // AddStudyIDs adds the "studies" edge to the Study entity by ids.
 func (m *ProjectMutation) AddStudyIDs(ids ...int) {
 	if m.studies == nil {
@@ -39135,7 +39253,7 @@ func (m *ProjectMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *ProjectMutation) AddedEdges() []string {
-	edges := make([]string, 0, 24)
+	edges := make([]string, 0, 25)
 	if m.tenant != nil {
 		edges = append(edges, project.EdgeTenant)
 	}
@@ -39192,6 +39310,9 @@ func (m *ProjectMutation) AddedEdges() []string {
 	}
 	if m.dataset_bindings != nil {
 		edges = append(edges, project.EdgeDatasetBindings)
+	}
+	if m.project_workloads != nil {
+		edges = append(edges, project.EdgeProjectWorkloads)
 	}
 	if m.studies != nil {
 		edges = append(edges, project.EdgeStudies)
@@ -39327,6 +39448,12 @@ func (m *ProjectMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case project.EdgeProjectWorkloads:
+		ids := make([]ent.Value, 0, len(m.project_workloads))
+		for id := range m.project_workloads {
+			ids = append(ids, id)
+		}
+		return ids
 	case project.EdgeStudies:
 		ids := make([]ent.Value, 0, len(m.studies))
 		for id := range m.studies {
@@ -39363,7 +39490,7 @@ func (m *ProjectMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *ProjectMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 24)
+	edges := make([]string, 0, 25)
 	if m.removedenvironments != nil {
 		edges = append(edges, project.EdgeEnvironments)
 	}
@@ -39417,6 +39544,9 @@ func (m *ProjectMutation) RemovedEdges() []string {
 	}
 	if m.removeddataset_bindings != nil {
 		edges = append(edges, project.EdgeDatasetBindings)
+	}
+	if m.removedproject_workloads != nil {
+		edges = append(edges, project.EdgeProjectWorkloads)
 	}
 	if m.removedstudies != nil {
 		edges = append(edges, project.EdgeStudies)
@@ -39548,6 +39678,12 @@ func (m *ProjectMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case project.EdgeProjectWorkloads:
+		ids := make([]ent.Value, 0, len(m.removedproject_workloads))
+		for id := range m.removedproject_workloads {
+			ids = append(ids, id)
+		}
+		return ids
 	case project.EdgeStudies:
 		ids := make([]ent.Value, 0, len(m.removedstudies))
 		for id := range m.removedstudies {
@@ -39584,7 +39720,7 @@ func (m *ProjectMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *ProjectMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 24)
+	edges := make([]string, 0, 25)
 	if m.clearedtenant {
 		edges = append(edges, project.EdgeTenant)
 	}
@@ -39641,6 +39777,9 @@ func (m *ProjectMutation) ClearedEdges() []string {
 	}
 	if m.cleareddataset_bindings {
 		edges = append(edges, project.EdgeDatasetBindings)
+	}
+	if m.clearedproject_workloads {
+		edges = append(edges, project.EdgeProjectWorkloads)
 	}
 	if m.clearedstudies {
 		edges = append(edges, project.EdgeStudies)
@@ -39702,6 +39841,8 @@ func (m *ProjectMutation) EdgeCleared(name string) bool {
 		return m.clearedworkspace_datasets
 	case project.EdgeDatasetBindings:
 		return m.cleareddataset_bindings
+	case project.EdgeProjectWorkloads:
+		return m.clearedproject_workloads
 	case project.EdgeStudies:
 		return m.clearedstudies
 	case project.EdgeIterationPlans:
@@ -39788,6 +39929,9 @@ func (m *ProjectMutation) ResetEdge(name string) error {
 	case project.EdgeDatasetBindings:
 		m.ResetDatasetBindings()
 		return nil
+	case project.EdgeProjectWorkloads:
+		m.ResetProjectWorkloads()
+		return nil
 	case project.EdgeStudies:
 		m.ResetStudies()
 		return nil
@@ -39805,6 +39949,1151 @@ func (m *ProjectMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown Project edge %s", name)
+}
+
+// ProjectWorkloadMutation represents an operation that mutates the ProjectWorkload nodes in the graph.
+type ProjectWorkloadMutation struct {
+	config
+	op                       Op
+	typ                      string
+	id                       *int
+	public_id                *uuid.UUID
+	created_at               *time.Time
+	updated_at               *time.Time
+	name                     *string
+	manifest_yaml            *string
+	entrypoint               *[]string
+	appendentrypoint         []string
+	runtime_preset           *string
+	dataset                  *string
+	working_directory        *string
+	clearedFields            map[string]struct{}
+	tenant                   *int
+	clearedtenant            bool
+	project                  *int
+	clearedproject           bool
+	source_experiment        *int
+	clearedsource_experiment bool
+	done                     bool
+	oldValue                 func(context.Context) (*ProjectWorkload, error)
+	predicates               []predicate.ProjectWorkload
+}
+
+var _ ent.Mutation = (*ProjectWorkloadMutation)(nil)
+
+// projectworkloadOption allows management of the mutation configuration using functional options.
+type projectworkloadOption func(*ProjectWorkloadMutation)
+
+// newProjectWorkloadMutation creates new mutation for the ProjectWorkload entity.
+func newProjectWorkloadMutation(c config, op Op, opts ...projectworkloadOption) *ProjectWorkloadMutation {
+	m := &ProjectWorkloadMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeProjectWorkload,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withProjectWorkloadID sets the ID field of the mutation.
+func withProjectWorkloadID(id int) projectworkloadOption {
+	return func(m *ProjectWorkloadMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *ProjectWorkload
+		)
+		m.oldValue = func(ctx context.Context) (*ProjectWorkload, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().ProjectWorkload.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withProjectWorkload sets the old ProjectWorkload of the mutation.
+func withProjectWorkload(node *ProjectWorkload) projectworkloadOption {
+	return func(m *ProjectWorkloadMutation) {
+		m.oldValue = func(context.Context) (*ProjectWorkload, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m ProjectWorkloadMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m ProjectWorkloadMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *ProjectWorkloadMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *ProjectWorkloadMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().ProjectWorkload.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetPublicID sets the "public_id" field.
+func (m *ProjectWorkloadMutation) SetPublicID(u uuid.UUID) {
+	m.public_id = &u
+}
+
+// PublicID returns the value of the "public_id" field in the mutation.
+func (m *ProjectWorkloadMutation) PublicID() (r uuid.UUID, exists bool) {
+	v := m.public_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPublicID returns the old "public_id" field's value of the ProjectWorkload entity.
+// If the ProjectWorkload object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProjectWorkloadMutation) OldPublicID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPublicID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPublicID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPublicID: %w", err)
+	}
+	return oldValue.PublicID, nil
+}
+
+// ResetPublicID resets all changes to the "public_id" field.
+func (m *ProjectWorkloadMutation) ResetPublicID() {
+	m.public_id = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *ProjectWorkloadMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *ProjectWorkloadMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the ProjectWorkload entity.
+// If the ProjectWorkload object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProjectWorkloadMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *ProjectWorkloadMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *ProjectWorkloadMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *ProjectWorkloadMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the ProjectWorkload entity.
+// If the ProjectWorkload object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProjectWorkloadMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *ProjectWorkloadMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *ProjectWorkloadMutation) SetTenantID(i int) {
+	m.tenant = &i
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *ProjectWorkloadMutation) TenantID() (r int, exists bool) {
+	v := m.tenant
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the ProjectWorkload entity.
+// If the ProjectWorkload object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProjectWorkloadMutation) OldTenantID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *ProjectWorkloadMutation) ResetTenantID() {
+	m.tenant = nil
+}
+
+// SetProjectID sets the "project_id" field.
+func (m *ProjectWorkloadMutation) SetProjectID(i int) {
+	m.project = &i
+}
+
+// ProjectID returns the value of the "project_id" field in the mutation.
+func (m *ProjectWorkloadMutation) ProjectID() (r int, exists bool) {
+	v := m.project
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProjectID returns the old "project_id" field's value of the ProjectWorkload entity.
+// If the ProjectWorkload object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProjectWorkloadMutation) OldProjectID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProjectID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProjectID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProjectID: %w", err)
+	}
+	return oldValue.ProjectID, nil
+}
+
+// ResetProjectID resets all changes to the "project_id" field.
+func (m *ProjectWorkloadMutation) ResetProjectID() {
+	m.project = nil
+}
+
+// SetSourceExperimentID sets the "source_experiment_id" field.
+func (m *ProjectWorkloadMutation) SetSourceExperimentID(i int) {
+	m.source_experiment = &i
+}
+
+// SourceExperimentID returns the value of the "source_experiment_id" field in the mutation.
+func (m *ProjectWorkloadMutation) SourceExperimentID() (r int, exists bool) {
+	v := m.source_experiment
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceExperimentID returns the old "source_experiment_id" field's value of the ProjectWorkload entity.
+// If the ProjectWorkload object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProjectWorkloadMutation) OldSourceExperimentID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceExperimentID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceExperimentID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceExperimentID: %w", err)
+	}
+	return oldValue.SourceExperimentID, nil
+}
+
+// ResetSourceExperimentID resets all changes to the "source_experiment_id" field.
+func (m *ProjectWorkloadMutation) ResetSourceExperimentID() {
+	m.source_experiment = nil
+}
+
+// SetName sets the "name" field.
+func (m *ProjectWorkloadMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *ProjectWorkloadMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the ProjectWorkload entity.
+// If the ProjectWorkload object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProjectWorkloadMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *ProjectWorkloadMutation) ResetName() {
+	m.name = nil
+}
+
+// SetManifestYaml sets the "manifest_yaml" field.
+func (m *ProjectWorkloadMutation) SetManifestYaml(s string) {
+	m.manifest_yaml = &s
+}
+
+// ManifestYaml returns the value of the "manifest_yaml" field in the mutation.
+func (m *ProjectWorkloadMutation) ManifestYaml() (r string, exists bool) {
+	v := m.manifest_yaml
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldManifestYaml returns the old "manifest_yaml" field's value of the ProjectWorkload entity.
+// If the ProjectWorkload object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProjectWorkloadMutation) OldManifestYaml(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldManifestYaml is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldManifestYaml requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldManifestYaml: %w", err)
+	}
+	return oldValue.ManifestYaml, nil
+}
+
+// ResetManifestYaml resets all changes to the "manifest_yaml" field.
+func (m *ProjectWorkloadMutation) ResetManifestYaml() {
+	m.manifest_yaml = nil
+}
+
+// SetEntrypoint sets the "entrypoint" field.
+func (m *ProjectWorkloadMutation) SetEntrypoint(s []string) {
+	m.entrypoint = &s
+	m.appendentrypoint = nil
+}
+
+// Entrypoint returns the value of the "entrypoint" field in the mutation.
+func (m *ProjectWorkloadMutation) Entrypoint() (r []string, exists bool) {
+	v := m.entrypoint
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEntrypoint returns the old "entrypoint" field's value of the ProjectWorkload entity.
+// If the ProjectWorkload object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProjectWorkloadMutation) OldEntrypoint(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEntrypoint is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEntrypoint requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEntrypoint: %w", err)
+	}
+	return oldValue.Entrypoint, nil
+}
+
+// AppendEntrypoint adds s to the "entrypoint" field.
+func (m *ProjectWorkloadMutation) AppendEntrypoint(s []string) {
+	m.appendentrypoint = append(m.appendentrypoint, s...)
+}
+
+// AppendedEntrypoint returns the list of values that were appended to the "entrypoint" field in this mutation.
+func (m *ProjectWorkloadMutation) AppendedEntrypoint() ([]string, bool) {
+	if len(m.appendentrypoint) == 0 {
+		return nil, false
+	}
+	return m.appendentrypoint, true
+}
+
+// ResetEntrypoint resets all changes to the "entrypoint" field.
+func (m *ProjectWorkloadMutation) ResetEntrypoint() {
+	m.entrypoint = nil
+	m.appendentrypoint = nil
+}
+
+// SetRuntimePreset sets the "runtime_preset" field.
+func (m *ProjectWorkloadMutation) SetRuntimePreset(s string) {
+	m.runtime_preset = &s
+}
+
+// RuntimePreset returns the value of the "runtime_preset" field in the mutation.
+func (m *ProjectWorkloadMutation) RuntimePreset() (r string, exists bool) {
+	v := m.runtime_preset
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRuntimePreset returns the old "runtime_preset" field's value of the ProjectWorkload entity.
+// If the ProjectWorkload object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProjectWorkloadMutation) OldRuntimePreset(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRuntimePreset is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRuntimePreset requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRuntimePreset: %w", err)
+	}
+	return oldValue.RuntimePreset, nil
+}
+
+// ClearRuntimePreset clears the value of the "runtime_preset" field.
+func (m *ProjectWorkloadMutation) ClearRuntimePreset() {
+	m.runtime_preset = nil
+	m.clearedFields[projectworkload.FieldRuntimePreset] = struct{}{}
+}
+
+// RuntimePresetCleared returns if the "runtime_preset" field was cleared in this mutation.
+func (m *ProjectWorkloadMutation) RuntimePresetCleared() bool {
+	_, ok := m.clearedFields[projectworkload.FieldRuntimePreset]
+	return ok
+}
+
+// ResetRuntimePreset resets all changes to the "runtime_preset" field.
+func (m *ProjectWorkloadMutation) ResetRuntimePreset() {
+	m.runtime_preset = nil
+	delete(m.clearedFields, projectworkload.FieldRuntimePreset)
+}
+
+// SetDataset sets the "dataset" field.
+func (m *ProjectWorkloadMutation) SetDataset(s string) {
+	m.dataset = &s
+}
+
+// Dataset returns the value of the "dataset" field in the mutation.
+func (m *ProjectWorkloadMutation) Dataset() (r string, exists bool) {
+	v := m.dataset
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDataset returns the old "dataset" field's value of the ProjectWorkload entity.
+// If the ProjectWorkload object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProjectWorkloadMutation) OldDataset(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDataset is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDataset requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDataset: %w", err)
+	}
+	return oldValue.Dataset, nil
+}
+
+// ClearDataset clears the value of the "dataset" field.
+func (m *ProjectWorkloadMutation) ClearDataset() {
+	m.dataset = nil
+	m.clearedFields[projectworkload.FieldDataset] = struct{}{}
+}
+
+// DatasetCleared returns if the "dataset" field was cleared in this mutation.
+func (m *ProjectWorkloadMutation) DatasetCleared() bool {
+	_, ok := m.clearedFields[projectworkload.FieldDataset]
+	return ok
+}
+
+// ResetDataset resets all changes to the "dataset" field.
+func (m *ProjectWorkloadMutation) ResetDataset() {
+	m.dataset = nil
+	delete(m.clearedFields, projectworkload.FieldDataset)
+}
+
+// SetWorkingDirectory sets the "working_directory" field.
+func (m *ProjectWorkloadMutation) SetWorkingDirectory(s string) {
+	m.working_directory = &s
+}
+
+// WorkingDirectory returns the value of the "working_directory" field in the mutation.
+func (m *ProjectWorkloadMutation) WorkingDirectory() (r string, exists bool) {
+	v := m.working_directory
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWorkingDirectory returns the old "working_directory" field's value of the ProjectWorkload entity.
+// If the ProjectWorkload object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProjectWorkloadMutation) OldWorkingDirectory(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWorkingDirectory is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWorkingDirectory requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWorkingDirectory: %w", err)
+	}
+	return oldValue.WorkingDirectory, nil
+}
+
+// ClearWorkingDirectory clears the value of the "working_directory" field.
+func (m *ProjectWorkloadMutation) ClearWorkingDirectory() {
+	m.working_directory = nil
+	m.clearedFields[projectworkload.FieldWorkingDirectory] = struct{}{}
+}
+
+// WorkingDirectoryCleared returns if the "working_directory" field was cleared in this mutation.
+func (m *ProjectWorkloadMutation) WorkingDirectoryCleared() bool {
+	_, ok := m.clearedFields[projectworkload.FieldWorkingDirectory]
+	return ok
+}
+
+// ResetWorkingDirectory resets all changes to the "working_directory" field.
+func (m *ProjectWorkloadMutation) ResetWorkingDirectory() {
+	m.working_directory = nil
+	delete(m.clearedFields, projectworkload.FieldWorkingDirectory)
+}
+
+// ClearTenant clears the "tenant" edge to the Tenant entity.
+func (m *ProjectWorkloadMutation) ClearTenant() {
+	m.clearedtenant = true
+	m.clearedFields[projectworkload.FieldTenantID] = struct{}{}
+}
+
+// TenantCleared reports if the "tenant" edge to the Tenant entity was cleared.
+func (m *ProjectWorkloadMutation) TenantCleared() bool {
+	return m.clearedtenant
+}
+
+// TenantIDs returns the "tenant" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// TenantID instead. It exists only for internal usage by the builders.
+func (m *ProjectWorkloadMutation) TenantIDs() (ids []int) {
+	if id := m.tenant; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetTenant resets all changes to the "tenant" edge.
+func (m *ProjectWorkloadMutation) ResetTenant() {
+	m.tenant = nil
+	m.clearedtenant = false
+}
+
+// ClearProject clears the "project" edge to the Project entity.
+func (m *ProjectWorkloadMutation) ClearProject() {
+	m.clearedproject = true
+	m.clearedFields[projectworkload.FieldProjectID] = struct{}{}
+}
+
+// ProjectCleared reports if the "project" edge to the Project entity was cleared.
+func (m *ProjectWorkloadMutation) ProjectCleared() bool {
+	return m.clearedproject
+}
+
+// ProjectIDs returns the "project" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ProjectID instead. It exists only for internal usage by the builders.
+func (m *ProjectWorkloadMutation) ProjectIDs() (ids []int) {
+	if id := m.project; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetProject resets all changes to the "project" edge.
+func (m *ProjectWorkloadMutation) ResetProject() {
+	m.project = nil
+	m.clearedproject = false
+}
+
+// ClearSourceExperiment clears the "source_experiment" edge to the Experiment entity.
+func (m *ProjectWorkloadMutation) ClearSourceExperiment() {
+	m.clearedsource_experiment = true
+	m.clearedFields[projectworkload.FieldSourceExperimentID] = struct{}{}
+}
+
+// SourceExperimentCleared reports if the "source_experiment" edge to the Experiment entity was cleared.
+func (m *ProjectWorkloadMutation) SourceExperimentCleared() bool {
+	return m.clearedsource_experiment
+}
+
+// SourceExperimentIDs returns the "source_experiment" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// SourceExperimentID instead. It exists only for internal usage by the builders.
+func (m *ProjectWorkloadMutation) SourceExperimentIDs() (ids []int) {
+	if id := m.source_experiment; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetSourceExperiment resets all changes to the "source_experiment" edge.
+func (m *ProjectWorkloadMutation) ResetSourceExperiment() {
+	m.source_experiment = nil
+	m.clearedsource_experiment = false
+}
+
+// Where appends a list predicates to the ProjectWorkloadMutation builder.
+func (m *ProjectWorkloadMutation) Where(ps ...predicate.ProjectWorkload) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the ProjectWorkloadMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *ProjectWorkloadMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.ProjectWorkload, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *ProjectWorkloadMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *ProjectWorkloadMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (ProjectWorkload).
+func (m *ProjectWorkloadMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *ProjectWorkloadMutation) Fields() []string {
+	fields := make([]string, 0, 12)
+	if m.public_id != nil {
+		fields = append(fields, projectworkload.FieldPublicID)
+	}
+	if m.created_at != nil {
+		fields = append(fields, projectworkload.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, projectworkload.FieldUpdatedAt)
+	}
+	if m.tenant != nil {
+		fields = append(fields, projectworkload.FieldTenantID)
+	}
+	if m.project != nil {
+		fields = append(fields, projectworkload.FieldProjectID)
+	}
+	if m.source_experiment != nil {
+		fields = append(fields, projectworkload.FieldSourceExperimentID)
+	}
+	if m.name != nil {
+		fields = append(fields, projectworkload.FieldName)
+	}
+	if m.manifest_yaml != nil {
+		fields = append(fields, projectworkload.FieldManifestYaml)
+	}
+	if m.entrypoint != nil {
+		fields = append(fields, projectworkload.FieldEntrypoint)
+	}
+	if m.runtime_preset != nil {
+		fields = append(fields, projectworkload.FieldRuntimePreset)
+	}
+	if m.dataset != nil {
+		fields = append(fields, projectworkload.FieldDataset)
+	}
+	if m.working_directory != nil {
+		fields = append(fields, projectworkload.FieldWorkingDirectory)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *ProjectWorkloadMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case projectworkload.FieldPublicID:
+		return m.PublicID()
+	case projectworkload.FieldCreatedAt:
+		return m.CreatedAt()
+	case projectworkload.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case projectworkload.FieldTenantID:
+		return m.TenantID()
+	case projectworkload.FieldProjectID:
+		return m.ProjectID()
+	case projectworkload.FieldSourceExperimentID:
+		return m.SourceExperimentID()
+	case projectworkload.FieldName:
+		return m.Name()
+	case projectworkload.FieldManifestYaml:
+		return m.ManifestYaml()
+	case projectworkload.FieldEntrypoint:
+		return m.Entrypoint()
+	case projectworkload.FieldRuntimePreset:
+		return m.RuntimePreset()
+	case projectworkload.FieldDataset:
+		return m.Dataset()
+	case projectworkload.FieldWorkingDirectory:
+		return m.WorkingDirectory()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *ProjectWorkloadMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case projectworkload.FieldPublicID:
+		return m.OldPublicID(ctx)
+	case projectworkload.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case projectworkload.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case projectworkload.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case projectworkload.FieldProjectID:
+		return m.OldProjectID(ctx)
+	case projectworkload.FieldSourceExperimentID:
+		return m.OldSourceExperimentID(ctx)
+	case projectworkload.FieldName:
+		return m.OldName(ctx)
+	case projectworkload.FieldManifestYaml:
+		return m.OldManifestYaml(ctx)
+	case projectworkload.FieldEntrypoint:
+		return m.OldEntrypoint(ctx)
+	case projectworkload.FieldRuntimePreset:
+		return m.OldRuntimePreset(ctx)
+	case projectworkload.FieldDataset:
+		return m.OldDataset(ctx)
+	case projectworkload.FieldWorkingDirectory:
+		return m.OldWorkingDirectory(ctx)
+	}
+	return nil, fmt.Errorf("unknown ProjectWorkload field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ProjectWorkloadMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case projectworkload.FieldPublicID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPublicID(v)
+		return nil
+	case projectworkload.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case projectworkload.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case projectworkload.FieldTenantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case projectworkload.FieldProjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProjectID(v)
+		return nil
+	case projectworkload.FieldSourceExperimentID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceExperimentID(v)
+		return nil
+	case projectworkload.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case projectworkload.FieldManifestYaml:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetManifestYaml(v)
+		return nil
+	case projectworkload.FieldEntrypoint:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEntrypoint(v)
+		return nil
+	case projectworkload.FieldRuntimePreset:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRuntimePreset(v)
+		return nil
+	case projectworkload.FieldDataset:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDataset(v)
+		return nil
+	case projectworkload.FieldWorkingDirectory:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWorkingDirectory(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ProjectWorkload field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *ProjectWorkloadMutation) AddedFields() []string {
+	var fields []string
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *ProjectWorkloadMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ProjectWorkloadMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown ProjectWorkload numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *ProjectWorkloadMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(projectworkload.FieldRuntimePreset) {
+		fields = append(fields, projectworkload.FieldRuntimePreset)
+	}
+	if m.FieldCleared(projectworkload.FieldDataset) {
+		fields = append(fields, projectworkload.FieldDataset)
+	}
+	if m.FieldCleared(projectworkload.FieldWorkingDirectory) {
+		fields = append(fields, projectworkload.FieldWorkingDirectory)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *ProjectWorkloadMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *ProjectWorkloadMutation) ClearField(name string) error {
+	switch name {
+	case projectworkload.FieldRuntimePreset:
+		m.ClearRuntimePreset()
+		return nil
+	case projectworkload.FieldDataset:
+		m.ClearDataset()
+		return nil
+	case projectworkload.FieldWorkingDirectory:
+		m.ClearWorkingDirectory()
+		return nil
+	}
+	return fmt.Errorf("unknown ProjectWorkload nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *ProjectWorkloadMutation) ResetField(name string) error {
+	switch name {
+	case projectworkload.FieldPublicID:
+		m.ResetPublicID()
+		return nil
+	case projectworkload.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case projectworkload.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case projectworkload.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case projectworkload.FieldProjectID:
+		m.ResetProjectID()
+		return nil
+	case projectworkload.FieldSourceExperimentID:
+		m.ResetSourceExperimentID()
+		return nil
+	case projectworkload.FieldName:
+		m.ResetName()
+		return nil
+	case projectworkload.FieldManifestYaml:
+		m.ResetManifestYaml()
+		return nil
+	case projectworkload.FieldEntrypoint:
+		m.ResetEntrypoint()
+		return nil
+	case projectworkload.FieldRuntimePreset:
+		m.ResetRuntimePreset()
+		return nil
+	case projectworkload.FieldDataset:
+		m.ResetDataset()
+		return nil
+	case projectworkload.FieldWorkingDirectory:
+		m.ResetWorkingDirectory()
+		return nil
+	}
+	return fmt.Errorf("unknown ProjectWorkload field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *ProjectWorkloadMutation) AddedEdges() []string {
+	edges := make([]string, 0, 3)
+	if m.tenant != nil {
+		edges = append(edges, projectworkload.EdgeTenant)
+	}
+	if m.project != nil {
+		edges = append(edges, projectworkload.EdgeProject)
+	}
+	if m.source_experiment != nil {
+		edges = append(edges, projectworkload.EdgeSourceExperiment)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *ProjectWorkloadMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case projectworkload.EdgeTenant:
+		if id := m.tenant; id != nil {
+			return []ent.Value{*id}
+		}
+	case projectworkload.EdgeProject:
+		if id := m.project; id != nil {
+			return []ent.Value{*id}
+		}
+	case projectworkload.EdgeSourceExperiment:
+		if id := m.source_experiment; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *ProjectWorkloadMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 3)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *ProjectWorkloadMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *ProjectWorkloadMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 3)
+	if m.clearedtenant {
+		edges = append(edges, projectworkload.EdgeTenant)
+	}
+	if m.clearedproject {
+		edges = append(edges, projectworkload.EdgeProject)
+	}
+	if m.clearedsource_experiment {
+		edges = append(edges, projectworkload.EdgeSourceExperiment)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *ProjectWorkloadMutation) EdgeCleared(name string) bool {
+	switch name {
+	case projectworkload.EdgeTenant:
+		return m.clearedtenant
+	case projectworkload.EdgeProject:
+		return m.clearedproject
+	case projectworkload.EdgeSourceExperiment:
+		return m.clearedsource_experiment
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *ProjectWorkloadMutation) ClearEdge(name string) error {
+	switch name {
+	case projectworkload.EdgeTenant:
+		m.ClearTenant()
+		return nil
+	case projectworkload.EdgeProject:
+		m.ClearProject()
+		return nil
+	case projectworkload.EdgeSourceExperiment:
+		m.ClearSourceExperiment()
+		return nil
+	}
+	return fmt.Errorf("unknown ProjectWorkload unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *ProjectWorkloadMutation) ResetEdge(name string) error {
+	switch name {
+	case projectworkload.EdgeTenant:
+		m.ResetTenant()
+		return nil
+	case projectworkload.EdgeProject:
+		m.ResetProject()
+		return nil
+	case projectworkload.EdgeSourceExperiment:
+		m.ResetSourceExperiment()
+		return nil
+	}
+	return fmt.Errorf("unknown ProjectWorkload edge %s", name)
 }
 
 // ProviderAccountMutation represents an operation that mutates the ProviderAccount nodes in the graph.
@@ -54813,6 +56102,9 @@ type TenantMutation struct {
 	dataset_bindings                map[int]struct{}
 	removeddataset_bindings         map[int]struct{}
 	cleareddataset_bindings         bool
+	project_workloads               map[int]struct{}
+	removedproject_workloads        map[int]struct{}
+	clearedproject_workloads        bool
 	studies                         map[int]struct{}
 	removedstudies                  map[int]struct{}
 	clearedstudies                  bool
@@ -56461,6 +57753,60 @@ func (m *TenantMutation) ResetDatasetBindings() {
 	m.removeddataset_bindings = nil
 }
 
+// AddProjectWorkloadIDs adds the "project_workloads" edge to the ProjectWorkload entity by ids.
+func (m *TenantMutation) AddProjectWorkloadIDs(ids ...int) {
+	if m.project_workloads == nil {
+		m.project_workloads = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.project_workloads[ids[i]] = struct{}{}
+	}
+}
+
+// ClearProjectWorkloads clears the "project_workloads" edge to the ProjectWorkload entity.
+func (m *TenantMutation) ClearProjectWorkloads() {
+	m.clearedproject_workloads = true
+}
+
+// ProjectWorkloadsCleared reports if the "project_workloads" edge to the ProjectWorkload entity was cleared.
+func (m *TenantMutation) ProjectWorkloadsCleared() bool {
+	return m.clearedproject_workloads
+}
+
+// RemoveProjectWorkloadIDs removes the "project_workloads" edge to the ProjectWorkload entity by IDs.
+func (m *TenantMutation) RemoveProjectWorkloadIDs(ids ...int) {
+	if m.removedproject_workloads == nil {
+		m.removedproject_workloads = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.project_workloads, ids[i])
+		m.removedproject_workloads[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedProjectWorkloads returns the removed IDs of the "project_workloads" edge to the ProjectWorkload entity.
+func (m *TenantMutation) RemovedProjectWorkloadsIDs() (ids []int) {
+	for id := range m.removedproject_workloads {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ProjectWorkloadsIDs returns the "project_workloads" edge IDs in the mutation.
+func (m *TenantMutation) ProjectWorkloadsIDs() (ids []int) {
+	for id := range m.project_workloads {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetProjectWorkloads resets all changes to the "project_workloads" edge.
+func (m *TenantMutation) ResetProjectWorkloads() {
+	m.project_workloads = nil
+	m.clearedproject_workloads = false
+	m.removedproject_workloads = nil
+}
+
 // AddStudyIDs adds the "studies" edge to the Study entity by ids.
 func (m *TenantMutation) AddStudyIDs(ids ...int) {
 	if m.studies == nil {
@@ -56932,7 +58278,7 @@ func (m *TenantMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *TenantMutation) AddedEdges() []string {
-	edges := make([]string, 0, 30)
+	edges := make([]string, 0, 31)
 	if m.users != nil {
 		edges = append(edges, tenant.EdgeUsers)
 	}
@@ -57007,6 +58353,9 @@ func (m *TenantMutation) AddedEdges() []string {
 	}
 	if m.dataset_bindings != nil {
 		edges = append(edges, tenant.EdgeDatasetBindings)
+	}
+	if m.project_workloads != nil {
+		edges = append(edges, tenant.EdgeProjectWorkloads)
 	}
 	if m.studies != nil {
 		edges = append(edges, tenant.EdgeStudies)
@@ -57180,6 +58529,12 @@ func (m *TenantMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case tenant.EdgeProjectWorkloads:
+		ids := make([]ent.Value, 0, len(m.project_workloads))
+		for id := range m.project_workloads {
+			ids = append(ids, id)
+		}
+		return ids
 	case tenant.EdgeStudies:
 		ids := make([]ent.Value, 0, len(m.studies))
 		for id := range m.studies {
@@ -57216,7 +58571,7 @@ func (m *TenantMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *TenantMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 30)
+	edges := make([]string, 0, 31)
 	if m.removedusers != nil {
 		edges = append(edges, tenant.EdgeUsers)
 	}
@@ -57291,6 +58646,9 @@ func (m *TenantMutation) RemovedEdges() []string {
 	}
 	if m.removeddataset_bindings != nil {
 		edges = append(edges, tenant.EdgeDatasetBindings)
+	}
+	if m.removedproject_workloads != nil {
+		edges = append(edges, tenant.EdgeProjectWorkloads)
 	}
 	if m.removedstudies != nil {
 		edges = append(edges, tenant.EdgeStudies)
@@ -57464,6 +58822,12 @@ func (m *TenantMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case tenant.EdgeProjectWorkloads:
+		ids := make([]ent.Value, 0, len(m.removedproject_workloads))
+		for id := range m.removedproject_workloads {
+			ids = append(ids, id)
+		}
+		return ids
 	case tenant.EdgeStudies:
 		ids := make([]ent.Value, 0, len(m.removedstudies))
 		for id := range m.removedstudies {
@@ -57500,7 +58864,7 @@ func (m *TenantMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *TenantMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 30)
+	edges := make([]string, 0, 31)
 	if m.clearedusers {
 		edges = append(edges, tenant.EdgeUsers)
 	}
@@ -57576,6 +58940,9 @@ func (m *TenantMutation) ClearedEdges() []string {
 	if m.cleareddataset_bindings {
 		edges = append(edges, tenant.EdgeDatasetBindings)
 	}
+	if m.clearedproject_workloads {
+		edges = append(edges, tenant.EdgeProjectWorkloads)
+	}
 	if m.clearedstudies {
 		edges = append(edges, tenant.EdgeStudies)
 	}
@@ -57648,6 +59015,8 @@ func (m *TenantMutation) EdgeCleared(name string) bool {
 		return m.clearedworkspace_datasets
 	case tenant.EdgeDatasetBindings:
 		return m.cleareddataset_bindings
+	case tenant.EdgeProjectWorkloads:
+		return m.clearedproject_workloads
 	case tenant.EdgeStudies:
 		return m.clearedstudies
 	case tenant.EdgeIterationPlans:
@@ -57748,6 +59117,9 @@ func (m *TenantMutation) ResetEdge(name string) error {
 		return nil
 	case tenant.EdgeDatasetBindings:
 		m.ResetDatasetBindings()
+		return nil
+	case tenant.EdgeProjectWorkloads:
+		m.ResetProjectWorkloads()
 		return nil
 	case tenant.EdgeStudies:
 		m.ResetStudies()

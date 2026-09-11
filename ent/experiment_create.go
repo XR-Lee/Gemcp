@@ -21,6 +21,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/project"
+	"github.com/XR-Lee/Gemcp/ent/projectworkload"
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/repository"
 	"github.com/XR-Lee/Gemcp/ent/researchnode"
@@ -630,6 +631,25 @@ func (_c *ExperimentCreate) SetNillableProposalID(id *int) *ExperimentCreate {
 // SetProposal sets the "proposal" edge to the ExperimentProposal entity.
 func (_c *ExperimentCreate) SetProposal(v *ExperimentProposal) *ExperimentCreate {
 	return _c.SetProposalID(v.ID)
+}
+
+// SetSavedWorkloadID sets the "saved_workload" edge to the ProjectWorkload entity by ID.
+func (_c *ExperimentCreate) SetSavedWorkloadID(id int) *ExperimentCreate {
+	_c.mutation.SetSavedWorkloadID(id)
+	return _c
+}
+
+// SetNillableSavedWorkloadID sets the "saved_workload" edge to the ProjectWorkload entity by ID if the given value is not nil.
+func (_c *ExperimentCreate) SetNillableSavedWorkloadID(id *int) *ExperimentCreate {
+	if id != nil {
+		_c = _c.SetSavedWorkloadID(*id)
+	}
+	return _c
+}
+
+// SetSavedWorkload sets the "saved_workload" edge to the ProjectWorkload entity.
+func (_c *ExperimentCreate) SetSavedWorkload(v *ProjectWorkload) *ExperimentCreate {
+	return _c.SetSavedWorkloadID(v.ID)
 }
 
 // AddResearchNodeIDs adds the "research_nodes" edge to the ResearchNode entity by IDs.
@@ -1269,6 +1289,22 @@ func (_c *ExperimentCreate) createSpec() (*Experiment, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(experimentproposal.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.SavedWorkloadIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   experiment.SavedWorkloadTable,
+			Columns: []string{experiment.SavedWorkloadColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(projectworkload.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

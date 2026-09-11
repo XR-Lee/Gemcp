@@ -75,6 +75,8 @@ const (
 	EdgeWorkspaceDatasets = "workspace_datasets"
 	// EdgeDatasetBindings holds the string denoting the dataset_bindings edge name in mutations.
 	EdgeDatasetBindings = "dataset_bindings"
+	// EdgeProjectWorkloads holds the string denoting the project_workloads edge name in mutations.
+	EdgeProjectWorkloads = "project_workloads"
 	// EdgeStudies holds the string denoting the studies edge name in mutations.
 	EdgeStudies = "studies"
 	// EdgeIterationPlans holds the string denoting the iteration_plans edge name in mutations.
@@ -262,6 +264,13 @@ const (
 	DatasetBindingsInverseTable = "dataset_bindings"
 	// DatasetBindingsColumn is the table column denoting the dataset_bindings relation/edge.
 	DatasetBindingsColumn = "tenant_id"
+	// ProjectWorkloadsTable is the table that holds the project_workloads relation/edge.
+	ProjectWorkloadsTable = "project_workloads"
+	// ProjectWorkloadsInverseTable is the table name for the ProjectWorkload entity.
+	// It exists in this package in order to avoid circular dependency with the "projectworkload" package.
+	ProjectWorkloadsInverseTable = "project_workloads"
+	// ProjectWorkloadsColumn is the table column denoting the project_workloads relation/edge.
+	ProjectWorkloadsColumn = "tenant_id"
 	// StudiesTable is the table that holds the studies relation/edge.
 	StudiesTable = "studies"
 	// StudiesInverseTable is the table name for the Study entity.
@@ -719,6 +728,20 @@ func ByDatasetBindings(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// ByProjectWorkloadsCount orders the results by project_workloads count.
+func ByProjectWorkloadsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newProjectWorkloadsStep(), opts...)
+	}
+}
+
+// ByProjectWorkloads orders the results by project_workloads terms.
+func ByProjectWorkloads(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newProjectWorkloadsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByStudiesCount orders the results by studies count.
 func ByStudiesCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -961,6 +984,13 @@ func newDatasetBindingsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(DatasetBindingsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, DatasetBindingsTable, DatasetBindingsColumn),
+	)
+}
+func newProjectWorkloadsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ProjectWorkloadsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ProjectWorkloadsTable, ProjectWorkloadsColumn),
 	)
 }
 func newStudiesStep() *sqlgraph.Step {

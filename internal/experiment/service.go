@@ -40,6 +40,8 @@ var (
 	ErrExperimentCap       = errors.New("experiment cost reservation exceeds the project cap")
 	ErrCommitVerification  = errors.New("Git commit could not be verified as reachable from the registered repository")
 	ErrProjectPaused       = errors.New("project is not accepting experiments")
+	ErrWorkloadConflict    = errors.New("project workload name is already saved")
+	ErrWorkloadLimit       = errors.New("project workload limit reached")
 	commitPattern          = regexp.MustCompile(`^(?:[0-9a-f]{40}|[0-9a-f]{64})$`)
 	idempotencyPattern     = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$`)
 	secretNamePattern      = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_.-]{0,63}$`)
