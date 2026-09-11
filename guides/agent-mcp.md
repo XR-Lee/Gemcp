@@ -42,12 +42,12 @@ A 401 response means the Token is missing, malformed, expired, revoked, or no lo
 
 The optional `configure` scope lets an Agent maintain bounded inputs inside its authenticated Project. It does not authorize paid execution, a new host workspace root, arbitrary mounts, Provider access, or cross-Project changes. `request_image_bake` writes a zero-cost requested bake; Owner digest confirmation in the Lab Images workspace is the only start of AutoDL Pro. There is no MCP tool that starts Pro.
 
-To onboard a GitHub SSH repository:
+To onboard a GitHub repository:
 
 1. Call `list_repository_registrations` and reuse an existing matching record when present.
-2. Call `register_repository` with its name, `git@github.com:owner/repository.git` URL, and default branch. Gemcp returns a pending record and a read-only deploy public key.
-3. Show the public key and repository to the human. Wait while a repository administrator adds it as a read-only GitHub Deploy Key. Never request a GitHub credential or claim the key was installed yourself.
-4. Call `verify_repository`. Omit `host_key_fingerprint` only when Gemcp can reuse the Project's established GitHub host pin. A successful fetch changes the record to `active`.
+2. Call `register_repository` with `url` set to `https://github.com/owner/repository` or `git@github.com:owner/repository.git`. The name may be omitted; Gemcp derives it from the repository. Public repositories return `status=active` and `access=public_https` with no Deploy Key.
+3. If the record is `pending_key`, show the public key and repository to the human. Wait while a repository administrator adds it as a read-only GitHub Deploy Key. Never request a GitHub credential or claim the key was installed yourself.
+4. For pending private repositories, call `verify_repository`. Omit `host_key_fingerprint` only when Gemcp can reuse the Project's established GitHub host pin. A successful fetch changes the record to `active`.
 5. Confirm the active repository appears in `get_project_options` before preparing work.
 
 To declare existing data below a trusted workspace root, call `register_workspace_dataset` with a stable name and normalized relative path. Absolute paths, traversal, symlink escape, and a new host root are forbidden. The tool returns a container path and a fixed environment variable. For example:

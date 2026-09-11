@@ -19,11 +19,25 @@ import (
 type fakeGitVerifier struct {
 	accessErr   error
 	commitErr   error
+	publicErr   error
+	publicOK    bool
+	probedURL   string
 	privateKey  []byte
 	fingerprint string
 	commitSHA   string
 	ref         string
 	resolvedSHA string
+}
+
+func (f *fakeGitVerifier) ProbePublicHTTPS(_ context.Context, httpsURL string) error {
+	f.probedURL = httpsURL
+	if f.publicOK {
+		return nil
+	}
+	if f.publicErr != nil {
+		return f.publicErr
+	}
+	return errors.New("not a public GitHub repository")
 }
 
 func (f *fakeGitVerifier) VerifyAccess(_ context.Context, _, _ string, privateKey []byte, fingerprint string) error {
@@ -118,6 +132,64 @@ func TestRepositoryDeployKeyLifecycle(t *testing.T) {
 	}
 	if _, err := service.ResolveRef(ctx, record.ID, "--upload-pack=evil"); err == nil {
 		t.Fatal("ResolveRef() accepted an option-like ref")
+	}
+}
+
+func TestPublicGitHubURLOnboarding(t *testing.T) {
+	client := enttest.Open(t, dialect.SQLite, "file:repository-public-url?mode=memory&cache=shared&_fk=1")
+	defer client.Close()
+	ctx := context.Background()
+	tenant, _ := client.Tenant.Create().SetName("Test").Save(ctx)
+	project, _ := client.Project.Create().SetTenantID(tenant.ID).SetName("Project").SetSlug("project").SetMonthlyBudgetMilli(100000).SetMaxExperimentMilli(20000).Save(ctx)
+	key, _ := secrets.GenerateMasterKey()
+	box, _ := secrets.New(key)
+	verifier := &fakeGitVerifier{publicOK: true}
+	service := NewService(client, box, verifier)
+
+	created, err := service.Create(ctx, tenant.ID, Input{
+		ProjectID: project.PublicID.String(), URL: "https://github.com/octocat/Hello-World",
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	if created.Name != "Hello-World" || created.SSHURL != "git@github.com:octocat/Hello-World.git" {
+		t.Fatalf("normalized repository = %+v", created)
+	}
+	if created.Status != "active" || created.Access != AccessPublicHTTPS || created.DeployPublicKey != "" {
+		t.Fatalf("public repository = %+v", created)
+	}
+	if created.HostKeyFingerprint == nil || *created.HostKeyFingerprint != githubEd25519Fingerprint {
+		t.Fatalf("public fingerprint = %+v", created.HostKeyFingerprint)
+	}
+	if verifier.probedURL != "https://github.com/octocat/Hello-World.git" {
+		t.Fatalf("probed URL = %q", verifier.probedURL)
+	}
+	record, _ := client.Repository.Query().Only(ctx)
+	if record.DeployPrivateKeyCiphertext != "" {
+		t.Fatal("public registration stored a deploy key")
+	}
+}
+
+func TestProbePublicHTTPSRejectsNonGitHub(t *testing.T) {
+	if err := NewCommandVerifier().ProbePublicHTTPS(context.Background(), "https://evil.example/octocat/Hello-World.git"); err == nil {
+		t.Fatal("ProbePublicHTTPS() accepted a non-GitHub URL")
+	}
+}
+
+func TestParseGitHubRemote(t *testing.T) {
+	remote, err := parseGitHubRemote("https://github.com/XR-Lee/Gemcp.git")
+	if err != nil || remote.SSHURL != "git@github.com:XR-Lee/Gemcp.git" || remote.HTTPSURL != "https://github.com/XR-Lee/Gemcp.git" || remote.Name != "Gemcp" {
+		t.Fatalf("https parse = %+v, %v", remote, err)
+	}
+	remote, err = parseGitHubRemote("git@github.com:XR-Lee/Gemcp")
+	if err != nil || remote.SSHURL != "git@github.com:XR-Lee/Gemcp.git" {
+		t.Fatalf("ssh parse = %+v, %v", remote, err)
+	}
+	if _, err := parseGitHubRemote("https://evil.example/XR-Lee/Gemcp"); err == nil {
+		t.Fatal("accepted a non-GitHub URL")
+	}
+	if _, err := parseGitHubRemote("https://github.com/XR-Lee/Gemcp/issues/5"); err == nil {
+		t.Fatal("accepted a GitHub URL with extra path")
 	}
 }
 

@@ -5,7 +5,7 @@ describe('studyImport', () => {
   it('derives a repository name from a GitHub SSH URL', () => {
     expect(repositoryNameFromSSHURL('git@github.com:research/dynamic-point-mamba.git')).toBe('dynamic-point-mamba')
     expect(repositoryNameFromSSHURL('git@github.com:XR-Lee/Gemcp')).toBe('Gemcp')
-    expect(repositoryNameFromSSHURL('https://github.com/research/dynamic-point-mamba')).toBe('')
+    expect(repositoryNameFromSSHURL('https://github.com/research/dynamic-point-mamba')).toBe('dynamic-point-mamba')
   })
 
   it('drafts a Study from an existing repository', () => {

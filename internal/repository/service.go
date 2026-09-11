@@ -25,9 +25,17 @@ var (
 	ErrNotActive          = errors.New("repository is not active")
 	ErrVerificationFailed = errors.New("repository verification failed")
 	ErrConflict           = errors.New("repository name is already registered with different settings")
-	githubSSHURL          = regexp.MustCompile(`^git@github\.com:([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+?)(?:\.git)?$`)
 	branchPattern         = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/-]{0,254}$`)
 )
+
+const (
+	AccessPublicHTTPS = "public_https"
+	AccessSSHDeploy   = "ssh_deploy_key"
+)
+
+type GitPublicProber interface {
+	ProbePublicHTTPS(context.Context, string) error
+}
 
 // Official GitHub SSH host-key fingerprints from
 // https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints
@@ -48,12 +56,14 @@ type Input struct {
 	ProjectID     string `json:"project_id"`
 	Name          string `json:"name"`
 	SSHURL        string `json:"ssh_url"`
+	URL           string `json:"url"`
 	DefaultBranch string `json:"default_branch"`
 }
 
 type AgentInput struct {
-	Name          string `json:"name" jsonschema:"repository display name within the current Project"`
-	SSHURL        string `json:"ssh_url" jsonschema:"GitHub SSH URL in git@github.com:owner/repository.git form"`
+	Name          string `json:"name,omitempty" jsonschema:"optional display name; defaults to the GitHub repository name"`
+	SSHURL        string `json:"ssh_url,omitempty" jsonschema:"GitHub SSH or HTTPS URL; alias of url"`
+	URL           string `json:"url,omitempty" jsonschema:"GitHub SSH or HTTPS URL in git@github.com:owner/repository.git or https://github.com/owner/repository form"`
 	DefaultBranch string `json:"default_branch,omitempty" jsonschema:"default branch; defaults to main"`
 }
 
@@ -76,6 +86,7 @@ type View struct {
 	DeployPublicKey    string     `json:"deploy_public_key,omitempty"`
 	HostKeyFingerprint *string    `json:"host_key_fingerprint,omitempty"`
 	LastVerifiedAt     *time.Time `json:"last_verified_at,omitempty"`
+	Access             string     `json:"access,omitempty"`
 }
 
 type GitVerifier interface {
@@ -116,7 +127,7 @@ func (s *Service) CreateForAgent(ctx context.Context, tenantID int, actorID, pro
 	}
 	defer tx.Rollback()
 	projectID, name, sshURL, branch, err := normalizeInput(Input{
-		ProjectID: projectPublicID, Name: input.Name, SSHURL: input.SSHURL, DefaultBranch: input.DefaultBranch,
+		ProjectID: projectPublicID, Name: input.Name, SSHURL: input.SSHURL, URL: input.URL, DefaultBranch: input.DefaultBranch,
 	})
 	if err != nil {
 		return View{}, err
@@ -172,6 +183,25 @@ func (s *Service) create(ctx context.Context, client *ent.Client, tenantID int, 
 		return view, err
 	}
 	publicID := uuid.New()
+	httpsURL := githubHTTPSURLFromSSH(sshURL)
+	if s.activatePublicHTTPS(ctx, httpsURL) {
+		now := s.now().UTC()
+		record, err := client.Repository.Create().
+			SetPublicID(publicID).
+			SetProjectID(project.ID).
+			SetName(name).
+			SetSSHURL(sshURL).
+			SetSSHHost("github.com").
+			SetDefaultBranch(branch).
+			SetHostKeyFingerprint(githubEd25519Fingerprint).
+			SetStatus("active").
+			SetLastVerifiedAt(now).
+			Save(ctx)
+		if err != nil {
+			return view, err
+		}
+		return makeView(record, project.PublicID.String(), true), nil
+	}
 	publicKey, privateKey, err := generateDeployKey("gemcp-" + publicID.String())
 	if err != nil {
 		return view, err
@@ -196,18 +226,29 @@ func (s *Service) create(ctx context.Context, client *ent.Client, tenantID int, 
 	return makeView(record, project.PublicID.String(), true), nil
 }
 
+func (s *Service) activatePublicHTTPS(ctx context.Context, httpsURL string) bool {
+	prober, ok := s.verifier.(GitPublicProber)
+	if !ok || strings.TrimSpace(httpsURL) == "" {
+		return false
+	}
+	return prober.ProbePublicHTTPS(ctx, httpsURL) == nil
+}
+
 func normalizeInput(input Input) (uuid.UUID, string, string, string, error) {
 	projectID, err := uuid.Parse(strings.TrimSpace(input.ProjectID))
 	if err != nil {
 		return uuid.Nil, "", "", "", invalid("valid project_id is required")
 	}
+	remote, err := parseGitHubRemote(firstNonEmpty(input.SSHURL, input.URL))
+	if err != nil {
+		return uuid.Nil, "", "", "", err
+	}
 	name := strings.TrimSpace(input.Name)
+	if name == "" {
+		name = remote.Name
+	}
 	if name == "" || len(name) > 120 {
 		return uuid.Nil, "", "", "", invalid("repository name is required")
-	}
-	sshURL := strings.TrimSpace(input.SSHURL)
-	if !githubSSHURL.MatchString(sshURL) {
-		return uuid.Nil, "", "", "", invalid("ssh_url must match git@github.com:owner/repository.git")
 	}
 	branch := strings.TrimSpace(input.DefaultBranch)
 	if branch == "" {
@@ -216,7 +257,16 @@ func normalizeInput(input Input) (uuid.UUID, string, string, string, error) {
 	if !branchPattern.MatchString(branch) || strings.Contains(branch, "..") || strings.Contains(branch, "//") {
 		return uuid.Nil, "", "", "", invalid("default branch is invalid")
 	}
-	return projectID, name, sshURL, branch, nil
+	return projectID, name, remote.SSHURL, branch, nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }
 
 func (s *Service) VerifyForAgent(ctx context.Context, tenantID int, actorID, projectPublicID string, input AgentVerifyInput) (View, error) {
@@ -481,6 +531,9 @@ func (s *Service) findForTenant(ctx context.Context, tenantID int, value string)
 }
 
 func (s *Service) decryptKey(record *ent.Repository) ([]byte, error) {
+	if strings.TrimSpace(record.DeployPrivateKeyCiphertext) == "" {
+		return nil, nil
+	}
 	return s.box.Decrypt(record.DeployPrivateKeyCiphertext, deployKeyAADPrefix+record.PublicID.String())
 }
 
@@ -504,6 +557,10 @@ func makeView(record *ent.Repository, projectID string, includePublicKey bool) V
 	view := View{
 		ID: record.PublicID.String(), ProjectID: projectID, Name: record.Name, SSHURL: record.SSHURL,
 		DefaultBranch: record.DefaultBranch, Status: string(record.Status), LastVerifiedAt: record.LastVerifiedAt,
+		Access: AccessSSHDeploy,
+	}
+	if strings.TrimSpace(record.DeployPrivateKeyCiphertext) == "" && record.Status == entrepository.StatusActive {
+		view.Access = AccessPublicHTTPS
 	}
 	if includePublicKey {
 		view.DeployPublicKey = record.DeployPublicKey

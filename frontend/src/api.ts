@@ -188,6 +188,7 @@ export type Repository = {
   deploy_public_key?: string
   host_key_fingerprint?: string
   last_verified_at?: string
+  access?: 'public_https' | 'ssh_deploy_key'
 }
 
 export type Experiment = {
@@ -1260,7 +1261,7 @@ export const api = {
     }),
   repositories: (projectID: string) =>
     request<Repository[]>(`/api/v1/repositories?project_id=${encodeURIComponent(projectID)}`),
-  createRepository: (payload: { project_id: string; name: string; ssh_url: string; default_branch: string }) =>
+  createRepository: (payload: { project_id: string; name?: string; ssh_url?: string; url?: string; default_branch: string }) =>
     request<Repository>('/api/v1/repositories', { method: 'POST', body: JSON.stringify(payload) }),
   verifyRepository: (repositoryID: string, hostKeyFingerprint = '') =>
     request<Repository>(`/api/v1/repositories/${encodeURIComponent(repositoryID)}/verify`, {

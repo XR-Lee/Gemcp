@@ -201,7 +201,32 @@ func (v *CommandVerifier) fetch(ctx context.Context, sshURL, host string, privat
 	return v.fetchResolved(ctx, sshURL, host, privateKey, fingerprint, ref, true)
 }
 
+func (v *CommandVerifier) ProbePublicHTTPS(ctx context.Context, httpsURL string) error {
+	httpsURL = strings.TrimSpace(httpsURL)
+	if !strings.HasPrefix(httpsURL, "https://github.com/") {
+		return fmt.Errorf("public HTTPS probe is limited to github.com")
+	}
+	environment := verificationEnvironment("")
+	command := exec.CommandContext(ctx, v.gitBinary, "-c", "credential.helper=", "-c", "credential.interactive=never", "ls-remote", "--exit-code", httpsURL, "HEAD")
+	if _, stderr, err := run(command, environment); err != nil {
+		return fmt.Errorf("public GitHub HTTPS probe failed: %w: %s", err, stderr)
+	}
+	return nil
+}
+
 func (v *CommandVerifier) fetchResolved(ctx context.Context, sshURL, host string, privateKey []byte, fingerprint, ref string, requireExact bool) (string, string, []string, error) {
+	if httpsURL := githubHTTPSURLFromSSH(sshURL); httpsURL != "" {
+		tempDir, repositoryPath, environment, err := v.fetchHTTPS(ctx, httpsURL, ref, requireExact)
+		if err == nil {
+			return tempDir, repositoryPath, environment, nil
+		}
+		if len(privateKey) == 0 {
+			return "", "", nil, err
+		}
+	} else if len(privateKey) == 0 {
+		return "", "", nil, fmt.Errorf("repository fetch requires a deploy key or a public GitHub HTTPS URL")
+	}
+
 	tempDir, err := os.MkdirTemp("", "gemcp-git-fetch-*")
 	if err != nil {
 		return "", "", nil, fmt.Errorf("create Git workspace: %w", err)
@@ -241,6 +266,38 @@ func (v *CommandVerifier) fetchResolved(ctx context.Context, sshURL, host string
 	fetchCommand := exec.CommandContext(ctx, v.gitBinary, "-C", repositoryPath, "fetch", "--depth=1", "--no-tags", sshURL, ref)
 	if _, stderr, err := run(fetchCommand, environment); err != nil {
 		return fail(fmt.Errorf("fetch requested Git ref: %w: %s", err, stderr))
+	}
+	if requireExact && ref != "HEAD" {
+		revParse := exec.CommandContext(ctx, v.gitBinary, "-C", repositoryPath, "rev-parse", "FETCH_HEAD")
+		output, stderr, err := run(revParse, environment)
+		if err != nil {
+			return fail(fmt.Errorf("resolve fetched commit: %w: %s", err, stderr))
+		}
+		if !strings.EqualFold(strings.TrimSpace(string(output)), strings.TrimSpace(ref)) {
+			return fail(fmt.Errorf("fetched commit did not match the requested SHA"))
+		}
+	}
+	return tempDir, repositoryPath, environment, nil
+}
+
+func (v *CommandVerifier) fetchHTTPS(ctx context.Context, httpsURL, ref string, requireExact bool) (string, string, []string, error) {
+	tempDir, err := os.MkdirTemp("", "gemcp-git-https-*")
+	if err != nil {
+		return "", "", nil, fmt.Errorf("create Git workspace: %w", err)
+	}
+	fail := func(err error) (string, string, []string, error) {
+		_ = os.RemoveAll(tempDir)
+		return "", "", nil, err
+	}
+	repositoryPath := filepath.Join(tempDir, "repository.git")
+	environment := verificationEnvironment(tempDir)
+	initCommand := exec.CommandContext(ctx, v.gitBinary, "init", "--bare", repositoryPath)
+	if _, stderr, err := run(initCommand, environment); err != nil {
+		return fail(fmt.Errorf("initialize Git repository: %w: %s", err, stderr))
+	}
+	fetchCommand := exec.CommandContext(ctx, v.gitBinary, "-C", repositoryPath, "-c", "credential.helper=", "-c", "credential.interactive=never", "fetch", "--depth=1", "--no-tags", httpsURL, ref)
+	if _, stderr, err := run(fetchCommand, environment); err != nil {
+		return fail(fmt.Errorf("fetch public GitHub HTTPS ref: %w: %s", err, stderr))
 	}
 	if requireExact && ref != "HEAD" {
 		revParse := exec.CommandContext(ctx, v.gitBinary, "-C", repositoryPath, "rev-parse", "FETCH_HEAD")
@@ -312,6 +369,9 @@ func shellQuote(value string) string {
 }
 
 func verificationEnvironment(home string) []string {
+	if home == "" {
+		home = os.TempDir()
+	}
 	return []string{
 		"PATH=" + os.Getenv("PATH"),
 		"HOME=" + home,
@@ -319,6 +379,7 @@ func verificationEnvironment(home string) []string {
 		"LC_ALL=C",
 		"GIT_CONFIG_NOSYSTEM=1",
 		"GIT_TERMINAL_PROMPT=0",
+		"GIT_ASKPASS=true",
 		"SSH_AUTH_SOCK=",
 	}
 }

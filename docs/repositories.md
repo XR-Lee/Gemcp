@@ -1,12 +1,13 @@
-# Private Git repositories
+# Git repositories
 
-Gemcp currently accepts GitHub SSH repositories in this form:
+Gemcp accepts GitHub repositories in either of these forms:
 
 ```text
+https://github.com/owner/repository
 git@github.com:owner/repository.git
 ```
 
-Each registration generates a distinct Ed25519 Deploy Key. The private key is AES-256-GCM encrypted with repository-specific associated data. Only the public key is returned through the Owner API.
+Public repositories activate immediately. Gemcp fetches them over anonymous HTTPS and does not create a Deploy Key. Private repositories still generate a distinct Ed25519 Deploy Key. The private key is AES-256-GCM encrypted with repository-specific associated data. Only the public key is returned through the Owner API.
 
 ## Register
 
@@ -18,7 +19,7 @@ Discover the project ID:
 GET /api/v1/projects
 ```
 
-Create the repository:
+Create the repository. The name may be omitted; Gemcp derives it from the GitHub repository.
 
 ```http
 POST /api/v1/repositories
@@ -27,17 +28,16 @@ Content-Type: application/json
 
 {
   "project_id": "project-uuid",
-  "name": "training",
-  "ssh_url": "git@github.com:owner/repository.git",
+  "url": "https://github.com/owner/repository",
   "default_branch": "main"
 }
 ```
 
-The response includes `deploy_public_key`. Add it to that GitHub repository as a read-only Deploy Key. Do not enable write access.
+`ssh_url` remains accepted as an alias of `url`. A public repository returns `status=active` and `access=public_https`. A private repository returns `status=pending_key`, `access=ssh_deploy_key`, and `deploy_public_key`. Add that key to the GitHub repository as a read-only Deploy Key. Do not enable write access.
 
-## Verify the host and repository
+## Verify a private repository
 
-Gemcp ships a release-pinned copy of GitHub's official Ed25519 host fingerprint. Normal GitHub onboarding does not ask the Owner to transcribe it. Verify repository access after installing the read-only Deploy Key:
+Gemcp ships a release-pinned copy of GitHub's official Ed25519 host fingerprint. Normal GitHub onboarding does not ask the Owner to transcribe it. After installing the read-only Deploy Key:
 
 ```http
 POST /api/v1/repositories/<repository-id>/verify
@@ -48,6 +48,8 @@ Content-Type: application/json
 ```
 
 Gemcp scans `github.com`, requires one returned host key to match the release-pinned fingerprint, and performs a noninteractive read-only Git fetch with an isolated HOME, no system Git configuration, strict host-key checking, and the repository Deploy Key. The repository becomes `active` only after that succeeds. The optional `host_key_fingerprint` request field remains an Advanced override for a separately reviewed pin; never derive it from untrusted `ssh-keyscan` output alone.
+
+Public repositories skip this step. Later commit and archive fetches try anonymous GitHub HTTPS first and fall back to the Deploy Key only when HTTPS is unauthorized.
 
 List registrations and retrieve their public Deploy Keys:
 

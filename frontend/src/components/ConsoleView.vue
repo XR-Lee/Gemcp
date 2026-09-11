@@ -98,7 +98,7 @@ const studyImportOptions = computed(() => {
     value: repository.id,
     label: `${repository.name} [${repository.status}]`,
   }))
-  options.push({ value: 'url', label: t('Paste a GitHub SSH URL', '粘贴 GitHub SSH URL') })
+  options.push({ value: 'url', label: t('Paste a GitHub URL', '粘贴 GitHub URL') })
   options.push({ value: 'blank', label: t('Start from a question only', '只写研究问题') })
   return options
 })
@@ -404,7 +404,7 @@ async function createStudy() {
     if (importingNewRepository.value) {
       const sshURL = studyForm.sshURL.trim()
       if (!repositoryNameFromSSHURL(sshURL)) {
-        dialogError.value = t('Use a GitHub SSH URL like git@github.com:owner/repository.git.', '请使用 git@github.com:owner/repository.git 这种 GitHub SSH URL。')
+        dialogError.value = t('Use a GitHub HTTPS or SSH URL like https://github.com/owner/repository.', '请使用 https://github.com/owner/repository 或 git@github.com:owner/repository.git。')
         return
       }
       const createdRepository = await api.createRepository({
@@ -457,8 +457,8 @@ async function createRepository() {
   try {
     const created = await api.createRepository({
       project_id: selectedProject.value.id,
-      name: repositoryForm.name.trim(),
-      ssh_url: repositoryForm.sshURL.trim(),
+      name: repositoryForm.name.trim() || undefined,
+      url: repositoryForm.sshURL.trim(),
       default_branch: repositoryForm.defaultBranch.trim(),
     })
     selectedRepository.value = created
@@ -792,14 +792,14 @@ onMounted(async () => {
             </tbody>
           </table>
         </div>
-        <div class="subsection-heading"><div><h2>{{ t('Private repositories', '私有仓库') }}</h2><p>{{ t('Read-only Deploy Keys and pinned GitHub host identity.', '只读 Deploy Key 和固定的 GitHub 主机身份。') }}</p></div><button class="primary-button small-button" type="button" @click="openCreateRepository"><Plus :size="16" />{{ t('Register repository', '注册仓库') }}</button></div>
+        <div class="subsection-heading"><div><h2>{{ t('Repositories', '仓库') }}</h2><p>{{ t('Paste a GitHub HTTPS or SSH URL. Public repositories activate without a Deploy Key.', '粘贴 GitHub HTTPS 或 SSH URL。公开仓库无需 Deploy Key 即可激活。') }}</p></div><button class="primary-button small-button" type="button" @click="openCreateRepository"><Plus :size="16" />{{ t('Register repository', '注册仓库') }}</button></div>
         <div v-if="repositories.length" class="table-scroll">
           <table class="data-table repository-table">
             <thead><tr><th>{{ t('Status', '状态') }}</th><th>{{ t('Name', '名称') }}</th><th>SSH URL</th><th>{{ t('Branch', '分支') }}</th><th>{{ t('Verified', '已验证') }}</th><th>{{ t('Actions', '操作') }}</th></tr></thead>
-            <tbody><tr v-for="repository in repositories" :key="repository.id"><td><span class="state-badge" :data-state="repository.status"><span />{{ stateLabel(repository.status) }}</span></td><td>{{ repository.name }}</td><td><code>{{ repository.ssh_url }}</code></td><td><code>{{ repository.default_branch }}</code></td><td>{{ dateTime(repository.last_verified_at) }}</td><td><div class="table-actions"><button class="icon-button" type="button" :title="t('View Deploy public key', '查看 Deploy 公钥')" @click="openKey(repository)"><KeyRound :size="16" /></button><button class="icon-button" type="button" :title="t('Verify repository', '验证仓库')" @click="verifyRepository(repository)"><ShieldCheck :size="16" /></button></div></td></tr></tbody>
+            <tbody><tr v-for="repository in repositories" :key="repository.id"><td><span class="state-badge" :data-state="repository.status"><span />{{ stateLabel(repository.status) }}</span></td><td>{{ repository.name }}</td><td><code>{{ repository.ssh_url }}</code></td><td><code>{{ repository.default_branch }}</code></td><td>{{ dateTime(repository.last_verified_at) }}</td><td><div class="table-actions"><button v-if="repository.access !== 'public_https'" class="icon-button" type="button" :title="t('View Deploy public key', '查看 Deploy 公钥')" @click="openKey(repository)"><KeyRound :size="16" /></button><button v-if="repository.status !== 'active'" class="icon-button" type="button" :title="t('Verify repository', '验证仓库')" @click="verifyRepository(repository)"><ShieldCheck :size="16" /></button></div></td></tr></tbody>
           </table>
         </div>
-        <div v-else class="empty-state compact-empty"><span class="empty-icon"><GitBranch :size="21" /></span><h3>{{ t('No repositories registered', '尚未注册仓库') }}</h3><p>{{ t('Register the private GitHub repository used by the first experiment.', '注册首个实验使用的私有 GitHub 仓库。') }}</p></div>
+        <div v-else class="empty-state compact-empty"><span class="empty-icon"><GitBranch :size="21" /></span><h3>{{ t('No repositories registered', '尚未注册仓库') }}</h3><p>{{ t('Paste a GitHub URL for the first experiment. Public repositories skip the Deploy Key.', '粘贴首个实验使用的 GitHub URL。公开仓库无需 Deploy Key。') }}</p></div>
       </section>
 
       <FinanceView v-if="activeView === 'finance'" :active="true" :projects="projects" @unauthorized="emit('signedOut')" />
@@ -845,7 +845,7 @@ onMounted(async () => {
         <span>{{ t('Import from', '导入来源') }}</span>
         <WorkbenchSelect v-model="studyForm.importSource" :aria-label="t('Import from', '导入来源')" :options="studyImportOptions" @update:model-value="onStudyImportSourceChange" />
       </label>
-      <label v-if="importingNewRepository">{{ t('GitHub SSH URL', 'GitHub SSH URL') }}<input v-model="studyForm.sshURL" required maxlength="512" placeholder="git@github.com:owner/repository.git" spellcheck="false" @input="onStudySSHURLInput" /></label>
+      <label v-if="importingNewRepository">{{ t('GitHub URL', 'GitHub URL') }}<input v-model="studyForm.sshURL" required maxlength="512" placeholder="https://github.com/owner/repository" spellcheck="false" @input="onStudySSHURLInput" /></label>
       <label v-if="importingNewRepository">{{ t('Default branch', '默认分支') }}<input v-model="studyForm.defaultBranch" maxlength="255" placeholder="main" spellcheck="false" /></label>
       <label>{{ t('Name', '名称') }}<input v-model="studyForm.name" required maxlength="80" placeholder="objbg-scan" spellcheck="false" /></label>
       <label>{{ t('Research question', '研究问题') }}<textarea v-model="studyForm.question" required rows="4" maxlength="400" :placeholder="t('What should this Study answer?', '这个 Study 要回答什么问题？')"></textarea></label>
@@ -857,13 +857,13 @@ onMounted(async () => {
 
   <div v-if="repositoryDialog" class="modal-backdrop" @click.self="repositoryDialog = null">
     <section class="modal" role="dialog" aria-modal="true" :aria-label="repositoryDialog === 'create' ? t('Register repository', '注册仓库') : t('Deploy public key', 'Deploy 公钥')">
-      <header><div><p class="eyebrow">{{ t('Private Git', '私有 Git') }}</p><h2>{{ repositoryDialog === 'create' ? t('Register repository', '注册仓库') : t('Deploy public key', 'Deploy 公钥') }}</h2></div><button class="icon-button" type="button" :title="t('Close', '关闭')" @click="repositoryDialog = null"><X :size="17" /></button></header>
+      <header><div><p class="eyebrow">{{ t('GitHub', 'GitHub') }}</p><h2>{{ repositoryDialog === 'create' ? t('Register repository', '注册仓库') : t('Deploy public key', 'Deploy 公钥') }}</h2></div><button class="icon-button" type="button" :title="t('Close', '关闭')" @click="repositoryDialog = null"><X :size="17" /></button></header>
       <form v-if="repositoryDialog === 'create'" class="dialog-form" @submit.prevent="createRepository">
-        <label>{{ t('Name', '名称') }}<input v-model="repositoryForm.name" required /></label>
-        <label>GitHub SSH URL<input v-model="repositoryForm.sshURL" placeholder="git@github.com:owner/repository.git" required spellcheck="false" /></label>
+        <label>{{ t('Name', '名称') }}<input v-model="repositoryForm.name" :placeholder="t('Optional; defaults to the repository name', '可选，默认用仓库名')" /></label>
+        <label>{{ t('GitHub URL', 'GitHub URL') }}<input v-model="repositoryForm.sshURL" placeholder="https://github.com/owner/repository" required spellcheck="false" /></label>
         <label>{{ t('Default branch', '默认分支') }}<input v-model="repositoryForm.defaultBranch" required spellcheck="false" /></label>
         <div v-if="dialogError" class="form-error">{{ dialogError }}</div>
-        <button class="primary-button" type="submit" :disabled="repositoryBusy"><LoaderCircle v-if="repositoryBusy" :size="16" class="spinning" /><Plus v-else :size="16" />{{ t('Generate Deploy Key', '生成 Deploy Key') }}</button>
+        <button class="primary-button" type="submit" :disabled="repositoryBusy"><LoaderCircle v-if="repositoryBusy" :size="16" class="spinning" /><Plus v-else :size="16" />{{ t('Register repository', '注册仓库') }}</button>
       </form>
       <div v-else-if="repositoryDialog === 'key' && selectedRepository" class="key-panel">
         <p>{{ t('Add this public key to', '将此公钥添加到') }} <strong>{{ selectedRepository.name }}</strong> {{ t('as a read-only GitHub Deploy Key.', '设为只读 GitHub Deploy Key。') }}</p>

@@ -1,6 +1,6 @@
 import type { Locale } from './i18n'
 
-const githubSSHURL = /^git@github\.com:([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+?)(?:\.git)?$/
+const githubRemoteURL = /^(?:git@github\.com:|ssh:\/\/git@github\.com\/|https:\/\/github\.com\/)([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+?)(?:\.git)?\/?$/
 
 export type StudyImportDraft = {
   name: string
@@ -9,7 +9,7 @@ export type StudyImportDraft = {
 }
 
 export function repositoryNameFromSSHURL(url: string) {
-  return githubSSHURL.exec(url.trim())?.[2] ?? ''
+  return githubRemoteURL.exec(url.trim())?.[2] ?? ''
 }
 
 export function draftStudyFromRepository(
