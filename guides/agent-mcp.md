@@ -235,9 +235,10 @@ After completion call:
 
 ```text
 list_artifacts {"experiment_id":"..."}
+read_artifact {"experiment_id":"...","name":"metrics.json"}
 ```
 
-Gemcp reports the managed output reference and registered artifacts. It does not provide arbitrary filesystem browsing. Workloads should write structured results to `${GEMCP_OUTPUT_DIR}/metrics.json`; the execution environment supplies `GEMCP_OUTPUT_DIR` and the Agent must not replace it.
+Gemcp reports the managed output reference, registered names, and a manifest (media type, size, checksum, availability). `read_artifact` returns a bounded control-plane copy of a registered filename such as `metrics.json` or `run.log`. It rejects paths and does not browse shared storage; `gemcp-launch.log` may be registered after dispatch without a downloadable payload. Workloads should write structured results to `${GEMCP_OUTPUT_DIR}/metrics.json`; the execution environment supplies `GEMCP_OUTPUT_DIR` and the Agent must not replace it.
 
 ## Advanced compatibility path
 
@@ -305,7 +306,8 @@ The optional context is limited to repository remote, ref, and Experiment ID. `m
 | `get_experiment` | Read one Experiment | `read` |
 | `list_experiments` | List recent Experiments | `read` |
 | `cancel_experiment` | Request durable cancellation | `cancel` |
-| `list_artifacts` | Read managed output and artifact names | `read` |
+| `list_artifacts` | Read managed output, registered names, and the artifact manifest | `read` |
+| `read_artifact` | Bounded read of one registered artifact filename | `read` |
 
 If a tool returns forbidden, the Token lacks the required scope. Do not work around scope restrictions; ask the Owner to issue the minimum appropriate replacement Token.
 

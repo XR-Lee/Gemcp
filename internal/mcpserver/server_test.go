@@ -133,8 +133,8 @@ func TestStreamableHTTPToolsWithAgentToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListTools() error = %v", err)
 	}
-	if len(tools.Tools) != 33 {
-		t.Fatalf("tool count = %d, want 33", len(tools.Tools))
+	if len(tools.Tools) != 34 {
+		t.Fatalf("tool count = %d, want 34", len(tools.Tools))
 	}
 	if !strings.Contains(serverInstructions, "never call submit_prepared_experiment until the Owner explicitly confirms that digest") || !strings.Contains(serverInstructions, "submit scope are limits and technical capabilities, not financial approval") {
 		t.Fatal("MCP server instructions omit the exact-digest Owner approval boundary")
@@ -149,7 +149,8 @@ func TestStreamableHTTPToolsWithAgentToken(t *testing.T) {
 		!toolNames["register_repository"] || !toolNames["verify_repository"] || !toolNames["register_workspace_dataset"] ||
 		!toolNames["list_dataset_bindings"] || !toolNames["register_dataset_binding"] || !toolNames["remove_dataset_binding"] ||
 		!toolNames["register_environment"] || !toolNames["remove_environment"] ||
-		!toolNames["request_image_bake"] || !toolNames["get_image_bake"] || !toolNames["list_image_bakes"] {
+		!toolNames["request_image_bake"] || !toolNames["get_image_bake"] || !toolNames["list_image_bakes"] ||
+		!toolNames["list_artifacts"] || !toolNames["read_artifact"] {
 		t.Fatalf("prepared and Advanced tools are not all registered: %+v", toolNames)
 	}
 	usage, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "get_usage_guide", Arguments: map[string]any{}})

@@ -20,13 +20,13 @@ Create a short-lived **MCP setup link** from the Owner console and let the Agent
 
 The Owner sends one URL from `/agent/setup#code=...`. The Agent reads the public setup instructions at `/agent/setup` and enrolls its own MCP client. The code remains in the URL fragment and is not sent by link previews or ordinary page requests.
 
-Claiming creates a short-lived `read`-only credential. After the Agent discovers all thirty-three tools and verifies guide, options, and cost, completion activates the Owner-selected scopes and lifetime. Claim and complete are retry-safe if the final response is lost.
+Claiming creates a short-lived `read`-only credential. After the Agent discovers all thirty-four tools and verifies guide, options, and cost, completion activates the Owner-selected scopes and lifetime. Claim and complete are retry-safe if the final response is lost.
 
 ## Pi with pi-mcp-adapter
 
 Pi can run the fixed installer from the same configured origin when `pi-mcp-adapter` is already installed.
 
-The installer merges a `gemcp-<project>` server into `<Pi agent dir>/mcp.json`, preserves existing servers, writes mode `0600`, exposes all thirty-three bounded Gemcp tools through `directTools`, and verifies tool discovery plus guide, options, and cost calls. A local credential-reading helper supports the current session without printing the Token. One `/reload` activates native `gemcp-<project>_*` tools through the adapter.
+The installer merges a `gemcp-<project>` server into `<Pi agent dir>/mcp.json`, preserves existing servers, writes mode `0600`, exposes all thirty-four bounded Gemcp tools through `directTools`, and verifies tool discovery plus guide, options, and cost calls. A local credential-reading helper supports the current session without printing the Token. One `/reload` activates native `gemcp-<project>_*` tools through the adapter.
 
 Claimed credentials remain `read`-only and expire at the setup deadline until verification completes. Completion activates the Owner-selected scopes and lifetime, clears the setup capability, and leaves only a credential-free local receipt. The complete API and installer are retry-safe if the final response is lost.
 
@@ -296,17 +296,18 @@ Study, hypothesis, run, result, highlight observation, and orphan have one defin
 - `submit_prepared_experiment`: submit one confirmed proposal by ID and digest after re-validating the Graph origin; identical retries return the same Experiment and bind its Graph run node. A doomed bind is rejected before budget is reserved. If the Graph changes in that instant, the response carries the submitted Experiment plus `graph_bind_warning` — fix the Graph and retry this same submit instead of preparing again. Agents do not auto-submit. The Owner console can confirm the same digest and start the Experiment.
 - `get_project_options`: approved repositories, environments, resource profiles, dataset bindings, dataset source catalog, Provider-visible images, `onboarding.public_cloud.next_steps`, `onboarding.local_cpu.next_steps` when Cloud SSH is the only backend, project limits, dynamically discovered authorized Self-hosted Node readiness, experimental Cloud SSH node readiness, and a `readiness` summary with the heartbeat contract. With local process enabled, `EnsureForProject` auto-creates the loopback `local-cpu` node and seeds catalog `modelnet40-mini`. Cloud SSH listing does not require prior Project access; the control plane probes registered nodes.
 - `submit_experiment`: Advanced compatibility path for a full commit SHA, arbitrary shell command, and caller-managed idempotency key. Rejected when the Project has an active Study; use `prepare_experiment` with `from_node_id` instead.
-- `get_experiment`: current state, immutable specification, normalized `assessment`, all Attempts (failure, exit, log-tail, metrics, timing), bounded `log_tail`, `metrics.json` projection, Runner stage history, backend observation, registered artifact names, settlement (`reserved_cost_milli`, `estimated_cost_milli`, `budget_finalized_at`), and timeline. This is the monitoring surface; it does not expose SSH or remote files.
+- `get_experiment`: current state, immutable specification including Dataset Binding snapshots, normalized `assessment`, all Attempts (failure, exit, log-tail, metrics, timing), bounded `log_tail`, `metrics.json` projection, Runner stage history, backend observation, registered artifact names and manifest, settlement (`reserved_cost_milli`, `estimated_cost_milli`, `budget_finalized_at`), and timeline. This is the monitoring surface; it does not expose SSH or remote files.
 - `list_experiments`: compact recent experiments with optional state filters. Use `get_experiment` for Attempts, assessment, timeline, logs, and artifacts.
 - `cancel_experiment`: cancel queued work immediately or request cancellation of active work.
-- `list_artifacts`: durable output path and registered artifact names.
+- `list_artifacts`: durable output path, registered artifact names, and a manifest with media type, size, checksum, and availability. Not filesystem browsing.
+- `read_artifact`: bounded text or JSON read of one registered filename. Rejects paths. Shared-storage-only files such as `gemcp-launch.log` are listed but not downloaded.
 - `get_project_cost`: current monthly reservations, estimated charges, adjustments, and available capacity.
 
 Scope mapping:
 
 | Scope | Required for |
 | --- | --- |
-| `read` | usage guide, options, research workspace, next actions, experiment queries, artifact listing, cost queries, and image bake status |
+| `read` | usage guide, options, research workspace, next actions, experiment queries, artifact listing and bounded artifact reads, cost queries, and image bake status |
 | `submit` | research updates, close_run, prepare, prepared submission, Advanced direct submission, and the local CPU stub (`register_ssh_cloud_node` loopback, host Environment, catalog `modelnet40-mini`) when `GEMCP_LOCAL_PROCESS_ENABLED` is on. While that flag is on, MCP requests are verified as if the token also held `configure` and `operate_nodes`; the stored token scopes never change, so turning the flag off restores the token's real authority |
 | `cancel` | `cancel_experiment` |
 | `configure` | register and verify Project repositories; register or disable trusted-workspace dataset paths and AutoDL dataset bindings; request a zero-cost image bake |

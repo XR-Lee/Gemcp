@@ -297,6 +297,12 @@ func (s *Service) createSubmission(ctx context.Context, principal agentauth.Prin
 	if selfHosted {
 		outputPath = "managed://experiments/" + publicID.String() + "/outputs"
 	}
+	environmentSnap := environmentSnapshot(environmentRecord)
+	if bindings, bindErr := queryActiveDatasetBindings(ctx, tx.DatasetBinding.Query(), projectRecord.ID, string(profileRecord.Backend)); bindErr != nil {
+		return result, bindErr
+	} else if len(bindings) > 0 {
+		environmentSnap["dataset_bindings"] = datasetcatalog.Snapshot(bindings)
+	}
 	record, err := tx.Experiment.Create().
 		SetPublicID(publicID).
 		SetTenantID(principal.TenantID).
@@ -311,7 +317,7 @@ func (s *Service) createSubmission(ctx context.Context, principal agentauth.Prin
 		SetTimeoutExtensionSeconds(projectRecord.TimeoutExtensionSeconds).
 		SetTerminationGraceSeconds(projectRecord.TerminationGraceSeconds).
 		SetRepositorySnapshot(repositorySnapshot(repositoryRecord, projectRecord.PublicID.String())).
-		SetEnvironmentSnapshot(environmentSnapshot(environmentRecord)).
+		SetEnvironmentSnapshot(environmentSnap).
 		SetResourceSnapshot(resourceSnapshot(profileRecord)).
 		SetSecretNames(input.SecretNames).
 		SetOutputPath(outputPath).

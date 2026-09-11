@@ -7,6 +7,8 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -1139,6 +1141,64 @@ func TestPreparedExperimentRejectsPolicyUpdateAfterPrepare(t *testing.T) {
 	})
 	if !errors.Is(err, ErrProposalChanged) {
 		t.Fatalf("policy drift submit error = %v", err)
+	}
+}
+
+func TestPreparedLocalCPUFailsClosedOnMissingMarkers(t *testing.T) {
+	f := newFixture(t, 1, 1)
+	ctx := context.Background()
+	root := t.TempDir()
+	node, err := f.client.CloudSSHNode.Create().SetTenantID(f.principal.TenantID).SetLabel("local-cpu").
+		SetSSHHost("127.0.0.1").SetSSHUser("ubuntu").SetAuthMethod("password").SetCredentialCiphertext("v1.not-used").
+		SetStatus("active").SetInventory(map[string]any{"os": "Linux"}).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.client.CloudSSHProjectAccess.Create().SetTenantID(f.principal.TenantID).SetNodeID(node.ID).SetProjectID(f.project.ID).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	environmentName, profileName := createSSHCloudRuntime(t, f, node)
+	if _, err := f.client.DatasetBinding.Create().
+		SetTenantID(f.principal.TenantID).SetProjectID(f.project.ID).
+		SetName("modelnet40-mini").SetBackend("ssh_cloud").
+		SetCanonicalRoot(root).
+		SetEnvironmentVariable("GEMCP_DATASET_MODELNET40_MINI").
+		SetRequiredMarkers([]string{"meta.json"}).
+		Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	controller := &fakeSSHCloudController{localProcess: true, result: sshcloud.EnsureResult{
+		EnvironmentName: environmentName, ProfileName: profileName, ResolvedImage: sshcloud.HostImage,
+	}}
+	git := &proposalGit{resolved: proposalCommit, archive: proposalArchive(t)}
+	service := NewService(f.client, f.box, git, WithSSHCloud(controller), WithPreparedExperiments(
+		git, git, nil, proposalStatusRuntime{status: execution.RuntimeStatus{
+			SchedulerEnabled: true, SchedulerHealthy: true, PublicURLConfigured: true, SSHCloudEnabled: true, GlobalConcurrency: 2,
+		}}, ProposalConfig{SourceMaxBytes: 1 << 20, SSHCloudEnabled: true},
+	))
+	blocked, err := service.Prepare(ctx, f.principal, PrepareInput{
+		Argv: []string{"python3", "train.py"}, Environment: environmentName, ResourceProfile: profileName,
+	})
+	if err != nil || blocked.Proposal == nil || blocked.Proposal.Eligible {
+		t.Fatalf("missing marker Prepare()=%+v err=%v", blocked, err)
+	}
+	found := false
+	for _, check := range blocked.Proposal.Checks {
+		if check.ID == "required_markers" && check.Status == ProposalCheckFail && strings.Contains(check.Detail, "meta.json") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("checks=%+v", blocked.Proposal.Checks)
+	}
+	if err := os.WriteFile(filepath.Join(root, "meta.json"), []byte("{}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	prepared, err := service.Prepare(ctx, f.principal, PrepareInput{
+		Argv: []string{"python3", "train.py"}, Environment: environmentName, ResourceProfile: profileName,
+	})
+	if err != nil || prepared.Proposal == nil || !prepared.Proposal.Eligible {
+		t.Fatalf("present marker Prepare()=%+v err=%v", prepared, err)
 	}
 }
 

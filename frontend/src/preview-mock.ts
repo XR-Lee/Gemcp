@@ -46,6 +46,17 @@ const experiments = [
     max_runtime_seconds: 14400, reserved_cost_milli: 12250, estimated_cost_milli: 80,
     output_path: '/root/autodl-fs/projects/b492cbe4/experiments/ec29dc68/',
     artifacts: ['gemcp-launch.log', 'run.log', 'metrics.json', 'gemcp-result.json'],
+    artifact_manifest: [
+      { name: 'gemcp-launch.log', media_type: 'text/plain', available: false, availability: 'shared_storage', readable: false, unavailable_reason: 'gemcp-launch.log stays on managed shared storage.' },
+      { name: 'run.log', media_type: 'text/plain', size_bytes: 21, available: true, availability: 'control_plane', readable: true, checksum: 'sha256:preview-run' },
+      { name: 'metrics.json', media_type: 'application/json', size_bytes: 28, available: true, availability: 'control_plane', readable: true, checksum: 'sha256:preview-metrics' },
+      { name: 'gemcp-result.json', media_type: 'application/json', size_bytes: 64, available: true, availability: 'control_plane', readable: true, checksum: 'sha256:preview-result' },
+    ],
+    dataset_bindings: [{
+      id: 'binding-scanobjectnn', name: 'scanobjectnn-objbg', backend: 'autodl_private',
+      canonical_root: '/root/autodl-fs/datasets/ScanObjectNN', environment_variable: 'GEMCP_DATASET_SCANOBJECTNN_OBJBG',
+      required_markers: ['main_split/train.h5'],
+    }],
     budget_finalized_at: '2026-08-17T17:55:00Z',
     runner_attempt_id: 'a72afbc7-df86-4aaf-a7bc-68060968ed11', runner_source_downloads: 1,
     runner_stage: 'started', runner_stage_updated_at: '2026-08-17T17:55:00Z',
@@ -326,6 +337,13 @@ function match(url: URL, method: string, body?: unknown): Response | null {
   if (path === '/api/v1/repositories') return json(repositories)
   if (path === '/api/v1/experiments') return json(experiments)
   if (path === `/api/v1/experiments/${experimentID}`) return json(experiments[0])
+  if (path === `/api/v1/experiments/${experimentID}/artifacts/metrics.json`) {
+    return json({
+      experiment_id: experimentID, name: 'metrics.json', media_type: 'application/json', size_bytes: 28,
+      checksum: 'sha256:preview-metrics', truncated: false, available: true, availability: 'control_plane',
+      json: { overall_accuracy: 86.4 },
+    })
+  }
   if (path === `/api/v1/experiments/${experimentID}/attempts`) {
     return json([{
       id: 'attempt-1', number: 1, state: 'succeeded', estimated_cost_milli: 80,

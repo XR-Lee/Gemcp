@@ -466,12 +466,16 @@ def main() -> int:
     evidence_url = f"{origin}/"
     print(
         f"FLOW5 summarized run on the graph experiment={experiment_id} "
-        f"console={evidence_url} artifacts via list_artifacts",
+        f"console={evidence_url} artifacts via list_artifacts and read_artifact",
         flush=True,
     )
     try:
         artifacts = mcp.tool("list_artifacts", {"experiment_id": experiment_id})
         print("OK  artifacts", artifacts, flush=True)
+        names = artifacts.get("artifacts") or []
+        if "metrics.json" in names:
+            metrics = mcp.tool("read_artifact", {"experiment_id": experiment_id, "name": "metrics.json"})
+            print("OK  read_artifact metrics.json", metrics, flush=True)
     except SystemExit:
         print("WARN list_artifacts skipped", flush=True)
 

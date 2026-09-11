@@ -209,6 +209,8 @@ export type Experiment = {
   budget_finalized_at?: string
   output_path: string
   artifacts?: string[]
+  artifact_manifest?: ArtifactManifestEntry[]
+  dataset_bindings?: ExperimentDatasetBinding[]
   provider_resource_id?: string
   provider_status?: string
   exit_code?: number
@@ -251,6 +253,40 @@ export type RunnerStageEvent = {
   stage: string
   error_type?: string
   at: string
+}
+
+export type ArtifactManifestEntry = {
+  name: string
+  media_type: string
+  size_bytes?: number
+  checksum?: string
+  available: boolean
+  availability: string
+  unavailable_reason?: string
+  readable: boolean
+}
+
+export type ArtifactRead = {
+  experiment_id: string
+  name: string
+  media_type: string
+  size_bytes: number
+  checksum: string
+  truncated: boolean
+  available: boolean
+  availability: string
+  unavailable_reason?: string
+  text?: string
+  json?: unknown
+}
+
+export type ExperimentDatasetBinding = {
+  id: string
+  name: string
+  backend: string
+  canonical_root: string
+  environment_variable: string
+  required_markers?: string[]
 }
 
 export type Attempt = {
@@ -1401,6 +1437,10 @@ export const api = {
   experiment: (projectID: string, experimentID: string) =>
     request<Experiment>(
       `/api/v1/experiments/${encodeURIComponent(experimentID)}?project_id=${encodeURIComponent(projectID)}`,
+    ),
+  experimentArtifact: (projectID: string, experimentID: string, name: string) =>
+    request<ArtifactRead>(
+      `/api/v1/experiments/${encodeURIComponent(experimentID)}/artifacts/${encodeURIComponent(name)}?project_id=${encodeURIComponent(projectID)}`,
     ),
   attempts: (projectID: string, experimentID: string) =>
     request<Attempt[]>(

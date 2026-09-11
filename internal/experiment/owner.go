@@ -31,6 +31,22 @@ func (s *Service) OwnerGet(ctx context.Context, tenantID int, projectPublicID, e
 	return s.Get(ctx, principal, experimentPublicID)
 }
 
+func (s *Service) OwnerArtifacts(ctx context.Context, tenantID int, projectPublicID, experimentPublicID string) (ArtifactView, error) {
+	principal, err := s.ownerPrincipal(ctx, tenantID, projectPublicID)
+	if err != nil {
+		return ArtifactView{}, err
+	}
+	return s.Artifacts(ctx, principal, experimentPublicID)
+}
+
+func (s *Service) OwnerReadArtifact(ctx context.Context, tenantID int, projectPublicID, experimentPublicID, name string) (ArtifactReadView, error) {
+	principal, err := s.ownerPrincipal(ctx, tenantID, projectPublicID)
+	if err != nil {
+		return ArtifactReadView{}, err
+	}
+	return s.ReadArtifact(ctx, principal, ArtifactReadInput{ExperimentID: experimentPublicID, Name: name})
+}
+
 func (s *Service) OwnerCancel(ctx context.Context, tenantID int, actorID, projectPublicID, experimentPublicID string) (View, error) {
 	principal, err := s.ownerPrincipal(ctx, tenantID, projectPublicID)
 	if err != nil {

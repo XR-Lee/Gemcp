@@ -40,6 +40,7 @@ const expectedDirectTools = [
   'list_experiments',
   'cancel_experiment',
   'list_artifacts',
+  'read_artifact',
   'register_ssh_cloud_node',
   'rotate_ssh_cloud_node_credential',
 ]

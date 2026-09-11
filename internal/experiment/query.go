@@ -61,11 +61,13 @@ func (s *Service) Get(ctx context.Context, principal agentauth.Principal, experi
 	if err := s.enrichExecutionObservation(ctx, record, &view); err != nil {
 		return View{}, err
 	}
-	artifacts, err := s.registeredArtifacts(ctx, record)
+	listed, err := s.artifactView(ctx, record)
 	if err != nil {
 		return View{}, err
 	}
-	view.Artifacts = artifacts
+	view.Artifacts = listed.Artifacts
+	view.ArtifactManifest = listed.Manifest
+	view.DatasetBindings = datasetBindingsFromSnapshot(record.EnvironmentSnapshot)
 	views := []View{view}
 	if err := s.attachGraphState(ctx, principal.ProjectID, []*ent.Experiment{record}, views); err != nil {
 		return View{}, err
@@ -832,50 +834,6 @@ func (s *Service) Cost(ctx context.Context, principal agentauth.Principal) (Cost
 		result.AvailableMilli = 0
 	}
 	return result, nil
-}
-
-func (s *Service) Artifacts(ctx context.Context, principal agentauth.Principal, experimentID string) (ArtifactView, error) {
-	var result ArtifactView
-	if !principal.HasScope("read") {
-		return result, ErrForbidden
-	}
-	record, err := s.getRecord(ctx, principal.ProjectID, experimentID)
-	if err != nil {
-		return result, err
-	}
-	artifacts, err := s.registeredArtifacts(ctx, record)
-	if err != nil {
-		return result, err
-	}
-	return ArtifactView{ExperimentID: record.PublicID.String(), OutputPath: record.OutputPath, Artifacts: artifacts}, nil
-}
-
-func (s *Service) registeredArtifacts(ctx context.Context, record *ent.Experiment) ([]string, error) {
-	isDiagnostic, err := record.QueryDiagnosticRun().Exist(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return registeredArtifactNames(record, isDiagnostic), nil
-}
-
-func registeredArtifactNames(record *ent.Experiment, isDiagnostic bool) []string {
-	artifacts := []string{}
-	if strings.HasPrefix(record.OutputPath, "/root/autodl-fs/") && record.ProviderResourceID != nil {
-		artifacts = append(artifacts, "gemcp-launch.log")
-	}
-	if record.StartedAt != nil || record.LogTail != nil {
-		artifacts = append(artifacts, "run.log")
-	}
-	if record.ExitCode != nil {
-		artifacts = append(artifacts, "gemcp-result.json")
-	}
-	if len(record.Metrics) > 0 {
-		artifacts = append(artifacts, "metrics.json")
-	}
-	if isDiagnostic && record.ExitCode != nil {
-		artifacts = append(artifacts, "diagnostic-report.txt")
-	}
-	return artifacts
 }
 
 func (s *Service) getRecord(ctx context.Context, projectID int, value string) (*ent.Experiment, error) {

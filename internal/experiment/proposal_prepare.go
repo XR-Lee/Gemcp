@@ -939,6 +939,7 @@ func (s *Service) proposalAutoDLCheck(ctx context.Context, resolved proposalReso
 		bindingDetails = append(bindingDetails, binding.EnvironmentVariable+"="+binding.CanonicalRoot)
 	}
 	add("dataset_bindings", ProposalCheckWarn, "Registered AutoDL dataset bindings will be injected", strings.Join(bindingDetails, ", ")+". AutoDL does not provide a mount sandbox; the Runner fails closed if a root or marker is missing.")
+	s.proposalBindingPreflight(resolved, add)
 }
 
 func (s *Service) proposalProvisionCheck(resolved proposalResolved, add func(string, string, string, string)) {
@@ -1031,6 +1032,7 @@ func (s *Service) proposalSSHCloudCheck(ctx context.Context, resolved proposalRe
 			paths = append(paths, binding.EnvironmentVariable+"="+binding.CanonicalRoot)
 		}
 		add("dataset_bindings", ProposalCheckWarn, "Registered dataset environment variables will be injected", strings.Join(paths, ", ")+". The host path must already exist; Cloud SSH does not download datasets.")
+		s.proposalBindingPreflight(resolved, add)
 	}
 	if resolved.sshHost != "" {
 		add("host", ProposalCheckPass, "Command will start on the registered host", fmt.Sprintf("%s@%s cwd=%s", resolved.sshUser, resolved.sshHost, proposalWorkingDirectory(resolved)))
@@ -1301,6 +1303,81 @@ func queryActiveDatasetBindings(ctx context.Context, query *ent.DatasetBindingQu
 		return nil, err
 	}
 	return datasetcatalog.ViewsFromRecords(records, ""), nil
+}
+
+func (s *Service) proposalBindingPreflight(resolved proposalResolved, add func(string, string, string, string)) {
+	if resolved.profile == nil || len(resolved.bindings) == 0 {
+		return
+	}
+	incompatible := make([]string, 0)
+	for _, binding := range resolved.bindings {
+		if !datasetBindingCompatible(string(resolved.profile.Backend), binding.Backend) {
+			incompatible = append(incompatible, binding.Name+" ("+binding.Backend+")")
+		}
+	}
+	if len(incompatible) > 0 {
+		add("dataset_backend", ProposalCheckFail, "Dataset binding backend is incompatible with the selected resource", strings.Join(incompatible, ", "))
+	} else {
+		add("dataset_backend", ProposalCheckPass, "Dataset bindings match the selected backend", fmt.Sprintf("%d binding(s) for %s.", len(resolved.bindings), resolved.profile.Backend))
+	}
+	s.proposalRequiredMarkerCheck(resolved, add)
+}
+
+func (s *Service) proposalRequiredMarkerCheck(resolved proposalResolved, add func(string, string, string, string)) {
+	probe := s.canProbeLocalMarkers(resolved)
+	present := make([]string, 0)
+	missing := make([]string, 0)
+	remote := make([]string, 0)
+	for _, binding := range resolved.bindings {
+		if len(binding.RequiredMarkers) == 0 {
+			continue
+		}
+		if !probe || !datasetcatalog.CanProbeMarkers(binding.CanonicalRoot) {
+			remote = append(remote, binding.Name+": "+strings.Join(binding.RequiredMarkers, ", "))
+			continue
+		}
+		absent, err := datasetcatalog.ProbeRequiredMarkers(binding.CanonicalRoot, binding.RequiredMarkers)
+		if err != nil {
+			add("required_markers", ProposalCheckFail, "Required dataset markers could not be probed", proposalBounded(err.Error(), 240))
+			return
+		}
+		if len(absent) > 0 {
+			missing = append(missing, binding.Name+": "+strings.Join(absent, ", "))
+			continue
+		}
+		present = append(present, binding.Name+": "+strings.Join(binding.RequiredMarkers, ", "))
+	}
+	if len(missing) > 0 {
+		add("required_markers", ProposalCheckFail, "Required dataset marker is missing", strings.Join(missing, "; ")+". Gemcp will not search or download a fallback.")
+		return
+	}
+	if len(present) > 0 {
+		add("required_markers", ProposalCheckPass, "Required dataset markers are present on the local host", strings.Join(present, "; "))
+	}
+	if len(remote) > 0 {
+		add("required_markers", ProposalCheckWarn, "Required markers will be checked when the Runner starts", strings.Join(remote, "; ")+". The control plane does not browse AutoDL or remote SSH files. Missing markers fail closed.")
+	}
+}
+
+func (s *Service) canProbeLocalMarkers(resolved proposalResolved) bool {
+	if s.sshCloud == nil || !s.sshCloud.LocalProcessEnabled() {
+		return false
+	}
+	host := strings.TrimSpace(resolved.sshHost)
+	return host == "" || host == "127.0.0.1" || host == "localhost" || host == "::1"
+}
+
+func datasetBindingCompatible(profileBackend, bindingBackend string) bool {
+	switch profileBackend {
+	case string(resourceprofile.BackendAutodlElastic):
+		return bindingBackend == string(resourceprofile.BackendAutodlElastic)
+	case string(resourceprofile.BackendAutodlPrivate):
+		return bindingBackend == string(resourceprofile.BackendAutodlPrivate)
+	case string(resourceprofile.BackendSSHCloud):
+		return bindingBackend == string(resourceprofile.BackendSSHCloud) || bindingBackend == string(resourceprofile.BackendAutodlElastic)
+	default:
+		return false
+	}
 }
 
 func proposalDatasetBindingsCopy(views []datasetcatalog.View) []ProposalDatasetBinding {

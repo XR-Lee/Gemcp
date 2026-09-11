@@ -26,6 +26,7 @@ const requiredTools = [
   'list_experiments',
   'cancel_experiment',
   'list_artifacts',
+  'read_artifact',
 ]
 
 class MCPConnection {
