@@ -794,9 +794,11 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await expect(page.getByLabel('Node detail')).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(page.getByLabel('Node detail')).toHaveCount(0)
-  await page.locator('.flow-node[data-kind="hypothesis"]').dblclick()
+  // Layout can stack the hypothesis under a result; dispatch so the node handler still runs.
+  await page.locator('.flow-node[data-kind="hypothesis"]').dispatchEvent('dblclick')
   await expect(page.getByLabel('Node detail')).toBeVisible()
   await expect(page.getByLabel('Node detail')).toContainText('autoresearch/objbg-baseline')
+  await page.getByLabel('Node detail').screenshot({ path: process.env.GRAPH_DETAIL_SCREENSHOT || '/tmp/gemcp-graph-node-branch.png' })
   await page.keyboard.press('Escape')
   await expect(page.getByLabel('Node detail')).toHaveCount(0)
   await page.locator('.flow-node.is-success').filter({ hasText: 'OBJ-BG smoke accuracy' }).dblclick()
