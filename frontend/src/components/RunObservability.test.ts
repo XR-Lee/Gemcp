@@ -9,6 +9,7 @@ const experiment: Experiment = {
   id: 'experiment-1234567890', project_id: 'project-id', repository_id: 'repository-id', environment_id: 'environment-id', resource_profile_id: 'profile-id',
   state: 'running', desired_state: 'running', commit_sha: 'a'.repeat(40), execution_mode: 'argv', argv: ['python', 'train.py'], command: 'python train.py',
   max_runtime_seconds: 3600, reserved_cost_milli: 1250, estimated_cost_milli: 0, output_path: '/managed/experiment',
+  artifacts: ['run.log', 'metrics.json'],
   log_tail: 'epoch 4 loss=0.38\n', metrics: { epoch: 4, loss: 0.38 },
   execution_context: {
     agent_label: 'training-agent', proposal_id: 'proposal-id', repository_name: 'point-model', repository_ssh_url: 'git@github.com:owner/point-model.git', requested_ref: 'main',
@@ -95,5 +96,7 @@ describe('run observability', () => {
     expect(wrapper.text()).toContain('/managed/experiment')
     expect(wrapper.text()).toContain('epoch 4 loss=0.38')
     expect(wrapper.text()).toContain('Workload started')
+    expect(wrapper.text()).toContain('run.log, metrics.json')
+    expect(wrapper.text()).toContain('Reservation open')
   })
 })

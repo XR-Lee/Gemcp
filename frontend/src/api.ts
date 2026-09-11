@@ -206,7 +206,9 @@ export type Experiment = {
   max_runtime_seconds: number
   reserved_cost_milli: number
   estimated_cost_milli: number
+  budget_finalized_at?: string
   output_path: string
+  artifacts?: string[]
   provider_resource_id?: string
   provider_status?: string
   exit_code?: number

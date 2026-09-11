@@ -27,6 +27,7 @@ const experiments = [
     commit_sha: '0123456789012345678901234567890123456789', execution_mode: 'argv', argv: ['python', 'train.py', '--config', 'configs/scanobjectnn.yaml'], command: 'python train.py --config configs/scanobjectnn.yaml',
     max_runtime_seconds: 14400, reserved_cost_milli: 12250, estimated_cost_milli: 0,
     output_path: '/root/autodl-fs/projects/b492cbe4/experiments/ec29dc68/',
+    artifacts: ['gemcp-launch.log', 'run.log', 'metrics.json'],
     runner_attempt_id: 'a72afbc7-df86-4aaf-a7bc-68060968ed11', runner_source_downloads: 2,
     runner_stage: 'source_extracted', runner_stage_updated_at: '2026-07-16T09:31:15Z',
     log_tail: 'epoch 3 loss=0.42\nepoch 4 loss=0.38\n', metrics: { loss: 0.38, epoch: 4 },
@@ -869,6 +870,9 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await expect(page.getByRole('dialog', { name: 'Experiment details' })).toBeVisible()
   await expect(page.getByText('source_extracted', { exact: true })).toBeVisible()
   await expect(page.getByText('Source downloads', { exact: true })).toBeVisible()
+  await expect(page.getByText('Registered artifacts', { exact: true })).toBeVisible()
+  await expect(page.getByText('gemcp-launch.log, run.log, metrics.json', { exact: true })).toBeVisible()
+  await expect(page.getByText('Reservation open', { exact: true })).toBeVisible()
   await expect(page.getByText('epoch 3 loss=0.42')).toBeVisible()
   await expect(page.getByText('GPU-test-3090', { exact: true })).toBeVisible()
   await expect(page.getByText('/gemcp/work/source', { exact: true })).toBeVisible()

@@ -614,7 +614,7 @@ The released vertical slice is Agent-facing. It does not yet add Owner-session P
 
 - Extend Agent Experiment detail with Attempt log tails and metrics.
 - Add backend state, stop reason, last error, cleanup timestamps, and `cleanup_complete`.
-- Include registered artifacts and settlement fields in the detail response.
+- Include registered artifacts and settlement fields in the detail response. `get_experiment` and the Owner Evidence dialog now return registered artifact names plus reservation / estimated charge / `budget_finalized_at`. `list_experiments` stays compact. Bounded artifact reads remain later.
 - Reuse Diagnostics timeline and assessment logic where practical.
 - Add terminal success, failure, cancellation, timeout, and cleanup-pending tests.
 

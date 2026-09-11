@@ -247,6 +247,51 @@ func TestArtifactsRegistersAutoDLLaunchDiagnosticsAfterDispatch(t *testing.T) {
 	}
 }
 
+func TestGetIncludesRegisteredArtifactsAndSettlement(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	ctx := context.Background()
+	submitted, err := f.service.Submit(ctx, f.principal, validSubmit(f, "request-get-artifacts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	listed, err := f.service.List(ctx, f.principal, ListInput{})
+	if err != nil || len(listed.Experiments) != 1 || len(listed.Experiments[0].Artifacts) != 0 || listed.Experiments[0].BudgetFinalizedAt != nil {
+		t.Fatalf("List() expanded detail settlement: %+v, %v", listed, err)
+	}
+	record, err := f.client.Experiment.Query().Only(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC()
+	if _, err := record.Update().
+		SetState("succeeded").
+		SetProviderResourceID("deployment-1").
+		SetLogTail("done\n").
+		SetMetrics(map[string]any{"accuracy": 0.9}).
+		SetExitCode(0).
+		SetEstimatedCostMilli(80).
+		SetBudgetFinalizedAt(now).
+		Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	view, err := f.service.Get(ctx, f.principal, submitted.Experiment.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if view.BudgetFinalizedAt == nil || view.EstimatedCostMilli != 80 {
+		t.Fatalf("settlement view = finalized=%v estimated=%d", view.BudgetFinalizedAt, view.EstimatedCostMilli)
+	}
+	want := []string{"gemcp-launch.log", "run.log", "gemcp-result.json", "metrics.json"}
+	if len(view.Artifacts) != len(want) {
+		t.Fatalf("Get() artifacts=%v want %v", view.Artifacts, want)
+	}
+	for i, name := range want {
+		if view.Artifacts[i] != name {
+			t.Fatalf("Get() artifacts=%v want %v", view.Artifacts, want)
+		}
+	}
+}
+
 func TestSubmitEnforcesHardBudget(t *testing.T) {
 	f := newFixture(t, 7000, 7000)
 	ctx := context.Background()

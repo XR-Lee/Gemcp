@@ -54,12 +54,18 @@ func (s *Service) Get(ctx context.Context, principal agentauth.Principal, experi
 		return view, err
 	}
 	view = makeView(record)
+	view.BudgetFinalizedAt = record.BudgetFinalizedAt
 	if err := s.enrichRunnerStatus(ctx, record, &view); err != nil {
 		return View{}, err
 	}
 	if err := s.enrichExecutionObservation(ctx, record, &view); err != nil {
 		return View{}, err
 	}
+	artifacts, err := s.registeredArtifacts(ctx, record)
+	if err != nil {
+		return View{}, err
+	}
+	view.Artifacts = artifacts
 	views := []View{view}
 	if err := s.attachGraphState(ctx, principal.ProjectID, []*ent.Experiment{record}, views); err != nil {
 		return View{}, err
@@ -821,10 +827,22 @@ func (s *Service) Artifacts(ctx context.Context, principal agentauth.Principal, 
 	if err != nil {
 		return result, err
 	}
-	isDiagnostic, err := record.QueryDiagnosticRun().Exist(ctx)
+	artifacts, err := s.registeredArtifacts(ctx, record)
 	if err != nil {
 		return result, err
 	}
+	return ArtifactView{ExperimentID: record.PublicID.String(), OutputPath: record.OutputPath, Artifacts: artifacts}, nil
+}
+
+func (s *Service) registeredArtifacts(ctx context.Context, record *ent.Experiment) ([]string, error) {
+	isDiagnostic, err := record.QueryDiagnosticRun().Exist(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return registeredArtifactNames(record, isDiagnostic), nil
+}
+
+func registeredArtifactNames(record *ent.Experiment, isDiagnostic bool) []string {
 	artifacts := []string{}
 	if strings.HasPrefix(record.OutputPath, "/root/autodl-fs/") && record.ProviderResourceID != nil {
 		artifacts = append(artifacts, "gemcp-launch.log")
@@ -841,7 +859,7 @@ func (s *Service) Artifacts(ctx context.Context, principal agentauth.Principal, 
 	if isDiagnostic && record.ExitCode != nil {
 		artifacts = append(artifacts, "diagnostic-report.txt")
 	}
-	return ArtifactView{ExperimentID: record.PublicID.String(), OutputPath: record.OutputPath, Artifacts: artifacts}, nil
+	return artifacts
 }
 
 func (s *Service) getRecord(ctx context.Context, projectID int, value string) (*ent.Experiment, error) {
