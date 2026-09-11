@@ -259,7 +259,7 @@ func TestCloseRunRequiresTerminalExperimentAndWritesProducedResult(t *testing.T)
 	_, _ = client.ExperimentProposal.Create().
 		SetTenantID(tenant.ID).SetProjectID(project.ID).SetAgentTokenID(token.ID).
 		SetRepositoryID(repository.ID).SetEnvironmentID(environment.ID).SetResourceProfileID(profile.ID).
-		SetExperimentID(finished.ID).SetStatus("submitted").SetRequestedRef("main").
+		SetExperimentID(finished.ID).SetStatus("submitted").SetRequestedRef("autoresearch/objbg-baseline").
 		SetCommitSha(finished.CommitSha).SetExecutionMode("argv").SetArgv([]string{"python", "train.py"}).
 		SetDisplayCommand("python train.py").SetMaxRuntimeSeconds(300).SetTimeoutExtensionSeconds(60).
 		SetTerminationGraceSeconds(30).SetProjectSnapshot(map[string]any{"expected_metric": "overall_accuracy"}).
@@ -329,6 +329,20 @@ func TestCloseRunRequiresTerminalExperimentAndWritesProducedResult(t *testing.T)
 	result := nodeByKind(closed.Study.Nodes, "result")
 	if result.Kind != "result" || result.CommitSHA != resultCommitSHA {
 		t.Fatalf("result commit = %+v", result)
+	}
+	if result.Branch != "autoresearch/objbg-baseline" {
+		t.Fatalf("result branch = %q", result.Branch)
+	}
+	if rec := closed.Study.Hypotheses[0]; rec.Branch != "autoresearch/objbg-baseline" {
+		t.Fatalf("hypothesis header branch = %+v", rec)
+	}
+	if node := nodeByKind(closed.Study.Nodes, "hypothesis"); node.Branch != "autoresearch/objbg-baseline" {
+		t.Fatalf("hypothesis node branch = %+v", node)
+	}
+	for _, node := range closed.Study.Nodes {
+		if node.Kind == "run" && node.ExperimentID == finished.PublicID.String() && node.Branch != "autoresearch/objbg-baseline" {
+			t.Fatalf("finished run branch = %+v", node)
+		}
 	}
 	if !hasHighlightOnHypothesis(closed.Study, hypothesis.Study.Nodes[1].ID, "OBJ-BG smoke accuracy") {
 		t.Fatalf("missing highlight observation: %+v", closed.Study)

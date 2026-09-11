@@ -83,11 +83,13 @@ Copy the scalar from `get_experiment`, or omit `metric_name` to copy the prepare
 The Owner hypothesis list (same objects as MCP) shows, for each hypothesis:
 
 - linked Experiments (the Graph runs)
-- git branch (`requested_ref`, else the Study repository default branch)
+- git branch (`requested_ref` from the latest bound run, else the Study repository default branch)
 - commit
 - run records: state, result title, highlight observation
 
-UUIDs, argv, GPU IDs, and reservation math stay on the Lab Evidence page. Double-click a Graph node with an Evidence link to open that same Experiment record; other nodes open the node-detail sidebar.
+The Study "Latest result" card is the newest `result` by evidence time (`occurred_at`, then Graph write time). A later import of older evidence must not hide a newer Experiment result.
+
+UUIDs, argv, GPU IDs, and reservation math stay on the Lab Evidence page. Double-click a Graph node with an Evidence link to open that same Experiment record; other nodes open the node-detail sidebar. That sidebar shows the same git branch as the hypothesis list when the node has a `requested_ref` or a default-branch fallback.
 
 ## Legal edges
 

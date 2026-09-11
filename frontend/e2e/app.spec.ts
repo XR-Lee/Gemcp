@@ -154,14 +154,19 @@ const researchWorkspace = {
     },
     nodes: [
       { id: 'node-question-1', kind: 'question', title: 'Can a cleaner OBJ-BG traversal raise ScanObjectNN accuracy without extra GPU hours?', status: 'open', created_at: '2026-07-28T18:00:00Z', updated_at: '2026-07-28T18:00:00Z' },
-      { id: 'node-result-1', kind: 'result', title: 'OBJ-BG smoke accuracy', summary: 'The existing smoke Experiment reached 86.4 overall accuracy.', status: 'succeeded', metric_name: 'overall_accuracy', metric_value: 86.4, experiment_id: experiments[0].id, experiment_state: experiments[0].state, created_at: '2026-07-28T18:05:00Z', updated_at: '2026-07-28T18:05:00Z' },
+      { id: 'node-hypothesis-1', kind: 'hypothesis', title: 'Background noise caps accuracy', status: 'open', branch: 'autoresearch/objbg-baseline', created_at: '2026-07-28T18:02:00Z', updated_at: '2026-07-28T18:02:00Z' },
+      { id: 'node-result-1', kind: 'result', title: 'OBJ-BG smoke accuracy', summary: 'The existing smoke Experiment reached 86.4 overall accuracy.', status: 'succeeded', metric_name: 'overall_accuracy', metric_value: 86.4, experiment_id: experiments[0].id, experiment_state: experiments[0].state, occurred_at: '2026-07-28T18:05:00Z', branch: 'autoresearch/objbg-baseline', created_at: '2026-07-28T18:05:00Z', updated_at: '2026-07-28T18:05:00Z' },
+      { id: 'node-result-old', kind: 'result', title: 'Imported 2024 table', summary: 'A later Graph write of older evidence must not replace Latest result.', status: 'succeeded', occurred_at: '2024-03-12T00:00:00Z', created_at: '2026-07-28T18:06:00Z', updated_at: '2026-07-28T18:06:00Z' },
     ],
-    edges: [{ id: 'edge-1', from_id: 'node-question-1', to_id: 'node-result-1', relation: 'produced' }],
+    edges: [
+      { id: 'edge-0', from_id: 'node-question-1', to_id: 'node-hypothesis-1', relation: 'leads_to' },
+      { id: 'edge-1', from_id: 'node-hypothesis-1', to_id: 'node-result-1', relation: 'produced' },
+    ],
     hypotheses: [{
-      id: 'node-hypothesis-1', title: 'Background noise caps accuracy', status: 'open', branch: 'main',
+      id: 'node-hypothesis-1', title: 'Background noise caps accuracy', status: 'open', branch: 'autoresearch/objbg-baseline',
       experiments: [{
         run_node_id: 'node-run-1', experiment_id: experiments[0].id, title: 'OBJ-BG smoke',
-        state: 'succeeded', branch: 'main', commit_sha: experiments[0].commit_sha,
+        state: 'succeeded', branch: 'autoresearch/objbg-baseline', commit_sha: experiments[0].commit_sha,
         result_title: 'OBJ-BG smoke accuracy', highlight_title: 'Background noise still enters kNN',
       }],
     }],
@@ -789,7 +794,12 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await expect(page.getByLabel('Node detail')).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(page.getByLabel('Node detail')).toHaveCount(0)
-  await page.locator('.flow-node.is-success').first().dblclick()
+  await page.locator('.flow-node[data-kind="hypothesis"]').dblclick()
+  await expect(page.getByLabel('Node detail')).toBeVisible()
+  await expect(page.getByLabel('Node detail')).toContainText('autoresearch/objbg-baseline')
+  await page.keyboard.press('Escape')
+  await expect(page.getByLabel('Node detail')).toHaveCount(0)
+  await page.locator('.flow-node.is-success').filter({ hasText: 'OBJ-BG smoke accuracy' }).dblclick()
   await expect(page.getByLabel('Experiment details')).toBeVisible()
   await page.getByTitle('Close details').click()
   await expect(page.getByLabel('Experiment details')).toHaveCount(0)

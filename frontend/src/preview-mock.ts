@@ -91,10 +91,10 @@ const research = {
     },
     nodes: [
       { id: 'n-q', kind: 'question', title: 'OBJ-BG 遍历能否提高 ScanObjectNN 精度？', summary: '约束：不增加 GPU 小时。', status: 'open', occurred_at: '2024-03-12T00:00:00Z', commit_sha: 'aa11bb22cc33', created_at: '2026-08-17T16:00:00Z', updated_at: '2026-08-17T16:00:00Z' },
-      { id: 'n-h', kind: 'hypothesis', title: '噪声背景是精度上限', summary: '旧遍历把背景点带进局部邻域。', status: 'open', occurred_at: '2024-06-01T09:00:00Z', commit_sha: 'bb22cc33dd44', created_at: '2026-08-17T16:10:00Z', updated_at: '2026-08-17T16:10:00Z' },
+      { id: 'n-h', kind: 'hypothesis', title: '噪声背景是精度上限', summary: '旧遍历把背景点带进局部邻域。', status: 'open', occurred_at: '2024-06-01T09:00:00Z', commit_sha: 'bb22cc33dd44', branch: 'autoresearch/objbg-baseline', created_at: '2026-08-17T16:10:00Z', updated_at: '2026-08-17T16:10:00Z' },
       { id: 'n-p', kind: 'plan', title: '先复现 baseline', summary: '同一仓库、同一 digest，只换评估脚本。', status: 'open', occurred_at: '2025-02-18T10:00:00Z', created_at: '2026-08-17T16:20:00Z', updated_at: '2026-08-17T16:20:00Z' },
-      { id: 'n-run', kind: 'run', title: 'OBJ-BG smoke', summary: 'prepared Experiment，未新开 GPU。', status: 'succeeded', experiment_id: experimentID, experiment_state: 'succeeded', occurred_at: '2026-08-17T17:40:00Z', commit_sha: '0123456789012345678901234567890123456789', created_at: '2026-08-17T17:40:00Z', updated_at: '2026-08-17T17:55:00Z' },
-      { id: 'n-r', kind: 'result', title: 'OBJ-BG smoke accuracy', summary: '现有 smoke Experiment 达到 86.4 overall accuracy。', status: 'succeeded', metric_name: 'overall_accuracy', metric_value: 86.4, experiment_id: experimentID, experiment_state: 'succeeded', occurred_at: '2026-08-17T17:55:00Z', commit_sha: '0123456789012345678901234567890123456789', created_at: '2026-08-17T18:00:00Z', updated_at: '2026-08-17T18:00:00Z' },
+      { id: 'n-run', kind: 'run', title: 'OBJ-BG smoke', summary: 'prepared Experiment，未新开 GPU。', status: 'succeeded', experiment_id: experimentID, experiment_state: 'succeeded', occurred_at: '2026-08-17T17:40:00Z', commit_sha: '0123456789012345678901234567890123456789', branch: 'autoresearch/objbg-baseline', created_at: '2026-08-17T17:40:00Z', updated_at: '2026-08-17T17:55:00Z' },
+      { id: 'n-r', kind: 'result', title: 'OBJ-BG smoke accuracy', summary: '现有 smoke Experiment 达到 86.4 overall accuracy。', status: 'succeeded', metric_name: 'overall_accuracy', metric_value: 86.4, experiment_id: experimentID, experiment_state: 'succeeded', occurred_at: '2026-08-17T17:55:00Z', commit_sha: '0123456789012345678901234567890123456789', branch: 'autoresearch/objbg-baseline', created_at: '2026-08-17T18:00:00Z', updated_at: '2026-08-17T18:00:00Z' },
       { id: 'n-o', kind: 'observation', title: '背景点仍进入 kNN', summary: '失败样本里邻域仍有桌面点。', status: 'open', occurred_at: '2025-11-02T18:04:00Z', commit_sha: 'cc33dd44ee55', created_at: '2026-08-17T18:02:00Z', updated_at: '2026-08-17T18:02:00Z' },
       { id: 'n-d', kind: 'decision', title: '下一步只改遍历，不换模型', summary: '先验证假设，再谈更大的训练。', status: 'open', occurred_at: '2025-11-03T09:00:00Z', created_at: '2026-08-17T18:05:00Z', updated_at: '2026-08-17T18:05:00Z' },
     ],
@@ -108,10 +108,10 @@ const research = {
       { id: 'e7', from_id: 'n-o', to_id: 'n-d', relation: 'leads_to' },
     ],
     hypotheses: [{
-      id: 'n-h', title: '噪声背景是精度上限', summary: '旧遍历把背景点带进局部邻域。', status: 'open', branch: 'main',
+      id: 'n-h', title: '噪声背景是精度上限', summary: '旧遍历把背景点带进局部邻域。', status: 'open', branch: 'autoresearch/objbg-baseline',
       experiments: [{
         run_node_id: 'n-run', experiment_id: experimentID, title: 'OBJ-BG smoke',
-        state: 'succeeded', branch: 'main', commit_sha: '0123456789012345678901234567890123456789',
+        state: 'succeeded', branch: 'autoresearch/objbg-baseline', commit_sha: '0123456789012345678901234567890123456789',
         result_title: 'OBJ-BG smoke accuracy', highlight_title: '背景点仍进入 kNN',
       }],
     }],

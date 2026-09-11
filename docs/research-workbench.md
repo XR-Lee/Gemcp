@@ -115,8 +115,8 @@ The research home shows:
 - the active Study question
 - the current next action
 - each hypothesis with linked Experiments, git branch, commit, and run records
-- the Graph
-- the latest linked result
+- the Graph, whose node-detail sidebar repeats git branch next to commit
+- the latest linked result by evidence time (`occurred_at`), not Graph write time
 
 UUIDs, digests, backend IDs, and reservation math remain in Experiment detail and the Lab layer.
 

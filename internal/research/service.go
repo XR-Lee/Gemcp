@@ -142,6 +142,7 @@ type NodeView struct {
 	ExperimentState string     `json:"experiment_state,omitempty"`
 	OccurredAt      *time.Time `json:"occurred_at,omitempty"`
 	CommitSHA       string     `json:"commit_sha,omitempty"`
+	Branch          string     `json:"branch,omitempty"`
 	CreatedAt       time.Time  `json:"created_at"`
 	UpdatedAt       time.Time  `json:"updated_at"`
 }
@@ -726,6 +727,7 @@ func (s *Service) studyView(ctx context.Context, selected *ent.Study) (StudyView
 		defaultBranch = view.Repository.DefaultBranch
 	}
 	view.Hypotheses = makeHypothesisRecords(view, defaultBranch, branchByExperiment)
+	applyNodeBranches(&view, defaultBranch, branchByExperiment)
 	return view, nil
 }
 
@@ -868,10 +870,47 @@ func makeHypothesisRecords(view StudyView, defaultBranch string, branchByExperim
 		}
 		records = append(records, HypothesisView{
 			ID: hypothesis.ID, Title: hypothesis.Title, Summary: hypothesis.Summary,
-			Status: hypothesis.Status, Branch: defaultBranch, Experiments: experiments,
+			Status: hypothesis.Status, Branch: hypothesisBranch(experiments, defaultBranch), Experiments: experiments,
 		})
 	}
 	return records
+}
+
+func hypothesisBranch(experiments []HypothesisRunRecord, defaultBranch string) string {
+	for i := len(experiments) - 1; i >= 0; i-- {
+		if ref := strings.TrimSpace(experiments[i].Branch); ref != "" {
+			return ref
+		}
+	}
+	return defaultBranch
+}
+
+func applyNodeBranches(view *StudyView, defaultBranch string, branchByExperiment map[string]string) {
+	if view == nil {
+		return
+	}
+	hypothesisBranchByID := map[string]string{}
+	for _, record := range view.Hypotheses {
+		if ref := strings.TrimSpace(record.Branch); ref != "" {
+			hypothesisBranchByID[record.ID] = ref
+		}
+	}
+	for i := range view.Nodes {
+		node := &view.Nodes[i]
+		if ref := hypothesisBranchByID[node.ID]; ref != "" {
+			node.Branch = ref
+			continue
+		}
+		if node.ExperimentID != "" {
+			if ref := strings.TrimSpace(branchByExperiment[node.ExperimentID]); ref != "" {
+				node.Branch = ref
+				continue
+			}
+		}
+		if node.Kind == "run" || node.Kind == "result" {
+			node.Branch = defaultBranch
+		}
+	}
 }
 
 func hasEdge(edges []EdgeView, fromID, toID, relation string) bool {

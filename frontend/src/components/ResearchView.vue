@@ -5,6 +5,7 @@ import { motion } from 'motion-v'
 import type { AgentReadiness, Experiment, ExperimentCatalog, Project, Repository, ResearchWorkspace, RuntimeStatus } from '../api'
 import { localizedState, useI18n } from '../i18n'
 import { buildResearchAttachPrompt } from '../researchAttachPrompt'
+import { selectLatestResult } from '../researchLatestResult'
 import { layoutResearchGraph } from '../researchGraphLayout'
 import AgentReadinessPanel from './AgentReadinessPanel.vue'
 import ResearchGraphCanvas from './ResearchGraphCanvas.vue'
@@ -53,7 +54,7 @@ const study = computed(() => props.workspace?.study ?? null)
 const studies = computed(() => props.workspace?.studies ?? [])
 const nodes = computed(() => study.value?.nodes ?? [])
 const edges = computed(() => study.value?.edges ?? [])
-const latestResult = computed(() => [...nodes.value].reverse().find((node) => node.kind === 'result') ?? null)
+const latestResult = computed(() => selectLatestResult(nodes.value))
 const selectedStudyModel = computed({
   get: () => props.selectedStudyId || study.value?.id || '',
   set: (value: string) => emit('selectStudy', value),

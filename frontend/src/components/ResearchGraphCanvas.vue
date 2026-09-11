@@ -252,6 +252,10 @@ onUnmounted(() => {
             <dt>{{ t('Evidence time', '证据时间') }}</dt>
             <dd>{{ dateTime(selected.occurred_at || selected.created_at) }}</dd>
           </div>
+          <div v-if="selected.branch">
+            <dt>{{ t('Branch', '分支') }}</dt>
+            <dd><code>{{ selected.branch }}</code></dd>
+          </div>
           <div v-if="selected.commit_sha">
             <dt>{{ t('Commit', 'Commit') }}</dt>
             <dd><code>{{ selected.commit_sha.slice(0, 12) }}</code></dd>
