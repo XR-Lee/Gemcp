@@ -67,6 +67,7 @@ present exact IDs, commit, command, runtime, reservation, and idempotency key
 submit_experiment
 poll get_experiment
 call list_artifacts
+call read_artifact
 ```
 
 `submit_experiment` accepts:
@@ -466,14 +467,7 @@ Diagnostics already has reusable `AttemptObservation`, `BackendObservation`, `Ti
 
 ## Artifact access
 
-`list_artifacts` currently returns a durable output path and registered names. A later controlled artifact interface should support:
-
-- manifest-backed names, sizes, media types, and checksums;
-- bounded reads for registered text and JSON artifacts;
-- no arbitrary path parameters;
-- backend-specific controlled download when shared storage permits it;
-- explicit limits for checkpoint and archive transfer;
-- retention and availability status after Provider cleanup.
+`list_artifacts` returns a durable output path, registered names, and a manifest with media type, size, checksum, and availability. `read_artifact` returns a bounded control-plane copy of a registered text or JSON filename. It rejects path parameters. Shared-storage-only files such as `gemcp-launch.log` stay listed and unread. Checkpoint and archive transfer remain out of scope.
 
 This must not become filesystem browsing or an SSH substitute.
 
@@ -564,6 +558,7 @@ get_experiment
 list_experiments
 cancel_experiment
 list_artifacts
+read_artifact
 ```
 
 Add:
@@ -614,7 +609,7 @@ The released vertical slice is Agent-facing. Owner-session Proposal attribution 
 
 - Extend Agent Experiment detail with Attempt log tails and metrics.
 - Add backend state, stop reason, last error, cleanup timestamps, and `cleanup_complete`.
-- Include registered artifacts and settlement fields in the detail response. `get_experiment` and the Owner Evidence dialog now return registered artifact names plus reservation / estimated charge / `budget_finalized_at`. `list_experiments` stays compact. Bounded artifact reads remain later.
+- Include registered artifacts and settlement fields in the detail response. `get_experiment` and the Owner Evidence dialog now return registered artifact names plus reservation / estimated charge / `budget_finalized_at`. `list_experiments` stays compact. Bounded artifact reads are in Phase 5.
 - Reuse Diagnostics timeline and assessment logic where practical. `get_experiment` and Owner Get now return a normalized `assessment` (running / passed / failed / cancelled, plus classification, summary, recommendations, and `cleanup_complete`) together with every Attempt and bounded Runner stage history. `list_experiments` stays compact.
 - Add terminal success, failure, cancellation, timeout, and cleanup-pending tests.
 
@@ -627,11 +622,11 @@ The released vertical slice is Agent-facing. Owner-session Proposal attribution 
 - Add a small language-neutral workload result contract for `metrics.json`.
 - Allow an Owner to save a successful one-shot proposal as a Project workload. Evidence offers `Save as workload`, previews a version-1 `gemcp.yaml` draft, and stores that named workload on the Project. Later `prepare_experiment` calls resolve `gemcp.yaml` at the verified commit first; if that file is missing or has no matching name, Gemcp uses the saved Project workload. Saving does not modify git.
 
-### Phase 5 - dataset snapshots and artifacts
+### Phase 5 - dataset snapshots and artifacts (on this tree)
 
-- Add backend compatibility and required-marker preflight.
-- Add immutable Dataset Binding snapshots to Experiment specifications.
-- Add artifact manifests and bounded registered-artifact reads.
+- Add backend compatibility and required-marker preflight. Local loopback hosts probe marker files and fail closed without searching. AutoDL and remote SSH record the markers and let the Runner fail closed.
+- Add immutable Dataset Binding snapshots to Experiment specifications. `get_experiment` returns the prepare-time snapshot after later Binding edits.
+- Add artifact manifests and bounded registered-artifact reads (`list_artifacts` / `read_artifact` / Owner detail).
 - Extend later to Dataset Snapshots and asset placement.
 
 ### Phase 6 - standing approvals and experiment sets

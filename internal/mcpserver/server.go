@@ -183,7 +183,7 @@ func New(agentAuth *agentauth.Service, experiments *experiment.Service, version 
 		Name: "submit_experiment", Description: "Advanced compatibility path: verify a full commit and enqueue an arbitrary shell command using a caller-managed idempotency key. Rejected when the Project has an active Study; use prepare_experiment with from_node_id instead.",
 	}, server.submitExperiment)
 	mcp.AddTool(mcpServer, &mcp.Tool{
-		Name: "get_experiment", Description: "Get one Experiment detail: immutable specification, state, normalized assessment, all Attempts, bounded log_tail, metrics.json, Runner stage history, backend observation, registered artifacts, settlement, and timeline. list_experiments stays compact. This is the monitoring surface; it never exposes SSH or remote files.",
+		Name: "get_experiment", Description: "Get one Experiment detail: immutable specification including Dataset Binding snapshots, state, normalized assessment, all Attempts, bounded log_tail, metrics.json, Runner stage history, backend observation, registered artifact names and manifest, settlement, and timeline. list_experiments stays compact. This is the monitoring surface; it never exposes SSH or remote files.",
 	}, server.getExperiment)
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "list_experiments", Description: "List recent project experiments, optionally filtered by state. Compact rows only; use get_experiment for Attempts, assessment, timeline, logs, and artifacts.",
@@ -192,8 +192,11 @@ func New(agentAuth *agentauth.Service, experiments *experiment.Service, version 
 		Name: "cancel_experiment", Description: "Request cancellation. A queued experiment is cancelled immediately and its reservation is released.",
 	}, server.cancelExperiment)
 	mcp.AddTool(mcpServer, &mcp.Tool{
-		Name: "list_artifacts", Description: "Return the durable output path and registered artifacts for an experiment.",
+		Name: "list_artifacts", Description: "Return the durable output path, registered artifact names, and a manifest with media type, size, checksum, and availability. This is not filesystem browsing.",
 	}, server.listArtifacts)
+	mcp.AddTool(mcpServer, &mcp.Tool{
+		Name: "read_artifact", Description: "Read one registered artifact by filename only. Returns a bounded text or JSON payload from control-plane evidence. Rejects paths. Shared-storage-only files such as gemcp-launch.log are listed but not downloaded.",
+	}, server.readArtifact)
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "get_project_cost", Description: "Return the current project budget period, reservations, estimated charges, and available capacity.",
 	}, server.getProjectCost)
@@ -692,6 +695,15 @@ func (s *Server) listArtifacts(ctx context.Context, request *mcp.CallToolRequest
 	}
 	output, err := s.experiments.Artifacts(ctx, principal, input.ExperimentID)
 	return nil, output, s.toolError("list_artifacts", err)
+}
+
+func (s *Server) readArtifact(ctx context.Context, request *mcp.CallToolRequest, input experiment.ArtifactReadInput) (*mcp.CallToolResult, experiment.ArtifactReadView, error) {
+	principal, err := principalFrom(request)
+	if err != nil {
+		return nil, experiment.ArtifactReadView{}, err
+	}
+	output, err := s.experiments.ReadArtifact(ctx, principal, input)
+	return nil, output, s.toolError("read_artifact", err)
 }
 
 func (s *Server) registerSSHCloudNode(ctx context.Context, request *mcp.CallToolRequest, input sshcloud.CreateInput) (*mcp.CallToolResult, sshcloud.NodeView, error) {

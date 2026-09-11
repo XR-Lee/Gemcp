@@ -28,6 +28,16 @@ const experiments = [
     max_runtime_seconds: 14400, reserved_cost_milli: 12250, estimated_cost_milli: 0,
     output_path: '/root/autodl-fs/projects/b492cbe4/experiments/ec29dc68/',
     artifacts: ['gemcp-launch.log', 'run.log', 'metrics.json'],
+    artifact_manifest: [
+      { name: 'gemcp-launch.log', media_type: 'text/plain', available: false, availability: 'shared_storage', readable: false },
+      { name: 'run.log', media_type: 'text/plain', size_bytes: 32, available: true, availability: 'control_plane', readable: true },
+      { name: 'metrics.json', media_type: 'application/json', size_bytes: 28, available: true, availability: 'control_plane', readable: true },
+    ],
+    dataset_bindings: [{
+      id: 'binding-scanobjectnn', name: 'scanobjectnn-objbg', backend: 'autodl_private',
+      canonical_root: '/root/autodl-fs/datasets/ScanObjectNN', environment_variable: 'GEMCP_DATASET_SCANOBJECTNN_OBJBG',
+      required_markers: ['main_split/train.h5'],
+    }],
     runner_attempt_id: 'a72afbc7-df86-4aaf-a7bc-68060968ed11', runner_source_downloads: 2,
     runner_stage: 'source_extracted', runner_stage_updated_at: '2026-07-16T09:31:15Z',
     log_tail: 'epoch 3 loss=0.42\nepoch 4 loss=0.38\n', metrics: { loss: 0.38, epoch: 4 },
@@ -728,6 +738,13 @@ async function mockConsole(page: Page, counters?: { providerQueries?: number; se
     }
     if (path === `/api/v1/projects/${project.id}/operations`) return fulfill(route, operationsFeed)
     if (path === `/api/v1/experiments/${experiments[0].id}/attempts`) return fulfill(route, attemptHistory)
+    if (path === `/api/v1/experiments/${experiments[0].id}/artifacts/metrics.json`) {
+      return fulfill(route, {
+        experiment_id: experiments[0].id, name: 'metrics.json', media_type: 'application/json', size_bytes: 28,
+        checksum: 'sha256:e2e-metrics', truncated: false, available: true, availability: 'control_plane',
+        json: { loss: 0.38, epoch: 4 },
+      })
+    }
     if (path === `/api/v1/experiments/${experiments[0].id}`) return fulfill(route, experiments[0])
     if (path === `/api/v1/experiments/${experiments[2].id}`) return fulfill(route, oneshotDetail)
     if (path === `/api/v1/experiments/${experiments[2].id}/attempts`) return fulfill(route, [])
@@ -934,7 +951,14 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await expect(liveDetail.getByText('Runner bootstrap reached source_extracted.', { exact: true })).toBeVisible()
   await expect(page.getByText('Source downloads', { exact: true })).toBeVisible()
   await expect(page.getByText('Registered artifacts', { exact: true })).toBeVisible()
-  await expect(page.getByText('gemcp-launch.log, run.log, metrics.json', { exact: true })).toBeVisible()
+  await expect(page.getByText('gemcp-launch.log', { exact: true })).toBeVisible()
+  await expect(page.getByText('metrics.json', { exact: true })).toBeVisible()
+  await expect(page.getByText('scanobjectnn-objbg → /root/autodl-fs/datasets/ScanObjectNN', { exact: true })).toBeVisible()
+  await liveDetail.getByRole('button', { name: 'Read' }).nth(1).click()
+  const artifactDialog = page.getByRole('dialog', { name: 'Registered artifact' })
+  await expect(artifactDialog).toBeVisible()
+  await expect(artifactDialog.getByText('"loss": 0.38', { exact: false })).toBeVisible()
+  await artifactDialog.getByTitle('Close').click()
   await expect(page.getByText('Reservation open', { exact: true })).toBeVisible()
   await expect(page.getByText('epoch 3 loss=0.42')).toBeVisible()
   await expect(page.getByText('GPU-test-3090', { exact: true })).toBeVisible()

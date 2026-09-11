@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { Activity, Box, CheckCircle2, Clock3, Copy, Cpu, Folder, GitCommitHorizontal, ListTree, LoaderCircle, Radio, Save, Server, SquareTerminal, TriangleAlert, X } from '@lucide/vue'
-import { APIError, api, type Attempt, type Experiment, type ProjectWorkload } from '../api'
+import { APIError, api, type ArtifactManifestEntry, type Attempt, type Experiment, type ProjectWorkload } from '../api'
 import { useI18n } from '../i18n'
 import WorkbenchDialog from './WorkbenchDialog.vue'
 
@@ -14,6 +14,12 @@ const saveYAML = ref('')
 const saveError = ref('')
 const saveBusy = ref(false)
 const copied = ref(false)
+const readOpen = ref(false)
+const readName = ref('')
+const readBody = ref('')
+const readNote = ref('')
+const readError = ref('')
+const readBusy = ref(false)
 let previewGeneration = 0
 
 const context = computed(() => props.experiment.execution_context)
@@ -24,6 +30,12 @@ const latestAttempt = computed(() => displayedAttempts.value.at(-1) ?? null)
 const logTail = computed(() => props.experiment.log_tail || latestAttempt.value?.log_tail || '')
 const metrics = computed(() => props.experiment.metrics ?? latestAttempt.value?.metrics)
 const live = computed(() => ['starting', 'running', 'stopping', 'queued', 'provisioning', 'cancelling', 'collecting'].includes(props.experiment.state))
+const artifactRows = computed<ArtifactManifestEntry[]>(() => {
+  if (props.experiment.artifact_manifest?.length) return props.experiment.artifact_manifest
+  return (props.experiment.artifacts ?? []).map((name) => ({
+    name, media_type: name.endsWith('.json') ? 'application/json' : 'text/plain', available: false, availability: '', readable: false,
+  }))
+})
 
 function dateTime(value?: string) {
   if (!value) return '—'
@@ -136,6 +148,28 @@ async function copyYAML() {
   await navigator.clipboard.writeText(saveYAML.value)
   copied.value = true
 }
+async function openArtifact(name: string) {
+  readName.value = name
+  readBody.value = ''
+  readNote.value = ''
+  readError.value = ''
+  readOpen.value = true
+  readBusy.value = true
+  try {
+    const payload = await api.experimentArtifact(props.experiment.project_id, props.experiment.id, name)
+    if (!payload.available) {
+      readNote.value = payload.unavailable_reason || t('This registered artifact is not held in the control plane.', '该已登记产物不在控制面。')
+      return
+    }
+    if (payload.json !== undefined) readBody.value = JSON.stringify(payload.json, null, 2)
+    else readBody.value = payload.text || ''
+    if (payload.truncated) readNote.value = t('Read is bounded to 64 KiB.', '读取上限为 64 KiB。')
+  } catch (caught) {
+    readError.value = caught instanceof APIError ? caught.message : t('Could not read this artifact.', '无法读取该产物。')
+  } finally {
+    readBusy.value = false
+  }
+}
 
 watch([saveOpen, saveName], ([open, name]) => {
   if (open) void previewWorkload(String(name).trim())
@@ -213,8 +247,18 @@ watch([saveOpen, saveName], ([open, name]) => {
               <div><dt>{{ t('Container output', '容器输出目录') }}</dt><dd><code>{{ context?.container_output_path || '—' }}</code></dd></div>
               <div><dt>{{ t('Observed output directory', '实际输出目录') }}</dt><dd><code>{{ runtime?.output_directory || t('Awaiting start', '等待启动') }}</code></dd></div>
               <div><dt>{{ t('Managed artifact path', '托管产物路径') }}</dt><dd><code>{{ experiment.output_path }}</code></dd></div>
-              <div v-if="experiment.artifacts?.length"><dt>{{ t('Registered artifacts', '已登记产物') }}</dt><dd><code>{{ experiment.artifacts.join(', ') }}</code></dd></div>
+              <div v-if="artifactRows.length" class="artifact-fact"><dt>{{ t('Registered artifacts', '已登记产物') }}</dt><dd>
+                <ul class="artifact-list">
+                  <li v-for="item in artifactRows" :key="item.name">
+                    <code>{{ item.name }}</code>
+                    <small>{{ item.available ? t('Readable', '可读') : t('Name only', '仅名称') }}</small>
+                    <button v-if="item.readable || item.available" class="text-button" type="button" @click="openArtifact(item.name)">{{ t('Read', '读取') }}</button>
+                    <button v-else class="text-button" type="button" @click="openArtifact(item.name)">{{ t('Status', '状态') }}</button>
+                  </li>
+                </ul>
+              </dd></div>
               <div v-else><dt>{{ t('Registered artifacts', '已登记产物') }}</dt><dd>{{ t('None registered yet', '尚未登记') }}</dd></div>
+              <div v-if="experiment.dataset_bindings?.length"><dt>{{ t('Dataset bindings', '数据集绑定') }}</dt><dd><code>{{ experiment.dataset_bindings.map((item) => `${item.name} → ${item.canonical_root}`).join('; ') }}</code></dd></div>
               <div><dt>{{ t('Settlement', '结算') }}</dt><dd>{{ experiment.budget_finalized_at ? t('Budget finalized', '预算已结算') : t('Reservation open', '预留未结算') }}</dd></div>
             </dl>
           </article>
@@ -270,6 +314,13 @@ watch([saveOpen, saveName], ([open, name]) => {
         <button class="primary-button" type="submit" :disabled="saveBusy || !saveYAML"><LoaderCircle v-if="saveBusy" :size="16" class="spinning" /><Save v-else :size="16" />{{ t('Save workload', '保存工作负载') }}</button>
       </div>
     </form>
+  </WorkbenchDialog>
+  <WorkbenchDialog v-model:open="readOpen" :title="t('Registered artifact', '已登记产物')" :label="readName || t('Registered artifact', '已登记产物')" :description="t('Bounded control-plane read of one registered filename. This is not filesystem browsing.', '对已登记文件名的有界控制面读取，不是文件系统浏览。')">
+    <div class="artifact-read">
+      <pre class="workload-yaml">{{ readBusy ? t('Reading…', '正在读取…') : (readBody || readNote || t('No control-plane copy is available.', '控制面没有副本。')) }}</pre>
+      <p v-if="readNote && readBody" class="save-workload-note">{{ readNote }}</p>
+      <div v-if="readError" class="form-error" role="alert">{{ readError }}</div>
+    </div>
   </WorkbenchDialog>
 </template>
 
@@ -331,6 +382,11 @@ watch([saveOpen, saveName], ([open, name]) => {
 .fact-list dt { color: #7e8882; font-size: 9px; line-height: 15px; }
 .fact-list dd { min-width: 0; margin: 0; color: #39463e; font-size: 10px; line-height: 15px; overflow-wrap: anywhere; }
 .fact-list code { font-size: 9px; }
+.artifact-fact dd { display: block; }
+.artifact-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.artifact-list li { min-width: 0; display: flex; align-items: center; gap: 8px; }
+.artifact-list small { color: #7a8580; font-size: 8px; }
+.artifact-read { display: grid; gap: 8px; }
 .comparison-row { min-height: 92px; padding: 13px; display: grid; grid-template-columns: minmax(0, 1fr) 20px minmax(0, 1fr); align-items: center; gap: 9px; }
 .comparison-row small, .comparison-row strong, .comparison-row code { display: block; min-width: 0; }
 .comparison-row small { color: #85908a; font-size: 9px; }

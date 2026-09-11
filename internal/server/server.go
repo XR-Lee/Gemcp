@@ -195,6 +195,8 @@ func New(deps Dependencies) *http.Server {
 	experimentHandlers := httpapi.NewExperimentHandlers(experimentService)
 	protected.GET("/experiments", experimentHandlers.List)
 	protected.GET("/experiments/:id", experimentHandlers.Get)
+	protected.GET("/experiments/:id/artifacts", experimentHandlers.Artifacts)
+	protected.GET("/experiments/:id/artifacts/:name", experimentHandlers.ReadArtifact)
 	protected.GET("/experiments/:id/attempts", experimentHandlers.Attempts)
 	protected.GET("/projects/:id/cost", experimentHandlers.Cost)
 	protected.GET("/projects/:id/operations", experimentHandlers.Operations)

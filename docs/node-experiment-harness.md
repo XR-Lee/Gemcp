@@ -104,7 +104,7 @@ Recommended v1 payload:
 }
 ```
 
-Keep large checkpoints and datasets out of normal Git history. The current `get_experiment` view is suitable for bounded metrics and log evidence; `list_artifacts` exposes names and paths, not a general artifact download channel.
+Keep large checkpoints and datasets out of normal Git history. The current `get_experiment` view is suitable for bounded metrics and log evidence; `list_artifacts` and `read_artifact` expose registered names and bounded control-plane reads, not a general artifact download channel.
 
 Never run `git add -A` against an Owner-approved trusted workspace after a workload has modified it. Publish from a clean clone, write only the deterministic manifest path, reject symlinks, and inspect the exact diff before committing.
 
