@@ -1,6 +1,6 @@
 # Tester brief (Jiyao)
 
-Linear [XIN-28](https://linear.app/xinrunli/issue/XIN-28/gemcp-development) asked Jiyao Pu to test Gemcp. This is the checklist. It is not a product spec.
+Linear [XIN-28](https://linear.app/xinrunli/issue/XIN-28/gemcp-development) asked Jiyao Pu to test Gemcp. This is the checklist. It is not a product spec. Humans who want the product overview should start at [README.md](../README.md) / [README.zh.md](../README.zh.md).
 
 快速开始：测 `main`（当前 `VERSION` 为 `0.20.0`），**不要**用名为 `Jiyao` 的分支。在仓库根目录运行 `./scripts/bootstrap-local.sh`，再 `./scripts/dev-serve.sh`。第二个终端跑 `./scripts/local-http-smoke.sh` 和 `./scripts/local-cpu-loop.sh`（CPU 五条流，不需要 NVIDIA）。不要手抄 `.env.example`（那是生产 Compose 模板），也不要用 Debian/Ubuntu apt 里的 Go 当编译器版本要求。下面英文是完整步骤。
 

@@ -1,51 +1,135 @@
 # Gemcp
 
-Gemcp is a private research control plane. The Owner sees a Study, hypotheses, and a research Graph. CLI/MCP Agents propose the next Experiment on that Graph; Gemcp schedules the work, reserves budget, and writes the result back as evidence. Provider tokens, node credentials, and audit stay in a separate Lab layer.
+[English](README.md) · [中文](README.zh.md)
 
-A paid run starts only from a connected hypothesis (or a plan that traces back to one). The contract is `hypothesis` → `prepare_experiment` → Owner-confirmed digest → `submit_prepared_experiment` → `close_run`. Vocabulary: [Hypothesis–experiment Graph contract](docs/graph-contract.md).
+**A private research workbench.** You see a Study, a plan, and a research Graph. Connected coding agents propose the next experiment. You confirm before anything spends. Gemcp then schedules the work, reserves budget, and writes the result back as evidence.
 
-Work can run on a local CPU process (no NVIDIA), Cloud SSH, Self-hosted Docker GPUs, or AutoDL. The three remote backends do not fall back to one another.
+Provider tokens, node credentials, and audit stay in a separate **Lab** layer. Agents never receive those secrets.
 
-Current version string: [`VERSION`](VERSION) (`0.20.0`). Per-version notes: [Release notes](docs/releases.md). Testers: [tester brief](docs/tester-brief.md). Use `main`. Do not use the stale `Jiyao` branch.
+> **This README is for people.**
+> Coding agents working in this repository: [AGENTS.md](AGENTS.md).
+> Agents connected to a running Gemcp over MCP: [guides/agent-mcp.md](guides/agent-mcp.md) (or call `get_usage_guide`).
 
-## Local use (no GPU)
+Current release: **v0.20.0** ([`VERSION`](VERSION), [notes](docs/releases.md)). Use `main`.
 
-Prerequisites: a Go 1.21+ command (the `go.mod` pin is 1.26.6 and will download that toolchain), Node.js 22+, and PostgreSQL 16+ on `127.0.0.1:5432`. Debian/Ubuntu apt Go and PostgreSQL are enough to bootstrap; they are not the production Compose versions.
+<p align="center">
+  <img src="docs/images/readme-research.png" alt="Gemcp Research console: Study, next action, and Graph" width="960" />
+</p>
+<p align="center"><em>Research is the home view. Lab (budget, Provider, nodes, alerts) stays one click away.</em></p>
+
+<p align="center">
+  <img src="docs/images/readme-graph.png" alt="Research Graph: question, hypothesis, plan, run result, and observations on a time axis" width="960" />
+</p>
+<p align="center"><em>The Graph is a scientific lineage, not a git commit graph. A paid run starts from a connected hypothesis.</em></p>
+
+## What you get
+
+- **Owner-first console** — start from the research question, not from GPU inventory.
+- **Human-confirmed spend** — an agent can only *prepare* a run. You approve the exact digest before budget is reserved.
+- **MCP in the research repo** — Cursor, Claude Code, Codex, OpenCode, Grok, and Pi. Enable Gemcp in that directory, not as a global server.
+- **Four compute backends** — local CPU (no NVIDIA), Cloud SSH, Self-hosted Docker GPUs, or AutoDL. They do not silently fall back to one another.
+- **One vocabulary** — Study, hypothesis, run, result. The same words appear in the console, MCP, and [Graph contract](docs/graph-contract.md).
+
+## Quick start (laptop, no GPU)
+
+You need a Go 1.21+ command (the `go.mod` pin is 1.26.6 and will download that toolchain), Node.js 22+, and PostgreSQL 16+ on `127.0.0.1:5432`. Debian/Ubuntu apt Go and PostgreSQL are enough to bootstrap.
 
 ```bash
 ./scripts/bootstrap-local.sh
 ./scripts/dev-serve.sh
 ```
 
-That writes repo-root `.env` from `deploy/env.local.example`, generates `GEMCP_MASTER_KEY` and `GEMCP_BOOTSTRAP_TOKEN`, creates the `gemcp` role/database, and builds `./bin/gemcp`. `serve` / `watchdog` read that `.env` (process environment still wins). Development defaults `GEMCP_AUTO_MIGRATE=true` and, when `GEMCP_ENV=development`, turns on the scheduler, Cloud SSH, and local process overlay.
+Open [http://127.0.0.1:8080](http://127.0.0.1:8080). The first visit is setup (Owner → Compute → Project). Skip AutoDL. Copy the Agent Token once — Gemcp will not show it again. Owner email/password come from `.env` (`GEMCP_DEV_OWNER_*`).
 
-Open `http://127.0.0.1:8080`. First visit is setup (Owner → Compute → Project). Skip AutoDL. Copy the one-time Agent Token; Gemcp will not show it again. Owner email/password come from `.env` (`GEMCP_DEV_OWNER_*`).
+That script writes repo-root `.env` from `deploy/env.local.example`, generates `GEMCP_MASTER_KEY` and `GEMCP_BOOTSTRAP_TOKEN`, creates the `gemcp` role/database, and builds `./bin/gemcp`. Do **not** copy `.env.example` for this path (that file is the production Compose template).
 
-In a second terminal:
-
-```bash
-./scripts/local-http-smoke.sh
-./scripts/local-cpu-loop.sh
-```
-
-Smoke checks `/healthz`, `/readyz`, `/api/v1/version`, `/api/v1/setup/status`, first-run `skip_provider` when needed, and `POST /mcp` initialize. The CPU loop seeds `examples/local-cpu/` to `$HOME/gemcp/datasets/modelnet40-mini`, registers loopback compute / host Environment / `modelnet40-mini` through MCP, records a hypothesis graph, waits for a scraped heartbeat, and prints `CLI_DECISION=success|failure|new_observation`.
-
-Do **not** copy `.env.example` for this path (that file is the production Compose template). Do **not** start serve with only `GEMCP_DATABASE_URL` on the command line: that ignores `.env` and dies on the master-key placeholder, or comes up without migrations.
-
-Point an MCP client at `http://127.0.0.1:8080/mcp` with the Agent Token. Call `get_usage_guide`, `get_research_workspace`, and `get_next_actions` before spending. Do not call `submit_prepared_experiment` without the Owner-confirmed digest.
-
-## Tests
+In a second terminal, optional checks:
 
 ```bash
-npm --prefix frontend install
-make test
-make frontend-test
-make build
-
-# Once per browser-test environment:
-npx --prefix frontend playwright install chromium
-make frontend-e2e
+./scripts/local-http-smoke.sh   # health, setup, MCP initialize
+./scripts/local-cpu-loop.sh     # five-step CPU experiment, no NVIDIA
 ```
+
+The console language toggle is on the top bar (Chinese / English).
+
+## Connect an agent
+
+1. Sign in and open **Lab → Agent**.
+2. Create a short-lived **MCP setup link** (Handshake prompt if you also want Cloud SSH). Send it only to the intended agent, in the research repository directory.
+3. Let the agent enroll itself. Do not paste a long-lived Token into chat.
+4. Before any paid run, the agent must show you the proposal (repo, commit, command, resource, worst-case CNY, confirmation digest). Approve that exact digest — in Evidence, or by telling the agent to submit it.
+
+Cursor project config (`.cursor/mcp.json`), after you have a Token in the environment:
+
+```json
+{
+  "mcpServers": {
+    "gemcp-project": {
+      "type": "http",
+      "url": "http://127.0.0.1:8080/mcp",
+      "headers": {
+        "Authorization": "Bearer ${env:GEMCP_AGENT_TOKEN}"
+      }
+    }
+  }
+}
+```
+
+Production uses `https://<gemcp-host>/mcp`. Client-by-client snippets: [Owner MCP guide](guides/owner-mcp.md). Full tool list: [MCP clients](docs/mcp.md).
+
+A `submit` scope is technical capability, not a blank check. Every prepared proposal still needs your confirmation of that digest.
+
+## How a paid run starts
+
+```text
+You record a hypothesis on the Graph
+        │
+Agent prepares a zero-cost proposal  (prepare_experiment)
+        │
+You confirm the exact digest
+        │
+Agent submits once                   (submit_prepared_experiment)
+        │
+Gemcp writes the run, then the result (close_run)
+```
+
+Recording a Graph node never starts a machine. `submit_experiment` is an Advanced compatibility path and is rejected while a Study is active.
+
+## Where work runs
+
+| Backend | Typical use | GPU |
+| --- | --- | --- |
+| Local process | Laptop smoke / CPU fixture | No |
+| Cloud SSH (experimental) | argv as a host process on a registered Linux box | Optional |
+| Self-hosted node | `gemcp-node` + Docker on a machine you own | NVIDIA |
+| AutoDL Private Cloud / Public Elastic | Official Job APIs | Yes |
+
+Paid AutoDL needs a reachable HTTPS `GEMCP_PUBLIC_URL` and the scheduler on. Cloud SSH stays off until `GEMCP_SSH_CLOUD_ENABLED=true`. Details: [Self-hosted](docs/self-hosted-nodes.md), [Cloud SSH](docs/ssh-cloud-nodes.md), [Provider](docs/provider-operations.md).
+
+```text
+You  --HTTPS Web-->  Gemcp  --MCP-->  coding agent
+                       |
+                       +--> PostgreSQL
+                       +--> local CPU / SSH host / gemcp-node / AutoDL
+```
+
+The Vue console is embedded in the Go binary. Redis, Kubernetes, and a separate frontend runtime are not required.
+
+## Documentation
+
+| If you want to… | Read |
+| --- | --- |
+| Use the product (this page) | [README.md](README.md) · [README.zh.md](README.zh.md) |
+| Connect Cursor / Claude / Codex / … | [guides/owner-mcp.md](guides/owner-mcp.md) |
+| Operate Gemcp *as* an MCP agent | [guides/agent-mcp.md](guides/agent-mcp.md) |
+| Work on this repository | [AGENTS.md](AGENTS.md) |
+| Understand Study / hypothesis / run / result | [docs/graph-contract.md](docs/graph-contract.md) |
+| Walk through the console | [docs/web-console.md](docs/web-console.md) · [docs/research-workbench.md](docs/research-workbench.md) |
+| Test a checkout | [docs/tester-brief.md](docs/tester-brief.md) |
+| Deploy with Compose | [deploy/README.md](deploy/README.md) |
+| See what shipped | [docs/releases.md](docs/releases.md) · [docs/roadmap.md](docs/roadmap.md) |
+
+Hosted copies of the Owner and Agent guides are `/docs/owner-mcp.md` and `/docs/agent-mcp.md` on a running control plane. Deeper topics: [setup API](docs/setup-api.md), [Agent Tokens](docs/agent-tokens.md), [architecture](docs/architecture.md), [execution](docs/execution.md), [finance](docs/finance.md), [diagnostics](docs/diagnostics.md), [notifications](docs/notifications.md).
 
 ## Production deploy
 
@@ -60,56 +144,23 @@ docker compose up -d --build
 
 Bind the origin to localhost and publish it through the configured Cloudflare Tunnel. Do not expose port 8080 to the public Internet. Existing Compose deployments must follow the [PostgreSQL 18 volume upgrade](deploy/README.md#postgresql-18-volume-upgrade) before recreating the database container.
 
-Paid AutoDL dispatch needs a reachable HTTPS `GEMCP_PUBLIC_URL` and `GEMCP_SCHEDULER_ENABLED=true`. Cloud SSH stays off until `GEMCP_SSH_CLOUD_ENABLED=true`. First-run setup, Sessions, and HTTP surfaces: [setup API](docs/setup-api.md).
+Full checklist: [deploy/README.md](deploy/README.md).
 
-## Architecture
-
-```text
-Agent --HTTPS MCP--> controlplane --official API--> AutoDL
-                         |
-Human --HTTPS Web--------+--> PostgreSQL
-                         |         |
-                         |     watchdog
-                         |
-                         +--outbound HTTPS<--gemcp-node --Docker--> NVIDIA GPU
-                         |
-                         +--outbound SSH--> cloud instance --host process--> argv (GPU optional)
-                         |
-                         +--loopback process--> local CPU fixture (development)
-```
-
-The Vue frontend is embedded in the Go release binary. Redis, Kubernetes, and a separate frontend runtime are not required.
-
-## Docs
-
-| Topic | Where |
-| --- | --- |
-| Graph contract | [docs/graph-contract.md](docs/graph-contract.md) |
-| MCP tools and scopes | [docs/mcp.md](docs/mcp.md) |
-| Owner / Agent handoffs | [guides/owner-mcp.md](guides/owner-mcp.md), [guides/agent-mcp.md](guides/agent-mcp.md) |
-| Research workbench | [docs/research-workbench.md](docs/research-workbench.md) |
-| Tester checklist | [docs/tester-brief.md](docs/tester-brief.md) |
-| Release notes | [docs/releases.md](docs/releases.md) |
-| Roadmap | [docs/roadmap.md](docs/roadmap.md) |
-| Cloud SSH | [docs/ssh-cloud-nodes.md](docs/ssh-cloud-nodes.md) |
-| Self-hosted nodes | [docs/self-hosted-nodes.md](docs/self-hosted-nodes.md) |
-| Provider operations | [docs/provider-operations.md](docs/provider-operations.md) |
-| Repositories | [docs/repositories.md](docs/repositories.md) |
-| Web console | [docs/web-console.md](docs/web-console.md) |
-| Execution and shutdown | [docs/execution.md](docs/execution.md) |
-| Architecture | [docs/architecture.md](docs/architecture.md) |
-
-Hosted copies of the Owner and Agent guides are also `/docs/owner-mcp.md` and `/docs/agent-mcp.md` on a running control plane. Connect an Agent with the [MCP client guide](docs/mcp.md) after [Agent Token management](docs/agent-tokens.md). Review [diagnostics](docs/diagnostics.md) before a paid smoke test, [finance](docs/finance.md) before adjusting capacity, and [notifications](docs/notifications.md) before arming SMTP.
-
-Phase-zero AutoDL reads:
+## Develop
 
 ```bash
-./bin/gemcp phase0 read --backend pro
-./bin/gemcp phase0 read --backend elastic --region westDC2
-./bin/gemcp phase0 read --backend private
+npm --prefix frontend install
+make test
+make frontend-test
+make build
 ```
 
-A live Job probe is separately gated. Read [Phase-zero validation](docs/phase-zero.md) first.
+Browser tests, once per machine:
+
+```bash
+npx --prefix frontend playwright install chromium
+make frontend-e2e
+```
 
 ## Security
 

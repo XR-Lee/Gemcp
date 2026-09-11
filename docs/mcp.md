@@ -39,7 +39,7 @@ https://<gemcp-host>/docs/owner-mcp.md
 https://<gemcp-host>/docs/agent-mcp.md
 ```
 
-The Owner guide covers client setup, scope selection, approval policy, verification, rotation, and incident response. The Agent guide is the handoff document: download or copy it separately after configuring the MCP client. Do not append the Agent Token to either document or paste the Token into an Agent prompt.
+The Owner guide covers client setup, scope selection, approval policy, verification, rotation, and incident response. The Agent guide is the handoff document: download or copy it separately after configuring the MCP client. Do not append the Agent Token to either document or paste the Token into an Agent prompt. The human product overview is the repository [README](../README.md); [AGENTS.md](../AGENTS.md) is only for coding agents working in this tree.
 
 MCP clients can discover the same Agent guide through all three capability levels:
 
