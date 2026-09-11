@@ -721,7 +721,10 @@ func (_q *ExperimentProposalQuery) loadAgentToken(ctx context.Context, query *Ag
 	ids := make([]int, 0, len(nodes))
 	nodeids := make(map[int][]*ExperimentProposal)
 	for i := range nodes {
-		fk := nodes[i].AgentTokenID
+		if nodes[i].AgentTokenID == nil {
+			continue
+		}
+		fk := *nodes[i].AgentTokenID
 		if _, ok := nodeids[fk]; !ok {
 			ids = append(ids, fk)
 		}

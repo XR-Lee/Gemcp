@@ -23,6 +23,7 @@ type Principal struct {
 	TokenPublicID   string
 	TokenLabel      string
 	TokenPrefix     string
+	UserPublicID    string
 	Scopes          []string
 	ExpiresAt       *time.Time
 }

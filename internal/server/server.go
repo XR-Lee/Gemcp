@@ -198,6 +198,7 @@ func New(deps Dependencies) *http.Server {
 	protected.GET("/experiments/:id/attempts", experimentHandlers.Attempts)
 	protected.GET("/projects/:id/cost", experimentHandlers.Cost)
 	protected.GET("/projects/:id/operations", experimentHandlers.Operations)
+	protected.POST("/projects/:id/experiment-proposals", experimentHandlers.Prepare)
 	protected.POST("/projects/:id/experiment-proposals/:proposalID/submit", experimentHandlers.SubmitPrepared)
 	protected.GET("/projects/:id/agent-readiness", experimentHandlers.AgentReadiness)
 	researchService := research.NewService(deps.Ent)

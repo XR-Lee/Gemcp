@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/XR-Lee/Gemcp/ent"
+	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/nodeprojectaccess"
 	"github.com/XR-Lee/Gemcp/internal/execution"
 	"github.com/XR-Lee/Gemcp/internal/provider"
@@ -1138,5 +1139,32 @@ func TestPreparedExperimentRejectsPolicyUpdateAfterPrepare(t *testing.T) {
 	})
 	if !errors.Is(err, ErrProposalChanged) {
 		t.Fatalf("policy drift submit error = %v", err)
+	}
+}
+
+func TestOwnerPrepareCreatesProposalWithoutAgentToken(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	service := preparedService(t, f, 2)
+	ctx := context.Background()
+	prepared, err := service.OwnerPrepare(ctx, f.principal.TenantID, "owner-1", f.project.PublicID.String(), validPrepare())
+	if err != nil || prepared.Proposal == nil || !prepared.Proposal.Eligible {
+		t.Fatalf("OwnerPrepare() = %+v, %v", prepared, err)
+	}
+	publicID, err := uuid.Parse(prepared.Proposal.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	record, err := f.client.ExperimentProposal.Query().Where(experimentproposal.PublicIDEQ(publicID)).Only(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if record.AgentTokenID != nil {
+		t.Fatalf("owner proposal stored agent_token_id %v", *record.AgentTokenID)
+	}
+	submitted, err := service.OwnerSubmitPrepared(ctx, f.principal.TenantID, "owner-1", f.project.PublicID.String(), prepared.Proposal.ID, OwnerSubmitPreparedInput{
+		ConfirmationDigest: prepared.Proposal.ConfirmationDigest, Confirmed: true,
+	})
+	if err != nil || submitted.Experiment.ID == "" {
+		t.Fatalf("OwnerSubmitPrepared() = %+v, %v", submitted, err)
 	}
 }

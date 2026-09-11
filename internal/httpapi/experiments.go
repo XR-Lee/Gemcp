@@ -99,6 +99,26 @@ func (h *ExperimentHandlers) AgentReadiness(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": result})
 }
 
+func (h *ExperimentHandlers) Prepare(c *gin.Context) {
+	principal, ok := ownerPrincipal(c)
+	if !ok {
+		return
+	}
+	var input experiment.PrepareInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		writeError(c, http.StatusBadRequest, "INVALID_EXPERIMENT_PREPARE", "prepared experiment input is invalid")
+		return
+	}
+	result, err := h.service.OwnerPrepare(
+		c.Request.Context(), principal.TenantID, principal.UserPublicID, c.Param("id"), input,
+	)
+	if err != nil {
+		h.writeError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": result})
+}
+
 func (h *ExperimentHandlers) SubmitPrepared(c *gin.Context) {
 	principal, ok := ownerPrincipal(c)
 	if !ok {

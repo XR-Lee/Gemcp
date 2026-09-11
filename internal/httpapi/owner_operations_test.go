@@ -56,6 +56,7 @@ func TestRuntimeNotificationAndFinanceOperationsRequireOwner(t *testing.T) {
 	router.GET("/projects/:id/environments", NewEnvironmentHandlers(nil).List)
 	router.POST("/projects/:id/environments", NewEnvironmentHandlers(nil).Create)
 	router.DELETE("/projects/:id/environments/:environmentID", NewEnvironmentHandlers(nil).Remove)
+	router.POST("/projects/:id/experiment-proposals", NewExperimentHandlers(nil).Prepare)
 	router.POST("/projects/:id/experiment-proposals/:proposalID/submit", NewExperimentHandlers(nil).SubmitPrepared)
 
 	for _, request := range []*http.Request{
@@ -77,6 +78,7 @@ func TestRuntimeNotificationAndFinanceOperationsRequireOwner(t *testing.T) {
 		httptest.NewRequest(http.MethodGet, "/projects/project-id/environments", nil),
 		httptest.NewRequest(http.MethodPost, "/projects/project-id/environments", nil),
 		httptest.NewRequest(http.MethodDelete, "/projects/project-id/environments/environment-id", nil),
+		httptest.NewRequest(http.MethodPost, "/projects/project-id/experiment-proposals", nil),
 		httptest.NewRequest(http.MethodPost, "/projects/project-id/experiment-proposals/proposal-id/submit", nil),
 	} {
 		response := httptest.NewRecorder()
