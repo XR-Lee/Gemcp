@@ -51,6 +51,10 @@ const experiments = [
     runner_stage: 'started', runner_stage_updated_at: '2026-08-17T17:55:00Z',
     log_tail: 'overall_accuracy 86.4\n', metrics: { overall_accuracy: 86.4 },
     created_at: '2026-08-17T17:40:00Z', updated_at: '2026-08-17T17:55:00Z', finished_at: '2026-08-17T17:55:00Z',
+    assessment: {
+      status: 'passed', classification: 'succeeded', summary: 'The Experiment succeeded.', cleanup_complete: true,
+    },
+    runner_stages: [{ stage: 'started', at: '2026-08-17T17:55:00Z' }],
     savable_workload: true,
     saved_workload: '',
     graph_linked: true, orphaned: false,

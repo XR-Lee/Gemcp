@@ -38,6 +38,8 @@ const experiments = [
       gpu_models: ['NVIDIA GeForce RTX 3090'], gpu_num: 1, workspace_policy: 'runner_temporary', container_output_path: '/gemcp/output',
       runtime_info: { source: 'runner_observed', working_directory: '/gemcp/work/source', output_directory: '/gemcp/output', cuda_visible_devices: '0', gpu_devices: [{ index: 0, uuid: 'GPU-test-3090', name: 'NVIDIA GeForce RTX 3090' }] },
     },
+    assessment: { status: 'running', classification: 'runner_bootstrap', summary: 'Runner bootstrap reached source_extracted.', cleanup_complete: false },
+    runner_stages: [{ stage: 'source_extracted', at: '2026-07-16T09:31:15Z' }],
     backend_observation: { kind: 'provider_resource', id: 'managed-resource-1', provider_id: 'deployment-live-1', state: 'active', status: 'running', cleanup_complete: false, updated_at: '2026-07-17T02:00:00Z' },
     timeline: [
       { at: '2026-07-16T09:30:00Z', code: 'experiment_created' },
@@ -926,7 +928,10 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await expect(confirmationDialog).not.toBeVisible()
   await expect(page.getByText('Off-graph')).toBeVisible()
   await expect(page.getByRole('dialog', { name: 'Experiment details' })).toBeVisible()
-  await expect(page.getByText('source_extracted', { exact: true })).toBeVisible()
+  const liveDetail = page.getByRole('dialog', { name: 'Experiment details' })
+  await expect(liveDetail.getByText('source_extracted', { exact: true }).first()).toBeVisible()
+  await expect(liveDetail.getByText('Runner bootstrap', { exact: true })).toBeVisible()
+  await expect(liveDetail.getByText('Runner bootstrap reached source_extracted.', { exact: true })).toBeVisible()
   await expect(page.getByText('Source downloads', { exact: true })).toBeVisible()
   await expect(page.getByText('Registered artifacts', { exact: true })).toBeVisible()
   await expect(page.getByText('gemcp-launch.log, run.log, metrics.json', { exact: true })).toBeVisible()

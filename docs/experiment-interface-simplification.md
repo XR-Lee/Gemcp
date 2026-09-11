@@ -4,7 +4,7 @@ Status: implementation in progress
 
 Scope: Agent MCP experiment preparation, paid confirmation, workload and dataset selection, result observation, and compatibility with the existing advanced submission path.
 
-The first implementation slice now covers durable expiring proposals, sole-repository and compatible-default resolution, server-side ref resolution, one-shot argv, version-1 `gemcp.yaml` named workloads, zero-cost preflight, digest-confirmed idempotent submission, and shell-free argv execution in AutoDL and capability-compatible Self-hosted Nodes. Prepared presets now include `smoke`, `probe`, and `train` up to Owner-unfrozen Project runtime. AutoDL Dataset Bindings inject `GEMCP_DATASET_*` from `/root/autodl-fs/` roots. The Owner console can PATCH Project policy, register those bindings, prepare a proposal without an Agent Token, and confirm a prepared digest including Graph origin, dataset, workload, and repository access. After a succeeded one-shot, Evidence can save a reviewable `gemcp.yaml` draft as a Project workload without writing the source repository. Repository URL onboarding and public-repository readiness are on this tree: paste a GitHub HTTPS or SSH URL; public repositories skip the Deploy Key. Richer generic observations and standing approvals remain later slices.
+The first implementation slice now covers durable expiring proposals, sole-repository and compatible-default resolution, server-side ref resolution, one-shot argv, version-1 `gemcp.yaml` named workloads, zero-cost preflight, digest-confirmed idempotent submission, and shell-free argv execution in AutoDL and capability-compatible Self-hosted Nodes. Prepared presets now include `smoke`, `probe`, and `train` up to Owner-unfrozen Project runtime. AutoDL Dataset Bindings inject `GEMCP_DATASET_*` from `/root/autodl-fs/` roots. The Owner console can PATCH Project policy, register those bindings, prepare a proposal without an Agent Token, and confirm a prepared digest including Graph origin, dataset, workload, and repository access. After a succeeded one-shot, Evidence can save a reviewable `gemcp.yaml` draft as a Project workload without writing the source repository. Repository URL onboarding and public-repository readiness are on this tree: paste a GitHub HTTPS or SSH URL; public repositories skip the Deploy Key. Generic Experiment detail now includes normalized assessment, Attempts, and Runner stage history. Standing approvals remain a later slice.
 
 ## Summary
 
@@ -615,7 +615,7 @@ The released vertical slice is Agent-facing. Owner-session Proposal attribution 
 - Extend Agent Experiment detail with Attempt log tails and metrics.
 - Add backend state, stop reason, last error, cleanup timestamps, and `cleanup_complete`.
 - Include registered artifacts and settlement fields in the detail response. `get_experiment` and the Owner Evidence dialog now return registered artifact names plus reservation / estimated charge / `budget_finalized_at`. `list_experiments` stays compact. Bounded artifact reads remain later.
-- Reuse Diagnostics timeline and assessment logic where practical.
+- Reuse Diagnostics timeline and assessment logic where practical. `get_experiment` and Owner Get now return a normalized `assessment` (running / passed / failed / cancelled, plus classification, summary, recommendations, and `cleanup_complete`) together with every Attempt and bounded Runner stage history. `list_experiments` stays compact.
 - Add terminal success, failure, cancellation, timeout, and cleanup-pending tests.
 
 ### Phase 4 - workloads, runtime presets, and minimal dataset bindings
@@ -653,7 +653,7 @@ The design is successful when:
 - the user can review the exact resolved command, resource, runtime, dataset, and reservation;
 - configuration drift creates no Experiment and requires a replacement proposal;
 - a lost submission response can be retried without creating another Experiment;
-- a terminal `get_experiment` response explains workload, Runner, backend cleanup, artifacts, and cost without database access;
+- a terminal `get_experiment` response explains workload, assessment, Attempts, Runner stages, backend cleanup, artifacts, and cost without database access;
 - Dataset Binding violations fail before training instead of triggering path searches or downloads;
 - the Advanced direct submission path remains available and equally safe;
 - no simplification weakens budget, approval, credential, cancellation, or cleanup controls.

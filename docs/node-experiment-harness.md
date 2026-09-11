@@ -51,7 +51,7 @@ The normal harness Token should use `read` and `submit`. Add `cancel` only when 
 2. Update the visible iteration plan with `update_research_workspace` when the scientific plan changes.
 3. Commit and push reviewed source changes, then call `prepare_experiment` with that ref and the legal `from_node_id`.
 4. Present the immutable proposal and wait for the required human confirmation of its digest.
-5. Call `submit_prepared_experiment`, then poll `get_experiment` until terminal. That view already has `state`, `log_tail`, `metrics`, registered artifact names, and settlement. Do not SSH through Gemcp, do not fetch remote files, and do not analyze Docker logs to invent a scalar.
+5. Call `submit_prepared_experiment`, then poll `get_experiment` until terminal. That view already has `state`, `assessment`, `attempts`, `log_tail`, `metrics`, registered artifact names, and settlement. Do not SSH through Gemcp, do not fetch remote files, and do not analyze Docker logs to invent a scalar.
 6. Build one result manifest from the terminal Experiment view. Copy metrics; do not infer or rewrite them silently. `close_run` may omit `metric_name` and copy the prepared `expected_metric` from that view.
 7. Commit only that manifest from a clean publisher clone and push it to a dedicated result branch or pull request.
 8. Call `close_run` with the result summary, approved scalar metric, and the full result commit as `result_commit_sha`.

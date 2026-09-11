@@ -18,7 +18,7 @@ Gemcp schedules bounded AutoDL, authorized Self-hosted, and experimental Cloud S
 7. Wait for explicit human approval of the exact confirmation digest before calling `submit_prepared_experiment`.
 8. Submit a prepared proposal using only its proposal ID and exact digest. Never alter fields between preparation and submission.
 9. A proposal retry uses the same proposal ID and digest and returns the same Experiment. A failed paid Experiment is never automatically resubmitted.
-10. After submission, Gemcp writes the Graph `run` node. Monitor with `get_experiment` (`state`, `log_tail`, `metrics`, registered artifacts, and settlement). Then call `close_run`; omit `metric_name` to copy the prepared `expected_metric` from that view. `close_run` also writes a highlight observation on the originating hypothesis. Do not invent a result while the Experiment is still running. Do not SSH, fetch remote files, or infer metrics from logs. Do not infer success from Provider or Node startup alone.
+10. After submission, Gemcp writes the Graph `run` node. Monitor with `get_experiment` (`state`, `assessment`, `attempts`, `log_tail`, `metrics`, registered artifacts, and settlement). Then call `close_run`; omit `metric_name` to copy the prepared `expected_metric` from that view. `close_run` also writes a highlight observation on the originating hypothesis. Do not invent a result while the Experiment is still running. Do not SSH, fetch remote files, or infer metrics from logs. Do not infer success from Provider or Node startup alone.
 11. Use `cancel_experiment` when the human cancels work or when the submitted Experiment should no longer run.
 12. Use `submit_experiment` only when the human explicitly requests the Advanced shell-command compatibility path and the Project has no active Study. An active Study requires `prepare_experiment` with `from_node_id`.
 
@@ -215,7 +215,7 @@ get_experiment {"experiment_id":"..."}
 list_experiments {"limit":20}
 ```
 
-`get_experiment` is the monitoring surface. It already includes the bounded log tail and `metrics.json` projection for AutoDL, Self-hosted, and Cloud SSH. Do not ask Gemcp to open SSH, download remote files, or analyze logs into a metric. Workloads write `${GEMCP_OUTPUT_DIR}/metrics.json`; Gemcp copies that object onto the Experiment.
+`get_experiment` is the monitoring surface. It already includes the normalized assessment, every Attempt, bounded log tail, `metrics.json` projection, Runner stage history, backend observation, artifacts, and settlement for AutoDL, Self-hosted, and Cloud SSH. `list_experiments` stays compact. Do not ask Gemcp to open SSH, download remote files, or analyze logs into a metric. Workloads write `${GEMCP_OUTPUT_DIR}/metrics.json`; Gemcp copies that object onto the Experiment.
 
 Typical states:
 

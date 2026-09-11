@@ -69,15 +69,7 @@ func (s *Service) OwnerAttempts(ctx context.Context, tenantID int, projectPublic
 	}
 	result := make([]AttemptView, 0, len(records))
 	for _, record := range records {
-		result = append(result, AttemptView{
-			ID: record.PublicID.String(), Number: record.Number, State: record.State,
-			ProviderResourceID: record.ProviderResourceID, RetryReason: record.RetryReason,
-			FailureCode: record.FailureCode, FailureReason: record.FailureReason,
-			StartedAt: record.StartedAt, FinishedAt: record.FinishedAt,
-			EstimatedCostMilli: record.EstimatedCostMilli, ExitCode: record.ExitCode,
-			LogTail: record.LogTail, Metrics: record.Metrics, LastHeartbeatAt: record.LastHeartbeatAt,
-			CreatedAt: record.CreatedAt, UpdatedAt: record.UpdatedAt,
-		})
+		result = append(result, makeAttemptView(record))
 	}
 	return result, nil
 }

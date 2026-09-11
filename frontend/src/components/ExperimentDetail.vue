@@ -18,10 +18,12 @@ let previewGeneration = 0
 
 const context = computed(() => props.experiment.execution_context)
 const runtime = computed(() => context.value?.runtime_info)
-const latestAttempt = computed(() => props.attempts.at(-1) ?? null)
+const assessment = computed(() => props.experiment.assessment)
+const displayedAttempts = computed(() => props.attempts.length ? props.attempts : (props.experiment.attempts ?? []))
+const latestAttempt = computed(() => displayedAttempts.value.at(-1) ?? null)
 const logTail = computed(() => props.experiment.log_tail || latestAttempt.value?.log_tail || '')
 const metrics = computed(() => props.experiment.metrics ?? latestAttempt.value?.metrics)
-const live = computed(() => ['starting', 'running', 'stopping'].includes(props.experiment.state))
+const live = computed(() => ['starting', 'running', 'stopping', 'queued', 'provisioning', 'cancelling', 'collecting'].includes(props.experiment.state))
 
 function dateTime(value?: string) {
   if (!value) return '—'
@@ -56,6 +58,27 @@ function timelineLabel(value: string) {
 function metricsJSON(value?: Record<string, unknown>) { return value ? JSON.stringify(value, null, 2) : '' }
 function sourceLabel(value?: string) { return value === 'node_binding' ? t('Node binding', 'Node 绑定') : t('Runner observed', 'Runner 实测') }
 function workspacePolicy(value?: string) { return value === 'container_fixed' ? t('Fixed container path', '固定容器路径') : t('Ephemeral Runner workspace', 'Runner 临时工作区') }
+function classificationLabel(value: string) {
+  const labels: Record<string, [string, string]> = {
+    waiting_for_scheduler: ['Waiting for scheduler', '等待调度'],
+    backend_provisioning: ['Backend provisioning', 'Backend 正在创建资源'],
+    runner_bootstrap: ['Runner bootstrap', 'Runner 启动中'],
+    workload_running: ['Workload running', '工作负载运行中'],
+    collecting: ['Collecting results', '正在收集结果'],
+    cancelling: ['Cancelling', '正在取消'],
+    cleanup: ['Cleanup in progress', '正在清理'],
+    cleanup_pending: ['Cleanup pending', '清理未完成'],
+    succeeded: ['Succeeded', '已成功'],
+    cancelled: ['Cancelled', '已取消'],
+    timed_out: ['Timed out', '已超时'],
+    budget_stopped: ['Budget stopped', '预算已中止'],
+    provider_error: ['Provider error', 'Provider 错误'],
+    failed: ['Failed', '已失败'],
+    provision_timeout: ['Provision timeout', '创建超时'],
+  }
+  const label = labels[value] ?? [value.replaceAll('_', ' '), value.replaceAll('_', ' ')]
+  return t(label[0], label[1])
+}
 function cleanupLabel() {
   const observation = props.experiment.backend_observation
   if (observation?.cleanup_complete) return t('Complete', '已完成')
@@ -140,6 +163,17 @@ watch([saveOpen, saveName], ([open, name]) => {
           <div><Activity :size="18" /><span><small>{{ t('Attempt', 'Attempt') }}</small><strong>{{ latestAttempt ? `#${latestAttempt.number} · ${stateLabel(latestAttempt.state)}` : t('Not dispatched', '尚未调度') }}</strong><code>{{ latestAttempt?.last_heartbeat_at ? `${t('Heartbeat', '心跳')} ${dateTime(latestAttempt.last_heartbeat_at)}` : '—' }}</code></span></div>
         </section>
 
+        <section v-if="assessment" class="detail-section assessment-section">
+          <div class="assessment-band" :data-status="assessment.status">
+            <strong>{{ classificationLabel(assessment.classification) }}</strong>
+            <span>{{ assessment.summary }}</span>
+            <small>{{ t('Cleanup', '清理') }}: {{ assessment.cleanup_complete ? t('complete', '已完成') : t('pending', '等待中') }}</small>
+          </div>
+          <ul v-if="assessment.recommendations?.length" class="recommendation-list">
+            <li v-for="item in assessment.recommendations" :key="item">{{ item }}</li>
+          </ul>
+        </section>
+
         <section class="detail-section command-section">
           <div class="section-title"><SquareTerminal :size="17" /><span><strong>{{ t('Execution request', '执行请求') }}</strong><small>{{ t('Immutable command approved for this run', '本次运行批准的不可变命令') }}</small></span><span class="authority-chip">{{ experiment.execution_mode || 'shell' }}</span>
             <button v-if="experiment.savable_workload" class="text-button save-workload-button" type="button" @click="openSaveDialog"><Save :size="14" />{{ t('Save as workload', '另存为工作负载') }}</button>
@@ -196,6 +230,7 @@ watch([saveOpen, saveName], ([open, name]) => {
               <div v-if="experiment.backend_observation.last_error"><dt>{{ t('Backend error', 'Backend 错误') }}</dt><dd class="danger-text">{{ experiment.backend_observation.last_error }}</dd></div>
               <div v-if="experiment.runner_stage"><dt>{{ t('Runner startup', 'Runner 启动阶段') }}</dt><dd><code>{{ experiment.runner_stage }}</code><template v-if="experiment.runner_error_type"> · {{ experiment.runner_error_type }}</template></dd></div>
               <div v-if="experiment.runner_source_downloads !== undefined"><dt>{{ t('Source downloads', '源码下载次数') }}</dt><dd>{{ experiment.runner_source_downloads }}<template v-if="experiment.runner_stage_updated_at"> · {{ dateTime(experiment.runner_stage_updated_at) }}</template></dd></div>
+              <div v-if="experiment.runner_stages?.length"><dt>{{ t('Stage history', '阶段历史') }}</dt><dd><code>{{ experiment.runner_stages.map((item) => item.error_type ? `${item.stage} (${item.error_type})` : item.stage).join(' → ') }}</code></dd></div>
             </dl>
             <div v-else class="section-empty">{{ t('No backend resource has been assigned.', '尚未分配 Backend 资源。') }}</div>
           </article>
@@ -210,7 +245,7 @@ watch([saveOpen, saveName], ([open, name]) => {
           <article class="detail-section">
             <div class="section-title"><ListTree :size="17" /><span><strong>Attempts</strong><small>{{ t('Infrastructure retries and results', '基础设施重试与结果') }}</small></span><LoaderCircle v-if="loading" :size="16" class="spinning" /></div>
             <div v-if="error" class="detail-error">{{ error }}</div>
-            <div v-else-if="attempts.length" class="attempt-list"><div v-for="item in attempts" :key="item.id"><span class="attempt-number">#{{ item.number }}</span><span><strong>{{ stateLabel(item.state) }}</strong><small>{{ item.provider_resource_id || t('No resource ID', '无资源 ID') }}</small></span><span><strong>{{ item.exit_code ?? '—' }}</strong><small>{{ money(item.estimated_cost_milli) }}</small></span><time>{{ dateTime(item.finished_at || item.updated_at) }}</time></div></div>
+            <div v-else-if="displayedAttempts.length" class="attempt-list"><div v-for="item in displayedAttempts" :key="item.id"><span class="attempt-number">#{{ item.number }}</span><span><strong>{{ stateLabel(item.state) }}</strong><small>{{ item.provider_resource_id || t('No resource ID', '无资源 ID') }}</small></span><span><strong>{{ item.exit_code ?? '—' }}</strong><small>{{ money(item.estimated_cost_milli) }}</small></span><time>{{ dateTime(item.finished_at || item.updated_at) }}</time></div></div>
             <div v-else-if="!loading" class="section-empty">{{ t('No Attempt has been dispatched.', '尚未调度 Attempt。') }}</div>
           </article>
           <article class="detail-section">
@@ -267,7 +302,15 @@ watch([saveOpen, saveName], ([open, name]) => {
 .run-summary strong { overflow: hidden; color: #344139; font-size: 11px; line-height: 17px; text-overflow: ellipsis; white-space: nowrap; }
 .run-summary code { overflow: hidden; color: #747f79; font-size: 8px; line-height: 14px; text-overflow: ellipsis; white-space: nowrap; }
 .detail-section { min-width: 0; background: #fff; border: 1px solid #dfe5e1; }
-.command-section, .live-output-section { margin-top: 12px; }
+.command-section, .live-output-section, .assessment-section { margin-top: 12px; }
+.assessment-band { padding: 12px 14px; display: grid; gap: 4px; border-left: 3px solid #2d7a58; }
+.assessment-band[data-status='failed'] { border-left-color: #9c4038; }
+.assessment-band[data-status='cancelled'] { border-left-color: #8a7460; }
+.assessment-band[data-status='running'] { border-left-color: #2a6f9c; }
+.assessment-band strong { color: #2b3a32; font-size: 12px; line-height: 18px; }
+.assessment-band span { color: #46534c; font-size: 11px; line-height: 16px; }
+.assessment-band small { color: #68716b; font-size: 9px; }
+.recommendation-list { margin: 0; padding: 8px 14px 12px 32px; color: #4a5650; font-size: 10px; line-height: 16px; }
 .section-title { min-height: 52px; padding: 9px 13px; display: flex; align-items: center; gap: 9px; background: #fafcfb; border-bottom: 1px solid #e7ebe8; }
 .section-title > svg { flex: 0 0 auto; color: #3f745d; }
 .section-title > span:nth-child(2) { min-width: 0; flex: 1; }

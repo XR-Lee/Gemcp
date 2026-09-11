@@ -183,10 +183,10 @@ func New(agentAuth *agentauth.Service, experiments *experiment.Service, version 
 		Name: "submit_experiment", Description: "Advanced compatibility path: verify a full commit and enqueue an arbitrary shell command using a caller-managed idempotency key. Rejected when the Project has an active Study; use prepare_experiment with from_node_id instead.",
 	}, server.submitExperiment)
 	mcp.AddTool(mcpServer, &mcp.Tool{
-		Name: "get_experiment", Description: "Get the current state, immutable specification, bounded log_tail, metrics.json projection, registered artifacts, and settlement for one project experiment. This is the monitoring surface; it never exposes SSH or remote files.",
+		Name: "get_experiment", Description: "Get one Experiment detail: immutable specification, state, normalized assessment, all Attempts, bounded log_tail, metrics.json, Runner stage history, backend observation, registered artifacts, settlement, and timeline. list_experiments stays compact. This is the monitoring surface; it never exposes SSH or remote files.",
 	}, server.getExperiment)
 	mcp.AddTool(mcpServer, &mcp.Tool{
-		Name: "list_experiments", Description: "List recent project experiments, optionally filtered by state.",
+		Name: "list_experiments", Description: "List recent project experiments, optionally filtered by state. Compact rows only; use get_experiment for Attempts, assessment, timeline, logs, and artifacts.",
 	}, server.listExperiments)
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "cancel_experiment", Description: "Request cancellation. A queued experiment is cancelled immediately and its reservation is released.",
