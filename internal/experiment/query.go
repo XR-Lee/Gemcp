@@ -25,6 +25,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/nodeprojectaccess"
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/repository"
+	"github.com/XR-Lee/Gemcp/ent/researchedge"
 	"github.com/XR-Lee/Gemcp/ent/researchnode"
 	"github.com/XR-Lee/Gemcp/ent/resourceprofile"
 	"github.com/XR-Lee/Gemcp/ent/selfhostednode"
@@ -72,8 +73,37 @@ func (s *Service) Get(ctx context.Context, principal agentauth.Principal, experi
 	if err := s.attachGraphState(ctx, principal.ProjectID, []*ent.Experiment{record}, views); err != nil {
 		return View{}, err
 	}
+	if err := s.attachClosableRun(ctx, record, &views[0]); err != nil {
+		return View{}, err
+	}
 	views[0].Assessment = assessExperiment(views[0])
 	return views[0], nil
+}
+
+func (s *Service) attachClosableRun(ctx context.Context, record *ent.Experiment, view *View) error {
+	if view == nil || !view.GraphLinked {
+		return nil
+	}
+	if _, terminal := terminalStates[record.State]; !terminal {
+		return nil
+	}
+	node, err := s.client.ResearchNode.Query().Where(
+		researchnode.ExperimentIDEQ(record.ID), researchnode.KindEQ(researchnode.KindRun),
+	).First(ctx)
+	if ent.IsNotFound(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	produced, err := s.client.ResearchEdge.Query().Where(
+		researchedge.FromNodeIDEQ(node.ID), researchedge.RelationEQ(researchedge.RelationProduced),
+	).Exist(ctx)
+	if err != nil {
+		return err
+	}
+	view.ClosableRun = !produced
+	return nil
 }
 
 func (s *Service) enrichRunnerStatus(ctx context.Context, experimentRecord *ent.Experiment, view *View) error {

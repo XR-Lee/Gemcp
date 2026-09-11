@@ -68,6 +68,24 @@ func (h *ResearchHandlers) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": result})
 }
 
+func (h *ResearchHandlers) CloseRun(c *gin.Context) {
+	principal, ok := ownerPrincipal(c)
+	if !ok {
+		return
+	}
+	var input research.CloseRunInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		writeError(c, http.StatusBadRequest, "INVALID_CLOSE_RUN", "valid close_run JSON is required")
+		return
+	}
+	result, err := h.service.OwnerCloseRun(c.Request.Context(), principal.TenantID, principal.UserPublicID, c.Param("id"), input)
+	if err != nil {
+		h.writeError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": result})
+}
+
 func (h *ResearchHandlers) writeError(c *gin.Context, err error) {
 	var validation *research.ValidationError
 	switch {

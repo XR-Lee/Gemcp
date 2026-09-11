@@ -28,6 +28,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   selectStudy: [studyID: string]
   openExperiment: [experimentID: string]
+  closeRun: [experimentID: string]
   createStudy: []
   openAgents: []
   openNodes: []
@@ -228,6 +229,12 @@ function dateTime(value?: string) {
             <li v-for="action in workspace.next_actions" :key="`${action.kind}-${action.from_node_id || action.tool}`">
               <strong>{{ action.title }}</strong>
               <span>{{ action.detail }}</span>
+              <button
+                v-if="action.kind === 'close_run' && action.experiment_id"
+                class="text-button"
+                type="button"
+                @click="emit('closeRun', action.experiment_id ?? '')"
+              >{{ t('Close run', '结束 run') }}</button>
             </li>
           </ul>
         </motion.article>
@@ -291,6 +298,12 @@ function dateTime(value?: string) {
                 type="button"
                 @click="emit('openExperiment', record.experiment_id ?? '')"
               >{{ t('Open evidence', '打开证据') }}</button>
+              <button
+                v-if="record.experiment_id && !record.result_title && ['succeeded', 'failed', 'cancelled', 'timed_out', 'budget_stopped', 'provider_error'].includes(record.state)"
+                class="text-button"
+                type="button"
+                @click="emit('closeRun', record.experiment_id ?? '')"
+              >{{ t('Close run', '结束 run') }}</button>
             </article>
           </div>
           <p v-else class="hypothesis-empty">{{ t('No Graph experiment is bound to this hypothesis yet.', '这条假设还没有入图实验。') }}</p>

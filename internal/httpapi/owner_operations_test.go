@@ -61,6 +61,7 @@ func TestRuntimeNotificationAndFinanceOperationsRequireOwner(t *testing.T) {
 	router.GET("/projects/:id/workloads", NewExperimentHandlers(nil).ListWorkloads)
 	router.POST("/projects/:id/workloads/preview", NewExperimentHandlers(nil).PreviewWorkload)
 	router.POST("/projects/:id/workloads", NewExperimentHandlers(nil).SaveWorkload)
+	router.POST("/projects/:id/research/close-run", NewResearchHandlers(nil).CloseRun)
 
 	for _, request := range []*http.Request{
 		httptest.NewRequest(http.MethodGet, "/managed", nil),
@@ -86,6 +87,7 @@ func TestRuntimeNotificationAndFinanceOperationsRequireOwner(t *testing.T) {
 		httptest.NewRequest(http.MethodGet, "/projects/project-id/workloads", nil),
 		httptest.NewRequest(http.MethodPost, "/projects/project-id/workloads/preview", nil),
 		httptest.NewRequest(http.MethodPost, "/projects/project-id/workloads", nil),
+		httptest.NewRequest(http.MethodPost, "/projects/project-id/research/close-run", strings.NewReader(`{"experiment_id":"exp","title":"result"}`)),
 	} {
 		response := httptest.NewRecorder()
 		router.ServeHTTP(response, request)

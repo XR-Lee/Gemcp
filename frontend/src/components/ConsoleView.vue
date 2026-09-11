@@ -68,6 +68,7 @@ const loading = ref(false)
 const error = ref('')
 const signingOut = ref(false)
 const selectedExperiment = ref<Experiment | null>(null)
+const pendingCloseRun = ref(false)
 const attempts = ref<Attempt[]>([])
 const attemptsLoading = ref(false)
 const attemptsError = ref('')
@@ -306,9 +307,29 @@ async function openExperiment(experiment: Experiment) {
 
 function closeExperiment() {
   selectedExperiment.value = null
+  pendingCloseRun.value = false
   attempts.value = []
   attemptsError.value = ''
   attemptsLoading.value = false
+}
+
+function openCloseRun(experimentID: string) {
+  pendingCloseRun.value = true
+  openExperimentByID(experimentID)
+}
+
+async function onRunClosed() {
+  pendingCloseRun.value = false
+  if (selectedExperiment.value) {
+    selectedExperiment.value = { ...selectedExperiment.value, closable_run: false }
+  }
+  if (selectedProjectID.value) {
+    try {
+      researchWorkspace.value = await api.research(selectedProjectID.value, selectedStudyID.value)
+    } catch {
+      // Keep the Evidence dialog; the Graph refresh is best-effort.
+    }
+  }
 }
 
 function onWorkloadSaved(workload: ProjectWorkload) {
@@ -852,7 +873,7 @@ onMounted(async () => {
         <span><strong>{{ t('Scheduler is disabled', '调度器已关闭') }}</strong>{{ t('Prepared proposals can still be confirmed, but their Experiments remain queued. Set GEMCP_SCHEDULER_ENABLED=true and restart Gemcp when an execution backend is ready.', '准备好的提案仍可确认，但对应 Experiment 会保持 queued。执行后端就绪后，请设置 GEMCP_SCHEDULER_ENABLED=true 并重启 Gemcp。') }}</span>
       </div>
 
-      <ResearchView v-if="activeView === 'research'" :workspace="researchWorkspace" :loading="loading" :selected-study-id="selectedStudyID" :project="selectedProject" :repositories="repositories" :experiments="experiments" :has-active-agent="hasActiveAgent" :readiness="agentReadiness" :readiness-loading="loading" :runtime="runtimeStatus" :catalog="experimentCatalog" @select-study="selectStudy" @open-experiment="openExperimentByID" @create-study="openCreateStudy" @open-agents="activeView = 'agents'" @handshake="activeView = 'agents'" @open-nodes="activeView = 'nodes'" />
+      <ResearchView v-if="activeView === 'research'" :workspace="researchWorkspace" :loading="loading" :selected-study-id="selectedStudyID" :project="selectedProject" :repositories="repositories" :experiments="experiments" :has-active-agent="hasActiveAgent" :readiness="agentReadiness" :readiness-loading="loading" :runtime="runtimeStatus" :catalog="experimentCatalog" @select-study="selectStudy" @open-experiment="openExperimentByID" @close-run="openCloseRun" @create-study="openCreateStudy" @open-agents="activeView = 'agents'" @handshake="activeView = 'agents'" @open-nodes="activeView = 'nodes'" />
 
       <section v-else-if="activeView === 'experiments'" class="page-workspace">
         <div class="section-heading page-section-heading"><div><h2>{{ t('Evidence', '证据') }}</h2><p>{{ t('Linked Experiments remain the execution evidence behind the Graph.', '关联的 Experiment 仍是 Graph 背后的执行证据。') }}</p></div><div class="segmented-control" :aria-label="t('Experiment state filter', '实验状态筛选')"><button v-for="filter in ['all', 'queued', 'running', 'succeeded', 'failed']" :key="filter" type="button" :class="{ active: stateFilter === filter }" @click="stateFilter = filter">{{ filter === 'all' ? t('all', '全部') : stateLabel(filter) }}</button></div></div>
@@ -994,7 +1015,7 @@ onMounted(async () => {
     </main>
   </div>
 
-  <ExperimentDetail v-if="selectedExperiment" :experiment="selectedExperiment" :attempts="attempts" :loading="attemptsLoading" :error="attemptsError" @close="closeExperiment" @saved="onWorkloadSaved" />
+  <ExperimentDetail v-if="selectedExperiment" :experiment="selectedExperiment" :attempts="attempts" :loading="attemptsLoading" :error="attemptsError" :auto-close-run="pendingCloseRun" @close="closeExperiment" @saved="onWorkloadSaved" @closed="onRunClosed" />
 
   <WorkbenchDialog v-model:open="confirmationDialogOpen" :title="t('Confirm prepared proposal', '确认准备提案')" :label="t('Confirm prepared proposal', '确认准备提案')" :description="t('Review the immutable execution request and authorize this exact digest before Gemcp creates the Experiment.', '请核对不可变执行请求，并授权当前精确摘要，然后 Gemcp 才会创建 Experiment。')">
     <form v-if="confirmationTarget" class="dialog-form proposal-confirmation-form" @submit.prevent="submitProposalConfirmation">

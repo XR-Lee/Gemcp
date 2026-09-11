@@ -11,6 +11,7 @@ type ExecutionContextView struct {
 	AgentTokenPrefix    string                     `json:"agent_token_prefix,omitempty"`
 	ProposalID          string                     `json:"proposal_id,omitempty"`
 	Workload            string                     `json:"workload,omitempty"`
+	ExpectedMetric      string                     `json:"expected_metric,omitempty"`
 	RepositoryName      string                     `json:"repository_name"`
 	RepositorySSHURL    string                     `json:"repository_ssh_url"`
 	RequestedRef        string                     `json:"requested_ref,omitempty"`
@@ -121,6 +122,7 @@ type View struct {
 	Orphaned              bool                     `json:"orphaned"`
 	SavableWorkload       bool                     `json:"savable_workload,omitempty"`
 	SavedWorkload         string                   `json:"saved_workload,omitempty"`
+	ClosableRun           bool                     `json:"closable_run,omitempty"`
 }
 
 type AttemptView struct {

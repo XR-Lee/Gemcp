@@ -77,9 +77,32 @@ describe('ResearchView', () => {
     expect(wrapper.find('[data-testid="hypothesis-records"]').text()).toContain('0123456789ab')
     expect(wrapper.find('[data-testid="hypothesis-records"]').text()).toContain('Background noise still enters kNN')
     expect(wrapper.text()).toContain('Record a hypothesis')
+    expect(wrapper.text()).not.toContain('Close run')
     expect(wrapper.find('button[aria-label="Attach prompt"]').exists()).toBe(true)
     expect(wrapper.find('.research-mcp-banner').exists()).toBe(false)
     expect(wrapper.find('.agent-readiness').exists()).toBe(false)
+  })
+
+  it('lets the Owner start close_run from the next-action card', async () => {
+    useI18n().setLocale('en')
+    const wrapper = mount(ResearchView, {
+      props: {
+        workspace: {
+          ...workspace,
+          next_actions: [{
+            kind: 'close_run', tool: 'close_run', study_id: 'study-1',
+            from_node_id: 'node-run-1', experiment_id: 'experiment-1',
+            title: 'Close OBJ-BG smoke', detail: 'Write the result and a highlight observation.',
+          }],
+        },
+        loading: false, selectedStudyId: 'study-1',
+      },
+      global: { stubs: flowStubs },
+    })
+    const button = wrapper.findAll('button').find((item) => item.text() === 'Close run')
+    expect(button).toBeTruthy()
+    await button!.trigger('click')
+    expect(wrapper.emitted('closeRun')).toEqual([['experiment-1']])
   })
 
   it('shows compact Agent Readiness on the research home', () => {

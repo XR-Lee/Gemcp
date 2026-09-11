@@ -210,6 +210,24 @@ describe('API security headers', () => {
     expect(JSON.parse(String(options.body))).toEqual(payload)
   })
 
+  it('closes a Graph run only through a CSRF-protected project endpoint', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true, status: 200, json: async () => ({ data: { project_id: 'project/id', studies: [], generated_at: '2026-07-17T00:00:00Z' } }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    setCSRFToken('csrf-close-run')
+
+    await api.closeRun('project/id', { experiment_id: 'experiment-1', title: 'OBJ-BG smoke accuracy' })
+
+    const [path, options] = fetchMock.mock.calls[0]
+    expect(path).toBe('/api/v1/projects/project%2Fid/research/close-run')
+    expect(options.method).toBe('POST')
+    expect((options.headers as Headers).get('X-CSRF-Token')).toBe('csrf-close-run')
+    expect(JSON.parse(String(options.body))).toEqual({
+      experiment_id: 'experiment-1', title: 'OBJ-BG smoke accuracy',
+    })
+  })
+
   it('updates the research workspace only through a CSRF-protected project endpoint', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true, status: 200, json: async () => ({ data: { project_id: 'project/id', studies: [], generated_at: '2026-07-17T00:00:00Z' } }),

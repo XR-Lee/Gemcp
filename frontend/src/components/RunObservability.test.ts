@@ -113,4 +113,11 @@ describe('run observability', () => {
     const wrapper = mount(ExperimentDetail, { props: { experiment: succeeded, attempts, loading: false, error: '' } })
     expect(wrapper.text()).toContain('Save as workload')
   })
+
+  it('offers Close run for a terminal Graph-linked Experiment', () => {
+    const closable: Experiment = { ...experiment, state: 'succeeded', closable_run: true }
+    const wrapper = mount(ExperimentDetail, { props: { experiment: closable, attempts, loading: false, error: '' } })
+    expect(wrapper.text()).toContain('Close run')
+    expect(wrapper.text()).not.toContain('Write result')
+  })
 })

@@ -541,6 +541,10 @@ func TestCLIPathHypothesisProposalRunAndHighlight(t *testing.T) {
 	if _, err := record.Update().SetState("succeeded").SetMetrics(map[string]any{"overall_accuracy": 86.4}).Save(ctx); err != nil {
 		t.Fatal(err)
 	}
+	beforeClose, err := service.Get(ctx, f.principal, submitted.Experiment.ID)
+	if err != nil || !beforeClose.ClosableRun || beforeClose.ExecutionContext.ExpectedMetric != "overall_accuracy" {
+		t.Fatalf("closable Get() = %+v, %v", beforeClose, err)
+	}
 	metric := 86.4
 	closed, err := researchService.AgentCloseRun(ctx, f.principal, research.CloseRunInput{
 		ExperimentID: submitted.Experiment.ID, Title: "CLI smoke accuracy", Highlight: "Background noise still enters kNN",
@@ -555,6 +559,10 @@ func TestCLIPathHypothesisProposalRunAndHighlight(t *testing.T) {
 	}
 	if !containsActionKind(closed.NextActions, "record_decision") {
 		t.Fatalf("next actions after highlight = %+v", closed.NextActions)
+	}
+	afterClose, err := service.Get(ctx, f.principal, submitted.Experiment.ID)
+	if err != nil || afterClose.ClosableRun {
+		t.Fatalf("closed Get() = %+v, %v", afterClose, err)
 	}
 }
 

@@ -418,14 +418,28 @@ func (s *Service) AgentCloseRun(ctx context.Context, principal agentauth.Princip
 	if !principal.HasScope("submit") {
 		return Workspace{}, ErrForbidden
 	}
-	resultCommitSHA, err := normalizeResultCommit(input.ResultCommitSHA)
+	tokenID := principal.TokenID
+	return s.closeRun(ctx, actor{
+		tenantID: principal.TenantID, projectID: principal.ProjectID, projectPublic: principal.ProjectPublicID,
+		tokenID: &tokenID, actorType: auditevent.ActorTypeAgentToken, actorID: principal.TokenPublicID,
+	}, input)
+}
+
+func (s *Service) OwnerCloseRun(ctx context.Context, tenantID int, actorID, projectPublicID string, input CloseRunInput) (Workspace, error) {
+	projectRecord, err := s.project(ctx, tenantID, projectPublicID)
 	if err != nil {
 		return Workspace{}, err
 	}
-	tokenID := principal.TokenID
-	current := actor{
-		tenantID: principal.TenantID, projectID: principal.ProjectID, projectPublic: principal.ProjectPublicID,
-		tokenID: &tokenID, actorType: auditevent.ActorTypeAgentToken, actorID: principal.TokenPublicID,
+	return s.closeRun(ctx, actor{
+		tenantID: tenantID, projectID: projectRecord.ID, projectPublic: projectRecord.PublicID.String(),
+		actorType: auditevent.ActorTypeUser, actorID: strings.TrimSpace(actorID),
+	}, input)
+}
+
+func (s *Service) closeRun(ctx context.Context, current actor, input CloseRunInput) (Workspace, error) {
+	resultCommitSHA, err := normalizeResultCommit(input.ResultCommitSHA)
+	if err != nil {
+		return Workspace{}, err
 	}
 	tx, err := s.client.Tx(ctx)
 	if err != nil {
