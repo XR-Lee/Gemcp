@@ -32,12 +32,12 @@ type Manifest struct {
 
 type Workload struct {
 	Entrypoint       []string          `yaml:"entrypoint"`
-	Arguments        []ArgumentMapping `yaml:"arguments"`
-	RuntimePreset    string            `yaml:"runtime_preset"`
-	Datasets         []string          `yaml:"datasets"`
-	Parameters       map[string]Param  `yaml:"parameters"`
-	Outputs          map[string]string `yaml:"outputs"`
-	WorkingDirectory string            `yaml:"working_directory"`
+	Arguments        []ArgumentMapping `yaml:"arguments,omitempty"`
+	RuntimePreset    string            `yaml:"runtime_preset,omitempty"`
+	Datasets         []string          `yaml:"datasets,omitempty"`
+	Parameters       map[string]Param  `yaml:"parameters,omitempty"`
+	Outputs          map[string]string `yaml:"outputs,omitempty"`
+	WorkingDirectory string            `yaml:"working_directory,omitempty"`
 }
 
 type ArgumentMapping struct {
@@ -280,6 +280,10 @@ func coerceParameter(name string, spec Param, raw string) (string, error) {
 	default:
 		return "", fmt.Errorf("workload parameter %q has unsupported type", name)
 	}
+}
+
+func ValidName(value string) bool {
+	return validWorkloadName(value)
 }
 
 func validWorkloadName(value string) bool {

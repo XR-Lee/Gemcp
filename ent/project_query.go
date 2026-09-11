@@ -30,6 +30,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/nodeprojectaccess"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 	"github.com/XR-Lee/Gemcp/ent/project"
+	"github.com/XR-Lee/Gemcp/ent/projectworkload"
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/repository"
 	"github.com/XR-Lee/Gemcp/ent/researchedge"
@@ -66,6 +67,7 @@ type ProjectQuery struct {
 	withExperimentProposals   *ExperimentProposalQuery
 	withWorkspaceDatasets     *WorkspaceDatasetQuery
 	withDatasetBindings       *DatasetBindingQuery
+	withProjectWorkloads      *ProjectWorkloadQuery
 	withStudies               *StudyQuery
 	withIterationPlans        *IterationPlanQuery
 	withResearchNodes         *ResearchNodeQuery
@@ -525,6 +527,28 @@ func (_q *ProjectQuery) QueryDatasetBindings() *DatasetBindingQuery {
 	return query
 }
 
+// QueryProjectWorkloads chains the current query on the "project_workloads" edge.
+func (_q *ProjectQuery) QueryProjectWorkloads() *ProjectWorkloadQuery {
+	query := (&ProjectWorkloadClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, selector),
+			sqlgraph.To(projectworkload.Table, projectworkload.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.ProjectWorkloadsTable, project.ProjectWorkloadsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
 // QueryStudies chains the current query on the "studies" edge.
 func (_q *ProjectQuery) QueryStudies() *StudyQuery {
 	query := (&StudyClient{config: _q.config}).Query()
@@ -846,6 +870,7 @@ func (_q *ProjectQuery) Clone() *ProjectQuery {
 		withExperimentProposals:   _q.withExperimentProposals.Clone(),
 		withWorkspaceDatasets:     _q.withWorkspaceDatasets.Clone(),
 		withDatasetBindings:       _q.withDatasetBindings.Clone(),
+		withProjectWorkloads:      _q.withProjectWorkloads.Clone(),
 		withStudies:               _q.withStudies.Clone(),
 		withIterationPlans:        _q.withIterationPlans.Clone(),
 		withResearchNodes:         _q.withResearchNodes.Clone(),
@@ -1066,6 +1091,17 @@ func (_q *ProjectQuery) WithDatasetBindings(opts ...func(*DatasetBindingQuery)) 
 	return _q
 }
 
+// WithProjectWorkloads tells the query-builder to eager-load the nodes that are connected to
+// the "project_workloads" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ProjectQuery) WithProjectWorkloads(opts ...func(*ProjectWorkloadQuery)) *ProjectQuery {
+	query := (&ProjectWorkloadClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withProjectWorkloads = query
+	return _q
+}
+
 // WithStudies tells the query-builder to eager-load the nodes that are connected to
 // the "studies" edge. The optional arguments are used to configure the query builder of the edge.
 func (_q *ProjectQuery) WithStudies(opts ...func(*StudyQuery)) *ProjectQuery {
@@ -1199,7 +1235,7 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 	var (
 		nodes       = []*Project{}
 		_spec       = _q.querySpec()
-		loadedTypes = [24]bool{
+		loadedTypes = [25]bool{
 			_q.withTenant != nil,
 			_q.withEnvironments != nil,
 			_q.withResourceProfiles != nil,
@@ -1219,6 +1255,7 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 			_q.withExperimentProposals != nil,
 			_q.withWorkspaceDatasets != nil,
 			_q.withDatasetBindings != nil,
+			_q.withProjectWorkloads != nil,
 			_q.withStudies != nil,
 			_q.withIterationPlans != nil,
 			_q.withResearchNodes != nil,
@@ -1381,6 +1418,13 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 		if err := _q.loadDatasetBindings(ctx, query, nodes,
 			func(n *Project) { n.Edges.DatasetBindings = []*DatasetBinding{} },
 			func(n *Project, e *DatasetBinding) { n.Edges.DatasetBindings = append(n.Edges.DatasetBindings, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withProjectWorkloads; query != nil {
+		if err := _q.loadProjectWorkloads(ctx, query, nodes,
+			func(n *Project) { n.Edges.ProjectWorkloads = []*ProjectWorkload{} },
+			func(n *Project, e *ProjectWorkload) { n.Edges.ProjectWorkloads = append(n.Edges.ProjectWorkloads, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -1978,6 +2022,36 @@ func (_q *ProjectQuery) loadDatasetBindings(ctx context.Context, query *DatasetB
 	}
 	query.Where(predicate.DatasetBinding(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(project.DatasetBindingsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ProjectID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "project_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *ProjectQuery) loadProjectWorkloads(ctx context.Context, query *ProjectWorkloadQuery, nodes []*Project, init func(*Project), assign func(*Project, *ProjectWorkload)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Project)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(projectworkload.FieldProjectID)
+	}
+	query.Where(predicate.ProjectWorkload(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(project.ProjectWorkloadsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

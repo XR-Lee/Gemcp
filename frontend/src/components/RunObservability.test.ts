@@ -98,5 +98,12 @@ describe('run observability', () => {
     expect(wrapper.text()).toContain('Workload started')
     expect(wrapper.text()).toContain('run.log, metrics.json')
     expect(wrapper.text()).toContain('Reservation open')
+    expect(wrapper.text()).not.toContain('Save as workload')
+  })
+
+  it('offers Save as workload for a succeeded one-shot', () => {
+    const succeeded: Experiment = { ...experiment, state: 'succeeded', savable_workload: true }
+    const wrapper = mount(ExperimentDetail, { props: { experiment: succeeded, attempts, loading: false, error: '' } })
+    expect(wrapper.text()).toContain('Save as workload')
   })
 })

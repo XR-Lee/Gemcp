@@ -40,6 +40,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/notification"
 	"github.com/XR-Lee/Gemcp/ent/notificationsetting"
 	"github.com/XR-Lee/Gemcp/ent/project"
+	"github.com/XR-Lee/Gemcp/ent/projectworkload"
 	"github.com/XR-Lee/Gemcp/ent/provideraccount"
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/recordmixin"
@@ -111,6 +112,8 @@ type Client struct {
 	NotificationSetting *NotificationSettingClient
 	// Project is the client for interacting with the Project builders.
 	Project *ProjectClient
+	// ProjectWorkload is the client for interacting with the ProjectWorkload builders.
+	ProjectWorkload *ProjectWorkloadClient
 	// ProviderAccount is the client for interacting with the ProviderAccount builders.
 	ProviderAccount *ProviderAccountClient
 	// ProviderResource is the client for interacting with the ProviderResource builders.
@@ -175,6 +178,7 @@ func (c *Client) init() {
 	c.Notification = NewNotificationClient(c.config)
 	c.NotificationSetting = NewNotificationSettingClient(c.config)
 	c.Project = NewProjectClient(c.config)
+	c.ProjectWorkload = NewProjectWorkloadClient(c.config)
 	c.ProviderAccount = NewProviderAccountClient(c.config)
 	c.ProviderResource = NewProviderResourceClient(c.config)
 	c.RecordMixin = NewRecordMixinClient(c.config)
@@ -306,6 +310,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Notification:          NewNotificationClient(cfg),
 		NotificationSetting:   NewNotificationSettingClient(cfg),
 		Project:               NewProjectClient(cfg),
+		ProjectWorkload:       NewProjectWorkloadClient(cfg),
 		ProviderAccount:       NewProviderAccountClient(cfg),
 		ProviderResource:      NewProviderResourceClient(cfg),
 		RecordMixin:           NewRecordMixinClient(cfg),
@@ -364,6 +369,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Notification:          NewNotificationClient(cfg),
 		NotificationSetting:   NewNotificationSettingClient(cfg),
 		Project:               NewProjectClient(cfg),
+		ProjectWorkload:       NewProjectWorkloadClient(cfg),
 		ProviderAccount:       NewProviderAccountClient(cfg),
 		ProviderResource:      NewProviderResourceClient(cfg),
 		RecordMixin:           NewRecordMixinClient(cfg),
@@ -413,9 +419,10 @@ func (c *Client) Use(hooks ...Hook) {
 		c.ExperimentCatalogRow, c.ExperimentProposal, c.IdempotencyRecord, c.ImageBake,
 		c.IterationPlan, c.NodeAssignment, c.NodeCommand, c.NodeEnrollment,
 		c.NodeEvent, c.NodeProjectAccess, c.Notification, c.NotificationSetting,
-		c.Project, c.ProviderAccount, c.ProviderResource, c.RecordMixin, c.Repository,
-		c.ResearchEdge, c.ResearchNode, c.ResourceProfile, c.SelfHostedNode,
-		c.ServiceHeartbeat, c.Session, c.Study, c.Tenant, c.User, c.WorkspaceDataset,
+		c.Project, c.ProjectWorkload, c.ProviderAccount, c.ProviderResource,
+		c.RecordMixin, c.Repository, c.ResearchEdge, c.ResearchNode, c.ResourceProfile,
+		c.SelfHostedNode, c.ServiceHeartbeat, c.Session, c.Study, c.Tenant, c.User,
+		c.WorkspaceDataset,
 	} {
 		n.Use(hooks...)
 	}
@@ -431,9 +438,10 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.ExperimentCatalogRow, c.ExperimentProposal, c.IdempotencyRecord, c.ImageBake,
 		c.IterationPlan, c.NodeAssignment, c.NodeCommand, c.NodeEnrollment,
 		c.NodeEvent, c.NodeProjectAccess, c.Notification, c.NotificationSetting,
-		c.Project, c.ProviderAccount, c.ProviderResource, c.RecordMixin, c.Repository,
-		c.ResearchEdge, c.ResearchNode, c.ResourceProfile, c.SelfHostedNode,
-		c.ServiceHeartbeat, c.Session, c.Study, c.Tenant, c.User, c.WorkspaceDataset,
+		c.Project, c.ProjectWorkload, c.ProviderAccount, c.ProviderResource,
+		c.RecordMixin, c.Repository, c.ResearchEdge, c.ResearchNode, c.ResourceProfile,
+		c.SelfHostedNode, c.ServiceHeartbeat, c.Session, c.Study, c.Tenant, c.User,
+		c.WorkspaceDataset,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -492,6 +500,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.NotificationSetting.mutate(ctx, m)
 	case *ProjectMutation:
 		return c.Project.mutate(ctx, m)
+	case *ProjectWorkloadMutation:
+		return c.ProjectWorkload.mutate(ctx, m)
 	case *ProviderAccountMutation:
 		return c.ProviderAccount.mutate(ctx, m)
 	case *ProviderResourceMutation:
@@ -2985,6 +2995,22 @@ func (c *ExperimentClient) QueryProposal(_m *Experiment) *ExperimentProposalQuer
 			sqlgraph.From(experiment.Table, experiment.FieldID, id),
 			sqlgraph.To(experimentproposal.Table, experimentproposal.FieldID),
 			sqlgraph.Edge(sqlgraph.O2O, false, experiment.ProposalTable, experiment.ProposalColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QuerySavedWorkload queries the saved_workload edge of a Experiment.
+func (c *ExperimentClient) QuerySavedWorkload(_m *Experiment) *ProjectWorkloadQuery {
+	query := (&ProjectWorkloadClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(experiment.Table, experiment.FieldID, id),
+			sqlgraph.To(projectworkload.Table, projectworkload.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, experiment.SavedWorkloadTable, experiment.SavedWorkloadColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -5665,6 +5691,22 @@ func (c *ProjectClient) QueryDatasetBindings(_m *Project) *DatasetBindingQuery {
 	return query
 }
 
+// QueryProjectWorkloads queries the project_workloads edge of a Project.
+func (c *ProjectClient) QueryProjectWorkloads(_m *Project) *ProjectWorkloadQuery {
+	query := (&ProjectWorkloadClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, id),
+			sqlgraph.To(projectworkload.Table, projectworkload.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.ProjectWorkloadsTable, project.ProjectWorkloadsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryStudies queries the studies edge of a Project.
 func (c *ProjectClient) QueryStudies(_m *Project) *StudyQuery {
 	query := (&StudyClient{config: c.config}).Query()
@@ -5767,6 +5809,187 @@ func (c *ProjectClient) mutate(ctx context.Context, m *ProjectMutation) (Value, 
 		return (&ProjectDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Project mutation op: %q", m.Op())
+	}
+}
+
+// ProjectWorkloadClient is a client for the ProjectWorkload schema.
+type ProjectWorkloadClient struct {
+	config
+}
+
+// NewProjectWorkloadClient returns a client for the ProjectWorkload from the given config.
+func NewProjectWorkloadClient(c config) *ProjectWorkloadClient {
+	return &ProjectWorkloadClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `projectworkload.Hooks(f(g(h())))`.
+func (c *ProjectWorkloadClient) Use(hooks ...Hook) {
+	c.hooks.ProjectWorkload = append(c.hooks.ProjectWorkload, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `projectworkload.Intercept(f(g(h())))`.
+func (c *ProjectWorkloadClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ProjectWorkload = append(c.inters.ProjectWorkload, interceptors...)
+}
+
+// Create returns a builder for creating a ProjectWorkload entity.
+func (c *ProjectWorkloadClient) Create() *ProjectWorkloadCreate {
+	mutation := newProjectWorkloadMutation(c.config, OpCreate)
+	return &ProjectWorkloadCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ProjectWorkload entities.
+func (c *ProjectWorkloadClient) CreateBulk(builders ...*ProjectWorkloadCreate) *ProjectWorkloadCreateBulk {
+	return &ProjectWorkloadCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ProjectWorkloadClient) MapCreateBulk(slice any, setFunc func(*ProjectWorkloadCreate, int)) *ProjectWorkloadCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ProjectWorkloadCreateBulk{err: fmt.Errorf("calling to ProjectWorkloadClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ProjectWorkloadCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ProjectWorkloadCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ProjectWorkload.
+func (c *ProjectWorkloadClient) Update() *ProjectWorkloadUpdate {
+	mutation := newProjectWorkloadMutation(c.config, OpUpdate)
+	return &ProjectWorkloadUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ProjectWorkloadClient) UpdateOne(_m *ProjectWorkload) *ProjectWorkloadUpdateOne {
+	mutation := newProjectWorkloadMutation(c.config, OpUpdateOne, withProjectWorkload(_m))
+	return &ProjectWorkloadUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ProjectWorkloadClient) UpdateOneID(id int) *ProjectWorkloadUpdateOne {
+	mutation := newProjectWorkloadMutation(c.config, OpUpdateOne, withProjectWorkloadID(id))
+	return &ProjectWorkloadUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ProjectWorkload.
+func (c *ProjectWorkloadClient) Delete() *ProjectWorkloadDelete {
+	mutation := newProjectWorkloadMutation(c.config, OpDelete)
+	return &ProjectWorkloadDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ProjectWorkloadClient) DeleteOne(_m *ProjectWorkload) *ProjectWorkloadDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ProjectWorkloadClient) DeleteOneID(id int) *ProjectWorkloadDeleteOne {
+	builder := c.Delete().Where(projectworkload.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ProjectWorkloadDeleteOne{builder}
+}
+
+// Query returns a query builder for ProjectWorkload.
+func (c *ProjectWorkloadClient) Query() *ProjectWorkloadQuery {
+	return &ProjectWorkloadQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeProjectWorkload},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ProjectWorkload entity by its id.
+func (c *ProjectWorkloadClient) Get(ctx context.Context, id int) (*ProjectWorkload, error) {
+	return c.Query().Where(projectworkload.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ProjectWorkloadClient) GetX(ctx context.Context, id int) *ProjectWorkload {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTenant queries the tenant edge of a ProjectWorkload.
+func (c *ProjectWorkloadClient) QueryTenant(_m *ProjectWorkload) *TenantQuery {
+	query := (&TenantClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(projectworkload.Table, projectworkload.FieldID, id),
+			sqlgraph.To(tenant.Table, tenant.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, projectworkload.TenantTable, projectworkload.TenantColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryProject queries the project edge of a ProjectWorkload.
+func (c *ProjectWorkloadClient) QueryProject(_m *ProjectWorkload) *ProjectQuery {
+	query := (&ProjectClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(projectworkload.Table, projectworkload.FieldID, id),
+			sqlgraph.To(project.Table, project.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, projectworkload.ProjectTable, projectworkload.ProjectColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QuerySourceExperiment queries the source_experiment edge of a ProjectWorkload.
+func (c *ProjectWorkloadClient) QuerySourceExperiment(_m *ProjectWorkload) *ExperimentQuery {
+	query := (&ExperimentClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(projectworkload.Table, projectworkload.FieldID, id),
+			sqlgraph.To(experiment.Table, experiment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, true, projectworkload.SourceExperimentTable, projectworkload.SourceExperimentColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *ProjectWorkloadClient) Hooks() []Hook {
+	return c.hooks.ProjectWorkload
+}
+
+// Interceptors returns the client interceptors.
+func (c *ProjectWorkloadClient) Interceptors() []Interceptor {
+	return c.inters.ProjectWorkload
+}
+
+func (c *ProjectWorkloadClient) mutate(ctx context.Context, m *ProjectWorkloadMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ProjectWorkloadCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ProjectWorkloadUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ProjectWorkloadUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ProjectWorkloadDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ProjectWorkload mutation op: %q", m.Op())
 	}
 }
 
@@ -8413,6 +8636,22 @@ func (c *TenantClient) QueryDatasetBindings(_m *Tenant) *DatasetBindingQuery {
 	return query
 }
 
+// QueryProjectWorkloads queries the project_workloads edge of a Tenant.
+func (c *TenantClient) QueryProjectWorkloads(_m *Tenant) *ProjectWorkloadQuery {
+	query := (&ProjectWorkloadClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, id),
+			sqlgraph.To(projectworkload.Table, projectworkload.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.ProjectWorkloadsTable, tenant.ProjectWorkloadsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryStudies queries the studies edge of a Tenant.
 func (c *TenantClient) QueryStudies(_m *Tenant) *StudyQuery {
 	query := (&StudyClient{config: c.config}).Query()
@@ -8888,10 +9127,10 @@ type (
 		DiagnosticRun, Environment, Experiment, ExperimentCatalogRow,
 		ExperimentProposal, IdempotencyRecord, ImageBake, IterationPlan,
 		NodeAssignment, NodeCommand, NodeEnrollment, NodeEvent, NodeProjectAccess,
-		Notification, NotificationSetting, Project, ProviderAccount, ProviderResource,
-		RecordMixin, Repository, ResearchEdge, ResearchNode, ResourceProfile,
-		SelfHostedNode, ServiceHeartbeat, Session, Study, Tenant, User,
-		WorkspaceDataset []ent.Hook
+		Notification, NotificationSetting, Project, ProjectWorkload, ProviderAccount,
+		ProviderResource, RecordMixin, Repository, ResearchEdge, ResearchNode,
+		ResourceProfile, SelfHostedNode, ServiceHeartbeat, Session, Study, Tenant,
+		User, WorkspaceDataset []ent.Hook
 	}
 	inters struct {
 		AgentEnrollment, AgentToken, Attempt, AuditEvent, BudgetEntry,
@@ -8899,9 +9138,9 @@ type (
 		DiagnosticRun, Environment, Experiment, ExperimentCatalogRow,
 		ExperimentProposal, IdempotencyRecord, ImageBake, IterationPlan,
 		NodeAssignment, NodeCommand, NodeEnrollment, NodeEvent, NodeProjectAccess,
-		Notification, NotificationSetting, Project, ProviderAccount, ProviderResource,
-		RecordMixin, Repository, ResearchEdge, ResearchNode, ResourceProfile,
-		SelfHostedNode, ServiceHeartbeat, Session, Study, Tenant, User,
-		WorkspaceDataset []ent.Interceptor
+		Notification, NotificationSetting, Project, ProjectWorkload, ProviderAccount,
+		ProviderResource, RecordMixin, Repository, ResearchEdge, ResearchNode,
+		ResourceProfile, SelfHostedNode, ServiceHeartbeat, Session, Study, Tenant,
+		User, WorkspaceDataset []ent.Interceptor
 	}
 )

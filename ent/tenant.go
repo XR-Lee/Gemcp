@@ -86,6 +86,8 @@ type TenantEdges struct {
 	WorkspaceDatasets []*WorkspaceDataset `json:"workspace_datasets,omitempty"`
 	// DatasetBindings holds the value of the dataset_bindings edge.
 	DatasetBindings []*DatasetBinding `json:"dataset_bindings,omitempty"`
+	// ProjectWorkloads holds the value of the project_workloads edge.
+	ProjectWorkloads []*ProjectWorkload `json:"project_workloads,omitempty"`
 	// Studies holds the value of the studies edge.
 	Studies []*Study `json:"studies,omitempty"`
 	// IterationPlans holds the value of the iteration_plans edge.
@@ -98,7 +100,7 @@ type TenantEdges struct {
 	ExperimentCatalogRows []*ExperimentCatalogRow `json:"experiment_catalog_rows,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [30]bool
+	loadedTypes [31]bool
 }
 
 // UsersOrErr returns the Users value or an error if the edge
@@ -326,10 +328,19 @@ func (e TenantEdges) DatasetBindingsOrErr() ([]*DatasetBinding, error) {
 	return nil, &NotLoadedError{edge: "dataset_bindings"}
 }
 
+// ProjectWorkloadsOrErr returns the ProjectWorkloads value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) ProjectWorkloadsOrErr() ([]*ProjectWorkload, error) {
+	if e.loadedTypes[25] {
+		return e.ProjectWorkloads, nil
+	}
+	return nil, &NotLoadedError{edge: "project_workloads"}
+}
+
 // StudiesOrErr returns the Studies value or an error if the edge
 // was not loaded in eager-loading.
 func (e TenantEdges) StudiesOrErr() ([]*Study, error) {
-	if e.loadedTypes[25] {
+	if e.loadedTypes[26] {
 		return e.Studies, nil
 	}
 	return nil, &NotLoadedError{edge: "studies"}
@@ -338,7 +349,7 @@ func (e TenantEdges) StudiesOrErr() ([]*Study, error) {
 // IterationPlansOrErr returns the IterationPlans value or an error if the edge
 // was not loaded in eager-loading.
 func (e TenantEdges) IterationPlansOrErr() ([]*IterationPlan, error) {
-	if e.loadedTypes[26] {
+	if e.loadedTypes[27] {
 		return e.IterationPlans, nil
 	}
 	return nil, &NotLoadedError{edge: "iteration_plans"}
@@ -347,7 +358,7 @@ func (e TenantEdges) IterationPlansOrErr() ([]*IterationPlan, error) {
 // ResearchNodesOrErr returns the ResearchNodes value or an error if the edge
 // was not loaded in eager-loading.
 func (e TenantEdges) ResearchNodesOrErr() ([]*ResearchNode, error) {
-	if e.loadedTypes[27] {
+	if e.loadedTypes[28] {
 		return e.ResearchNodes, nil
 	}
 	return nil, &NotLoadedError{edge: "research_nodes"}
@@ -356,7 +367,7 @@ func (e TenantEdges) ResearchNodesOrErr() ([]*ResearchNode, error) {
 // ResearchEdgesOrErr returns the ResearchEdges value or an error if the edge
 // was not loaded in eager-loading.
 func (e TenantEdges) ResearchEdgesOrErr() ([]*ResearchEdge, error) {
-	if e.loadedTypes[28] {
+	if e.loadedTypes[29] {
 		return e.ResearchEdges, nil
 	}
 	return nil, &NotLoadedError{edge: "research_edges"}
@@ -365,7 +376,7 @@ func (e TenantEdges) ResearchEdgesOrErr() ([]*ResearchEdge, error) {
 // ExperimentCatalogRowsOrErr returns the ExperimentCatalogRows value or an error if the edge
 // was not loaded in eager-loading.
 func (e TenantEdges) ExperimentCatalogRowsOrErr() ([]*ExperimentCatalogRow, error) {
-	if e.loadedTypes[29] {
+	if e.loadedTypes[30] {
 		return e.ExperimentCatalogRows, nil
 	}
 	return nil, &NotLoadedError{edge: "experiment_catalog_rows"}
@@ -571,6 +582,11 @@ func (_m *Tenant) QueryWorkspaceDatasets() *WorkspaceDatasetQuery {
 // QueryDatasetBindings queries the "dataset_bindings" edge of the Tenant entity.
 func (_m *Tenant) QueryDatasetBindings() *DatasetBindingQuery {
 	return NewTenantClient(_m.config).QueryDatasetBindings(_m)
+}
+
+// QueryProjectWorkloads queries the "project_workloads" edge of the Tenant entity.
+func (_m *Tenant) QueryProjectWorkloads() *ProjectWorkloadQuery {
+	return NewTenantClient(_m.config).QueryProjectWorkloads(_m)
 }
 
 // QueryStudies queries the "studies" edge of the Tenant entity.

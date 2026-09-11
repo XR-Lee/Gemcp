@@ -30,6 +30,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/notification"
 	"github.com/XR-Lee/Gemcp/ent/notificationsetting"
 	"github.com/XR-Lee/Gemcp/ent/project"
+	"github.com/XR-Lee/Gemcp/ent/projectworkload"
 	"github.com/XR-Lee/Gemcp/ent/provideraccount"
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/recordmixin"
@@ -1713,6 +1714,59 @@ func init() {
 	project.DefaultTimezone = projectDescTimezone.Default.(string)
 	// project.TimezoneValidator is a validator for the "timezone" field. It is called by the builders before save.
 	project.TimezoneValidator = projectDescTimezone.Validators[0].(func(string) error)
+	projectworkloadMixin := schema.ProjectWorkload{}.Mixin()
+	projectworkloadMixinFields0 := projectworkloadMixin[0].Fields()
+	_ = projectworkloadMixinFields0
+	projectworkloadFields := schema.ProjectWorkload{}.Fields()
+	_ = projectworkloadFields
+	// projectworkloadDescPublicID is the schema descriptor for public_id field.
+	projectworkloadDescPublicID := projectworkloadMixinFields0[0].Descriptor()
+	// projectworkload.DefaultPublicID holds the default value on creation for the public_id field.
+	projectworkload.DefaultPublicID = projectworkloadDescPublicID.Default.(func() uuid.UUID)
+	// projectworkloadDescCreatedAt is the schema descriptor for created_at field.
+	projectworkloadDescCreatedAt := projectworkloadMixinFields0[1].Descriptor()
+	// projectworkload.DefaultCreatedAt holds the default value on creation for the created_at field.
+	projectworkload.DefaultCreatedAt = projectworkloadDescCreatedAt.Default.(func() time.Time)
+	// projectworkloadDescUpdatedAt is the schema descriptor for updated_at field.
+	projectworkloadDescUpdatedAt := projectworkloadMixinFields0[2].Descriptor()
+	// projectworkload.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	projectworkload.DefaultUpdatedAt = projectworkloadDescUpdatedAt.Default.(func() time.Time)
+	// projectworkload.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	projectworkload.UpdateDefaultUpdatedAt = projectworkloadDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// projectworkloadDescName is the schema descriptor for name field.
+	projectworkloadDescName := projectworkloadFields[3].Descriptor()
+	// projectworkload.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	projectworkload.NameValidator = func() func(string) error {
+		validators := projectworkloadDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// projectworkloadDescManifestYaml is the schema descriptor for manifest_yaml field.
+	projectworkloadDescManifestYaml := projectworkloadFields[4].Descriptor()
+	// projectworkload.ManifestYamlValidator is a validator for the "manifest_yaml" field. It is called by the builders before save.
+	projectworkload.ManifestYamlValidator = projectworkloadDescManifestYaml.Validators[0].(func(string) error)
+	// projectworkloadDescRuntimePreset is the schema descriptor for runtime_preset field.
+	projectworkloadDescRuntimePreset := projectworkloadFields[6].Descriptor()
+	// projectworkload.RuntimePresetValidator is a validator for the "runtime_preset" field. It is called by the builders before save.
+	projectworkload.RuntimePresetValidator = projectworkloadDescRuntimePreset.Validators[0].(func(string) error)
+	// projectworkloadDescDataset is the schema descriptor for dataset field.
+	projectworkloadDescDataset := projectworkloadFields[7].Descriptor()
+	// projectworkload.DatasetValidator is a validator for the "dataset" field. It is called by the builders before save.
+	projectworkload.DatasetValidator = projectworkloadDescDataset.Validators[0].(func(string) error)
+	// projectworkloadDescWorkingDirectory is the schema descriptor for working_directory field.
+	projectworkloadDescWorkingDirectory := projectworkloadFields[8].Descriptor()
+	// projectworkload.WorkingDirectoryValidator is a validator for the "working_directory" field. It is called by the builders before save.
+	projectworkload.WorkingDirectoryValidator = projectworkloadDescWorkingDirectory.Validators[0].(func(string) error)
 	provideraccountMixin := schema.ProviderAccount{}.Mixin()
 	provideraccountMixinFields0 := provideraccountMixin[0].Fields()
 	_ = provideraccountMixinFields0

@@ -20,6 +20,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/idempotencyrecord"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
+	"github.com/XR-Lee/Gemcp/ent/projectworkload"
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/researchnode"
 )
@@ -527,6 +528,25 @@ func (_u *ExperimentUpdate) SetProposal(v *ExperimentProposal) *ExperimentUpdate
 	return _u.SetProposalID(v.ID)
 }
 
+// SetSavedWorkloadID sets the "saved_workload" edge to the ProjectWorkload entity by ID.
+func (_u *ExperimentUpdate) SetSavedWorkloadID(id int) *ExperimentUpdate {
+	_u.mutation.SetSavedWorkloadID(id)
+	return _u
+}
+
+// SetNillableSavedWorkloadID sets the "saved_workload" edge to the ProjectWorkload entity by ID if the given value is not nil.
+func (_u *ExperimentUpdate) SetNillableSavedWorkloadID(id *int) *ExperimentUpdate {
+	if id != nil {
+		_u = _u.SetSavedWorkloadID(*id)
+	}
+	return _u
+}
+
+// SetSavedWorkload sets the "saved_workload" edge to the ProjectWorkload entity.
+func (_u *ExperimentUpdate) SetSavedWorkload(v *ProjectWorkload) *ExperimentUpdate {
+	return _u.SetSavedWorkloadID(v.ID)
+}
+
 // AddResearchNodeIDs adds the "research_nodes" edge to the ResearchNode entity by IDs.
 func (_u *ExperimentUpdate) AddResearchNodeIDs(ids ...int) *ExperimentUpdate {
 	_u.mutation.AddResearchNodeIDs(ids...)
@@ -682,6 +702,12 @@ func (_u *ExperimentUpdate) ClearDiagnosticRun() *ExperimentUpdate {
 // ClearProposal clears the "proposal" edge to the ExperimentProposal entity.
 func (_u *ExperimentUpdate) ClearProposal() *ExperimentUpdate {
 	_u.mutation.ClearProposal()
+	return _u
+}
+
+// ClearSavedWorkload clears the "saved_workload" edge to the ProjectWorkload entity.
+func (_u *ExperimentUpdate) ClearSavedWorkload() *ExperimentUpdate {
+	_u.mutation.ClearSavedWorkload()
 	return _u
 }
 
@@ -1245,6 +1271,35 @@ func (_u *ExperimentUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.SavedWorkloadCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   experiment.SavedWorkloadTable,
+			Columns: []string{experiment.SavedWorkloadColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(projectworkload.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.SavedWorkloadIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   experiment.SavedWorkloadTable,
+			Columns: []string{experiment.SavedWorkloadColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(projectworkload.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _u.mutation.ResearchNodesCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -1800,6 +1855,25 @@ func (_u *ExperimentUpdateOne) SetProposal(v *ExperimentProposal) *ExperimentUpd
 	return _u.SetProposalID(v.ID)
 }
 
+// SetSavedWorkloadID sets the "saved_workload" edge to the ProjectWorkload entity by ID.
+func (_u *ExperimentUpdateOne) SetSavedWorkloadID(id int) *ExperimentUpdateOne {
+	_u.mutation.SetSavedWorkloadID(id)
+	return _u
+}
+
+// SetNillableSavedWorkloadID sets the "saved_workload" edge to the ProjectWorkload entity by ID if the given value is not nil.
+func (_u *ExperimentUpdateOne) SetNillableSavedWorkloadID(id *int) *ExperimentUpdateOne {
+	if id != nil {
+		_u = _u.SetSavedWorkloadID(*id)
+	}
+	return _u
+}
+
+// SetSavedWorkload sets the "saved_workload" edge to the ProjectWorkload entity.
+func (_u *ExperimentUpdateOne) SetSavedWorkload(v *ProjectWorkload) *ExperimentUpdateOne {
+	return _u.SetSavedWorkloadID(v.ID)
+}
+
 // AddResearchNodeIDs adds the "research_nodes" edge to the ResearchNode entity by IDs.
 func (_u *ExperimentUpdateOne) AddResearchNodeIDs(ids ...int) *ExperimentUpdateOne {
 	_u.mutation.AddResearchNodeIDs(ids...)
@@ -1955,6 +2029,12 @@ func (_u *ExperimentUpdateOne) ClearDiagnosticRun() *ExperimentUpdateOne {
 // ClearProposal clears the "proposal" edge to the ExperimentProposal entity.
 func (_u *ExperimentUpdateOne) ClearProposal() *ExperimentUpdateOne {
 	_u.mutation.ClearProposal()
+	return _u
+}
+
+// ClearSavedWorkload clears the "saved_workload" edge to the ProjectWorkload entity.
+func (_u *ExperimentUpdateOne) ClearSavedWorkload() *ExperimentUpdateOne {
+	_u.mutation.ClearSavedWorkload()
 	return _u
 }
 
@@ -2541,6 +2621,35 @@ func (_u *ExperimentUpdateOne) sqlSave(ctx context.Context) (_node *Experiment, 
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(experimentproposal.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.SavedWorkloadCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   experiment.SavedWorkloadTable,
+			Columns: []string{experiment.SavedWorkloadColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(projectworkload.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.SavedWorkloadIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   experiment.SavedWorkloadTable,
+			Columns: []string{experiment.SavedWorkloadColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(projectworkload.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

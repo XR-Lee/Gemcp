@@ -1495,6 +1495,60 @@ var (
 			},
 		},
 	}
+	// ProjectWorkloadsColumns holds the columns for the "project_workloads" table.
+	ProjectWorkloadsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "public_id", Type: field.TypeUUID, Unique: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "name", Type: field.TypeString, Size: 64},
+		{Name: "manifest_yaml", Type: field.TypeString, Size: 2147483647},
+		{Name: "entrypoint", Type: field.TypeJSON},
+		{Name: "runtime_preset", Type: field.TypeString, Nullable: true, Size: 80},
+		{Name: "dataset", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "working_directory", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "source_experiment_id", Type: field.TypeInt, Unique: true},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "tenant_id", Type: field.TypeInt},
+	}
+	// ProjectWorkloadsTable holds the schema information for the "project_workloads" table.
+	ProjectWorkloadsTable = &schema.Table{
+		Name:       "project_workloads",
+		Columns:    ProjectWorkloadsColumns,
+		PrimaryKey: []*schema.Column{ProjectWorkloadsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "project_workloads_experiments_saved_workload",
+				Columns:    []*schema.Column{ProjectWorkloadsColumns[10]},
+				RefColumns: []*schema.Column{ExperimentsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "project_workloads_projects_project_workloads",
+				Columns:    []*schema.Column{ProjectWorkloadsColumns[11]},
+				RefColumns: []*schema.Column{ProjectsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "project_workloads_tenants_project_workloads",
+				Columns:    []*schema.Column{ProjectWorkloadsColumns[12]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "projectworkload_project_id_name",
+				Unique:  true,
+				Columns: []*schema.Column{ProjectWorkloadsColumns[11], ProjectWorkloadsColumns[4]},
+			},
+			{
+				Name:    "projectworkload_project_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{ProjectWorkloadsColumns[11], ProjectWorkloadsColumns[2]},
+			},
+		},
+	}
 	// ProviderAccountsColumns holds the columns for the "provider_accounts" table.
 	ProviderAccountsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -2201,6 +2255,7 @@ var (
 		NotificationsTable,
 		NotificationSettingsTable,
 		ProjectsTable,
+		ProjectWorkloadsTable,
 		ProviderAccountsTable,
 		ProviderResourcesTable,
 		RecordMixinsTable,
@@ -2290,6 +2345,9 @@ func init() {
 	NotificationsTable.ForeignKeys[0].RefTable = TenantsTable
 	NotificationSettingsTable.ForeignKeys[0].RefTable = TenantsTable
 	ProjectsTable.ForeignKeys[0].RefTable = TenantsTable
+	ProjectWorkloadsTable.ForeignKeys[0].RefTable = ExperimentsTable
+	ProjectWorkloadsTable.ForeignKeys[1].RefTable = ProjectsTable
+	ProjectWorkloadsTable.ForeignKeys[2].RefTable = TenantsTable
 	ProviderAccountsTable.ForeignKeys[0].RefTable = TenantsTable
 	ProviderResourcesTable.ForeignKeys[0].RefTable = AttemptsTable
 	ProviderResourcesTable.ForeignKeys[1].RefTable = ExperimentsTable

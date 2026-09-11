@@ -51,6 +51,8 @@ const experiments = [
     runner_stage: 'started', runner_stage_updated_at: '2026-08-17T17:55:00Z',
     log_tail: 'overall_accuracy 86.4\n', metrics: { overall_accuracy: 86.4 },
     created_at: '2026-08-17T17:40:00Z', updated_at: '2026-08-17T17:55:00Z', finished_at: '2026-08-17T17:55:00Z',
+    savable_workload: true,
+    saved_workload: '',
     graph_linked: true, orphaned: false,
   },
   {
@@ -228,6 +230,27 @@ function match(url: URL, method: string, body?: unknown): Response | null {
       canonical_root: '/root/autodl-fs/datasets/ScanObjectNN', environment_variable: 'GEMCP_DATASET_SCANOBJECTNN_OBJBG',
       required_markers: ['main_split/train.h5'], status: 'disabled',
     })
+  }
+  if (path === `/api/v1/projects/${projectID}/workloads` && method === 'GET') {
+    return json([])
+  }
+  if (path === `/api/v1/projects/${projectID}/workloads/preview` && method === 'POST') {
+    const input = body && typeof body === 'object' ? body as Record<string, unknown> : {}
+    const name = String(input.name || 'oneshot')
+    return json({
+      name,
+      manifest_yaml: `version: 1\nworkloads:\n  ${name}:\n    entrypoint:\n      - python\n      - train.py\n`,
+    })
+  }
+  if (path === `/api/v1/projects/${projectID}/workloads` && method === 'POST') {
+    const input = body && typeof body === 'object' ? body as Record<string, unknown> : {}
+    const name = String(input.name || 'oneshot')
+    experiments[0].savable_workload = false
+    experiments[0].saved_workload = name
+    return json({
+      id: 'workload-preview-1', name, manifest_yaml: `version: 1\nworkloads:\n  ${name}:\n    entrypoint:\n      - python\n      - train.py\n`,
+      entrypoint: ['python', 'train.py'], source_experiment_id: experimentID, created_at: '2026-08-17T18:00:00Z',
+    }, 201)
   }
   if (path === `/api/v1/projects/${projectID}/experiment-proposals` && method === 'POST') {
     return json({

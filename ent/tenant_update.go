@@ -34,6 +34,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/notificationsetting"
 	"github.com/XR-Lee/Gemcp/ent/predicate"
 	"github.com/XR-Lee/Gemcp/ent/project"
+	"github.com/XR-Lee/Gemcp/ent/projectworkload"
 	"github.com/XR-Lee/Gemcp/ent/provideraccount"
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/researchedge"
@@ -465,6 +466,21 @@ func (_u *TenantUpdate) AddDatasetBindings(v ...*DatasetBinding) *TenantUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.AddDatasetBindingIDs(ids...)
+}
+
+// AddProjectWorkloadIDs adds the "project_workloads" edge to the ProjectWorkload entity by IDs.
+func (_u *TenantUpdate) AddProjectWorkloadIDs(ids ...int) *TenantUpdate {
+	_u.mutation.AddProjectWorkloadIDs(ids...)
+	return _u
+}
+
+// AddProjectWorkloads adds the "project_workloads" edges to the ProjectWorkload entity.
+func (_u *TenantUpdate) AddProjectWorkloads(v ...*ProjectWorkload) *TenantUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddProjectWorkloadIDs(ids...)
 }
 
 // AddStudyIDs adds the "studies" edge to the Study entity by IDs.
@@ -1070,6 +1086,27 @@ func (_u *TenantUpdate) RemoveDatasetBindings(v ...*DatasetBinding) *TenantUpdat
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveDatasetBindingIDs(ids...)
+}
+
+// ClearProjectWorkloads clears all "project_workloads" edges to the ProjectWorkload entity.
+func (_u *TenantUpdate) ClearProjectWorkloads() *TenantUpdate {
+	_u.mutation.ClearProjectWorkloads()
+	return _u
+}
+
+// RemoveProjectWorkloadIDs removes the "project_workloads" edge to ProjectWorkload entities by IDs.
+func (_u *TenantUpdate) RemoveProjectWorkloadIDs(ids ...int) *TenantUpdate {
+	_u.mutation.RemoveProjectWorkloadIDs(ids...)
+	return _u
+}
+
+// RemoveProjectWorkloads removes "project_workloads" edges to ProjectWorkload entities.
+func (_u *TenantUpdate) RemoveProjectWorkloads(v ...*ProjectWorkload) *TenantUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveProjectWorkloadIDs(ids...)
 }
 
 // ClearStudies clears all "studies" edges to the Study entity.
@@ -2374,6 +2411,51 @@ func (_u *TenantUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.ProjectWorkloadsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ProjectWorkloadsTable,
+			Columns: []string{tenant.ProjectWorkloadsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(projectworkload.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedProjectWorkloadsIDs(); len(nodes) > 0 && !_u.mutation.ProjectWorkloadsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ProjectWorkloadsTable,
+			Columns: []string{tenant.ProjectWorkloadsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(projectworkload.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ProjectWorkloadsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ProjectWorkloadsTable,
+			Columns: []string{tenant.ProjectWorkloadsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(projectworkload.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _u.mutation.StudiesCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -3028,6 +3110,21 @@ func (_u *TenantUpdateOne) AddDatasetBindings(v ...*DatasetBinding) *TenantUpdat
 	return _u.AddDatasetBindingIDs(ids...)
 }
 
+// AddProjectWorkloadIDs adds the "project_workloads" edge to the ProjectWorkload entity by IDs.
+func (_u *TenantUpdateOne) AddProjectWorkloadIDs(ids ...int) *TenantUpdateOne {
+	_u.mutation.AddProjectWorkloadIDs(ids...)
+	return _u
+}
+
+// AddProjectWorkloads adds the "project_workloads" edges to the ProjectWorkload entity.
+func (_u *TenantUpdateOne) AddProjectWorkloads(v ...*ProjectWorkload) *TenantUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddProjectWorkloadIDs(ids...)
+}
+
 // AddStudyIDs adds the "studies" edge to the Study entity by IDs.
 func (_u *TenantUpdateOne) AddStudyIDs(ids ...int) *TenantUpdateOne {
 	_u.mutation.AddStudyIDs(ids...)
@@ -3631,6 +3728,27 @@ func (_u *TenantUpdateOne) RemoveDatasetBindings(v ...*DatasetBinding) *TenantUp
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveDatasetBindingIDs(ids...)
+}
+
+// ClearProjectWorkloads clears all "project_workloads" edges to the ProjectWorkload entity.
+func (_u *TenantUpdateOne) ClearProjectWorkloads() *TenantUpdateOne {
+	_u.mutation.ClearProjectWorkloads()
+	return _u
+}
+
+// RemoveProjectWorkloadIDs removes the "project_workloads" edge to ProjectWorkload entities by IDs.
+func (_u *TenantUpdateOne) RemoveProjectWorkloadIDs(ids ...int) *TenantUpdateOne {
+	_u.mutation.RemoveProjectWorkloadIDs(ids...)
+	return _u
+}
+
+// RemoveProjectWorkloads removes "project_workloads" edges to ProjectWorkload entities.
+func (_u *TenantUpdateOne) RemoveProjectWorkloads(v ...*ProjectWorkload) *TenantUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveProjectWorkloadIDs(ids...)
 }
 
 // ClearStudies clears all "studies" edges to the Study entity.
@@ -4958,6 +5076,51 @@ func (_u *TenantUpdateOne) sqlSave(ctx context.Context) (_node *Tenant, err erro
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(datasetbinding.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ProjectWorkloadsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ProjectWorkloadsTable,
+			Columns: []string{tenant.ProjectWorkloadsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(projectworkload.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedProjectWorkloadsIDs(); len(nodes) > 0 && !_u.mutation.ProjectWorkloadsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ProjectWorkloadsTable,
+			Columns: []string{tenant.ProjectWorkloadsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(projectworkload.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ProjectWorkloadsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ProjectWorkloadsTable,
+			Columns: []string{tenant.ProjectWorkloadsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(projectworkload.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

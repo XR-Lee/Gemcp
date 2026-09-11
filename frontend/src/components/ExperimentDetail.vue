@@ -1,12 +1,20 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { Activity, Box, CheckCircle2, Clock3, Cpu, Folder, GitCommitHorizontal, ListTree, LoaderCircle, Radio, Server, SquareTerminal, TriangleAlert, X } from '@lucide/vue'
-import type { Attempt, Experiment } from '../api'
+import { computed, ref, watch } from 'vue'
+import { Activity, Box, CheckCircle2, Clock3, Copy, Cpu, Folder, GitCommitHorizontal, ListTree, LoaderCircle, Radio, Save, Server, SquareTerminal, TriangleAlert, X } from '@lucide/vue'
+import { APIError, api, type Attempt, type Experiment, type ProjectWorkload } from '../api'
 import { useI18n } from '../i18n'
+import WorkbenchDialog from './WorkbenchDialog.vue'
 
 const props = defineProps<{ experiment: Experiment; attempts: Attempt[]; loading: boolean; error: string }>()
-defineEmits<{ close: [] }>()
+const emit = defineEmits<{ close: []; saved: [workload: ProjectWorkload] }>()
 const { languageTag, t } = useI18n()
+const saveOpen = ref(false)
+const saveName = ref('oneshot')
+const saveYAML = ref('')
+const saveError = ref('')
+const saveBusy = ref(false)
+const copied = ref(false)
+let previewGeneration = 0
 
 const context = computed(() => props.experiment.execution_context)
 const runtime = computed(() => context.value?.runtime_info)
@@ -54,6 +62,61 @@ function cleanupLabel() {
   if (observation && ['deleted', 'succeeded', 'failed', 'cancelled', 'timed_out', 'lost'].includes(observation.state)) return t('Evidence not reported', '尚未上报清理证据')
   return t('Pending', '等待中')
 }
+function validWorkloadName(value: string) {
+  return /^[a-z0-9][a-z0-9_-]{0,63}$/.test(value)
+}
+function openSaveDialog() {
+  saveName.value = props.experiment.saved_workload || 'oneshot'
+  saveYAML.value = ''
+  saveError.value = ''
+  copied.value = false
+  saveOpen.value = true
+}
+async function previewWorkload(name: string) {
+  const generation = ++previewGeneration
+  saveError.value = ''
+  if (!validWorkloadName(name)) {
+    saveYAML.value = ''
+    return
+  }
+  try {
+    const preview = await api.previewProjectWorkload(props.experiment.project_id, {
+      experiment_id: props.experiment.id, name,
+    })
+    if (generation !== previewGeneration) return
+    saveYAML.value = preview.manifest_yaml
+  } catch (caught) {
+    if (generation !== previewGeneration) return
+    saveYAML.value = ''
+    saveError.value = caught instanceof APIError ? caught.message : t('Could not preview this workload.', '无法预览该工作负载。')
+  }
+}
+async function saveWorkload() {
+  const name = saveName.value.trim()
+  if (!validWorkloadName(name) || saveBusy.value) return
+  saveBusy.value = true
+  saveError.value = ''
+  try {
+    const saved = await api.saveProjectWorkload(props.experiment.project_id, {
+      experiment_id: props.experiment.id, name,
+    })
+    emit('saved', saved)
+    saveOpen.value = false
+  } catch (caught) {
+    saveError.value = caught instanceof APIError ? caught.message : t('Could not save this workload.', '无法保存该工作负载。')
+  } finally {
+    saveBusy.value = false
+  }
+}
+async function copyYAML() {
+  if (!saveYAML.value) return
+  await navigator.clipboard.writeText(saveYAML.value)
+  copied.value = true
+}
+
+watch([saveOpen, saveName], ([open, name]) => {
+  if (open) void previewWorkload(String(name).trim())
+})
 </script>
 
 <template>
@@ -78,9 +141,16 @@ function cleanupLabel() {
         </section>
 
         <section class="detail-section command-section">
-          <div class="section-title"><SquareTerminal :size="17" /><span><strong>{{ t('Execution request', '执行请求') }}</strong><small>{{ t('Immutable command approved for this run', '本次运行批准的不可变命令') }}</small></span><span class="authority-chip">{{ experiment.execution_mode || 'shell' }}</span></div>
+          <div class="section-title"><SquareTerminal :size="17" /><span><strong>{{ t('Execution request', '执行请求') }}</strong><small>{{ t('Immutable command approved for this run', '本次运行批准的不可变命令') }}</small></span><span class="authority-chip">{{ experiment.execution_mode || 'shell' }}</span>
+            <button v-if="experiment.savable_workload" class="text-button save-workload-button" type="button" @click="openSaveDialog"><Save :size="14" />{{ t('Save as workload', '另存为工作负载') }}</button>
+          </div>
           <pre>{{ experiment.execution_mode === 'argv' && experiment.argv ? JSON.stringify(experiment.argv) : experiment.command }}</pre>
-          <div class="command-meta"><span>{{ t('Agent', 'Agent') }} <strong>{{ context?.agent_label || context?.agent_token_prefix || t('Owner or legacy submission', 'Owner 或历史提交') }}</strong></span><span>{{ t('Proposal', '提案') }} <code>{{ context?.proposal_id || '—' }}</code></span></div>
+          <div class="command-meta">
+            <span>{{ t('Agent', 'Agent') }} <strong>{{ context?.agent_label || context?.agent_token_prefix || t('Owner or legacy submission', 'Owner 或历史提交') }}</strong></span>
+            <span>{{ t('Proposal', '提案') }} <code>{{ context?.proposal_id || '—' }}</code></span>
+            <span v-if="context?.workload">{{ t('Named workload', '命名工作负载') }} <code>{{ context.workload }}</code></span>
+            <span v-if="experiment.saved_workload">{{ t('Saved as', '已保存为') }} <code>{{ experiment.saved_workload }}</code></span>
+          </div>
         </section>
 
         <section class="detail-grid">
@@ -154,6 +224,18 @@ function cleanupLabel() {
       </div>
     </section>
   </div>
+  <WorkbenchDialog v-model:open="saveOpen" :title="t('Save as workload', '另存为工作负载')" :label="t('Save as workload', '另存为工作负载')" :description="t('Review the gemcp.yaml draft. Saving stores it on this Project. Gemcp does not write the source repository. An Agent can copy the same YAML into gemcp.yaml.', '请核对 gemcp.yaml 草稿。保存只会写入此 Project，不会改源码仓库。Agent 可以把同一段 YAML 复制进 gemcp.yaml。')">
+    <form class="dialog-form" @submit.prevent="saveWorkload">
+      <label>{{ t('Workload name', '工作负载名称') }}<input v-model="saveName" required maxlength="64" placeholder="oneshot" spellcheck="false" /></label>
+      <p class="save-workload-note">{{ t('The whole argv becomes the entrypoint. Later prepares can use this name. A matching gemcp.yaml at the commit still wins.', '整段 argv 会成为 entrypoint。之后可以用这个名字准备实验。提交根目录若有同名 gemcp.yaml，仍以仓库为准。') }}</p>
+      <pre class="workload-yaml">{{ saveYAML || t('Enter a valid name to preview the draft.', '输入合法名称后预览草稿。') }}</pre>
+      <div v-if="saveError" class="form-error" role="alert">{{ saveError }}</div>
+      <div class="save-workload-actions">
+        <button class="secondary-button" type="button" :disabled="!saveYAML" @click="copyYAML"><Copy :size="15" />{{ copied ? t('Copied', '已复制') : t('Copy YAML', '复制 YAML') }}</button>
+        <button class="primary-button" type="submit" :disabled="saveBusy || !saveYAML"><LoaderCircle v-if="saveBusy" :size="16" class="spinning" /><Save v-else :size="16" />{{ t('Save workload', '保存工作负载') }}</button>
+      </div>
+    </form>
+  </WorkbenchDialog>
 </template>
 
 <style scoped>
@@ -193,8 +275,12 @@ function cleanupLabel() {
 .section-title strong { color: #344139; font-size: 11px; line-height: 16px; }
 .section-title small { color: #818b85; font-size: 9px; line-height: 14px; }
 .command-section > pre { margin: 0; padding: 14px; overflow: auto; color: #dcebe3; background: #1d2a23; font: 10px/17px ui-monospace, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
-.command-meta { padding: 8px 13px; display: flex; gap: 20px; color: #77817b; border-top: 1px solid #e7ebe8; font-size: 9px; }
+.command-meta { padding: 8px 13px; display: flex; flex-wrap: wrap; gap: 20px; color: #77817b; border-top: 1px solid #e7ebe8; font-size: 9px; }
 .command-meta strong, .command-meta code { color: #45534b; }
+.save-workload-button { margin-left: auto; }
+.save-workload-note { margin: 0; color: #66736c; font-size: 10px; line-height: 16px; }
+.workload-yaml { margin: 0; padding: 12px; min-height: 140px; overflow: auto; color: #dcebe3; background: #1d2a23; font: 10px/16px ui-monospace, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+.save-workload-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .detail-grid { margin-top: 12px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
 .fact-list { margin: 0; }
 .fact-list > div { min-width: 0; padding: 8px 13px; display: grid; grid-template-columns: 136px minmax(0, 1fr); gap: 12px; border-top: 1px solid #edf0ee; }

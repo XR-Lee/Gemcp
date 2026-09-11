@@ -57,6 +57,26 @@ const experiments = [
     finished_at: '2026-07-15T06:02:00Z', exit_code: 1, metrics: { accuracy: 0.82 },
     graph_linked: false, orphaned: true,
   },
+  {
+    id: '33aa44bb-55cc-6677-8899-aabbccddeeff', project_id: project.id, repository_id: repositories[0].id,
+    environment_id: 'environment-id', resource_profile_id: 'profile-id', state: 'succeeded', desired_state: 'running',
+    commit_sha: 'fedcba9876543210fedcba9876543210fedcba98', execution_mode: 'argv',
+    argv: ['python', 'tools/smoke.py', '--label', 'oneshot'], command: "python tools/smoke.py --label oneshot",
+    max_runtime_seconds: 300, reserved_cost_milli: 3825, estimated_cost_milli: 80, budget_finalized_at: '2026-07-16T10:05:00Z',
+    output_path: '/root/autodl-fs/projects/b492cbe4/experiments/33aa44bb/',
+    artifacts: ['run.log'],
+    log_tail: 'ok\n',
+    execution_context: {
+      agent_label: 'Owner', proposal_id: 'proposal-oneshot-1',
+      repository_name: 'dynamic-point-mamba', repository_ssh_url: repositories[0].ssh_url, requested_ref: 'main',
+      backend: 'autodl_private', environment_name: 'torch-cuda11.8', image: 'base-image-1', resource_profile_name: 'one-rtx-3090', region: 'private',
+      gpu_models: ['NVIDIA GeForce RTX 3090'], gpu_num: 1, workspace_policy: 'runner_temporary', container_output_path: '/gemcp/output',
+    },
+    savable_workload: true,
+    saved_workload: '',
+    created_at: '2026-07-16T10:00:00Z', updated_at: '2026-07-16T10:05:00Z', finished_at: '2026-07-16T10:05:00Z',
+    graph_linked: true, orphaned: false,
+  },
 ]
 const agentTokens = [
   {
@@ -439,6 +459,8 @@ async function mockLogin(page: Page) {
 async function mockConsole(page: Page, counters?: { providerQueries?: number; selfHosted?: boolean; schedulerEnabled?: boolean }) {
   let submittedDiagnostic: typeof queuedDiagnostic | typeof cancelledDiagnostic = queuedDiagnostic
   let listedImageBake: typeof requestedImageBake | (typeof requestedImageBake & { image_uuid: string; instance_uuid: string }) = requestedImageBake
+  const savedWorkloads: Array<Record<string, unknown>> = []
+  let oneshotDetail = { ...experiments[2] }
   await page.route('**/docs/*.md', async (route) => {
     const path = new URL(route.request().url()).pathname
     const body = path.endsWith('/agent-mcp.md')
@@ -553,6 +575,28 @@ async function mockConsole(page: Page, counters?: { providerQueries?: number; se
     }
     if (path.startsWith(`/api/v1/projects/${project.id}/dataset-bindings/`) && route.request().method() === 'DELETE') {
       return fulfill(route, { ...datasetBindings[0], status: 'disabled' })
+    }
+    if (path === `/api/v1/projects/${project.id}/workloads` && route.request().method() === 'GET') {
+      return fulfill(route, savedWorkloads)
+    }
+    if (path === `/api/v1/projects/${project.id}/workloads/preview` && route.request().method() === 'POST') {
+      const body = route.request().postDataJSON()
+      expect(body.experiment_id).toBe(experiments[2].id)
+      return fulfill(route, {
+        name: body.name,
+        manifest_yaml: `version: 1\nworkloads:\n  ${body.name}:\n    entrypoint:\n      - python\n      - tools/smoke.py\n      - --label\n      - oneshot\n    runtime_preset: smoke\n`,
+      })
+    }
+    if (path === `/api/v1/projects/${project.id}/workloads` && route.request().method() === 'POST') {
+      const body = route.request().postDataJSON()
+      const created = {
+        id: 'workload-oneshot-1', name: body.name, manifest_yaml: `version: 1\nworkloads:\n  ${body.name}:\n    entrypoint:\n      - python\n      - tools/smoke.py\n`,
+        entrypoint: ['python', 'tools/smoke.py', '--label', 'oneshot'], runtime_preset: 'smoke',
+        source_experiment_id: body.experiment_id, created_at: '2026-07-16T10:06:00Z',
+      }
+      savedWorkloads.splice(0, savedWorkloads.length, created)
+      oneshotDetail = { ...oneshotDetail, savable_workload: false, saved_workload: body.name }
+      return fulfill(route, created, 201)
     }
     if (path === `/api/v1/projects/${project.id}/experiment-proposals` && route.request().method() === 'POST') {
       const body = route.request().postDataJSON()
@@ -683,6 +727,8 @@ async function mockConsole(page: Page, counters?: { providerQueries?: number; se
     if (path === `/api/v1/projects/${project.id}/operations`) return fulfill(route, operationsFeed)
     if (path === `/api/v1/experiments/${experiments[0].id}/attempts`) return fulfill(route, attemptHistory)
     if (path === `/api/v1/experiments/${experiments[0].id}`) return fulfill(route, experiments[0])
+    if (path === `/api/v1/experiments/${experiments[2].id}`) return fulfill(route, oneshotDetail)
+    if (path === `/api/v1/experiments/${experiments[2].id}/attempts`) return fulfill(route, [])
     if (path === `/api/v1/projects/${project.id}/cost`) return fulfill(route, {
       period: '2026-07', monthly_budget_milli: 100000, reserved_milli: 15750, charged_milli: 2180,
       adjustments_milli: 0, committed_milli: 17930, available_milli: 82070,
@@ -890,6 +936,34 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await expect(page.getByText('/gemcp/work/source', { exact: true })).toBeVisible()
   await expectNoPageOverflow(page)
   await page.screenshot({ path: '/tmp/gemcp-experiment-detail.png', fullPage: true })
+})
+
+test('Owner can save a succeeded one-shot as a Project workload', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => undefined)
+  await mockConsole(page)
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Evidence', exact: true }).click()
+  await page.locator('.segmented-control').getByRole('button', { name: 'Succeeded' }).click()
+  await page.getByRole('row').filter({ hasText: '33aa44bb' }).click()
+  const detail = page.getByRole('dialog', { name: 'Experiment details' })
+  await expect(detail).toBeVisible()
+  await expect(detail.getByRole('button', { name: 'Save as workload' })).toBeVisible()
+  await detail.getByRole('button', { name: 'Save as workload' }).click()
+  const saveDialog = page.getByRole('dialog', { name: 'Save as workload' })
+  await expect(saveDialog).toBeVisible()
+  await saveDialog.getByPlaceholder('oneshot').fill('oneshot-smoke')
+  await expect(saveDialog.locator('.workload-yaml')).toContainText('oneshot-smoke:')
+  await page.screenshot({ path: '/tmp/gemcp-save-workload.png', fullPage: true })
+  await saveDialog.getByRole('button', { name: 'Save workload' }).click()
+  await expect(saveDialog).not.toBeVisible()
+  await expect(detail).toContainText('Saved as')
+  await expect(detail).toContainText('oneshot-smoke')
+  await expect(detail.getByRole('button', { name: 'Save as workload' })).toHaveCount(0)
+  await detail.getByTitle('Close details').click()
+  await page.getByLabel('Kind').selectOption('workload')
+  await expect(page.getByText('Saved on this Project', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'oneshot-smoke', exact: true })).toBeVisible()
 })
 
 test('scheduler-disabled Evidence keeps Owner confirmation available and explains queued execution', async ({ page }) => {

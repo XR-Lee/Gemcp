@@ -232,6 +232,8 @@ export type Experiment = {
   cancel_requested_at?: string
   graph_linked?: boolean
   orphaned?: boolean
+  savable_workload?: boolean
+  saved_workload?: string
 }
 
 export type Attempt = {
@@ -265,6 +267,7 @@ export type ExecutionContext = {
   agent_label?: string
   agent_token_prefix?: string
   proposal_id?: string
+  workload?: string
   repository_name: string
   repository_ssh_url: string
   requested_ref?: string
@@ -401,6 +404,23 @@ export type PreparedProposal = {
 export type PrepareProposalResult = {
   proposal?: PreparedProposal
   choice_required?: { field: string; id: string; name: string; backend?: string; detail?: string }[]
+}
+
+export type ProjectWorkload = {
+  id: string
+  name: string
+  manifest_yaml: string
+  entrypoint: string[]
+  runtime_preset?: string
+  dataset?: string
+  working_directory?: string
+  source_experiment_id: string
+  created_at: string
+}
+
+export type WorkloadPreview = {
+  name: string
+  manifest_yaml: string
 }
 
 export type DatasetBindingSource = { url: string; relative_path: string; sha256?: string }
@@ -1273,6 +1293,16 @@ export const api = {
       `/api/v1/projects/${encodeURIComponent(projectID)}/experiment-proposals/${encodeURIComponent(proposalID)}/submit`,
       { method: 'POST', body: JSON.stringify(payload) },
     ),
+  projectWorkloads: (projectID: string) =>
+    request<ProjectWorkload[]>(`/api/v1/projects/${encodeURIComponent(projectID)}/workloads`),
+  previewProjectWorkload: (projectID: string, payload: { experiment_id: string; name: string }) =>
+    request<WorkloadPreview>(`/api/v1/projects/${encodeURIComponent(projectID)}/workloads/preview`, {
+      method: 'POST', body: JSON.stringify(payload),
+    }),
+  saveProjectWorkload: (projectID: string, payload: { experiment_id: string; name: string }) =>
+    request<ProjectWorkload>(`/api/v1/projects/${encodeURIComponent(projectID)}/workloads`, {
+      method: 'POST', body: JSON.stringify(payload),
+    }),
   nodes: () => request<NodeList>('/api/v1/nodes'),
   sshCloudNodes: () => request<SSHCloudList>('/api/v1/ssh-cloud-nodes'),
   createSSHCloudNode: (payload: {

@@ -32,6 +32,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/notification"
 	"github.com/XR-Lee/Gemcp/ent/notificationsetting"
 	"github.com/XR-Lee/Gemcp/ent/project"
+	"github.com/XR-Lee/Gemcp/ent/projectworkload"
 	"github.com/XR-Lee/Gemcp/ent/provideraccount"
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/researchedge"
@@ -486,6 +487,21 @@ func (_c *TenantCreate) AddDatasetBindings(v ...*DatasetBinding) *TenantCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddDatasetBindingIDs(ids...)
+}
+
+// AddProjectWorkloadIDs adds the "project_workloads" edge to the ProjectWorkload entity by IDs.
+func (_c *TenantCreate) AddProjectWorkloadIDs(ids ...int) *TenantCreate {
+	_c.mutation.AddProjectWorkloadIDs(ids...)
+	return _c
+}
+
+// AddProjectWorkloads adds the "project_workloads" edges to the ProjectWorkload entity.
+func (_c *TenantCreate) AddProjectWorkloads(v ...*ProjectWorkload) *TenantCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddProjectWorkloadIDs(ids...)
 }
 
 // AddStudyIDs adds the "studies" edge to the Study entity by IDs.
@@ -1082,6 +1098,22 @@ func (_c *TenantCreate) createSpec() (*Tenant, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(datasetbinding.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ProjectWorkloadsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ProjectWorkloadsTable,
+			Columns: []string{tenant.ProjectWorkloadsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(projectworkload.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

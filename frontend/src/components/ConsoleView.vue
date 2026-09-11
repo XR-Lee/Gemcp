@@ -24,7 +24,7 @@ import {
   WalletCards,
   X,
 } from '@lucide/vue'
-import { APIError, api, type AgentReadiness, type Attempt, type BuildInfo, type DatasetBinding, type DatasetCatalogEntry, type Experiment, type ExperimentCatalog, type OperationsFeed, type PreparedProposal, type Project, type ProjectEnvironment, type ProposalActivity, type Repository, type ResearchWorkspace, type RuntimeStatus, type User } from '../api'
+import { APIError, api, type AgentReadiness, type Attempt, type BuildInfo, type DatasetBinding, type DatasetCatalogEntry, type Experiment, type ExperimentCatalog, type OperationsFeed, type PreparedProposal, type Project, type ProjectEnvironment, type ProjectWorkload, type ProposalActivity, type Repository, type ResearchWorkspace, type RuntimeStatus, type User } from '../api'
 import { localizedState, useI18n } from '../i18n'
 import { pickDefaultProjectID } from '../projectSelect'
 import { draftStudyFromRepository, repositoryNameFromSSHURL } from '../studyImport'
@@ -85,6 +85,7 @@ const datasetSources = ref<DatasetCatalogEntry[]>([])
 const datasetForm = reactive({ catalog: '', name: '', backend: 'autodl_elastic' as DatasetBinding['backend'], canonicalRoot: '/root/autodl-fs/datasets/', requiredMarkers: '', sources: '' })
 const datasetBusy = ref(false)
 const environments = ref<ProjectEnvironment[]>([])
+const projectWorkloads = ref<ProjectWorkload[]>([])
 const environmentForm = reactive({ name: '', backend: 'autodl_elastic', imageUUID: '', setDefault: false })
 const environmentBusy = ref(false)
 const confirmationTarget = ref<ProposalActivity | null>(null)
@@ -191,6 +192,7 @@ async function refreshProject(showSpinner = true) {
     datasetBindings.value = []
     datasetSources.value = []
     environments.value = []
+    projectWorkloads.value = []
     selectedStudyID.value = ''
     return
   }
@@ -201,7 +203,7 @@ async function refreshProject(showSpinner = true) {
       if (caught instanceof APIError && caught.status === 401) throw caught
       return null
     })
-    const [loadedRepositories, loadedExperiments, loadedOperations, loadedResearch, loadedCatalog, loadedAgents, loadedReadiness, loadedBindings, loadedSources, loadedEnvironments] = await Promise.all([
+    const [loadedRepositories, loadedExperiments, loadedOperations, loadedResearch, loadedCatalog, loadedAgents, loadedReadiness, loadedBindings, loadedSources, loadedEnvironments, loadedWorkloads] = await Promise.all([
       api.repositories(projectID),
       api.experiments(projectID),
       api.operations(projectID),
@@ -215,6 +217,10 @@ async function refreshProject(showSpinner = true) {
       api.datasetBindings(projectID),
       api.datasetSources(projectID).catch(() => []),
       api.environments(projectID).catch(() => []),
+      api.projectWorkloads(projectID).catch((caught) => {
+        if (caught instanceof APIError && caught.status === 401) throw caught
+        return []
+      }),
     ])
     if (generation !== projectRefreshGeneration || selectedProjectID.value !== projectID) return
     repositories.value = loadedRepositories
@@ -227,6 +233,7 @@ async function refreshProject(showSpinner = true) {
     datasetBindings.value = loadedBindings
     datasetSources.value = loadedSources
     environments.value = loadedEnvironments
+    projectWorkloads.value = loadedWorkloads
     if (loadedResearch.study) selectedStudyID.value = loadedResearch.study.id
     else if (loadedResearch.studies.length) selectedStudyID.value = loadedResearch.studies[0].id
     if (showSpinner) await verifyPendingGitHubRepositories(generation, projectID)
@@ -302,6 +309,18 @@ function closeExperiment() {
   attempts.value = []
   attemptsError.value = ''
   attemptsLoading.value = false
+}
+
+function onWorkloadSaved(workload: ProjectWorkload) {
+  projectWorkloads.value = [...projectWorkloads.value.filter((item) => item.id !== workload.id && item.name !== workload.name), workload]
+    .sort((left, right) => left.name.localeCompare(right.name))
+  if (selectedExperiment.value) {
+    selectedExperiment.value = {
+      ...selectedExperiment.value,
+      savable_workload: false,
+      saved_workload: workload.name,
+    }
+  }
 }
 
 function openExperimentByID(experimentID: string) {
@@ -848,6 +867,10 @@ onMounted(async () => {
           </label>
           <label v-if="prepareForm.mode === 'argv'">{{ t('Arguments', '参数') }}<textarea v-model="prepareForm.argv" rows="3" required maxlength="4000" :placeholder="t('One argument per line', '一行一个参数')" spellcheck="false"></textarea></label>
           <label v-if="prepareForm.mode === 'workload'">{{ t('Workload', '工作负载') }}<input v-model="prepareForm.workload" required maxlength="80" placeholder="objbg-smoke" spellcheck="false" /></label>
+          <div v-if="prepareForm.mode === 'workload' && projectWorkloads.length" class="saved-workload-names">
+            <span>{{ t('Saved on this Project', '已保存在此 Project') }}</span>
+            <button v-for="item in projectWorkloads" :key="item.id" type="button" class="text-button" @click="prepareForm.workload = item.name">{{ item.name }}</button>
+          </div>
           <label v-if="prepareForm.mode === 'workload'">{{ t('Parameters', '参数') }}<textarea v-model="prepareForm.parameters" rows="2" maxlength="2000" :placeholder="t('name=value, one per line', 'name=value，一行一个')" spellcheck="false"></textarea></label>
           <label>{{ t('Ref', 'Ref') }}<input v-model="prepareForm.ref" maxlength="255" :placeholder="t('Default branch if omitted', '省略则用默认分支')" spellcheck="false" /></label>
           <label>{{ t('Graph origin', 'Graph 起点') }}
@@ -971,7 +994,7 @@ onMounted(async () => {
     </main>
   </div>
 
-  <ExperimentDetail v-if="selectedExperiment" :experiment="selectedExperiment" :attempts="attempts" :loading="attemptsLoading" :error="attemptsError" @close="closeExperiment" />
+  <ExperimentDetail v-if="selectedExperiment" :experiment="selectedExperiment" :attempts="attempts" :loading="attemptsLoading" :error="attemptsError" @close="closeExperiment" @saved="onWorkloadSaved" />
 
   <WorkbenchDialog v-model:open="confirmationDialogOpen" :title="t('Confirm prepared proposal', '确认准备提案')" :label="t('Confirm prepared proposal', '确认准备提案')" :description="t('Review the immutable execution request and authorize this exact digest before Gemcp creates the Experiment.', '请核对不可变执行请求，并授权当前精确摘要，然后 Gemcp 才会创建 Experiment。')">
     <form v-if="confirmationTarget" class="dialog-form proposal-confirmation-form" @submit.prevent="submitProposalConfirmation">

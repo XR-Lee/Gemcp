@@ -37,6 +37,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/notification"
 	"github.com/XR-Lee/Gemcp/ent/notificationsetting"
 	"github.com/XR-Lee/Gemcp/ent/project"
+	"github.com/XR-Lee/Gemcp/ent/projectworkload"
 	"github.com/XR-Lee/Gemcp/ent/provideraccount"
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/ent/recordmixin"
@@ -136,6 +137,7 @@ func checkColumn(t, c string) error {
 			notification.Table:          notification.ValidColumn,
 			notificationsetting.Table:   notificationsetting.ValidColumn,
 			project.Table:               project.ValidColumn,
+			projectworkload.Table:       projectworkload.ValidColumn,
 			provideraccount.Table:       provideraccount.ValidColumn,
 			providerresource.Table:      providerresource.ValidColumn,
 			recordmixin.Table:           recordmixin.ValidColumn,

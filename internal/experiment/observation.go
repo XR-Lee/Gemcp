@@ -14,6 +14,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/cloudsshassignment"
 	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/nodeassignment"
+	"github.com/XR-Lee/Gemcp/ent/projectworkload"
 	"github.com/XR-Lee/Gemcp/ent/providerresource"
 	"github.com/XR-Lee/Gemcp/internal/executionmeta"
 )
@@ -36,6 +37,18 @@ func (s *Service) enrichExecutionObservation(ctx context.Context, record *ent.Ex
 	if err == nil {
 		view.ExecutionContext.ProposalID = proposal.PublicID.String()
 		view.ExecutionContext.RequestedRef = proposal.RequestedRef
+		view.ExecutionContext.Workload = snapshotString(proposal.ProjectSnapshot, "workload")
+		view.SavableWorkload = record.State == "succeeded" &&
+			string(record.ExecutionMode) == "argv" &&
+			len(record.Argv) > 0 &&
+			view.ExecutionContext.Workload == "" &&
+			!strings.EqualFold(strings.TrimSpace(proposal.RuntimePreset), "provision")
+	}
+	if saved, savedErr := s.client.ProjectWorkload.Query().Where(projectworkload.SourceExperimentIDEQ(record.ID)).Only(ctx); savedErr == nil {
+		view.SavedWorkload = saved.Name
+		view.SavableWorkload = false
+	} else if savedErr != nil && !ent.IsNotFound(savedErr) {
+		return savedErr
 	}
 
 	attempts, err := s.client.Attempt.Query().Where(attempt.ExperimentIDEQ(record.ID)).Order(ent.Asc(attempt.FieldNumber)).All(ctx)
