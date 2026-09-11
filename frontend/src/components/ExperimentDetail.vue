@@ -72,7 +72,7 @@ function cleanupLabel() {
       <div class="detail-scroll">
         <section class="run-summary">
           <div class="summary-source"><GitCommitHorizontal :size="18" /><span><small>{{ t('Source', '源码') }}</small><strong>{{ context?.repository_name || experiment.repository_id }}</strong><code>{{ context?.requested_ref || '—' }} · {{ experiment.commit_sha }}</code></span></div>
-          <div><Clock3 :size="18" /><span><small>{{ t('Runtime limit', '运行上限') }}</small><strong>{{ Math.round(experiment.max_runtime_seconds / 60) }} {{ t('minutes', '分钟') }}</strong><code>{{ money(experiment.reserved_cost_milli) }} {{ t('reserved', '已预留') }}</code></span></div>
+          <div><Clock3 :size="18" /><span><small>{{ t('Runtime limit', '运行上限') }}</small><strong>{{ Math.round(experiment.max_runtime_seconds / 60) }} {{ t('minutes', '分钟') }}</strong><code>{{ money(experiment.reserved_cost_milli) }} {{ t('reserved', '已预留') }} · {{ money(experiment.estimated_cost_milli) }} {{ experiment.budget_finalized_at ? t('final', '已结算') : t('estimated', '估算') }}</code></span></div>
           <div><Server :size="18" /><span><small>{{ t('Backend', 'Backend') }}</small><strong>{{ context?.backend || '—' }}</strong><code>{{ context?.region || t('Managed region', '托管区域') }}</code></span></div>
           <div><Activity :size="18" /><span><small>{{ t('Attempt', 'Attempt') }}</small><strong>{{ latestAttempt ? `#${latestAttempt.number} · ${stateLabel(latestAttempt.state)}` : t('Not dispatched', '尚未调度') }}</strong><code>{{ latestAttempt?.last_heartbeat_at ? `${t('Heartbeat', '心跳')} ${dateTime(latestAttempt.last_heartbeat_at)}` : '—' }}</code></span></div>
         </section>
@@ -109,6 +109,9 @@ function cleanupLabel() {
               <div><dt>{{ t('Container output', '容器输出目录') }}</dt><dd><code>{{ context?.container_output_path || '—' }}</code></dd></div>
               <div><dt>{{ t('Observed output directory', '实际输出目录') }}</dt><dd><code>{{ runtime?.output_directory || t('Awaiting start', '等待启动') }}</code></dd></div>
               <div><dt>{{ t('Managed artifact path', '托管产物路径') }}</dt><dd><code>{{ experiment.output_path }}</code></dd></div>
+              <div v-if="experiment.artifacts?.length"><dt>{{ t('Registered artifacts', '已登记产物') }}</dt><dd><code>{{ experiment.artifacts.join(', ') }}</code></dd></div>
+              <div v-else><dt>{{ t('Registered artifacts', '已登记产物') }}</dt><dd>{{ t('None registered yet', '尚未登记') }}</dd></div>
+              <div><dt>{{ t('Settlement', '结算') }}</dt><dd>{{ experiment.budget_finalized_at ? t('Budget finalized', '预算已结算') : t('Reservation open', '预留未结算') }}</dd></div>
             </dl>
           </article>
 

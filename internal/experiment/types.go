@@ -72,7 +72,9 @@ type View struct {
 	MaxRuntimeSeconds     int                     `json:"max_runtime_seconds"`
 	ReservedCostMilli     int64                   `json:"reserved_cost_milli"`
 	EstimatedCostMilli    int64                   `json:"estimated_cost_milli"`
+	BudgetFinalizedAt     *time.Time              `json:"budget_finalized_at,omitempty"`
 	OutputPath            string                  `json:"output_path"`
+	Artifacts             []string                `json:"artifacts,omitempty"`
 	ProviderResourceID    *string                 `json:"provider_resource_id,omitempty"`
 	ProviderStatus        *string                 `json:"provider_status,omitempty"`
 	ExitCode              *int                    `json:"exit_code,omitempty"`

@@ -45,6 +45,8 @@ const experiments = [
     command: 'python train.py --config configs/scanobjectnn.yaml',
     max_runtime_seconds: 14400, reserved_cost_milli: 12250, estimated_cost_milli: 80,
     output_path: '/root/autodl-fs/projects/b492cbe4/experiments/ec29dc68/',
+    artifacts: ['gemcp-launch.log', 'run.log', 'metrics.json', 'gemcp-result.json'],
+    budget_finalized_at: '2026-08-17T17:55:00Z',
     runner_attempt_id: 'a72afbc7-df86-4aaf-a7bc-68060968ed11', runner_source_downloads: 1,
     runner_stage: 'started', runner_stage_updated_at: '2026-08-17T17:55:00Z',
     log_tail: 'overall_accuracy 86.4\n', metrics: { overall_accuracy: 86.4 },
