@@ -333,6 +333,9 @@ func TestCloseRunRequiresTerminalExperimentAndWritesProducedResult(t *testing.T)
 	if result.Branch != "autoresearch/objbg-baseline" {
 		t.Fatalf("result branch = %q", result.Branch)
 	}
+	if result.ExperimentID != finished.PublicID.String() {
+		t.Fatalf("result experiment = %q", result.ExperimentID)
+	}
 	if rec := closed.Study.Hypotheses[0]; rec.Branch != "autoresearch/objbg-baseline" {
 		t.Fatalf("hypothesis header branch = %+v", rec)
 	}
