@@ -46,3 +46,13 @@ func githubHTTPSURLFromSSH(sshURL string) string {
 	}
 	return remote.HTTPSURL
 }
+
+// DeployKeySettingsURL is the GitHub repository Deploy Key page for a
+// registered github.com remote. Empty when the URL is not GitHub.
+func DeployKeySettingsURL(sshURL string) string {
+	remote, err := parseGitHubRemote(sshURL)
+	if err != nil {
+		return ""
+	}
+	return "https://github.com/" + remote.Owner + "/" + remote.Name + "/settings/keys"
+}

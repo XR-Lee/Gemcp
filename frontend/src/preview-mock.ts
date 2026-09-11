@@ -336,6 +336,21 @@ function match(url: URL, method: string, body?: unknown): Response | null {
     })
   }
   if (path === '/api/v1/repositories') return json(repositories)
+  if (path.endsWith('/readiness') && path.startsWith('/api/v1/repositories/')) {
+    return json({
+      id: repositories[0].id, project_id: projectID, name: repositories[0].name, ssh_url: repositories[0].ssh_url,
+      status: 'active', access: 'ssh_deploy_key', default_branch: 'main', detected_default_branch: 'main',
+      commit_sha: '0123456789012345678901234567890123456789',
+      deploy_key_settings_url: 'https://github.com/research/dynamic-point-mamba/settings/keys',
+      ready: true, manifest: { present: true, workloads: ['objbg-smoke'] },
+      defaults: {
+        environment: { name: 'public-elastic' },
+        resource_profile: { name: 'rtx4090' },
+        dataset_binding: { name: 'scanobjectnn-objbg' },
+      },
+      blockers: [],
+    })
+  }
   if (path === '/api/v1/experiments') return json(experiments)
   if (path === `/api/v1/experiments/${experimentID}`) return json(experiments[0])
   if (path === `/api/v1/experiments/${experimentID}/artifacts/metrics.json`) {

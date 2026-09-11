@@ -206,6 +206,7 @@ func New(deps Dependencies) *http.Server {
 	protected.POST("/projects/:id/workloads/preview", experimentHandlers.PreviewWorkload)
 	protected.POST("/projects/:id/workloads", experimentHandlers.SaveWorkload)
 	protected.GET("/projects/:id/agent-readiness", experimentHandlers.AgentReadiness)
+	protected.GET("/repositories/:id/readiness", experimentHandlers.RepositoryReadiness)
 	researchService := research.NewService(deps.Ent)
 	experimentService.SetGraphBinder(researchService)
 	researchHandlers := httpapi.NewResearchHandlers(researchService)

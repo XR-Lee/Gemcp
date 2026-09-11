@@ -189,6 +189,47 @@ export type Repository = {
   host_key_fingerprint?: string
   last_verified_at?: string
   access?: 'public_https' | 'ssh_deploy_key'
+  deploy_key_settings_url?: string
+}
+
+export type RepositoryReadinessBlocker = {
+  kind: string
+  title: string
+  detail: string
+  href?: string
+}
+
+export type RepositoryReadinessDefault = {
+  id?: string
+  name?: string
+  backend?: string
+}
+
+export type RepositoryReadiness = {
+  id: string
+  project_id: string
+  name: string
+  ssh_url: string
+  status: Repository['status']
+  access: 'public_https' | 'ssh_deploy_key'
+  default_branch: string
+  detected_default_branch?: string
+  commit_sha?: string
+  deploy_public_key?: string
+  deploy_key_settings_url?: string
+  ready: boolean
+  manifest: {
+    present: boolean
+    workloads?: string[]
+    error?: string
+  }
+  project_workloads?: string[]
+  defaults: {
+    environment?: RepositoryReadinessDefault
+    resource_profile?: RepositoryReadinessDefault
+    dataset_binding?: RepositoryReadinessDefault
+  }
+  blockers: RepositoryReadinessBlocker[]
 }
 
 export type Experiment = {
@@ -1431,6 +1472,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(hostKeyFingerprint ? { host_key_fingerprint: hostKeyFingerprint } : {}),
     }),
+  repositoryReadiness: (repositoryID: string, projectID: string) =>
+    request<RepositoryReadiness>(
+      `/api/v1/repositories/${encodeURIComponent(repositoryID)}/readiness?project_id=${encodeURIComponent(projectID)}`,
+    ),
   experiments: (projectID: string, states: string[] = []) => {
     const params = new URLSearchParams({ project_id: projectID, limit: '100' })
     states.forEach((state) => params.append('state', state))
@@ -1562,4 +1607,11 @@ export const api = {
   }) => request<NotificationSetting>('/api/v1/notifications/settings', { method: 'PUT', body: JSON.stringify(payload) }),
   testNotification: () => request<NotificationDelivery>('/api/v1/notifications/test', { method: 'POST' }),
   notifications: () => request<NotificationDelivery[]>('/api/v1/notifications?limit=100'),
+}
+
+export function githubDeployKeySettingsURL(sshURL?: string, provided?: string) {
+  if (provided) return provided
+  const match = sshURL?.trim().match(/^git@github\.com:([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+?)(?:\.git)?$/)
+  if (!match) return ''
+  return `https://github.com/${match[1]}/${match[2]}/settings/keys`
 }

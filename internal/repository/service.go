@@ -77,16 +77,17 @@ type ListResult struct {
 }
 
 type View struct {
-	ID                 string     `json:"id"`
-	ProjectID          string     `json:"project_id"`
-	Name               string     `json:"name"`
-	SSHURL             string     `json:"ssh_url"`
-	DefaultBranch      string     `json:"default_branch"`
-	Status             string     `json:"status"`
-	DeployPublicKey    string     `json:"deploy_public_key,omitempty"`
-	HostKeyFingerprint *string    `json:"host_key_fingerprint,omitempty"`
-	LastVerifiedAt     *time.Time `json:"last_verified_at,omitempty"`
-	Access             string     `json:"access,omitempty"`
+	ID                   string     `json:"id"`
+	ProjectID            string     `json:"project_id"`
+	Name                 string     `json:"name"`
+	SSHURL               string     `json:"ssh_url"`
+	DefaultBranch        string     `json:"default_branch"`
+	Status               string     `json:"status"`
+	DeployPublicKey      string     `json:"deploy_public_key,omitempty"`
+	HostKeyFingerprint   *string    `json:"host_key_fingerprint,omitempty"`
+	LastVerifiedAt       *time.Time `json:"last_verified_at,omitempty"`
+	Access               string     `json:"access,omitempty"`
+	DeployKeySettingsURL string     `json:"deploy_key_settings_url,omitempty"`
 }
 
 type GitVerifier interface {
@@ -100,6 +101,10 @@ type GitArchiver interface {
 
 type GitRefResolver interface {
 	ResolveRef(context.Context, string, string, []byte, string, string) (string, error)
+}
+
+type GitHEADDetector interface {
+	DetectDefaultBranch(context.Context, string, string, []byte, string) (string, string, error)
 }
 
 type Service struct {
@@ -483,6 +488,33 @@ func (s *Service) ResolveRef(ctx context.Context, repositoryID int, ref string) 
 	return resolver.ResolveRef(ctx, record.SSHURL, record.SSHHost, privateKey, record.HostKeyFingerprint, ref)
 }
 
+func (s *Service) DetectDefaultBranch(ctx context.Context, repositoryID int) (string, string, error) {
+	record, err := s.client.Repository.Get(ctx, repositoryID)
+	if ent.IsNotFound(err) {
+		return "", "", ErrNotFound
+	}
+	if err != nil {
+		return "", "", err
+	}
+	if record.Status != "active" || record.HostKeyFingerprint == "" {
+		return "", "", ErrNotActive
+	}
+	detector, ok := s.verifier.(GitHEADDetector)
+	if !ok {
+		return record.DefaultBranch, "", nil
+	}
+	privateKey, err := s.decryptKey(record)
+	if err != nil {
+		return "", "", err
+	}
+	defer wipe(privateKey)
+	branch, sha, err := detector.DetectDefaultBranch(ctx, record.SSHURL, record.SSHHost, privateKey, record.HostKeyFingerprint)
+	if err != nil {
+		return "", "", err
+	}
+	return branch, sha, nil
+}
+
 func (s *Service) ArchiveCommit(ctx context.Context, repositoryID int, commitSHA string, maxBytes int64) (Archive, error) {
 	record, err := s.client.Repository.Get(ctx, repositoryID)
 	if ent.IsNotFound(err) {
@@ -553,14 +585,24 @@ func generateDeployKey(comment string) (string, []byte, error) {
 	return strings.TrimSpace(string(ssh.MarshalAuthorizedKey(sshPublic))) + " " + comment, pem.EncodeToMemory(block), nil
 }
 
+func AccessOf(record *ent.Repository) string {
+	if record == nil {
+		return ""
+	}
+	if strings.TrimSpace(record.DeployPrivateKeyCiphertext) == "" && record.Status == entrepository.StatusActive {
+		return AccessPublicHTTPS
+	}
+	return AccessSSHDeploy
+}
+
 func makeView(record *ent.Repository, projectID string, includePublicKey bool) View {
 	view := View{
 		ID: record.PublicID.String(), ProjectID: projectID, Name: record.Name, SSHURL: record.SSHURL,
 		DefaultBranch: record.DefaultBranch, Status: string(record.Status), LastVerifiedAt: record.LastVerifiedAt,
-		Access: AccessSSHDeploy,
+		Access: AccessOf(record),
 	}
-	if strings.TrimSpace(record.DeployPrivateKeyCiphertext) == "" && record.Status == entrepository.StatusActive {
-		view.Access = AccessPublicHTTPS
+	if view.Access == AccessSSHDeploy {
+		view.DeployKeySettingsURL = DeployKeySettingsURL(record.SSHURL)
 	}
 	if includePublicKey {
 		view.DeployPublicKey = record.DeployPublicKey

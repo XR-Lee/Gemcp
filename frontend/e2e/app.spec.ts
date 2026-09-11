@@ -727,6 +727,28 @@ async function mockConsole(page: Page, counters?: { providerQueries?: number; se
       return fulfill(route, { ...agentTokens[0], status: 'revoked', updated_at: '2026-07-17T02:01:00Z' })
     }
     if (path === '/api/v1/repositories') return fulfill(route, repositories)
+    if (path.endsWith('/readiness') && path.startsWith('/api/v1/repositories/')) {
+      const repository = repositories.find((item) => path.includes(item.id)) ?? repositories[0]
+      return fulfill(route, {
+        id: repository.id, project_id: project.id, name: repository.name, ssh_url: repository.ssh_url,
+        status: repository.status, access: 'ssh_deploy_key', default_branch: repository.default_branch,
+        detected_default_branch: repository.default_branch, commit_sha: 'a'.repeat(40),
+        deploy_public_key: repository.deploy_public_key,
+        deploy_key_settings_url: `https://github.com/research/${repository.name}/settings/keys`,
+        ready: repository.status === 'active',
+        manifest: repository.status === 'active' ? { present: true, workloads: ['objbg-smoke'] } : { present: false },
+        defaults: {
+          environment: { name: 'public-elastic' },
+          resource_profile: { name: 'rtx4090' },
+          dataset_binding: { name: 'scanobjectnn-objbg' },
+        },
+        blockers: repository.status === 'active' ? [] : [{
+          kind: 'deploy_key_required', title: 'Add a read-only Deploy Key',
+          detail: 'Install this Gemcp public key on the GitHub repository as a read-only Deploy Key, then verify access.',
+          href: `https://github.com/research/${repository.name}/settings/keys`,
+        }],
+      })
+    }
     if (path === '/api/v1/experiments') return fulfill(route, experiments)
     if (path === `/api/v1/projects/${project.id}/research`) return fulfill(route, researchWorkspace)
     if (path === `/api/v1/projects/${project.id}/experiment-catalog`) {
@@ -922,7 +944,10 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await page.getByTitle('View Deploy public key').first().click()
   await expect(page.getByRole('heading', { name: 'Deploy public key' })).toBeVisible()
   await expect(page.getByText('If you cannot add a repository Deploy Key, add this same Gemcp public key to your GitHub account SSH keys.')).toBeVisible()
+  await expect(page.getByRole('link', { name: 'GitHub repository → Deploy keys' }).first()).toHaveAttribute('href', 'https://github.com/research/dynamic-point-mamba/settings/keys')
   await expect(page.getByRole('link', { name: 'Settings → SSH and GPG keys' })).toHaveAttribute('href', 'https://github.com/settings/keys')
+  await expect(page.getByTestId('repository-readiness')).toBeVisible()
+  await expect(page.getByTestId('repository-readiness')).toContainText('objbg-smoke')
   await page.screenshot({ path: '/tmp/gemcp-repository-dialog.png', fullPage: true })
   await page.getByTitle('Close').click()
 

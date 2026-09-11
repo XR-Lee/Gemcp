@@ -30,6 +30,7 @@ type proposalGit struct {
 	resolved string
 	archive  []byte
 	err      error
+	branch   string
 }
 
 func (g *proposalGit) VerifyCommit(context.Context, int, string) error { return g.err }
@@ -46,6 +47,17 @@ func (g *proposalGit) ArchiveCommit(context.Context, int, string, int64) (gitrep
 		return nil, g.err
 	}
 	return &memoryProposalArchive{data: append([]byte(nil), g.archive...)}, nil
+}
+
+func (g *proposalGit) DetectDefaultBranch(context.Context, int) (string, string, error) {
+	if g.err != nil {
+		return "", "", g.err
+	}
+	branch := g.branch
+	if branch == "" {
+		branch = "main"
+	}
+	return branch, g.resolved, nil
 }
 
 type memoryProposalArchive struct{ data []byte }
