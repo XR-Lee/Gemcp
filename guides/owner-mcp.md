@@ -1,6 +1,6 @@
 # Gemcp MCP Owner Guide
 
-This guide explains how an Owner connects a third-party Agent to one Gemcp project and keeps paid execution under human control.
+This guide explains how an Owner connects a third-party Agent to one Gemcp project and keeps paid execution under human control. The product overview for humans is [README.md](../README.md). The Agent operating contract is [agent-mcp.md](agent-mcp.md).
 
 ## What the Agent receives
 

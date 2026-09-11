@@ -1,6 +1,11 @@
 # Gemcp MCP Agent Operating Guide
 
-This document is for an AI or automation Agent connected to a Gemcp MCP server. Gemcp schedules bounded AutoDL, authorized Self-hosted, and experimental Cloud SSH experiments. It does not provide arbitrary host access, Provider credentials, SSH material, or a general-purpose cloud API.
+This document is the operating contract for an AI or automation Agent **connected to a running Gemcp MCP server**. It is not the product README.
+
+- Humans: [README.md](../README.md)
+- Coding agents working in the Gemcp repository: [AGENTS.md](../AGENTS.md)
+
+Gemcp schedules bounded AutoDL, authorized Self-hosted, and experimental Cloud SSH experiments. It does not provide arbitrary host access, Provider credentials, SSH material, or a general-purpose cloud API.
 
 ## Non-negotiable rules
 
