@@ -166,7 +166,7 @@ Let a `configure` Agent finish Public Elastic setup without an Owner-baked image
 
 ### Repository readiness and Owner prepared experiments
 
-Add repository URL onboarding and public-repository readiness, expose the prepared proposal and confirmation flow to authenticated Owners, then add reviewed named workloads. The released Agent path already removes preliminary options, cost, UUID, full-SHA, reservation calculation, caller idempotency, and shell-command assembly from the common single-repository workflow.
+Owner and Agent registration now accept a GitHub HTTPS or SSH URL. Public repositories activate over anonymous HTTPS with no Deploy Key; private repositories keep the read-only Deploy Key path. Next: expose any remaining prepared-proposal confirmation gaps to authenticated Owners, then add reviewed named workloads. The released Agent path already removes preliminary options, cost, UUID, full-SHA, reservation calculation, caller idempotency, and shell-command assembly from the common single-repository workflow.
 
 ## Further validation
 

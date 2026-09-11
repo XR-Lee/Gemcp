@@ -275,7 +275,7 @@ Study, hypothesis, run, result, highlight observation, and orphan have one defin
 
 - `get_usage_guide`: current Agent operating guide, authenticated project ID, Token scopes, Resource URI, and Prompt name.
 - `list_repository_registrations`: active and pending repositories in the authenticated Project, including non-secret deploy public keys.
-- `register_repository`: create a pending GitHub SSH registration in the authenticated Project; requires `configure`.
+- `register_repository`: register a GitHub SSH or HTTPS URL in the authenticated Project; public repositories activate immediately; private repositories return a pending Deploy Key; requires `configure`.
 - `verify_repository`: activate a pending repository after its read-only Deploy Key is installed; requires `configure`.
 - `list_workspace_datasets`: declared dataset paths below Owner-approved trusted workspace roots.
 - `register_workspace_dataset`: declare one normalized relative dataset path without authorizing a new host root; requires `configure`.

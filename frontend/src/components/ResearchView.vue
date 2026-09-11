@@ -339,7 +339,7 @@ function dateTime(value?: string) {
     <div v-else class="empty-state research-empty">
       <span class="empty-icon"><FlaskConical :size="21" /></span>
       <h3>{{ t('Import from a research repository', '从已有研究仓库导入') }}</h3>
-      <p>{{ t('Pick a registered repository or paste a GitHub SSH URL. That creates a Study bound to the repo and does not start a workload.', '选一个已注册仓库，或粘贴 GitHub SSH URL。会创建一个绑上该仓库的 Study，不会启动作业。') }}</p>
+      <p>{{ t('Pick a registered repository or paste a GitHub HTTPS or SSH URL. That creates a Study bound to the repo and does not start a workload.', '选一个已注册仓库，或粘贴 GitHub HTTPS / SSH URL。会创建一个绑上该仓库的 Study，不会启动作业。') }}</p>
       <div class="research-empty-actions">
         <button class="secondary-button" type="button" :aria-label="t('Attach prompt', '入图 Prompt')" @click="attachOpen = true"><Clipboard :size="16" />{{ t('Attach prompt', '入图 Prompt') }}</button>
         <button class="primary-button" type="button" @click="emit('createStudy')"><Plus :size="16" />{{ t('Import study', '从仓库导入') }}</button>

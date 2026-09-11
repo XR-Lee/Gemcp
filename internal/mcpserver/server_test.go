@@ -32,6 +32,16 @@ type allowCommitVerifier struct{}
 
 func (allowCommitVerifier) VerifyCommit(context.Context, int, string) error { return nil }
 
+type stubGitVerifier struct{}
+
+func (stubGitVerifier) VerifyAccess(context.Context, string, string, []byte, string) error {
+	return nil
+}
+
+func (stubGitVerifier) VerifyCommit(context.Context, string, string, []byte, string, string) error {
+	return nil
+}
+
 type bearerTransport struct {
 	token string
 	base  http.RoundTripper
@@ -93,7 +103,7 @@ func TestStreamableHTTPToolsWithAgentToken(t *testing.T) {
 	handler := New(
 		agentauth.NewService(client, box),
 		experiment.NewService(client, box, allowCommitVerifier{}),
-		"test", nil, WithConfiguration(repositoryservice.NewService(client, box, nil), workspacecatalog.NewService(client), datasetcatalog.NewService(client)),
+		"test", nil, WithConfiguration(repositoryservice.NewService(client, box, stubGitVerifier{}), workspacecatalog.NewService(client), datasetcatalog.NewService(client)),
 		WithResearch(research.NewService(client)),
 	).Handler()
 	httpServer := httptest.NewServer(handler)
@@ -571,6 +581,54 @@ func TestImageBakeMCPConfigureRequestDoesNotStartPro(t *testing.T) {
 		t.Fatalf("MCP request side effects experiments=%d nodes=%d budget=%d", experiments, nodes, budget)
 	}
 }
+
+func TestRegisterRepositoryAcceptsPublicHTTPSURL(t *testing.T) {
+	client := enttest.Open(t, dialect.SQLite, "file:mcp-public-repo?mode=memory&cache=shared&_fk=1")
+	defer client.Close()
+	ctx := context.Background()
+	tenant, _ := client.Tenant.Create().SetName("Test").Save(ctx)
+	project, _ := client.Project.Create().
+		SetTenantID(tenant.ID).SetName("Project").SetSlug("project").
+		SetMonthlyBudgetMilli(100000).SetMaxExperimentMilli(20000).SetMaxRuntimeSeconds(3600).
+		Save(ctx)
+	key, _ := secrets.GenerateMasterKey()
+	box, _ := secrets.New(key)
+	rawToken, prefix, _ := secrets.RandomToken("gmc", 32)
+	_, _ = client.AgentToken.Create().
+		SetProjectID(project.ID).SetLabel("test-agent").SetPrefix(prefix).
+		SetTokenHash(box.Digest("agent-token", rawToken)).SetScopes([]string{"read", "configure"}).Save(ctx)
+	handler := New(
+		agentauth.NewService(client, box),
+		experiment.NewService(client, box, allowCommitVerifier{}),
+		"test", nil, WithConfiguration(repositoryservice.NewService(client, box, publicGitVerifier{}), workspacecatalog.NewService(client), datasetcatalog.NewService(client)),
+	).Handler()
+	httpServer := httptest.NewServer(handler)
+	defer httpServer.Close()
+	httpClient := &http.Client{Transport: bearerTransport{token: rawToken, base: http.DefaultTransport}}
+	mcpClient := mcp.NewClient(&mcp.Implementation{Name: "gemcp-test", Version: "test"}, nil)
+	session, err := mcpClient.Connect(ctx, &mcp.StreamableClientTransport{
+		Endpoint: httpServer.URL, HTTPClient: httpClient,
+	}, nil)
+	if err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	defer session.Close()
+	registered, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "register_repository", Arguments: map[string]any{
+		"url": "https://github.com/octocat/Hello-World",
+	}})
+	if err != nil || registered.IsError {
+		t.Fatalf("register_repository = %+v, %v", registered, err)
+	}
+	var view repositoryservice.View
+	decodeStructured(t, registered.StructuredContent, &view)
+	if view.Name != "Hello-World" || view.Status != "active" || view.Access != repositoryservice.AccessPublicHTTPS || view.DeployPublicKey != "" {
+		t.Fatalf("public repository = %+v", view)
+	}
+}
+
+type publicGitVerifier struct{ stubGitVerifier }
+
+func (publicGitVerifier) ProbePublicHTTPS(context.Context, string) error { return nil }
 
 func decodeStructured(t *testing.T, value any, target any) {
 	t.Helper()
