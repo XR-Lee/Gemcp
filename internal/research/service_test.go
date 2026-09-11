@@ -452,6 +452,77 @@ func TestCloseRunCopiesExpectedMetricWhenOmitted(t *testing.T) {
 	}
 }
 
+func TestOwnerCloseRunWritesHighlight(t *testing.T) {
+	client := enttest.Open(t, dialect.SQLite, "file:research-owner-close-run?mode=memory&cache=shared&_fk=1")
+	defer client.Close()
+	ctx := context.Background()
+	tenant, _ := client.Tenant.Create().SetName("Test").Save(ctx)
+	project, _ := client.Project.Create().SetTenantID(tenant.ID).SetName("Research").SetSlug("research").SetMonthlyBudgetMilli(1).SetMaxExperimentMilli(1).Save(ctx)
+	token, _ := client.AgentToken.Create().SetProjectID(project.ID).SetLabel("lab-agent").SetPrefix("gmc_lab").SetTokenHash([]byte("owner-close-hash")).SetScopes([]string{"read", "submit"}).Save(ctx)
+	repository, _ := client.Repository.Create().SetProjectID(project.ID).SetName("main").SetSSHURL("git@github.com:XR-Lee/Gemcp.git").SetSSHHost("github.com").SetDefaultBranch("main").SetHostKeyFingerprint("SHA256:test").SetStatus("active").Save(ctx)
+	environment, _ := client.Environment.Create().SetProjectID(project.ID).SetName("default").SetImageUUID("image").SetIsDefault(true).Save(ctx)
+	profile, _ := client.ResourceProfile.Create().SetProjectID(project.ID).SetName("default").SetRegion("west").SetGpuNames([]string{"RTX 4090"}).SetGpuNum(1).SetCudaFrom(118).SetCudaTo(128).SetCPUFrom(1).SetCPUTo(128).SetMemoryFromGB(1).SetMemoryToGB(512).SetPriceFromMilli(10).SetPriceToMilli(3000).SetIsDefault(true).Save(ctx)
+	finished, _ := client.Experiment.Create().
+		SetTenantID(tenant.ID).SetProjectID(project.ID).SetAgentTokenID(token.ID).SetRepositoryID(repository.ID).
+		SetEnvironmentID(environment.ID).SetResourceProfileID(profile.ID).SetCommitSha("0123456789012345678901234567890123456789").
+		SetCommand("python train.py").SetState("succeeded").SetMaxRuntimeSeconds(300).SetTimeoutExtensionSeconds(60).SetTerminationGraceSeconds(30).
+		SetRepositorySnapshot(map[string]any{"name": "main"}).SetEnvironmentSnapshot(map[string]any{"name": "default"}).
+		SetResourceSnapshot(map[string]any{"name": "default"}).SetOutputPath("/outputs").SetReservedCostMilli(0).
+		SetMetrics(map[string]any{"overall_accuracy": 86.4}).
+		Save(ctx)
+	_, _ = client.ExperimentProposal.Create().
+		SetTenantID(tenant.ID).SetProjectID(project.ID).SetAgentTokenID(token.ID).
+		SetRepositoryID(repository.ID).SetEnvironmentID(environment.ID).SetResourceProfileID(profile.ID).
+		SetExperimentID(finished.ID).SetStatus("submitted").SetRequestedRef("autoresearch/objbg-baseline").
+		SetCommitSha(finished.CommitSha).SetExecutionMode("argv").SetArgv([]string{"python", "train.py"}).
+		SetDisplayCommand("python train.py").SetMaxRuntimeSeconds(300).SetTimeoutExtensionSeconds(60).
+		SetTerminationGraceSeconds(30).SetProjectSnapshot(map[string]any{"expected_metric": "overall_accuracy"}).
+		SetRepositorySnapshot(map[string]any{"name": "main"}).SetEnvironmentSnapshot(map[string]any{"name": "default"}).
+		SetResourceSnapshot(map[string]any{"name": "default"}).SetChecks([]map[string]any{}).
+		SetReservedCostMilli(0).SetConfirmationDigest("sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa").
+		SetExpiresAt(time.Now().UTC().Add(time.Hour)).Save(ctx)
+	principal := agentauth.Principal{
+		TenantID: tenant.ID, ProjectID: project.ID, ProjectPublicID: project.PublicID.String(),
+		TokenID: token.ID, TokenPublicID: token.PublicID.String(), Scopes: token.Scopes,
+	}
+	service := NewService(client)
+	created, err := service.AgentUpdate(ctx, principal, UpdateInput{
+		Study: &StudyInput{Name: "owner-close", Question: "Can an Owner close a terminal Graph run without an Agent Token?"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hypothesis, err := service.AgentUpdate(ctx, principal, UpdateInput{
+		Node: &NodeInput{Kind: "hypothesis", Title: "Owner close completes the Graph", FromNodeID: created.Study.Nodes[0].ID, Relation: "leads_to"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.BindPreparedRun(ctx, principal, hypothesis.Study.Nodes[1].ID, finished.PublicID.String(), "owner smoke"); err != nil {
+		t.Fatal(err)
+	}
+	closed, err := service.OwnerCloseRun(ctx, tenant.ID, "owner-1", project.PublicID.String(), CloseRunInput{
+		ExperimentID: finished.PublicID.String(), Title: "Owner-closed OBJ-BG smoke",
+		Highlight: "Owner wrote the highlight",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := nodeByKind(closed.Study.Nodes, "result")
+	if result.Kind != "result" || result.Title != "Owner-closed OBJ-BG smoke" || result.MetricName != "overall_accuracy" {
+		t.Fatalf("owner result = %+v", result)
+	}
+	if !hasHighlightOnHypothesis(closed.Study, hypothesis.Study.Nodes[1].ID, "Owner wrote the highlight") {
+		t.Fatalf("owner highlight missing: %+v", closed.Study)
+	}
+	again, err := service.OwnerCloseRun(ctx, tenant.ID, "owner-1", project.PublicID.String(), CloseRunInput{
+		ExperimentID: finished.PublicID.String(), Title: "ignored retry",
+	})
+	if err != nil || len(again.Study.Nodes) != len(closed.Study.Nodes) {
+		t.Fatalf("idempotent owner close = %+v, %v", again.Study, err)
+	}
+}
+
 func TestCreateStudyBindsExistingRepository(t *testing.T) {
 	client := enttest.Open(t, dialect.SQLite, "file:research-import-repo?mode=memory&cache=shared&_fk=1")
 	defer client.Close()

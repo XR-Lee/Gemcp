@@ -38,6 +38,7 @@ func (s *Service) enrichExecutionObservation(ctx context.Context, record *ent.Ex
 		view.ExecutionContext.ProposalID = proposal.PublicID.String()
 		view.ExecutionContext.RequestedRef = proposal.RequestedRef
 		view.ExecutionContext.Workload = snapshotString(proposal.ProjectSnapshot, "workload")
+		view.ExecutionContext.ExpectedMetric = snapshotString(proposal.ProjectSnapshot, "expected_metric")
 		view.SavableWorkload = record.State == "succeeded" &&
 			string(record.ExecutionMode) == "argv" &&
 			len(record.Argv) > 0 &&

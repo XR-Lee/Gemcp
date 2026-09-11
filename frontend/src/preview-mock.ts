@@ -68,6 +68,7 @@ const experiments = [
     runner_stages: [{ stage: 'started', at: '2026-08-17T17:55:00Z' }],
     savable_workload: true,
     saved_workload: '',
+    closable_run: true,
     graph_linked: true, orphaned: false,
   },
   {

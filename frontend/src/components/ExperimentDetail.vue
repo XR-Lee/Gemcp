@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Activity, Box, CheckCircle2, Clock3, Copy, Cpu, Folder, GitCommitHorizontal, ListTree, LoaderCircle, Radio, Save, Server, SquareTerminal, TriangleAlert, X } from '@lucide/vue'
+import { Activity, Box, CheckCircle2, Clock3, Copy, Cpu, Flag, Folder, GitCommitHorizontal, ListTree, LoaderCircle, Radio, Save, Server, SquareTerminal, TriangleAlert, X } from '@lucide/vue'
 import { APIError, api, type ArtifactManifestEntry, type Attempt, type Experiment, type ProjectWorkload } from '../api'
 import { useI18n } from '../i18n'
 import WorkbenchDialog from './WorkbenchDialog.vue'
 
-const props = defineProps<{ experiment: Experiment; attempts: Attempt[]; loading: boolean; error: string }>()
-const emit = defineEmits<{ close: []; saved: [workload: ProjectWorkload] }>()
+const props = defineProps<{ experiment: Experiment; attempts: Attempt[]; loading: boolean; error: string; autoCloseRun?: boolean }>()
+const emit = defineEmits<{ close: []; saved: [workload: ProjectWorkload]; closed: [] }>()
 const { languageTag, t } = useI18n()
 const saveOpen = ref(false)
 const saveName = ref('oneshot')
@@ -20,6 +20,12 @@ const readBody = ref('')
 const readNote = ref('')
 const readError = ref('')
 const readBusy = ref(false)
+const closeOpen = ref(false)
+const closeTitle = ref('')
+const closeSummary = ref('')
+const closeHighlight = ref('')
+const closeError = ref('')
+const closeBusy = ref(false)
 let previewGeneration = 0
 
 const context = computed(() => props.experiment.execution_context)
@@ -174,6 +180,45 @@ async function openArtifact(name: string) {
 watch([saveOpen, saveName], ([open, name]) => {
   if (open) void previewWorkload(String(name).trim())
 })
+function defaultCloseTitle() {
+  return `${props.experiment.id.slice(0, 12)} result`
+}
+function metricPreview() {
+  const name = props.experiment.execution_context?.expected_metric
+  if (!name) return ''
+  const value = props.experiment.metrics?.[name]
+  return value === undefined ? name : `${name} ${value}`
+}
+function openCloseDialog() {
+  closeTitle.value = defaultCloseTitle()
+  closeSummary.value = ''
+  closeHighlight.value = ''
+  closeError.value = ''
+  closeOpen.value = true
+}
+async function submitCloseRun() {
+  const title = closeTitle.value.trim()
+  if (!title || closeBusy.value) return
+  closeBusy.value = true
+  closeError.value = ''
+  try {
+    await api.closeRun(props.experiment.project_id, {
+      experiment_id: props.experiment.id,
+      title,
+      summary: closeSummary.value.trim() || undefined,
+      highlight: closeHighlight.value.trim() || undefined,
+    })
+    emit('closed')
+    closeOpen.value = false
+  } catch (caught) {
+    closeError.value = caught instanceof APIError ? caught.message : t('Could not close this run.', '无法结束这次 run。')
+  } finally {
+    closeBusy.value = false
+  }
+}
+watch(() => props.autoCloseRun, (requested) => {
+  if (requested && props.experiment.closable_run) openCloseDialog()
+}, { immediate: true })
 </script>
 
 <template>
@@ -211,6 +256,7 @@ watch([saveOpen, saveName], ([open, name]) => {
         <section class="detail-section command-section">
           <div class="section-title"><SquareTerminal :size="17" /><span><strong>{{ t('Execution request', '执行请求') }}</strong><small>{{ t('Immutable command approved for this run', '本次运行批准的不可变命令') }}</small></span><span class="authority-chip">{{ experiment.execution_mode || 'shell' }}</span>
             <button v-if="experiment.savable_workload" class="text-button save-workload-button" type="button" @click="openSaveDialog"><Save :size="14" />{{ t('Save as workload', '另存为工作负载') }}</button>
+            <button v-if="experiment.closable_run" class="text-button save-workload-button" type="button" @click="openCloseDialog"><Flag :size="14" />{{ t('Close run', '结束 run') }}</button>
           </div>
           <pre>{{ experiment.execution_mode === 'argv' && experiment.argv ? JSON.stringify(experiment.argv) : experiment.command }}</pre>
           <div class="command-meta">
@@ -321,6 +367,19 @@ watch([saveOpen, saveName], ([open, name]) => {
       <p v-if="readNote && readBody" class="save-workload-note">{{ readNote }}</p>
       <div v-if="readError" class="form-error" role="alert">{{ readError }}</div>
     </div>
+  </WorkbenchDialog>
+  <WorkbenchDialog v-model:open="closeOpen" :title="t('Close run', '结束 run')" :label="t('Close run', '结束 run')" :description="t('Write the Graph result and a highlight observation on the originating hypothesis. close_run is the only writer. Off-graph Experiments cannot be closed here.', '写入 Graph result，并在来源假设上挂一条 highlight observation。只有 close_run 能写 result。未入图的 Experiment 不能在这里结束。')">
+    <form class="dialog-form" @submit.prevent="submitCloseRun">
+      <label>{{ t('Result title', '结果标题') }}<input v-model="closeTitle" required maxlength="160" spellcheck="false" /></label>
+      <label>{{ t('Summary', '摘要') }}<textarea v-model="closeSummary" rows="3" maxlength="2000" :placeholder="t('Optional scientific claim', '可选科学主张')"></textarea></label>
+      <label>{{ t('Highlight', '亮点观察') }}<input v-model="closeHighlight" maxlength="160" :placeholder="t('Omit to reuse the result title', '留空则沿用结果标题')" /></label>
+      <p v-if="metricPreview()" class="save-workload-note">{{ t('Metric copied from the terminal Experiment', '指标从终态 Experiment 复制') }}: <code>{{ metricPreview() }}</code></p>
+      <p v-else class="save-workload-note">{{ t('No expected_metric was prepared. The server will not invent a scalar.', '准备时没有 expected_metric。服务端不会编造标量。') }}</p>
+      <div v-if="closeError" class="form-error" role="alert">{{ closeError }}</div>
+      <div class="save-workload-actions">
+        <button class="primary-button" type="submit" :disabled="closeBusy || !closeTitle.trim()"><LoaderCircle v-if="closeBusy" :size="16" class="spinning" /><Flag v-else :size="16" />{{ t('Write result', '写入结果') }}</button>
+      </div>
+    </form>
   </WorkbenchDialog>
 </template>
 

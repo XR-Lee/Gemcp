@@ -79,13 +79,15 @@ const experiments = [
     artifacts: ['run.log'],
     log_tail: 'ok\n',
     execution_context: {
-      agent_label: 'Owner', proposal_id: 'proposal-oneshot-1',
+      agent_label: 'Owner', proposal_id: 'proposal-oneshot-1', expected_metric: 'overall_accuracy',
       repository_name: 'dynamic-point-mamba', repository_ssh_url: repositories[0].ssh_url, requested_ref: 'main',
       backend: 'autodl_private', environment_name: 'torch-cuda11.8', image: 'base-image-1', resource_profile_name: 'one-rtx-3090', region: 'private',
       gpu_models: ['NVIDIA GeForce RTX 3090'], gpu_num: 1, workspace_policy: 'runner_temporary', container_output_path: '/gemcp/output',
     },
     savable_workload: true,
     saved_workload: '',
+    closable_run: true,
+    metrics: { overall_accuracy: 86.4 },
     created_at: '2026-07-16T10:00:00Z', updated_at: '2026-07-16T10:05:00Z', finished_at: '2026-07-16T10:05:00Z',
     graph_linked: true, orphaned: false,
   },
@@ -610,6 +612,19 @@ async function mockConsole(page: Page, counters?: { providerQueries?: number; se
       oneshotDetail = { ...oneshotDetail, savable_workload: false, saved_workload: body.name }
       return fulfill(route, created, 201)
     }
+    if (path === `/api/v1/projects/${project.id}/research/close-run` && route.request().method() === 'POST') {
+      const body = route.request().postDataJSON()
+      expect(body.experiment_id).toBe(experiments[2].id)
+      expect(body.title).toBeTruthy()
+      oneshotDetail = { ...oneshotDetail, closable_run: false }
+      return fulfill(route, {
+        ...researchWorkspace,
+        next_actions: [{
+          kind: 'record_decision', tool: 'update_research_workspace', study_id: 'study-objbg-1',
+          title: 'Record a decision', detail: 'Decide whether the evidence supports the hypothesis.',
+        }],
+      })
+    }
     if (path === `/api/v1/projects/${project.id}/experiment-proposals` && route.request().method() === 'POST') {
       const body = route.request().postDataJSON()
       expect(body.argv?.[0] || body.workload || body.runtime_preset).toBeTruthy()
@@ -993,6 +1008,27 @@ test('Owner can save a succeeded one-shot as a Project workload', async ({ page,
   await page.getByLabel('Kind').selectOption('workload')
   await expect(page.getByText('Saved on this Project', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'oneshot-smoke', exact: true })).toBeVisible()
+})
+
+test('Owner can close a terminal Graph run from Evidence', async ({ page }) => {
+  await mockConsole(page)
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Evidence', exact: true }).click()
+  await page.locator('.segmented-control').getByRole('button', { name: 'Succeeded' }).click()
+  await page.getByRole('row').filter({ hasText: '33aa44bb' }).click()
+  const detail = page.getByRole('dialog', { name: 'Experiment details' })
+  await expect(detail).toBeVisible()
+  await expect(detail.getByRole('button', { name: 'Close run' })).toBeVisible()
+  await detail.getByRole('button', { name: 'Close run' }).click()
+  const closeDialog = page.getByRole('dialog', { name: 'Close run' })
+  await expect(closeDialog).toBeVisible()
+  await expect(closeDialog.getByText('overall_accuracy 86.4', { exact: false })).toBeVisible()
+  await closeDialog.locator('input').first().fill('Owner-closed OBJ-BG smoke')
+  await page.screenshot({ path: '/tmp/gemcp-close-run.png', fullPage: true })
+  await closeDialog.getByRole('button', { name: 'Write result' }).click()
+  await expect(closeDialog).not.toBeVisible()
+  await expect(detail.getByRole('button', { name: 'Close run' })).toHaveCount(0)
 })
 
 test('scheduler-disabled Evidence keeps Owner confirmation available and explains queued execution', async ({ page }) => {

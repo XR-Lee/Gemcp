@@ -91,6 +91,8 @@ The Study "Latest result" card is the newest `result` by evidence time (`occurre
 
 UUIDs, argv, GPU IDs, and reservation math stay on the Lab Evidence page. Double-click a Graph node with an Evidence link to open that same Experiment record; other nodes open the node-detail sidebar. That sidebar shows the same git branch as the hypothesis list when the node has a `requested_ref` or a default-branch fallback.
 
+A terminal Graph-linked Experiment exposes **Close run** on Evidence detail (and on a `close_run` next action). That Owner path calls the same writer as MCP `close_run`: result plus highlight observation. Off-graph Experiments stay a Lab badge and cannot be closed from the console.
+
 ## Legal edges
 
 Typed grammar:

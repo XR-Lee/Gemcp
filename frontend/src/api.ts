@@ -239,6 +239,7 @@ export type Experiment = {
   orphaned?: boolean
   savable_workload?: boolean
   saved_workload?: string
+  closable_run?: boolean
 }
 
 export type ExperimentAssessment = {
@@ -322,6 +323,7 @@ export type ExecutionContext = {
   agent_token_prefix?: string
   proposal_id?: string
   workload?: string
+  expected_metric?: string
   repository_name: string
   repository_ssh_url: string
   requested_ref?: string
@@ -1460,6 +1462,20 @@ export const api = {
     const query = params.toString()
     return request<ExperimentCatalog>(`/api/v1/projects/${encodeURIComponent(projectID)}/experiment-catalog${query ? `?${query}` : ''}`)
   },
+  closeRun: (projectID: string, payload: {
+    study_id?: string
+    run_node_id?: string
+    experiment_id?: string
+    title: string
+    summary?: string
+    highlight?: string
+    status?: string
+    metric_name?: string
+    metric_value?: number
+    result_commit_sha?: string
+  }) => request<ResearchWorkspace>(`/api/v1/projects/${encodeURIComponent(projectID)}/research/close-run`, {
+    method: 'POST', body: JSON.stringify(payload),
+  }),
   updateResearch: (projectID: string, payload: {
     study?: { id?: string; name: string; question: string; summary?: string; status?: string; repository_id?: string }
     plan?: { study_id?: string; goal: string; next_action: string; rationale?: string; steps?: ResearchPlanStep[] }
