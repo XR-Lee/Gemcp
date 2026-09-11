@@ -24,7 +24,7 @@ import {
   WalletCards,
   X,
 } from '@lucide/vue'
-import { APIError, api, type AgentReadiness, type Attempt, type BuildInfo, type DatasetBinding, type DatasetCatalogEntry, type Experiment, type ExperimentCatalog, type OperationsFeed, type PreparedProposal, type Project, type ProjectEnvironment, type ProjectWorkload, type ProposalActivity, type Repository, type ResearchWorkspace, type RuntimeStatus, type User } from '../api'
+import { APIError, api, githubDeployKeySettingsURL, type AgentReadiness, type Attempt, type BuildInfo, type DatasetBinding, type DatasetCatalogEntry, type Experiment, type ExperimentCatalog, type OperationsFeed, type PreparedProposal, type Project, type ProjectEnvironment, type ProjectWorkload, type ProposalActivity, type Repository, type RepositoryReadiness, type ResearchWorkspace, type RuntimeStatus, type User } from '../api'
 import { localizedState, useI18n } from '../i18n'
 import { pickDefaultProjectID } from '../projectSelect'
 import { draftStudyFromRepository, repositoryNameFromSSHURL } from '../studyImport'
@@ -39,6 +39,7 @@ import NodeView from './NodeView.vue'
 import BakeView from './BakeView.vue'
 import DiagnosticsView from './DiagnosticsView.vue'
 import ExperimentDetail from './ExperimentDetail.vue'
+import RepositoryReadinessPanel from './RepositoryReadinessPanel.vue'
 import ResearchView from './ResearchView.vue'
 import RunActivityPanel from './RunActivityPanel.vue'
 import WorkbenchDialog from './WorkbenchDialog.vue'
@@ -60,6 +61,8 @@ const researchWorkspace = ref<ResearchWorkspace | null>(null)
 const experimentCatalog = ref<ExperimentCatalog | null>(null)
 const hasActiveAgent = ref(false)
 const agentReadiness = ref<AgentReadiness | null>(null)
+const repositoryReadiness = ref<RepositoryReadiness | null>(null)
+const repositoryReadinessLoading = ref(false)
 const studyDialog = ref(false)
 const studyBusy = ref(false)
 const studyForm = reactive({ name: '', question: '', summary: '', importSource: 'url', sshURL: '', defaultBranch: 'main' })
@@ -120,6 +123,10 @@ const studyImportOptions = computed(() => {
 })
 const importingExistingRepository = computed(() => studyForm.importSource !== 'url' && studyForm.importSource !== 'blank')
 const importingNewRepository = computed(() => studyForm.importSource === 'url')
+const selectedDeployKeyURL = computed(() => githubDeployKeySettingsURL(
+  selectedRepository.value?.ssh_url,
+  selectedRepository.value?.deploy_key_settings_url || repositoryReadiness.value?.deploy_key_settings_url,
+))
 const prepareOriginOptions = computed(() => {
   const options = [{ value: '', label: t('No Graph origin', '无 Graph 起点') }]
   for (const node of researchWorkspace.value?.study?.nodes ?? []) {
@@ -190,6 +197,7 @@ async function refreshProject(showSpinner = true) {
     experimentCatalog.value = null
     hasActiveAgent.value = false
     agentReadiness.value = null
+    repositoryReadiness.value = null
     datasetBindings.value = []
     datasetSources.value = []
     environments.value = []
@@ -235,6 +243,7 @@ async function refreshProject(showSpinner = true) {
     datasetSources.value = loadedSources
     environments.value = loadedEnvironments
     projectWorkloads.value = loadedWorkloads
+    await loadRepositoryReadiness(loadedRepositories[0], projectID, generation)
     if (loadedResearch.study) selectedStudyID.value = loadedResearch.study.id
     else if (loadedResearch.studies.length) selectedStudyID.value = loadedResearch.studies[0].id
     if (showSpinner) await verifyPendingGitHubRepositories(generation, projectID)
@@ -631,8 +640,9 @@ async function createRepository() {
     })
     selectedRepository.value = created
     const verified = await tryVerifyRepository(created)
-    repositoryDialog.value = verified?.status === 'active' ? null : 'key'
+    repositoryDialog.value = verified?.status === 'active' && created.access === 'public_https' ? null : 'key'
     await refreshProject(false)
+    await loadRepositoryReadiness(verified ?? created)
   } catch (caught) {
     dialogError.value = caught instanceof APIError ? caught.message : t('Repository registration failed.', '仓库注册失败。')
   } finally {
@@ -658,6 +668,24 @@ async function tryVerifyRepository(repository: Repository) {
   }
 }
 
+async function loadRepositoryReadiness(repository?: Repository | null, projectID = selectedProjectID.value, generation = projectRefreshGeneration) {
+  if (!projectID || !repository) {
+    if (generation === projectRefreshGeneration) repositoryReadiness.value = null
+    return
+  }
+  repositoryReadinessLoading.value = true
+  try {
+    const report = await api.repositoryReadiness(repository.id, projectID)
+    if (generation !== projectRefreshGeneration || selectedProjectID.value !== projectID) return
+    repositoryReadiness.value = report
+  } catch (caught) {
+    if (caught instanceof APIError && caught.status === 401) throw caught
+    if (generation === projectRefreshGeneration && selectedProjectID.value === projectID) repositoryReadiness.value = null
+  } finally {
+    if (generation === projectRefreshGeneration) repositoryReadinessLoading.value = false
+  }
+}
+
 async function verifyPendingGitHubRepositories(generation: number, projectID: string) {
   const pending = repositories.value.filter((item) => item.status === 'pending_key' && !attemptedVerify.has(item.id))
   for (const repository of pending) {
@@ -677,11 +705,13 @@ async function verifyRepository(repository = selectedRepository.value) {
   try {
     const verified = await tryVerifyRepository(repository)
     if (verified?.status === 'active') {
-      repositoryDialog.value = null
       await refreshProject(false)
+      await loadRepositoryReadiness(verified)
+      repositoryDialog.value = 'key'
       return
     }
     repositoryDialog.value = 'key'
+    await loadRepositoryReadiness(repository)
     dialogError.value = t('Add this Gemcp public key on GitHub first: a read-only repository Deploy Key, or your account SSH keys if Deploy Key is unavailable. Then verify again.', '请先把这把 Gemcp 公钥加到 GitHub：仓库只读 Deploy Key，或 Deploy Key 加不上时加到账号 SSH keys。然后再验证。')
   } catch (caught) {
     dialogError.value = caught instanceof APIError ? caught.message : t('Repository verification failed.', '仓库验证失败。')
@@ -873,7 +903,7 @@ onMounted(async () => {
         <span><strong>{{ t('Scheduler is disabled', '调度器已关闭') }}</strong>{{ t('Prepared proposals can still be confirmed, but their Experiments remain queued. Set GEMCP_SCHEDULER_ENABLED=true and restart Gemcp when an execution backend is ready.', '准备好的提案仍可确认，但对应 Experiment 会保持 queued。执行后端就绪后，请设置 GEMCP_SCHEDULER_ENABLED=true 并重启 Gemcp。') }}</span>
       </div>
 
-      <ResearchView v-if="activeView === 'research'" :workspace="researchWorkspace" :loading="loading" :selected-study-id="selectedStudyID" :project="selectedProject" :repositories="repositories" :experiments="experiments" :has-active-agent="hasActiveAgent" :readiness="agentReadiness" :readiness-loading="loading" :runtime="runtimeStatus" :catalog="experimentCatalog" @select-study="selectStudy" @open-experiment="openExperimentByID" @close-run="openCloseRun" @create-study="openCreateStudy" @open-agents="activeView = 'agents'" @handshake="activeView = 'agents'" @open-nodes="activeView = 'nodes'" />
+      <ResearchView v-if="activeView === 'research'" :workspace="researchWorkspace" :loading="loading" :selected-study-id="selectedStudyID" :project="selectedProject" :repositories="repositories" :experiments="experiments" :has-active-agent="hasActiveAgent" :readiness="agentReadiness" :readiness-loading="loading" :runtime="runtimeStatus" :catalog="experimentCatalog" :repository-readiness="repositoryReadiness" :repository-readiness-loading="repositoryReadinessLoading" @select-study="selectStudy" @open-experiment="openExperimentByID" @close-run="openCloseRun" @create-study="openCreateStudy" @open-agents="activeView = 'agents'" @handshake="activeView = 'agents'" @open-nodes="activeView = 'nodes'" @verify-repository="selectedRepository && verifyRepository(selectedRepository)" @open-projects="activeView = 'projects'" />
 
       <section v-else-if="activeView === 'experiments'" class="page-workspace">
         <div class="section-heading page-section-heading"><div><h2>{{ t('Evidence', '证据') }}</h2><p>{{ t('Linked Experiments remain the execution evidence behind the Graph.', '关联的 Experiment 仍是 Graph 背后的执行证据。') }}</p></div><div class="segmented-control" :aria-label="t('Experiment state filter', '实验状态筛选')"><button v-for="filter in ['all', 'queued', 'running', 'succeeded', 'failed']" :key="filter" type="button" :class="{ active: stateFilter === filter }" @click="stateFilter = filter">{{ filter === 'all' ? t('all', '全部') : stateLabel(filter) }}</button></div></div>
@@ -1079,7 +1109,9 @@ onMounted(async () => {
       <div v-else-if="repositoryDialog === 'key' && selectedRepository" class="key-panel">
         <p>{{ t('Add this public key to', '将此公钥添加到') }} <strong>{{ selectedRepository.name }}</strong> {{ t('as a read-only GitHub Deploy Key.', '设为只读 GitHub Deploy Key。') }}</p>
         <div class="code-box"><code>{{ selectedRepository.deploy_public_key }}</code><button class="icon-button" type="button" :title="copied === 'deploy-key' ? t('Copied', '已复制') : t('Copy Deploy public key', '复制 Deploy 公钥')" @click="copy(selectedRepository.deploy_public_key ?? '', 'deploy-key')"><Check v-if="copied === 'deploy-key'" :size="16" /><Clipboard v-else :size="16" /></button></div>
+        <p class="form-note">{{ t('The required GitHub action is a read-only Deploy Key on this repository.', '必须完成的 GitHub 操作是给这个仓库加一把只读 Deploy Key。') }} <a v-if="selectedDeployKeyURL" class="form-note-link" :href="selectedDeployKeyURL" target="_blank" rel="noreferrer">{{ t('GitHub repository → Deploy keys', 'GitHub 仓库 → Deploy keys') }}</a></p>
         <p class="form-note">{{ t('If you cannot add a repository Deploy Key, add this same Gemcp public key to your GitHub account SSH keys. Verification still works. That is wider than a Deploy Key, but it is still this Gemcp key, not your personal id_ed25519.', '仓库 Deploy Key 加不上时，把这把 Gemcp 公钥加到 GitHub 账号的 SSH keys。验证同样能过。权限比 Deploy Key 宽，但仍是 Gemcp 这把钥匙，不是你的 id_ed25519。') }} <a class="form-note-link" href="https://github.com/settings/keys" target="_blank" rel="noreferrer">{{ t('Settings → SSH and GPG keys', 'Settings → SSH and GPG keys') }}</a></p>
+        <RepositoryReadinessPanel :readiness="repositoryReadiness" :loading="repositoryReadinessLoading" @verify="verifyRepository(selectedRepository)" @register-defaults="repositoryDialog = null; activeView = 'projects'" />
         <p class="form-note">{{ t('Gemcp pins GitHub with the official Ed25519 host fingerprint. After the key is on GitHub, verification runs without a fingerprint field.', 'Gemcp 使用 GitHub 官方 Ed25519 主机指纹。公钥加到 GitHub 后会自动验证，不用再填指纹。') }}</p>
         <div v-if="dialogError" class="form-error">{{ dialogError }}</div>
         <button class="primary-button" type="button" :disabled="repositoryBusy" @click="verifyRepository(selectedRepository)"><LoaderCircle v-if="repositoryBusy" :size="16" class="spinning" /><ShieldCheck v-else :size="16" />{{ t('Verify repository', '验证仓库') }}</button>

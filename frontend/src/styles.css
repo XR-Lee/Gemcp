@@ -514,6 +514,20 @@ label small { color: #858e88; font-size: 10px; font-weight: 500; }
 .agent-readiness-nodes p, .agent-readiness-nodes small { margin: 0; color: #667069; font-size: 12px; }
 .agent-readiness-next { margin-top: 4px; }
 .agent-readiness-next .text-button { justify-self: start; padding: 0; }
+.repo-readiness { margin-top: 16px; padding: 14px 16px; text-align: left; background: #f7f8f6; border: 1px solid var(--line); border-radius: 12px; display: grid; gap: 12px; }
+.repo-readiness[data-status="ready"] { box-shadow: inset 3px 0 #4a9f77; }
+.repo-readiness[data-status="blocked"] { box-shadow: inset 3px 0 #b79243; }
+.repo-readiness-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.repo-readiness-heading strong { display: block; margin: 6px 0 4px; color: #1f2722; font-size: 16px; line-height: 22px; }
+.repo-readiness-heading p, .repo-readiness-loading, .repo-readiness-ok { margin: 0; color: #5f6862; font-size: 13px; line-height: 20px; }
+.repo-readiness-facts, .repo-readiness-defaults { margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.repo-readiness-facts dt, .repo-readiness-defaults dt { color: #6a746c; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+.repo-readiness-facts dd, .repo-readiness-defaults dd { margin: 4px 0 0; color: #1f2722; font-size: 14px; line-height: 20px; }
+.repo-readiness-blockers { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.repo-readiness-blockers li { display: flex; gap: 8px; align-items: flex-start; color: #6a5a2b; }
+.repo-readiness-blockers p { margin: 2px 0 0; color: #667069; font-size: 12px; }
+.repo-readiness-ok, .repo-readiness-key { display: inline-flex; align-items: center; gap: 6px; }
+.research-empty .repo-readiness { width: min(720px, 100%); margin-left: auto; margin-right: auto; }
 .research-summary { margin-top: 16px; display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 12px; }
 .research-card { min-width: 0; min-height: 148px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
 .research-card.next-card { background: var(--accent-soft); border-color: #e2c7a4; }
@@ -1074,7 +1088,7 @@ label small { color: #858e88; font-size: 10px; font-weight: 500; }
   .workspace, .page-workspace { margin: 14px; }
   .research-page { padding: 14px; }
   .research-heading, .research-summary, .research-card, .research-mcp-banner, .agent-readiness-heading { display: grid; }
-  .agent-readiness-facts, .agent-readiness-nodes, .agent-readiness.compact .agent-readiness-facts { grid-template-columns: 1fr; }
+  .agent-readiness-facts, .agent-readiness-nodes, .agent-readiness.compact .agent-readiness-facts, .repo-readiness-facts, .repo-readiness-defaults { grid-template-columns: 1fr; }
   .agent-readiness-actions { justify-content: flex-start; }
   .research-mcp-actions { justify-content: flex-start; }
   .research-heading { padding: 14px; }

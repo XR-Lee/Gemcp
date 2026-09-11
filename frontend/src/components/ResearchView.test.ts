@@ -297,4 +297,28 @@ describe('ResearchView', () => {
     expect(panel.text()).toContain('79b9a11f8e7ad9bb384ff4a5c3354b5d1adfc9c0')
     expect(panel.text()).toContain('autoresearch/learnable-membership-20260829')
   })
+
+  it('shows repository readiness on an empty Research home', () => {
+    useI18n().setLocale('en')
+    const wrapper = mount(ResearchView, {
+      props: {
+        workspace: { project_id: 'project-id', studies: [], generated_at: '2026-09-11T00:00:00Z' },
+        loading: false,
+        selectedStudyId: '',
+        repositoryReadiness: {
+          id: 'repo-1', project_id: 'project-id', name: 'dynamic-point-mamba',
+          ssh_url: 'git@github.com:research/dynamic-point-mamba.git', status: 'pending_key', access: 'ssh_deploy_key',
+          default_branch: 'main', deploy_key_settings_url: 'https://github.com/research/dynamic-point-mamba/settings/keys',
+          ready: false, manifest: { present: false }, defaults: {},
+          blockers: [{
+            kind: 'deploy_key_required', title: 'Add a read-only Deploy Key',
+            detail: 'Install the key.', href: 'https://github.com/research/dynamic-point-mamba/settings/keys',
+          }],
+        },
+      },
+      global: { stubs: flowStubs },
+    })
+    expect(wrapper.text()).toContain('Import from a research repository')
+    expect(wrapper.get('[data-testid="repository-readiness"]').text()).toContain('Add a read-only Deploy Key')
+  })
 })

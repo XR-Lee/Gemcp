@@ -424,3 +424,47 @@ type ArtifactView struct {
 	Artifacts    []string                `json:"artifacts"`
 	Manifest     []ArtifactManifestEntry `json:"manifest"`
 }
+
+type RepositoryReadiness struct {
+	ID                    string                   `json:"id"`
+	ProjectID             string                   `json:"project_id"`
+	Name                  string                   `json:"name"`
+	SSHURL                string                   `json:"ssh_url"`
+	Status                string                   `json:"status"`
+	Access                string                   `json:"access"`
+	DefaultBranch         string                   `json:"default_branch"`
+	DetectedDefaultBranch string                   `json:"detected_default_branch,omitempty"`
+	CommitSHA             string                   `json:"commit_sha,omitempty"`
+	DeployPublicKey       string                   `json:"deploy_public_key,omitempty"`
+	DeployKeySettingsURL  string                   `json:"deploy_key_settings_url,omitempty"`
+	Ready                 bool                     `json:"ready"`
+	Manifest              ManifestReadiness        `json:"manifest"`
+	ProjectWorkloads      []string                 `json:"project_workloads,omitempty"`
+	Defaults              ProjectDefaultsReadiness `json:"defaults"`
+	Blockers              []ReadinessBlocker       `json:"blockers"`
+}
+
+type ManifestReadiness struct {
+	Present   bool     `json:"present"`
+	Workloads []string `json:"workloads,omitempty"`
+	Error     string   `json:"error,omitempty"`
+}
+
+type ProjectDefaultsReadiness struct {
+	Environment     *ReadinessDefault `json:"environment,omitempty"`
+	ResourceProfile *ReadinessDefault `json:"resource_profile,omitempty"`
+	DatasetBinding  *ReadinessDefault `json:"dataset_binding,omitempty"`
+}
+
+type ReadinessDefault struct {
+	ID      string `json:"id,omitempty"`
+	Name    string `json:"name,omitempty"`
+	Backend string `json:"backend,omitempty"`
+}
+
+type ReadinessBlocker struct {
+	Kind   string `json:"kind"`
+	Title  string `json:"title"`
+	Detail string `json:"detail"`
+	Href   string `json:"href,omitempty"`
+}

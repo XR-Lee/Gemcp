@@ -214,6 +214,103 @@ func (v *CommandVerifier) ProbePublicHTTPS(ctx context.Context, httpsURL string)
 	return nil
 }
 
+func (v *CommandVerifier) DetectDefaultBranch(ctx context.Context, sshURL, host string, privateKey []byte, fingerprint string) (string, string, error) {
+	if httpsURL := githubHTTPSURLFromSSH(sshURL); httpsURL != "" {
+		branch, sha, err := v.lsRemoteHEAD(ctx, httpsURL, verificationEnvironment(""), true)
+		if err == nil {
+			return branch, sha, nil
+		}
+		if len(privateKey) == 0 {
+			return "", "", err
+		}
+	} else if len(privateKey) == 0 {
+		return "", "", fmt.Errorf("repository fetch requires a deploy key or a public GitHub HTTPS URL")
+	}
+	tempDir, environment, err := v.prepareSSHFetch(ctx, host, privateKey, fingerprint)
+	if tempDir != "" {
+		defer os.RemoveAll(tempDir)
+	}
+	if err != nil {
+		return "", "", err
+	}
+	return v.lsRemoteHEAD(ctx, sshURL, environment, false)
+}
+
+func (v *CommandVerifier) lsRemoteHEAD(ctx context.Context, remote string, environment []string, https bool) (string, string, error) {
+	args := []string{"ls-remote", "--symref", remote, "HEAD"}
+	if https {
+		args = append([]string{"-c", "credential.helper=", "-c", "credential.interactive=never"}, args...)
+	}
+	command := exec.CommandContext(ctx, v.gitBinary, args...)
+	output, stderr, err := run(command, environment)
+	if err != nil {
+		return "", "", fmt.Errorf("detect default branch: %w: %s", err, stderr)
+	}
+	return parseSymrefHEAD(output)
+}
+
+func parseSymrefHEAD(output []byte) (string, string, error) {
+	branch, sha := "", ""
+	for _, line := range strings.Split(string(output), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		fields := strings.Split(line, "\t")
+		if len(fields) != 2 || fields[1] != "HEAD" {
+			continue
+		}
+		if strings.HasPrefix(fields[0], "ref: refs/heads/") {
+			candidate := strings.TrimPrefix(fields[0], "ref: refs/heads/")
+			if !branchPattern.MatchString(candidate) || strings.Contains(candidate, "..") || strings.Contains(candidate, "//") {
+				return "", "", fmt.Errorf("detected default branch is invalid")
+			}
+			branch = candidate
+			continue
+		}
+		if normalized := strings.ToLower(fields[0]); isFullCommitSHA(normalized) {
+			sha = normalized
+		}
+	}
+	if branch == "" && sha == "" {
+		return "", "", fmt.Errorf("git ls-remote did not report HEAD")
+	}
+	return branch, sha, nil
+}
+
+func (v *CommandVerifier) prepareSSHFetch(ctx context.Context, host string, privateKey []byte, fingerprint string) (string, []string, error) {
+	tempDir, err := os.MkdirTemp("", "gemcp-git-head-*")
+	if err != nil {
+		return "", nil, fmt.Errorf("create Git workspace: %w", err)
+	}
+	fail := func(err error) (string, []string, error) {
+		_ = os.RemoveAll(tempDir)
+		return "", nil, err
+	}
+	keyPath := filepath.Join(tempDir, "deploy_key")
+	knownHostsPath := filepath.Join(tempDir, "known_hosts")
+	if err := os.WriteFile(keyPath, privateKey, 0o600); err != nil {
+		return fail(fmt.Errorf("write deploy key: %w", err))
+	}
+	scan := exec.CommandContext(ctx, v.sshKeyscanBinary, "-T", "10", "-t", "ed25519,ecdsa,rsa", host)
+	hostKeys, scanStderr, err := run(scan, verificationEnvironment(tempDir))
+	if err != nil || len(hostKeys) == 0 {
+		return fail(fmt.Errorf("scan SSH host key: %w: %s", err, scanStderr))
+	}
+	pinnedHostKeys, ok := filterPinnedHostKeys(hostKeys, fingerprint)
+	if !ok {
+		return fail(fmt.Errorf("SSH host key fingerprint did not match the pinned value"))
+	}
+	if err := os.WriteFile(knownHostsPath, pinnedHostKeys, 0o600); err != nil {
+		return fail(fmt.Errorf("write known hosts: %w", err))
+	}
+	environment := verificationEnvironment(tempDir)
+	environment = append(environment, "GIT_SSH_COMMAND=ssh -F /dev/null -i "+shellQuote(keyPath)+
+		" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="+shellQuote(knownHostsPath)+
+		" -o BatchMode=yes -o ConnectTimeout=15")
+	return tempDir, environment, nil
+}
+
 func (v *CommandVerifier) fetchResolved(ctx context.Context, sshURL, host string, privateKey []byte, fingerprint, ref string, requireExact bool) (string, string, []string, error) {
 	if httpsURL := githubHTTPSURLFromSSH(sshURL); httpsURL != "" {
 		tempDir, repositoryPath, environment, err := v.fetchHTTPS(ctx, httpsURL, ref, requireExact)
@@ -362,6 +459,18 @@ func filterPinnedHostKeys(knownHosts []byte, expected string) ([]byte, bool) {
 		rest = next
 	}
 	return pinned.Bytes(), pinned.Len() > 0
+}
+
+func isFullCommitSHA(value string) bool {
+	if len(value) != 40 && len(value) != 64 {
+		return false
+	}
+	for _, r := range value {
+		if r < '0' || r > '9' && r < 'a' || r > 'f' {
+			return false
+		}
+	}
+	return true
 }
 
 func shellQuote(value string) string {

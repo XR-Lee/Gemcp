@@ -4,7 +4,7 @@ Status: implementation in progress
 
 Scope: Agent MCP experiment preparation, paid confirmation, workload and dataset selection, result observation, and compatibility with the existing advanced submission path.
 
-The first implementation slice now covers durable expiring proposals, sole-repository and compatible-default resolution, server-side ref resolution, one-shot argv, version-1 `gemcp.yaml` named workloads, zero-cost preflight, digest-confirmed idempotent submission, and shell-free argv execution in AutoDL and capability-compatible Self-hosted Nodes. Prepared presets now include `smoke`, `probe`, and `train` up to Owner-unfrozen Project runtime. AutoDL Dataset Bindings inject `GEMCP_DATASET_*` from `/root/autodl-fs/` roots. The Owner console can PATCH Project policy, register those bindings, prepare a proposal without an Agent Token, and confirm a prepared digest including Graph origin, dataset, workload, and repository access. After a succeeded one-shot, Evidence can save a reviewable `gemcp.yaml` draft as a Project workload without writing the source repository. Repository URL onboarding and public-repository readiness are on this tree: paste a GitHub HTTPS or SSH URL; public repositories skip the Deploy Key. Generic Experiment detail now includes normalized assessment, Attempts, and Runner stage history. Owners can close a terminal Graph-linked Experiment from Evidence without an Agent Token. Standing approvals remain a later slice.
+The first implementation slice now covers durable expiring proposals, sole-repository and compatible-default resolution, server-side ref resolution, one-shot argv, version-1 `gemcp.yaml` named workloads, zero-cost preflight, digest-confirmed idempotent submission, and shell-free argv execution in AutoDL and capability-compatible Self-hosted Nodes. Prepared presets now include `smoke`, `probe`, and `train` up to Owner-unfrozen Project runtime. AutoDL Dataset Bindings inject `GEMCP_DATASET_*` from `/root/autodl-fs/` roots. The Owner console can PATCH Project policy, register those bindings, prepare a proposal without an Agent Token, and confirm a prepared digest including Graph origin, dataset, workload, and repository access. After a succeeded one-shot, Evidence can save a reviewable `gemcp.yaml` draft as a Project workload without writing the source repository. Repository URL onboarding and public-repository readiness are on this tree: paste a GitHub HTTPS or SSH URL; public repositories skip the Deploy Key. After register or verify, `GET /repositories/:id/readiness` reports access, the detected default branch, `gemcp.yaml` names or none, and missing Environment / Resource Profile / Dataset Binding items. Generic Experiment detail now includes normalized assessment, Attempts, and Runner stage history. Owners can close a terminal Graph-linked Experiment from Evidence without an Agent Token. Standing approvals remain a later slice.
 
 ## Summary
 
@@ -600,9 +600,9 @@ The released vertical slice is Agent-facing. Owner-session Proposal attribution 
 - Replace separate name, SSH URL, branch, and fingerprint entry with repository URL onboarding.
 - Use Gemcp-managed, release-pinned GitHub host identity.
 - Support public GitHub repositories without Deploy Keys.
-- Detect the default branch and manifest after access verification.
-- Present Deploy Key installation as the only external step for a private repository.
-- Add a readiness result covering repository access and compatible Project defaults.
+- Detect the default branch and manifest after access verification. `GET /repositories/:id/readiness` reports access, the HEAD branch, `gemcp.yaml` workload names or none, and Project default blockers.
+- Present Deploy Key installation as the only external step for a private repository. The Owner console links `https://github.com/<owner>/<repository>/settings/keys`.
+- Add a readiness result covering repository access and compatible Project defaults. Research empty state and the Deploy Key dialog render that report.
 - Evaluate a GitHub App only after the simplified Deploy Key workflow is measured.
 
 ### Phase 3 - close the observation gap

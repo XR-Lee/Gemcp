@@ -1,11 +1,13 @@
 package httpapi
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/XR-Lee/Gemcp/internal/experiment"
 	"github.com/gin-gonic/gin"
@@ -120,6 +122,21 @@ func (h *ExperimentHandlers) AgentReadiness(c *gin.Context) {
 		return
 	}
 	result, err := h.service.OwnerReadiness(c.Request.Context(), principal.TenantID, c.Param("id"))
+	if err != nil {
+		h.writeError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": result})
+}
+
+func (h *ExperimentHandlers) RepositoryReadiness(c *gin.Context) {
+	principal, ok := ownerPrincipal(c)
+	if !ok {
+		return
+	}
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 60*time.Second)
+	defer cancel()
+	result, err := h.service.OwnerRepositoryReadiness(ctx, principal.TenantID, c.Query("project_id"), c.Param("id"))
 	if err != nil {
 		h.writeError(c, err)
 		return

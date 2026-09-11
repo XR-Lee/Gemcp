@@ -2,12 +2,13 @@
 import { computed, ref } from 'vue'
 import { Bot, Check, Clipboard, FlaskConical, GitBranch, Network, Plus, Sparkles } from '@lucide/vue'
 import { motion } from 'motion-v'
-import type { AgentReadiness, Experiment, ExperimentCatalog, Project, Repository, ResearchWorkspace, RuntimeStatus } from '../api'
+import type { AgentReadiness, Experiment, ExperimentCatalog, Project, Repository, RepositoryReadiness, ResearchWorkspace, RuntimeStatus } from '../api'
 import { localizedState, useI18n } from '../i18n'
 import { buildResearchAttachPrompt } from '../researchAttachPrompt'
 import { selectLatestResult } from '../researchLatestResult'
 import { layoutResearchGraph } from '../researchGraphLayout'
 import AgentReadinessPanel from './AgentReadinessPanel.vue'
+import RepositoryReadinessPanel from './RepositoryReadinessPanel.vue'
 import ResearchGraphCanvas from './ResearchGraphCanvas.vue'
 import WorkbenchDialog from './WorkbenchDialog.vue'
 import WorkbenchSelect from './WorkbenchSelect.vue'
@@ -24,6 +25,8 @@ const props = defineProps<{
   readinessLoading?: boolean
   runtime?: RuntimeStatus | null
   catalog?: ExperimentCatalog | null
+  repositoryReadiness?: RepositoryReadiness | null
+  repositoryReadinessLoading?: boolean
 }>()
 const emit = defineEmits<{
   selectStudy: [studyID: string]
@@ -33,6 +36,8 @@ const emit = defineEmits<{
   openAgents: []
   openNodes: []
   handshake: []
+  verifyRepository: []
+  openProjects: []
 }>()
 const { locale, languageTag, t } = useI18n()
 const attachOpen = ref(false)
@@ -354,6 +359,12 @@ function dateTime(value?: string) {
       <span class="empty-icon"><FlaskConical :size="21" /></span>
       <h3>{{ t('Import from a research repository', '从已有研究仓库导入') }}</h3>
       <p>{{ t('Pick a registered repository or paste a GitHub HTTPS or SSH URL. That creates a Study bound to the repo and does not start a workload.', '选一个已注册仓库，或粘贴 GitHub HTTPS / SSH URL。会创建一个绑上该仓库的 Study，不会启动作业。') }}</p>
+      <RepositoryReadinessPanel
+        :readiness="repositoryReadiness ?? null"
+        :loading="repositoryReadinessLoading"
+        @verify="emit('verifyRepository')"
+        @register-defaults="emit('openProjects')"
+      />
       <div class="research-empty-actions">
         <button class="secondary-button" type="button" :aria-label="t('Attach prompt', '入图 Prompt')" @click="attachOpen = true"><Clipboard :size="16" />{{ t('Attach prompt', '入图 Prompt') }}</button>
         <button class="primary-button" type="button" @click="emit('createStudy')"><Plus :size="16" />{{ t('Import study', '从仓库导入') }}</button>

@@ -57,6 +57,18 @@ List registrations and retrieve their public Deploy Keys:
 GET /api/v1/repositories?project_id=<project-uuid>
 ```
 
+Private repository views include `deploy_key_settings_url` pointing at `https://github.com/<owner>/<repository>/settings/keys`.
+
+## Readiness
+
+After register or verify, inspect access, the detected default branch, `gemcp.yaml` workload names, and whether the Project has a compatible Environment, Resource Profile, and Dataset Binding:
+
+```http
+GET /api/v1/repositories/<repository-id>/readiness?project_id=<project-uuid>
+```
+
+The report does not start a run. A missing `gemcp.yaml` is not a blocker; a pending Deploy Key or missing Project default is. When HEAD is a symbolic branch that differs from the stored default, readiness records the detected branch for later prepare.
+
 Experiment submission accepts only active repositories and verifies the requested immutable commit with another depth-one fetch before reserving budget.
 
 Official references:

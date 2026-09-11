@@ -64,6 +64,18 @@ func (f *fakeGitVerifier) ResolveRef(_ context.Context, _, _ string, privateKey 
 	return f.resolvedSHA, nil
 }
 
+func (f *fakeGitVerifier) DetectDefaultBranch(_ context.Context, _, _ string, privateKey []byte, _ string) (string, string, error) {
+	f.privateKey = append([]byte(nil), privateKey...)
+	if f.commitErr != nil {
+		return "", "", f.commitErr
+	}
+	sha := f.resolvedSHA
+	if sha == "" {
+		sha = strings.Repeat("a", 40)
+	}
+	return "master", sha, nil
+}
+
 func TestBoundedFileWriterStopsAtLimit(t *testing.T) {
 	path := t.TempDir() + "/archive.tar"
 	file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
@@ -103,6 +115,9 @@ func TestRepositoryDeployKeyLifecycle(t *testing.T) {
 	}
 	if created.Status != "pending_key" || !strings.HasPrefix(created.DeployPublicKey, "ssh-ed25519 ") {
 		t.Fatalf("unexpected created repository: %+v", created)
+	}
+	if created.DeployKeySettingsURL != "https://github.com/XR-Lee/Gemcp/settings/keys" {
+		t.Fatalf("deploy key settings URL = %q", created.DeployKeySettingsURL)
 	}
 	record, _ := client.Repository.Query().Only(ctx)
 	if strings.Contains(record.DeployPrivateKeyCiphertext, "OPENSSH") {
@@ -155,7 +170,7 @@ func TestPublicGitHubURLOnboarding(t *testing.T) {
 	if created.Name != "Hello-World" || created.SSHURL != "git@github.com:octocat/Hello-World.git" {
 		t.Fatalf("normalized repository = %+v", created)
 	}
-	if created.Status != "active" || created.Access != AccessPublicHTTPS || created.DeployPublicKey != "" {
+	if created.Status != "active" || created.Access != AccessPublicHTTPS || created.DeployPublicKey != "" || created.DeployKeySettingsURL != "" {
 		t.Fatalf("public repository = %+v", created)
 	}
 	if created.HostKeyFingerprint == nil || *created.HostKeyFingerprint != githubEd25519Fingerprint {
@@ -190,6 +205,19 @@ func TestParseGitHubRemote(t *testing.T) {
 	}
 	if _, err := parseGitHubRemote("https://github.com/XR-Lee/Gemcp/issues/5"); err == nil {
 		t.Fatal("accepted a GitHub URL with extra path")
+	}
+	if got := DeployKeySettingsURL("git@github.com:XR-Lee/Gemcp.git"); got != "https://github.com/XR-Lee/Gemcp/settings/keys" {
+		t.Fatalf("DeployKeySettingsURL = %q", got)
+	}
+}
+
+func TestParseSymrefHEAD(t *testing.T) {
+	branch, sha, err := parseSymrefHEAD([]byte("ref: refs/heads/master\tHEAD\n0123456789abcdef0123456789abcdef01234567\tHEAD\n"))
+	if err != nil || branch != "master" || sha != "0123456789abcdef0123456789abcdef01234567" {
+		t.Fatalf("parseSymrefHEAD() = %q %q %v", branch, sha, err)
+	}
+	if _, _, err := parseSymrefHEAD([]byte("not a git ls-remote listing")); err == nil {
+		t.Fatal("parseSymrefHEAD() accepted empty HEAD output")
 	}
 }
 
