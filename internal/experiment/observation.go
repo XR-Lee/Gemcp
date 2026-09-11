@@ -55,8 +55,10 @@ func (s *Service) enrichExecutionObservation(ctx context.Context, record *ent.Ex
 	if err != nil {
 		return err
 	}
+	view.Attempts = make([]AttemptView, 0, len(attempts))
 	view.Timeline = append(view.Timeline, TimelineEvent{At: record.CreatedAt, Code: "experiment.created"})
 	for _, item := range attempts {
+		view.Attempts = append(view.Attempts, makeAttemptView(item))
 		view.Timeline = append(view.Timeline, TimelineEvent{At: item.CreatedAt, Code: "attempt.created", Detail: fmt.Sprintf("Attempt %d", item.Number)})
 		if item.StartedAt != nil {
 			view.Timeline = append(view.Timeline, TimelineEvent{At: *item.StartedAt, Code: "attempt.started", Detail: fmt.Sprintf("Attempt %d", item.Number)})
@@ -157,6 +159,18 @@ func (s *Service) enrichBackendObservation(ctx context.Context, record *ent.Expe
 		CleanupComplete: cleanup, UpdatedAt: resource.UpdatedAt, FinishedAt: resource.DeletedAt,
 	}
 	return nil
+}
+
+func makeAttemptView(record *ent.Attempt) AttemptView {
+	return AttemptView{
+		ID: record.PublicID.String(), Number: record.Number, State: record.State,
+		ProviderResourceID: record.ProviderResourceID, RetryReason: record.RetryReason,
+		FailureCode: record.FailureCode, FailureReason: record.FailureReason,
+		StartedAt: record.StartedAt, FinishedAt: record.FinishedAt,
+		EstimatedCostMilli: record.EstimatedCostMilli, ExitCode: record.ExitCode,
+		SourceDownloads: record.SourceDownloads, LogTail: record.LogTail, Metrics: record.Metrics,
+		LastHeartbeatAt: record.LastHeartbeatAt, CreatedAt: record.CreatedAt, UpdatedAt: record.UpdatedAt,
+	}
 }
 
 func decodeRuntimeInfo(value any, outputPath string) (*executionmeta.RuntimeInfo, bool) {

@@ -70,6 +70,7 @@ func (s *Service) Get(ctx context.Context, principal agentauth.Principal, experi
 	if err := s.attachGraphState(ctx, principal.ProjectID, []*ent.Experiment{record}, views); err != nil {
 		return View{}, err
 	}
+	views[0].Assessment = assessExperiment(views[0])
 	return views[0], nil
 }
 
@@ -100,6 +101,7 @@ func (s *Service) enrichRunnerStatus(ctx context.Context, experimentRecord *ent.
 	if err != nil {
 		return err
 	}
+	stages := make([]RunnerStageEvent, 0, len(events))
 	for _, event := range events {
 		if value, _ := event.Metadata["attempt_id"].(string); value != attemptID {
 			continue
@@ -108,13 +110,27 @@ func (s *Service) enrichRunnerStatus(ctx context.Context, experimentRecord *ent.
 		if !ok || stage == "" {
 			continue
 		}
-		view.RunnerStage = &stage
-		stageUpdatedAt := event.CreatedAt
-		view.RunnerStageUpdatedAt = &stageUpdatedAt
+		item := RunnerStageEvent{Stage: stage, At: event.CreatedAt}
 		if errorType, ok := event.Metadata["error_type"].(string); ok && errorType != "" {
-			view.RunnerErrorType = &errorType
+			item.ErrorType = errorType
 		}
-		break
+		stages = append(stages, item)
+	}
+	for i, j := 0, len(stages)-1; i < j; i, j = i+1, j-1 {
+		stages[i], stages[j] = stages[j], stages[i]
+	}
+	if len(stages) > 16 {
+		stages = append([]RunnerStageEvent(nil), stages[len(stages)-16:]...)
+	}
+	view.RunnerStages = stages
+	if len(stages) > 0 {
+		latest := stages[len(stages)-1]
+		view.RunnerStage = &latest.Stage
+		stageUpdatedAt := latest.At
+		view.RunnerStageUpdatedAt = &stageUpdatedAt
+		if latest.ErrorType != "" {
+			view.RunnerErrorType = &latest.ErrorType
+		}
 	}
 	return nil
 }

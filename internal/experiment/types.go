@@ -47,6 +47,20 @@ type TimelineEvent struct {
 	Detail string    `json:"detail,omitempty"`
 }
 
+type Assessment struct {
+	Status          string   `json:"status"`
+	Classification  string   `json:"classification"`
+	Summary         string   `json:"summary"`
+	Recommendations []string `json:"recommendations,omitempty"`
+	CleanupComplete bool     `json:"cleanup_complete"`
+}
+
+type RunnerStageEvent struct {
+	Stage     string    `json:"stage"`
+	ErrorType string    `json:"error_type,omitempty"`
+	At        time.Time `json:"at"`
+}
+
 type SubmitInput struct {
 	RepositoryID      string   `json:"repository_id" jsonschema:"ID of an active project repository"`
 	EnvironmentID     string   `json:"environment_id,omitempty" jsonschema:"approved environment ID; omit to use the project default"`
@@ -86,9 +100,12 @@ type View struct {
 	RunnerStage           *string                 `json:"runner_stage,omitempty"`
 	RunnerStageUpdatedAt  *time.Time              `json:"runner_stage_updated_at,omitempty"`
 	RunnerErrorType       *string                 `json:"runner_error_type,omitempty"`
+	RunnerStages          []RunnerStageEvent      `json:"runner_stages,omitempty"`
 	LogTail               *string                 `json:"log_tail,omitempty"`
 	Metrics               map[string]any          `json:"metrics,omitempty"`
 	LastHeartbeatAt       *time.Time              `json:"last_heartbeat_at,omitempty"`
+	Assessment            *Assessment             `json:"assessment,omitempty"`
+	Attempts              []AttemptView           `json:"attempts,omitempty"`
 	ExecutionContext      ExecutionContextView    `json:"execution_context"`
 	BackendObservation    *BackendObservationView `json:"backend_observation,omitempty"`
 	Timeline              []TimelineEvent         `json:"timeline,omitempty"`
@@ -116,6 +133,7 @@ type AttemptView struct {
 	FinishedAt         *time.Time     `json:"finished_at,omitempty"`
 	EstimatedCostMilli int64          `json:"estimated_cost_milli"`
 	ExitCode           *int           `json:"exit_code,omitempty"`
+	SourceDownloads    int            `json:"source_downloads"`
 	LogTail            *string        `json:"log_tail,omitempty"`
 	Metrics            map[string]any `json:"metrics,omitempty"`
 	LastHeartbeatAt    *time.Time     `json:"last_heartbeat_at,omitempty"`

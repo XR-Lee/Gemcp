@@ -271,7 +271,7 @@ async function refreshLive() {
     if (loadedResearch.study) selectedStudyID.value = loadedResearch.study.id
     if (detail && selectedExperiment.value?.id === detail.id) {
       selectedExperiment.value = detail
-      attempts.value = history
+      attempts.value = Array.isArray(detail.attempts) ? detail.attempts : history
     }
   } catch (caught) {
     if (caught instanceof APIError && caught.status === 401) emit('signedOut')
@@ -293,7 +293,7 @@ async function openExperiment(experiment: Experiment) {
     ])
     if (selectedExperiment.value?.id === experiment.id) {
       selectedExperiment.value = detail
-      attempts.value = history
+      attempts.value = Array.isArray(detail.attempts) ? detail.attempts : history
     }
   } catch (caught) {
     if (selectedExperiment.value?.id !== experiment.id) return

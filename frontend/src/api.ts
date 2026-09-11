@@ -219,8 +219,11 @@ export type Experiment = {
   runner_stage?: string
   runner_stage_updated_at?: string
   runner_error_type?: string
+  runner_stages?: RunnerStageEvent[]
   log_tail?: string
   metrics?: Record<string, unknown>
+  assessment?: ExperimentAssessment
+  attempts?: Attempt[]
   execution_context: ExecutionContext
   backend_observation?: BackendObservation
   timeline?: RunTimelineEvent[]
@@ -236,6 +239,20 @@ export type Experiment = {
   saved_workload?: string
 }
 
+export type ExperimentAssessment = {
+  status: 'running' | 'passed' | 'failed' | 'cancelled'
+  classification: string
+  summary: string
+  recommendations?: string[]
+  cleanup_complete: boolean
+}
+
+export type RunnerStageEvent = {
+  stage: string
+  error_type?: string
+  at: string
+}
+
 export type Attempt = {
   id: string
   number: number
@@ -248,6 +265,7 @@ export type Attempt = {
   finished_at?: string
   estimated_cost_milli: number
   exit_code?: number
+  source_downloads?: number
   log_tail?: string
   metrics?: Record<string, unknown>
   last_heartbeat_at?: string

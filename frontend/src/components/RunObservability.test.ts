@@ -5,6 +5,11 @@ import { useI18n } from '../i18n'
 import ExperimentDetail from './ExperimentDetail.vue'
 import RunActivityPanel from './RunActivityPanel.vue'
 
+const attempts: Attempt[] = [{
+  id: 'attempt-id', number: 1, state: 'running', estimated_cost_milli: 0, log_tail: 'epoch 4 loss=0.38\n', metrics: { loss: 0.38 },
+  last_heartbeat_at: '2026-07-28T18:00:00Z', created_at: '2026-07-28T17:59:30Z', updated_at: '2026-07-28T18:00:00Z',
+}]
+
 const experiment: Experiment = {
   id: 'experiment-1234567890', project_id: 'project-id', repository_id: 'repository-id', environment_id: 'environment-id', resource_profile_id: 'profile-id',
   state: 'running', desired_state: 'running', commit_sha: 'a'.repeat(40), execution_mode: 'argv', argv: ['python', 'train.py'], command: 'python train.py',
@@ -17,15 +22,13 @@ const experiment: Experiment = {
     gpu_models: ['NVIDIA GeForce RTX 3090'], gpu_num: 1, workspace_policy: 'runner_temporary', container_output_path: '/gemcp/output',
     runtime_info: { source: 'runner_observed', working_directory: '/tmp/gemcp/source', output_directory: '/managed/experiment', cuda_visible_devices: '0', gpu_devices: [{ index: 0, uuid: 'GPU-runtime-1', name: 'NVIDIA GeForce RTX 3090' }] },
   },
+  assessment: { status: 'running', classification: 'workload_running', summary: 'The workload is running.', cleanup_complete: false },
+  attempts,
+  runner_stages: [{ stage: 'started', at: '2026-07-28T18:00:00Z' }],
   backend_observation: { kind: 'autodl_private', id: 'resource-id', state: 'active', status: 'running', cleanup_complete: false, updated_at: '2026-07-28T18:00:00Z' },
   timeline: [{ at: '2026-07-28T17:59:00Z', code: 'experiment.created' }, { at: '2026-07-28T18:00:00Z', code: 'experiment.started' }],
   created_at: '2026-07-28T17:59:00Z', updated_at: '2026-07-28T18:00:00Z', started_at: '2026-07-28T18:00:00Z',
 }
-
-const attempts: Attempt[] = [{
-  id: 'attempt-id', number: 1, state: 'running', estimated_cost_milli: 0, log_tail: 'epoch 4 loss=0.38\n', metrics: { loss: 0.38 },
-  last_heartbeat_at: '2026-07-28T18:00:00Z', created_at: '2026-07-28T17:59:30Z', updated_at: '2026-07-28T18:00:00Z',
-}]
 
 const feed: OperationsFeed = {
   activities: [{ id: 'activity-id', agent_label: 'training-agent', agent_token_prefix: 'gmc_test', phase: 'monitoring', experiment_id: experiment.id, at: '2026-07-28T18:00:00Z' }],
@@ -98,6 +101,9 @@ describe('run observability', () => {
     expect(wrapper.text()).toContain('Workload started')
     expect(wrapper.text()).toContain('run.log, metrics.json')
     expect(wrapper.text()).toContain('Reservation open')
+    expect(wrapper.text()).toContain('Workload running')
+    expect(wrapper.text()).toContain('The workload is running.')
+    expect(wrapper.text()).toContain('Cleanup: pending')
     expect(wrapper.text()).not.toContain('Save as workload')
   })
 

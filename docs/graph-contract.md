@@ -38,7 +38,7 @@ Owner confirms the digest
 submit_prepared_experiment  validates the bind before spending, then writes the run
         │
         ▼
-get_experiment              poll state, log_tail, metrics
+get_experiment              poll state, assessment, attempts, log_tail, metrics
         │
         ▼
 close_run                   writes the result and a highlight observation on the hypothesis

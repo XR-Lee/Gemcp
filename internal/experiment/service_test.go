@@ -207,6 +207,9 @@ func TestGetIncludesCurrentRunnerBootstrapStatus(t *testing.T) {
 		SetMetadata(map[string]any{"attempt_id": firstAttempt.PublicID.String(), "stage": "started"}).Save(ctx); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := experimentRecord.Update().SetState("provisioning").Save(ctx); err != nil {
+		t.Fatal(err)
+	}
 	view, err := f.service.Get(ctx, f.principal, submitted.Experiment.ID)
 	if err != nil {
 		t.Fatal(err)
@@ -217,8 +220,18 @@ func TestGetIncludesCurrentRunnerBootstrapStatus(t *testing.T) {
 		view.RunnerErrorType == nil || *view.RunnerErrorType != "ReadError" || view.RunnerStageUpdatedAt == nil {
 		t.Fatalf("Runner status view = %+v", view)
 	}
+	if len(view.Attempts) != 2 || view.Attempts[0].Number != 1 || view.Attempts[1].SourceDownloads != 2 {
+		t.Fatalf("Get() attempts = %+v", view.Attempts)
+	}
+	if view.Assessment == nil || view.Assessment.Status != "running" || view.Assessment.Classification != "runner_bootstrap" {
+		t.Fatalf("Get() assessment = %+v", view.Assessment)
+	}
+	if len(view.RunnerStages) != 1 || view.RunnerStages[0].Stage != "bootstrap_failed_during_source_extract" || view.RunnerStages[0].ErrorType != "ReadError" {
+		t.Fatalf("Get() runner stages = %+v", view.RunnerStages)
+	}
 	listed, err := f.service.List(ctx, f.principal, ListInput{})
-	if err != nil || listed.Experiments[0].RunnerStage != nil {
+	if err != nil || listed.Experiments[0].RunnerStage != nil || listed.Experiments[0].Assessment != nil ||
+		len(listed.Experiments[0].Attempts) != 0 || len(listed.Experiments[0].RunnerStages) != 0 || len(listed.Experiments[0].Timeline) != 0 {
 		t.Fatalf("List() unexpectedly expanded Runner diagnostics: %+v, %v", listed, err)
 	}
 }
@@ -280,6 +293,9 @@ func TestGetIncludesRegisteredArtifactsAndSettlement(t *testing.T) {
 	}
 	if view.BudgetFinalizedAt == nil || view.EstimatedCostMilli != 80 {
 		t.Fatalf("settlement view = finalized=%v estimated=%d", view.BudgetFinalizedAt, view.EstimatedCostMilli)
+	}
+	if view.Assessment == nil || view.Assessment.Status != "passed" || view.Assessment.Classification != "succeeded" || !view.Assessment.CleanupComplete {
+		t.Fatalf("Get() assessment = %+v", view.Assessment)
 	}
 	want := []string{"gemcp-launch.log", "run.log", "gemcp-result.json", "metrics.json"}
 	if len(view.Artifacts) != len(want) {
