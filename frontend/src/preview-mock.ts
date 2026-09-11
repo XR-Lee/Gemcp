@@ -264,6 +264,7 @@ function match(url: URL, method: string, body?: unknown): Response | null {
         agent_token_prefix: 'gmc_abcd123', repository_name: 'dynamic-point-mamba', requested_ref: 'autoresearch/m1-gapdelta-confirm-20260824',
         commit_sha: '0123456789012345678901234567890123456789', display_command: 'python tools/smoke.py --hostname',
         backend: 'autodl_elastic', environment_name: 'public-elastic', image: 'image-uuid', resource_profile_name: 'rtx4090',
+        repository_access: 'ssh_deploy_key', repository_url: repositories[0].ssh_url, workload: 'objbg-smoke', dataset: 'scanobjectnn-objbg',
         gpu_models: ['RTX 4090'], gpu_num: 1, runtime_preset: 'smoke', max_runtime_seconds: 300,
         reserved_cost_milli: 3825, checks: [{ id: 'budget', status: 'pass', summary: 'Budget can reserve' }],
         confirmation_digest: 'sha256:' + 'ab'.repeat(32), created_at: '2026-08-27T16:00:00Z',

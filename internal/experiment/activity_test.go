@@ -26,7 +26,8 @@ func TestAgentActivityAndProposalFeed(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(feed.Activities) != 3 || feed.Activities[0].Phase != "awaiting_confirmation" || len(feed.Proposals) != 1 ||
-		feed.Proposals[0].ID != prepared.Proposal.ID || !feed.Proposals[0].Eligible || feed.Proposals[0].EnvironmentName != "default" {
+		feed.Proposals[0].ID != prepared.Proposal.ID || !feed.Proposals[0].Eligible || feed.Proposals[0].EnvironmentName != "default" ||
+		feed.Proposals[0].RepositoryAccess == "" || feed.Proposals[0].RepositoryURL == "" {
 		t.Fatalf("operations feed = %+v", feed)
 	}
 	if _, err := service.ReportActivity(ctx, f.principal, ReportActivityInput{Phase: "thinking freely"}); err == nil {

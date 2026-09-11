@@ -818,7 +818,15 @@ onMounted(async () => {
     <form v-if="confirmationTarget" class="dialog-form proposal-confirmation-form" @submit.prevent="submitProposalConfirmation">
       <dl class="proposal-confirmation-grid">
         <div class="span-two"><dt>{{ t('Repository and ref', '仓库与 ref') }}</dt><dd><strong>{{ confirmationTarget.repository_name }}</strong><code>{{ confirmationTarget.requested_ref }}</code></dd></div>
+        <div v-if="confirmationTarget.repository_access"><dt>{{ t('Repository access', '仓库访问') }}</dt><dd>{{ confirmationTarget.repository_access === 'public_https' ? t('Public HTTPS', '公开 HTTPS') : t('Deploy Key', 'Deploy Key') }}</dd></div>
+        <div v-if="confirmationTarget.repository_url" class="wide"><dt>{{ t('Remote', '远程') }}</dt><dd><code>{{ confirmationTarget.repository_url }}</code></dd></div>
         <div><dt>{{ t('Commit', '提交') }}</dt><dd><code>{{ confirmationTarget.commit_sha }}</code></dd></div>
+        <div v-if="confirmationTarget.workload"><dt>{{ t('Named workload', '命名工作负载') }}</dt><dd><code>{{ confirmationTarget.workload }}</code></dd></div>
+        <div v-if="confirmationTarget.dataset"><dt>{{ t('Dataset', '数据集') }}</dt><dd><code>{{ confirmationTarget.dataset }}</code></dd></div>
+        <div v-if="confirmationTarget.from_node_id"><dt>{{ t('Graph origin', 'Graph 起点') }}</dt><dd><code>{{ confirmationTarget.from_node_id }}</code></dd></div>
+        <div v-if="confirmationTarget.expected_metric"><dt>{{ t('Expected metric', '预期指标') }}</dt><dd>{{ confirmationTarget.expected_metric }}</dd></div>
+        <div v-if="confirmationTarget.working_directory" class="wide"><dt>{{ t('Working directory', '工作目录') }}</dt><dd><code>{{ confirmationTarget.working_directory }}</code></dd></div>
+        <div v-if="confirmationTarget.install_dependencies" class="wide"><dt>{{ t('Dependency install', '依赖安装') }}</dt><dd><code>python -m pip install --user -r {{ confirmationTarget.requirements_file || 'requirements.gemcp.txt' }}</code></dd></div>
         <div class="wide"><dt>{{ t('Immutable command', '不可变命令') }}</dt><dd><code>{{ confirmationTarget.display_command }}</code></dd></div>
         <div><dt>{{ t('Backend', '后端') }}</dt><dd>{{ confirmationTarget.backend }}</dd></div>
         <div><dt>{{ t('Environment', '环境') }}</dt><dd>{{ confirmationTarget.environment_name }}</dd></div>

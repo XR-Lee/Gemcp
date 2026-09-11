@@ -46,30 +46,40 @@ type ReportActivityResult struct {
 }
 
 type ProposalActivityView struct {
-	ID                  string          `json:"id"`
-	Status              string          `json:"status"`
-	Eligible            bool            `json:"eligible"`
-	AgentLabel          string          `json:"agent_label"`
-	AgentTokenPrefix    string          `json:"agent_token_prefix"`
-	RepositoryName      string          `json:"repository_name"`
-	RequestedRef        string          `json:"requested_ref"`
-	CommitSHA           string          `json:"commit_sha"`
-	DisplayCommand      string          `json:"display_command"`
-	Backend             string          `json:"backend"`
-	EnvironmentName     string          `json:"environment_name"`
-	Image               string          `json:"image"`
-	ResourceProfileName string          `json:"resource_profile_name"`
-	GPUModels           []string        `json:"gpu_models"`
-	GPUNum              int             `json:"gpu_num"`
-	RuntimePreset       string          `json:"runtime_preset"`
-	MaxRuntimeSeconds   int             `json:"max_runtime_seconds"`
-	ReservedCostMilli   int64           `json:"reserved_cost_milli"`
-	Checks              []ProposalCheck `json:"checks"`
-	ConfirmationDigest  string          `json:"confirmation_digest"`
-	ExperimentID        string          `json:"experiment_id,omitempty"`
-	CreatedAt           time.Time       `json:"created_at"`
-	UpdatedAt           time.Time       `json:"updated_at"`
-	ExpiresAt           time.Time       `json:"expires_at"`
+	ID                  string            `json:"id"`
+	Status              string            `json:"status"`
+	Eligible            bool              `json:"eligible"`
+	AgentLabel          string            `json:"agent_label"`
+	AgentTokenPrefix    string            `json:"agent_token_prefix"`
+	RepositoryName      string            `json:"repository_name"`
+	RequestedRef        string            `json:"requested_ref"`
+	CommitSHA           string            `json:"commit_sha"`
+	DisplayCommand      string            `json:"display_command"`
+	Backend             string            `json:"backend"`
+	EnvironmentName     string            `json:"environment_name"`
+	Image               string            `json:"image"`
+	ResourceProfileName string            `json:"resource_profile_name"`
+	GPUModels           []string          `json:"gpu_models"`
+	GPUNum              int               `json:"gpu_num"`
+	RuntimePreset       string            `json:"runtime_preset"`
+	MaxRuntimeSeconds   int               `json:"max_runtime_seconds"`
+	ReservedCostMilli   int64             `json:"reserved_cost_milli"`
+	Checks              []ProposalCheck   `json:"checks"`
+	ConfirmationDigest  string            `json:"confirmation_digest"`
+	FromNodeID          string            `json:"from_node_id,omitempty"`
+	ExpectedMetric      string            `json:"expected_metric,omitempty"`
+	Dataset             string            `json:"dataset,omitempty"`
+	Workload            string            `json:"workload,omitempty"`
+	Parameters          map[string]string `json:"parameters,omitempty"`
+	RepositoryAccess    string            `json:"repository_access,omitempty"`
+	RepositoryURL       string            `json:"repository_url,omitempty"`
+	WorkingDirectory    string            `json:"working_directory,omitempty"`
+	InstallDependencies bool              `json:"install_dependencies,omitempty"`
+	RequirementsFile    string            `json:"requirements_file,omitempty"`
+	ExperimentID        string            `json:"experiment_id,omitempty"`
+	CreatedAt           time.Time         `json:"created_at"`
+	UpdatedAt           time.Time         `json:"updated_at"`
+	ExpiresAt           time.Time         `json:"expires_at"`
 }
 
 type OperationsFeed struct {
@@ -210,7 +220,19 @@ func (s *Service) OwnerOperations(ctx context.Context, tenantID int, projectID s
 			GPUModels: snapshotStrings(proposal.ResourceSnapshot, "gpu_names"), GPUNum: snapshotInt(proposal.ResourceSnapshot, "gpu_num"),
 			RuntimePreset: proposal.RuntimePreset, MaxRuntimeSeconds: proposal.MaxRuntimeSeconds,
 			ReservedCostMilli: proposal.ReservedCostMilli, Checks: checks, ConfirmationDigest: proposal.ConfirmationDigest,
-			CreatedAt: proposal.CreatedAt, UpdatedAt: proposal.UpdatedAt, ExpiresAt: proposal.ExpiresAt,
+			FromNodeID:       snapshotString(proposal.ProjectSnapshot, "from_node_id"),
+			ExpectedMetric:   snapshotString(proposal.ProjectSnapshot, "expected_metric"),
+			Dataset:          snapshotString(proposal.ProjectSnapshot, "dataset"),
+			Workload:         snapshotString(proposal.ProjectSnapshot, "workload"),
+			Parameters:       snapshotStringMap(proposal.ProjectSnapshot, "workload_parameters"),
+			RepositoryAccess: snapshotString(proposal.RepositorySnapshot, "access"),
+			RepositoryURL:    snapshotString(proposal.RepositorySnapshot, "ssh_url"),
+			WorkingDirectory: snapshotString(proposal.EnvironmentSnapshot, "working_directory"),
+			CreatedAt:        proposal.CreatedAt, UpdatedAt: proposal.UpdatedAt, ExpiresAt: proposal.ExpiresAt,
+		}
+		if deps, ok := proposal.EnvironmentSnapshot["install_dependencies"].(map[string]any); ok {
+			view.InstallDependencies = true
+			view.RequirementsFile = snapshotString(deps, "requirements_file")
 		}
 		if token, edgeErr := proposal.Edges.AgentTokenOrErr(); edgeErr == nil {
 			view.AgentLabel, view.AgentTokenPrefix = token.Label, token.Prefix

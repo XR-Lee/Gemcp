@@ -325,6 +325,16 @@ export type ProposalActivity = {
   reserved_cost_milli: number
   checks: DiagnosticCheck[]
   confirmation_digest: string
+  from_node_id?: string
+  expected_metric?: string
+  dataset?: string
+  workload?: string
+  parameters?: Record<string, string>
+  repository_access?: string
+  repository_url?: string
+  working_directory?: string
+  install_dependencies?: boolean
+  requirements_file?: string
   experiment_id?: string
   created_at: string
   updated_at: string
