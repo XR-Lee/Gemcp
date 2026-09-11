@@ -842,7 +842,7 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await expect(ownerPrepareDialog.getByText(`sha256:${'d'.repeat(64)}`, { exact: true })).toBeVisible()
   await ownerPrepareDialog.getByTitle('Close').click()
   await expect(page.getByText('train · 57600s')).toBeVisible()
-  await expect(page.getByText('Prepared', { exact: true })).toBeVisible()
+  await expect(page.locator('.proposal-card').filter({ hasText: 'train · 57600s' }).getByText('Prepared', { exact: true })).toBeVisible()
   await page.locator('.proposal-card').filter({ hasText: 'train · 57600s' }).getByRole('button', { name: 'Confirm and start' }).click()
   const confirmationDialog = page.getByRole('dialog', { name: 'Confirm prepared proposal' })
   await expect(confirmationDialog).toBeVisible()
