@@ -82,6 +82,7 @@ type View struct {
 	State                 string                   `json:"state"`
 	DesiredState          string                   `json:"desired_state"`
 	CommitSHA             string                   `json:"commit_sha"`
+	StudyID               string                   `json:"study_id,omitempty"`
 	ExecutionMode         string                   `json:"execution_mode"`
 	Argv                  []string                 `json:"argv,omitempty"`
 	Command               string                   `json:"command"`

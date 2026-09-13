@@ -76,7 +76,7 @@ Because every new spend already required a hypothesis ancestor, that link exists
 
 `close_run` terminal writes are exempt from the Study node and edge caps — a full Graph must never leave a funded run permanently uncloseable. New spending on a full Study is rejected at prepare/submit instead.
 
-Copy the scalar from `get_experiment`, or omit `metric_name` to copy the prepared `expected_metric`. Optional `highlight` sets the observation title; omit it to reuse the result title. Optional `result_commit_sha` stamps the durable Git manifest.
+Copy the scalar from `get_experiment`, or omit `metric_name` to copy the prepared `expected_metric`. Optional `highlight` sets the observation title; omit it to reuse the result title. Optional `result_commit_sha` stamps the durable Git manifest. Host-process Cloud SSH experiments (including the local CPU loop) have no Git checkout: omit `result_commit_sha` and do not invent a SHA. `close_run` treats the stored host-process placeholder as absent evidence. When `experiment_id` already identifies a bound Graph run, `study_id` may be omitted even if the Project has several Studies. `get_experiment` returns that `study_id` on a Graph-linked run.
 
 ## Owner view
 

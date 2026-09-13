@@ -217,19 +217,30 @@ func (s *Service) attachGraphState(ctx context.Context, projectID int, records [
 	for _, record := range records {
 		ids = append(ids, record.ID)
 	}
-	nodes, err := s.client.ResearchNode.Query().Where(researchnode.ExperimentIDIn(ids...)).All(ctx)
+	nodes, err := s.client.ResearchNode.Query().Where(researchnode.ExperimentIDIn(ids...)).WithStudy().All(ctx)
 	if err != nil {
 		return err
 	}
 	linked := map[int]bool{}
+	studyByExperiment := map[int]string{}
 	for _, node := range nodes {
-		if node.ExperimentID != nil {
-			linked[*node.ExperimentID] = true
+		if node.ExperimentID == nil {
+			continue
+		}
+		linked[*node.ExperimentID] = true
+		if node.Kind != researchnode.KindRun {
+			continue
+		}
+		if studyRecord, studyErr := node.Edges.StudyOrErr(); studyErr == nil && studyRecord != nil {
+			studyByExperiment[*node.ExperimentID] = studyRecord.PublicID.String()
 		}
 	}
 	for index, record := range records {
 		views[index].GraphLinked = linked[record.ID]
 		views[index].Orphaned = hasStudy && !views[index].GraphLinked
+		if studyID := studyByExperiment[record.ID]; studyID != "" {
+			views[index].StudyID = studyID
+		}
 	}
 	return nil
 }

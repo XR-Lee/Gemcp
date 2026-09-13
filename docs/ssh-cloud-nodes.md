@@ -57,7 +57,7 @@ The first prepared Project workload creates a zero-CNY `ssh_cloud` Environment a
 4. `prepare_experiment` with `argv` and optional `cwd`. Omit `image`. Repository is optional.
 5. Show the confirmation digest (host, user, cwd, argv, no isolation). Wait for explicit Owner approval.
 6. `submit_prepared_experiment` with the exact digest.
-7. Poll `get_experiment` until a terminal state. Use its `assessment`, `attempts`, `log_tail`, and optional `metrics`. Then `close_run`. Do not SSH, fetch remote files, or parse logs for the result.
+7. Poll `get_experiment` until a terminal state. Use its `assessment`, `attempts`, `log_tail`, and optional `metrics`. Then `close_run` without inventing a `result_commit_sha` — a host process has no Git checkout. `get_experiment` includes `study_id` when the run is on the Graph. Do not SSH, fetch remote files, or parse logs for the result.
 
 Do not invent SSH credentials. Do not fall back to AutoDL or Self-hosted. Emergency Stop still only kills the Gemcp-started process group.
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/XR-Lee/Gemcp/ent"
@@ -12,18 +13,21 @@ import (
 )
 
 const (
-	Backend              = "ssh_cloud"
-	CredentialAAD        = "gemcp:ssh-cloud:v1"
-	recipePrefix         = "ssh-cloud:"
-	maxLogTailBytes      = 64 << 10
-	maxMetricsBytes      = 64 << 10
-	maxCommandOutput     = 64 << 10
-	defaultSSHPort       = 22
-	defaultCPULimit      = 8
-	defaultMemoryGB      = 32
-	DefaultImage         = "host"
-	HostImage            = "host"
-	HostRef              = "host"
+	Backend          = "ssh_cloud"
+	CredentialAAD    = "gemcp:ssh-cloud:v1"
+	recipePrefix     = "ssh-cloud:"
+	maxLogTailBytes  = 64 << 10
+	maxMetricsBytes  = 64 << 10
+	maxCommandOutput = 64 << 10
+	defaultSSHPort   = 22
+	defaultCPULimit  = 8
+	defaultMemoryGB  = 32
+	DefaultImage     = "host"
+	HostImage        = "host"
+	HostRef          = "host"
+	// HostCommit is an internal sentinel for host-process experiments that
+	// have no Git checkout. It is not a hexadecimal SHA and must not be
+	// copied onto Graph evidence or treated as a source commit.
 	HostCommit           = "host"
 	maxActiveNodes       = 20
 	autoProbeQuietPeriod = 90 * time.Second
@@ -46,6 +50,12 @@ type validationDomain struct{}
 type ValidationError = validation.Error[validationDomain]
 
 func invalid(message string) error { return &ValidationError{Message: message} }
+
+// IsHostSentinel reports the ssh_cloud host-process placeholder used for
+// requested_ref and commit_sha when there is no Git repository.
+func IsHostSentinel(value string) bool {
+	return strings.EqualFold(strings.TrimSpace(value), HostCommit)
+}
 
 type Config struct {
 	Enabled             bool
