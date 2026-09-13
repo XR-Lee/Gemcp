@@ -52,6 +52,7 @@ var piDirectTools = []string{
 	"get_research_workspace",
 	"update_research_workspace",
 	"get_next_actions",
+	"export_research_plan_sync",
 	"close_run",
 	"get_experiment_catalog",
 	"record_experiment_catalog",

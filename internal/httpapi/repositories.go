@@ -87,8 +87,7 @@ func (h *RepositoryHandlers) writeError(c *gin.Context, err error) {
 	case errors.Is(err, gitrepository.ErrNotActive):
 		writeError(c, http.StatusConflict, "REPOSITORY_NOT_ACTIVE", "repository is not active")
 	case errors.Is(err, gitrepository.ErrVerificationFailed):
-		slog.Error("repository verification failed", "error", err)
-		writeError(c, http.StatusUnprocessableEntity, "REPOSITORY_VERIFICATION_FAILED", "repository access or host key verification failed")
+		writeError(c, http.StatusUnprocessableEntity, gitrepository.VerifyFailureCode(err), err.Error())
 	case ent.IsConstraintError(err):
 		writeError(c, http.StatusConflict, "REPOSITORY_CONFLICT", "repository name already exists in this project")
 	default:

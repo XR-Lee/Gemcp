@@ -96,6 +96,7 @@ const research = {
     question: '更干净的 OBJ-BG 遍历能否在不增加 GPU 小时的前提下提高 ScanObjectNN 精度？',
     summary: 'Owner 先看科学问题；后续 Experiment 只作为证据挂到 Graph 上。',
     status: 'active', updated_at: '2026-08-17T18:05:00Z',
+    route: { protocol_branch: 'research-plan', protocol_doc_path: 'research-plan/STATUS.md', code_ref_pattern: 'autoresearch/*' },
     plan: {
       id: 'plan-objbg-2', status: 'active',
       goal: '先建立可复现的 OBJ-BG baseline，再决定要不要换遍历。',
@@ -138,6 +139,11 @@ const research = {
     kind: 'record_decision', tool: 'update_research_workspace', study_id: 'study-objbg-1',
     from_node_id: 'n-r', title: 'Record a decision from OBJ-BG smoke accuracy',
     detail: 'Say whether the result supports the hypothesis before preparing another run.',
+  }, {
+    kind: 'export_plan_sync', tool: 'export_research_plan_sync', study_id: 'study-objbg-1',
+    title: 'Export a research-plan docs patch',
+    detail: 'Dry-run a markdown amendment for the protocol branch. This is not a training run.',
+    protocol_branch: 'research-plan', protocol_doc_path: 'research-plan/STATUS.md', allowed_ref_pattern: 'autoresearch/*',
   }],
 }
 
@@ -291,6 +297,47 @@ function match(url: URL, method: string, body?: unknown): Response | null {
   }
   if (path.includes('/experiment-proposals/') && path.endsWith('/submit') && method === 'POST') {
     return json({ experiment: experiments[0], idempotent: false })
+  }
+  if (path === `/api/v1/projects/${projectID}/research/plan-sync` && method === 'POST') {
+    const input = body && typeof body === 'object' ? body as Record<string, unknown> : {}
+    const dryRun = input.dry_run !== false
+    return json({
+      study_id: 'study-objbg-1',
+      dry_run: dryRun,
+      target_branch: 'research-plan',
+      target_path: 'research-plan/STATUS.md',
+      title: 'Gemcp research-plan amendment: objbg-scan',
+      markdown: '# Gemcp research-plan amendment\n\n- Study: objbg-scan\n- Protocol branch: `research-plan`\n- Allowed code refs: `autoresearch/*`\n\nMetrics and scalars live on the Gemcp Graph. This markdown is a docs-only amendment for the protocol branch, not the source of truth.\n',
+      warning: 'Gemcp does not push this patch. Apply it on the docs-only protocol branch. Do not force-push. Do not write training code or frozen recipe files.',
+      recorded: !dryRun,
+      generated_at: '2026-08-17T18:05:00Z',
+    })
+  }
+  if (path === `/api/v1/projects/${projectID}/research` && method === 'PUT') {
+    const input = body && typeof body === 'object' ? body as Record<string, unknown> : {}
+    const studyInput = input.study && typeof input.study === 'object' ? input.study as Record<string, unknown> : {}
+    if (studyInput.name) {
+      const route = {
+        protocol_branch: String(studyInput.protocol_branch || ''),
+        protocol_doc_path: String(studyInput.protocol_doc_path || ''),
+        code_ref_pattern: String(studyInput.code_ref_pattern || ''),
+      }
+      const created = {
+        id: 'study-imported-1',
+        name: String(studyInput.name),
+        question: String(studyInput.question || ''),
+        summary: String(studyInput.summary || ''),
+        status: 'active',
+        updated_at: '2026-08-17T18:06:00Z',
+        ...(route.protocol_branch || route.protocol_doc_path || route.code_ref_pattern ? { route } : {}),
+      }
+      research.studies = [created, ...(research.studies || [])]
+      Object.assign(research, {
+        study: { ...created, plan: undefined, nodes: [], edges: [], hypotheses: [] },
+        next_actions: [],
+      })
+    }
+    return json(research)
   }
   if (path === `/api/v1/projects/${projectID}/research`) return json(research)
   if (path === `/api/v1/projects/${projectID}/experiment-catalog`) {

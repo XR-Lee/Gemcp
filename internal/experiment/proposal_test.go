@@ -1348,3 +1348,71 @@ func TestOwnerPrepareCreatesProposalWithoutAgentToken(t *testing.T) {
 		t.Fatalf("OwnerSubmitPrepared() = %+v, %v", submitted, err)
 	}
 }
+
+func TestPrepareEnforcesStudyCodeRefRouteAndRecordsGitIdentity(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	ctx := context.Background()
+	researchService := mustResearchService(t, f)
+	created, err := researchService.AgentUpdate(ctx, f.principal, research.UpdateInput{
+		Study: &research.StudyInput{
+			Name: "dpm-route", Question: "Must a Graph-linked prepare name a live autoresearch ref?",
+			RepositoryID: f.repository.PublicID.String(), ProtocolBranch: "research-plan",
+			ProtocolDocPath: "research-plan/STATUS.md", CodeRefPattern: "autoresearch/*",
+		},
+	})
+	if err != nil || created.Study == nil || created.Study.Route == nil {
+		t.Fatalf("create routed Study = %+v, %v", created.Study, err)
+	}
+	hypothesis, err := researchService.AgentUpdate(ctx, f.principal, research.UpdateInput{
+		Node: &research.NodeInput{Kind: "hypothesis", Title: "Live code stays on autoresearch", FromNodeID: created.Study.Nodes[0].ID, Relation: "leads_to"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := preparedService(t, f, 2)
+	service.SetGraphBinder(researchService)
+	fromID := hypothesis.Study.Nodes[1].ID
+	if _, err := service.Prepare(ctx, f.principal, prepareFrom(fromID)); err == nil {
+		t.Fatal("Prepare() accepted an omitted ref on a routed Study")
+	} else if !strings.Contains(err.Error(), "explicit code ref") {
+		t.Fatalf("omitted-ref error = %v", err)
+	}
+	blocked := prepareFrom(fromID)
+	blocked.Ref = "main"
+	if _, err := service.Prepare(ctx, f.principal, blocked); err == nil {
+		t.Fatal("Prepare() accepted main on a routed Study")
+	} else if !strings.Contains(err.Error(), "outside this Study's allowed code ref family") {
+		t.Fatalf("main-ref error = %v", err)
+	}
+	ok := prepareFrom(fromID)
+	ok.Ref = "autoresearch/objbg-baseline"
+	prepared, err := service.Prepare(ctx, f.principal, ok)
+	if err != nil || prepared.Proposal == nil {
+		t.Fatalf("Prepare() = %+v, %v", prepared, err)
+	}
+	if prepared.Proposal.Repository.RequestedRef != "autoresearch/objbg-baseline" ||
+		prepared.Proposal.GitIdentity.RequestedRef != "autoresearch/objbg-baseline" ||
+		prepared.Proposal.GitIdentity.DefaultBranch != "main" ||
+		prepared.Proposal.GitIdentity.CommitSHA != proposalCommit {
+		t.Fatalf("git identity = %+v repo = %+v", prepared.Proposal.GitIdentity, prepared.Proposal.Repository)
+	}
+	submitted, err := service.SubmitPrepared(ctx, f.principal, SubmitPreparedInput{
+		ProposalID: prepared.Proposal.ID, ConfirmationDigest: prepared.Proposal.ConfirmationDigest,
+	})
+	if err != nil || submitted.RunNodeID == "" {
+		t.Fatalf("SubmitPrepared() = %+v, %v", submitted, err)
+	}
+	if submitted.GitIdentity.RequestedRef != "autoresearch/objbg-baseline" ||
+		submitted.Experiment.GitIdentity.RequestedRef != "autoresearch/objbg-baseline" ||
+		submitted.Experiment.GitIdentity.DefaultBranch != "main" {
+		t.Fatalf("submitted identity = %+v experiment = %+v", submitted.GitIdentity, submitted.Experiment.GitIdentity)
+	}
+	workspace, err := researchService.AgentWorkspace(ctx, f.principal, research.WorkspaceInput{})
+	if err != nil || workspace.Study == nil || len(workspace.Study.Hypotheses) != 1 {
+		t.Fatalf("workspace = %+v, %v", workspace.Study, err)
+	}
+	rec := workspace.Study.Hypotheses[0].Experiments
+	if len(rec) != 1 || rec[0].Branch != "autoresearch/objbg-baseline" {
+		t.Fatalf("hypothesis records collapsed to default branch = %+v", rec)
+	}
+}

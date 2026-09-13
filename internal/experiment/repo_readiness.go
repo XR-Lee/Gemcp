@@ -51,15 +51,17 @@ func (s *Service) OwnerRepositoryReadiness(ctx context.Context, tenantID int, pr
 		return result, err
 	}
 	result = RepositoryReadiness{
-		ID:            record.PublicID.String(),
-		ProjectID:     projectRecord.PublicID.String(),
-		Name:          record.Name,
-		SSHURL:        record.SSHURL,
-		Status:        string(record.Status),
-		Access:        gitrepository.AccessOf(record),
-		DefaultBranch: record.DefaultBranch,
-		Manifest:      ManifestReadiness{},
-		Defaults:      ProjectDefaultsReadiness{},
+		ID:                       record.PublicID.String(),
+		ProjectID:                projectRecord.PublicID.String(),
+		Name:                     record.Name,
+		SSHURL:                   record.SSHURL,
+		Status:                   string(record.Status),
+		Access:                   gitrepository.AccessOf(record),
+		DefaultBranch:            record.DefaultBranch,
+		ObservationWritesAllowed: gitrepository.ObservationWritesAllowed(string(record.Status)),
+		PendingNote:              gitrepository.PendingNote(string(record.Status)),
+		Manifest:                 ManifestReadiness{},
+		Defaults:                 ProjectDefaultsReadiness{},
 	}
 	if result.Access == gitrepository.AccessSSHDeploy {
 		result.DeployPublicKey = record.DeployPublicKey

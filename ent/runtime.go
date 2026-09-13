@@ -2459,6 +2459,18 @@ func init() {
 	studyDescQuestion := studyFields[5].Descriptor()
 	// study.QuestionValidator is a validator for the "question" field. It is called by the builders before save.
 	study.QuestionValidator = studyDescQuestion.Validators[0].(func(string) error)
+	// studyDescProtocolBranch is the schema descriptor for protocol_branch field.
+	studyDescProtocolBranch := studyFields[8].Descriptor()
+	// study.ProtocolBranchValidator is a validator for the "protocol_branch" field. It is called by the builders before save.
+	study.ProtocolBranchValidator = studyDescProtocolBranch.Validators[0].(func(string) error)
+	// studyDescProtocolDocPath is the schema descriptor for protocol_doc_path field.
+	studyDescProtocolDocPath := studyFields[9].Descriptor()
+	// study.ProtocolDocPathValidator is a validator for the "protocol_doc_path" field. It is called by the builders before save.
+	study.ProtocolDocPathValidator = studyDescProtocolDocPath.Validators[0].(func(string) error)
+	// studyDescCodeRefPattern is the schema descriptor for code_ref_pattern field.
+	studyDescCodeRefPattern := studyFields[10].Descriptor()
+	// study.CodeRefPatternValidator is a validator for the "code_ref_pattern" field. It is called by the builders before save.
+	study.CodeRefPatternValidator = studyDescCodeRefPattern.Validators[0].(func(string) error)
 	tenantMixin := schema.Tenant{}.Mixin()
 	tenantMixinFields0 := tenantMixin[0].Fields()
 	_ = tenantMixinFields0

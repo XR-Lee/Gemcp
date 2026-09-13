@@ -44,6 +44,12 @@ type Study struct {
 	Summary string `json:"summary,omitempty"`
 	// Status holds the value of the "status" field.
 	Status study.Status `json:"status,omitempty"`
+	// docs-only protocol ref, e.g. research-plan
+	ProtocolBranch string `json:"protocol_branch,omitempty"`
+	// protocol chapter, card id, or markdown path on the protocol branch
+	ProtocolDocPath string `json:"protocol_doc_path,omitempty"`
+	// allowed live experiment refs, e.g. autoresearch/*
+	CodeRefPattern string `json:"code_ref_pattern,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the StudyQuery when eager-loading is set.
 	Edges        StudyEdges `json:"edges"`
@@ -149,7 +155,7 @@ func (*Study) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case study.FieldID, study.FieldTenantID, study.FieldProjectID, study.FieldRepositoryID, study.FieldAgentTokenID:
 			values[i] = new(sql.NullInt64)
-		case study.FieldName, study.FieldQuestion, study.FieldSummary, study.FieldStatus:
+		case study.FieldName, study.FieldQuestion, study.FieldSummary, study.FieldStatus, study.FieldProtocolBranch, study.FieldProtocolDocPath, study.FieldCodeRefPattern:
 			values[i] = new(sql.NullString)
 		case study.FieldCreatedAt, study.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -243,6 +249,24 @@ func (_m *Study) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
 				_m.Status = study.Status(value.String)
+			}
+		case study.FieldProtocolBranch:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field protocol_branch", values[i])
+			} else if value.Valid {
+				_m.ProtocolBranch = value.String
+			}
+		case study.FieldProtocolDocPath:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field protocol_doc_path", values[i])
+			} else if value.Valid {
+				_m.ProtocolDocPath = value.String
+			}
+		case study.FieldCodeRefPattern:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field code_ref_pattern", values[i])
+			} else if value.Valid {
+				_m.CodeRefPattern = value.String
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -351,6 +375,15 @@ func (_m *Study) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Status))
+	builder.WriteString(", ")
+	builder.WriteString("protocol_branch=")
+	builder.WriteString(_m.ProtocolBranch)
+	builder.WriteString(", ")
+	builder.WriteString("protocol_doc_path=")
+	builder.WriteString(_m.ProtocolDocPath)
+	builder.WriteString(", ")
+	builder.WriteString("code_ref_pattern=")
+	builder.WriteString(_m.CodeRefPattern)
 	builder.WriteByte(')')
 	return builder.String()
 }

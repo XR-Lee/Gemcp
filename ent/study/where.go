@@ -106,6 +106,21 @@ func Summary(v string) predicate.Study {
 	return predicate.Study(sql.FieldEQ(FieldSummary, v))
 }
 
+// ProtocolBranch applies equality check predicate on the "protocol_branch" field. It's identical to ProtocolBranchEQ.
+func ProtocolBranch(v string) predicate.Study {
+	return predicate.Study(sql.FieldEQ(FieldProtocolBranch, v))
+}
+
+// ProtocolDocPath applies equality check predicate on the "protocol_doc_path" field. It's identical to ProtocolDocPathEQ.
+func ProtocolDocPath(v string) predicate.Study {
+	return predicate.Study(sql.FieldEQ(FieldProtocolDocPath, v))
+}
+
+// CodeRefPattern applies equality check predicate on the "code_ref_pattern" field. It's identical to CodeRefPatternEQ.
+func CodeRefPattern(v string) predicate.Study {
+	return predicate.Study(sql.FieldEQ(FieldCodeRefPattern, v))
+}
+
 // PublicIDEQ applies the EQ predicate on the "public_id" field.
 func PublicIDEQ(v uuid.UUID) predicate.Study {
 	return predicate.Study(sql.FieldEQ(FieldPublicID, v))
@@ -549,6 +564,231 @@ func StatusIn(vs ...Status) predicate.Study {
 // StatusNotIn applies the NotIn predicate on the "status" field.
 func StatusNotIn(vs ...Status) predicate.Study {
 	return predicate.Study(sql.FieldNotIn(FieldStatus, vs...))
+}
+
+// ProtocolBranchEQ applies the EQ predicate on the "protocol_branch" field.
+func ProtocolBranchEQ(v string) predicate.Study {
+	return predicate.Study(sql.FieldEQ(FieldProtocolBranch, v))
+}
+
+// ProtocolBranchNEQ applies the NEQ predicate on the "protocol_branch" field.
+func ProtocolBranchNEQ(v string) predicate.Study {
+	return predicate.Study(sql.FieldNEQ(FieldProtocolBranch, v))
+}
+
+// ProtocolBranchIn applies the In predicate on the "protocol_branch" field.
+func ProtocolBranchIn(vs ...string) predicate.Study {
+	return predicate.Study(sql.FieldIn(FieldProtocolBranch, vs...))
+}
+
+// ProtocolBranchNotIn applies the NotIn predicate on the "protocol_branch" field.
+func ProtocolBranchNotIn(vs ...string) predicate.Study {
+	return predicate.Study(sql.FieldNotIn(FieldProtocolBranch, vs...))
+}
+
+// ProtocolBranchGT applies the GT predicate on the "protocol_branch" field.
+func ProtocolBranchGT(v string) predicate.Study {
+	return predicate.Study(sql.FieldGT(FieldProtocolBranch, v))
+}
+
+// ProtocolBranchGTE applies the GTE predicate on the "protocol_branch" field.
+func ProtocolBranchGTE(v string) predicate.Study {
+	return predicate.Study(sql.FieldGTE(FieldProtocolBranch, v))
+}
+
+// ProtocolBranchLT applies the LT predicate on the "protocol_branch" field.
+func ProtocolBranchLT(v string) predicate.Study {
+	return predicate.Study(sql.FieldLT(FieldProtocolBranch, v))
+}
+
+// ProtocolBranchLTE applies the LTE predicate on the "protocol_branch" field.
+func ProtocolBranchLTE(v string) predicate.Study {
+	return predicate.Study(sql.FieldLTE(FieldProtocolBranch, v))
+}
+
+// ProtocolBranchContains applies the Contains predicate on the "protocol_branch" field.
+func ProtocolBranchContains(v string) predicate.Study {
+	return predicate.Study(sql.FieldContains(FieldProtocolBranch, v))
+}
+
+// ProtocolBranchHasPrefix applies the HasPrefix predicate on the "protocol_branch" field.
+func ProtocolBranchHasPrefix(v string) predicate.Study {
+	return predicate.Study(sql.FieldHasPrefix(FieldProtocolBranch, v))
+}
+
+// ProtocolBranchHasSuffix applies the HasSuffix predicate on the "protocol_branch" field.
+func ProtocolBranchHasSuffix(v string) predicate.Study {
+	return predicate.Study(sql.FieldHasSuffix(FieldProtocolBranch, v))
+}
+
+// ProtocolBranchIsNil applies the IsNil predicate on the "protocol_branch" field.
+func ProtocolBranchIsNil() predicate.Study {
+	return predicate.Study(sql.FieldIsNull(FieldProtocolBranch))
+}
+
+// ProtocolBranchNotNil applies the NotNil predicate on the "protocol_branch" field.
+func ProtocolBranchNotNil() predicate.Study {
+	return predicate.Study(sql.FieldNotNull(FieldProtocolBranch))
+}
+
+// ProtocolBranchEqualFold applies the EqualFold predicate on the "protocol_branch" field.
+func ProtocolBranchEqualFold(v string) predicate.Study {
+	return predicate.Study(sql.FieldEqualFold(FieldProtocolBranch, v))
+}
+
+// ProtocolBranchContainsFold applies the ContainsFold predicate on the "protocol_branch" field.
+func ProtocolBranchContainsFold(v string) predicate.Study {
+	return predicate.Study(sql.FieldContainsFold(FieldProtocolBranch, v))
+}
+
+// ProtocolDocPathEQ applies the EQ predicate on the "protocol_doc_path" field.
+func ProtocolDocPathEQ(v string) predicate.Study {
+	return predicate.Study(sql.FieldEQ(FieldProtocolDocPath, v))
+}
+
+// ProtocolDocPathNEQ applies the NEQ predicate on the "protocol_doc_path" field.
+func ProtocolDocPathNEQ(v string) predicate.Study {
+	return predicate.Study(sql.FieldNEQ(FieldProtocolDocPath, v))
+}
+
+// ProtocolDocPathIn applies the In predicate on the "protocol_doc_path" field.
+func ProtocolDocPathIn(vs ...string) predicate.Study {
+	return predicate.Study(sql.FieldIn(FieldProtocolDocPath, vs...))
+}
+
+// ProtocolDocPathNotIn applies the NotIn predicate on the "protocol_doc_path" field.
+func ProtocolDocPathNotIn(vs ...string) predicate.Study {
+	return predicate.Study(sql.FieldNotIn(FieldProtocolDocPath, vs...))
+}
+
+// ProtocolDocPathGT applies the GT predicate on the "protocol_doc_path" field.
+func ProtocolDocPathGT(v string) predicate.Study {
+	return predicate.Study(sql.FieldGT(FieldProtocolDocPath, v))
+}
+
+// ProtocolDocPathGTE applies the GTE predicate on the "protocol_doc_path" field.
+func ProtocolDocPathGTE(v string) predicate.Study {
+	return predicate.Study(sql.FieldGTE(FieldProtocolDocPath, v))
+}
+
+// ProtocolDocPathLT applies the LT predicate on the "protocol_doc_path" field.
+func ProtocolDocPathLT(v string) predicate.Study {
+	return predicate.Study(sql.FieldLT(FieldProtocolDocPath, v))
+}
+
+// ProtocolDocPathLTE applies the LTE predicate on the "protocol_doc_path" field.
+func ProtocolDocPathLTE(v string) predicate.Study {
+	return predicate.Study(sql.FieldLTE(FieldProtocolDocPath, v))
+}
+
+// ProtocolDocPathContains applies the Contains predicate on the "protocol_doc_path" field.
+func ProtocolDocPathContains(v string) predicate.Study {
+	return predicate.Study(sql.FieldContains(FieldProtocolDocPath, v))
+}
+
+// ProtocolDocPathHasPrefix applies the HasPrefix predicate on the "protocol_doc_path" field.
+func ProtocolDocPathHasPrefix(v string) predicate.Study {
+	return predicate.Study(sql.FieldHasPrefix(FieldProtocolDocPath, v))
+}
+
+// ProtocolDocPathHasSuffix applies the HasSuffix predicate on the "protocol_doc_path" field.
+func ProtocolDocPathHasSuffix(v string) predicate.Study {
+	return predicate.Study(sql.FieldHasSuffix(FieldProtocolDocPath, v))
+}
+
+// ProtocolDocPathIsNil applies the IsNil predicate on the "protocol_doc_path" field.
+func ProtocolDocPathIsNil() predicate.Study {
+	return predicate.Study(sql.FieldIsNull(FieldProtocolDocPath))
+}
+
+// ProtocolDocPathNotNil applies the NotNil predicate on the "protocol_doc_path" field.
+func ProtocolDocPathNotNil() predicate.Study {
+	return predicate.Study(sql.FieldNotNull(FieldProtocolDocPath))
+}
+
+// ProtocolDocPathEqualFold applies the EqualFold predicate on the "protocol_doc_path" field.
+func ProtocolDocPathEqualFold(v string) predicate.Study {
+	return predicate.Study(sql.FieldEqualFold(FieldProtocolDocPath, v))
+}
+
+// ProtocolDocPathContainsFold applies the ContainsFold predicate on the "protocol_doc_path" field.
+func ProtocolDocPathContainsFold(v string) predicate.Study {
+	return predicate.Study(sql.FieldContainsFold(FieldProtocolDocPath, v))
+}
+
+// CodeRefPatternEQ applies the EQ predicate on the "code_ref_pattern" field.
+func CodeRefPatternEQ(v string) predicate.Study {
+	return predicate.Study(sql.FieldEQ(FieldCodeRefPattern, v))
+}
+
+// CodeRefPatternNEQ applies the NEQ predicate on the "code_ref_pattern" field.
+func CodeRefPatternNEQ(v string) predicate.Study {
+	return predicate.Study(sql.FieldNEQ(FieldCodeRefPattern, v))
+}
+
+// CodeRefPatternIn applies the In predicate on the "code_ref_pattern" field.
+func CodeRefPatternIn(vs ...string) predicate.Study {
+	return predicate.Study(sql.FieldIn(FieldCodeRefPattern, vs...))
+}
+
+// CodeRefPatternNotIn applies the NotIn predicate on the "code_ref_pattern" field.
+func CodeRefPatternNotIn(vs ...string) predicate.Study {
+	return predicate.Study(sql.FieldNotIn(FieldCodeRefPattern, vs...))
+}
+
+// CodeRefPatternGT applies the GT predicate on the "code_ref_pattern" field.
+func CodeRefPatternGT(v string) predicate.Study {
+	return predicate.Study(sql.FieldGT(FieldCodeRefPattern, v))
+}
+
+// CodeRefPatternGTE applies the GTE predicate on the "code_ref_pattern" field.
+func CodeRefPatternGTE(v string) predicate.Study {
+	return predicate.Study(sql.FieldGTE(FieldCodeRefPattern, v))
+}
+
+// CodeRefPatternLT applies the LT predicate on the "code_ref_pattern" field.
+func CodeRefPatternLT(v string) predicate.Study {
+	return predicate.Study(sql.FieldLT(FieldCodeRefPattern, v))
+}
+
+// CodeRefPatternLTE applies the LTE predicate on the "code_ref_pattern" field.
+func CodeRefPatternLTE(v string) predicate.Study {
+	return predicate.Study(sql.FieldLTE(FieldCodeRefPattern, v))
+}
+
+// CodeRefPatternContains applies the Contains predicate on the "code_ref_pattern" field.
+func CodeRefPatternContains(v string) predicate.Study {
+	return predicate.Study(sql.FieldContains(FieldCodeRefPattern, v))
+}
+
+// CodeRefPatternHasPrefix applies the HasPrefix predicate on the "code_ref_pattern" field.
+func CodeRefPatternHasPrefix(v string) predicate.Study {
+	return predicate.Study(sql.FieldHasPrefix(FieldCodeRefPattern, v))
+}
+
+// CodeRefPatternHasSuffix applies the HasSuffix predicate on the "code_ref_pattern" field.
+func CodeRefPatternHasSuffix(v string) predicate.Study {
+	return predicate.Study(sql.FieldHasSuffix(FieldCodeRefPattern, v))
+}
+
+// CodeRefPatternIsNil applies the IsNil predicate on the "code_ref_pattern" field.
+func CodeRefPatternIsNil() predicate.Study {
+	return predicate.Study(sql.FieldIsNull(FieldCodeRefPattern))
+}
+
+// CodeRefPatternNotNil applies the NotNil predicate on the "code_ref_pattern" field.
+func CodeRefPatternNotNil() predicate.Study {
+	return predicate.Study(sql.FieldNotNull(FieldCodeRefPattern))
+}
+
+// CodeRefPatternEqualFold applies the EqualFold predicate on the "code_ref_pattern" field.
+func CodeRefPatternEqualFold(v string) predicate.Study {
+	return predicate.Study(sql.FieldEqualFold(FieldCodeRefPattern, v))
+}
+
+// CodeRefPatternContainsFold applies the ContainsFold predicate on the "code_ref_pattern" field.
+func CodeRefPatternContainsFold(v string) predicate.Study {
+	return predicate.Study(sql.FieldContainsFold(FieldCodeRefPattern, v))
 }
 
 // HasTenant applies the HasEdge predicate on the "tenant" edge.

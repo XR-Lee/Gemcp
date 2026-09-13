@@ -38,6 +38,12 @@ const (
 	FieldSummary = "summary"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
+	// FieldProtocolBranch holds the string denoting the protocol_branch field in the database.
+	FieldProtocolBranch = "protocol_branch"
+	// FieldProtocolDocPath holds the string denoting the protocol_doc_path field in the database.
+	FieldProtocolDocPath = "protocol_doc_path"
+	// FieldCodeRefPattern holds the string denoting the code_ref_pattern field in the database.
+	FieldCodeRefPattern = "code_ref_pattern"
 	// EdgeTenant holds the string denoting the tenant edge name in mutations.
 	EdgeTenant = "tenant"
 	// EdgeProject holds the string denoting the project edge name in mutations.
@@ -119,6 +125,9 @@ var Columns = []string{
 	FieldQuestion,
 	FieldSummary,
 	FieldStatus,
+	FieldProtocolBranch,
+	FieldProtocolDocPath,
+	FieldCodeRefPattern,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -144,6 +153,12 @@ var (
 	NameValidator func(string) error
 	// QuestionValidator is a validator for the "question" field. It is called by the builders before save.
 	QuestionValidator func(string) error
+	// ProtocolBranchValidator is a validator for the "protocol_branch" field. It is called by the builders before save.
+	ProtocolBranchValidator func(string) error
+	// ProtocolDocPathValidator is a validator for the "protocol_doc_path" field. It is called by the builders before save.
+	ProtocolDocPathValidator func(string) error
+	// CodeRefPatternValidator is a validator for the "code_ref_pattern" field. It is called by the builders before save.
+	CodeRefPatternValidator func(string) error
 )
 
 // Status defines the type for the "status" enum field.
@@ -234,6 +249,21 @@ func BySummary(opts ...sql.OrderTermOption) OrderOption {
 // ByStatus orders the results by the status field.
 func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+}
+
+// ByProtocolBranch orders the results by the protocol_branch field.
+func ByProtocolBranch(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldProtocolBranch, opts...).ToFunc()
+}
+
+// ByProtocolDocPath orders the results by the protocol_doc_path field.
+func ByProtocolDocPath(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldProtocolDocPath, opts...).ToFunc()
+}
+
+// ByCodeRefPattern orders the results by the code_ref_pattern field.
+func ByCodeRefPattern(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCodeRefPattern, opts...).ToFunc()
 }
 
 // ByTenantField orders the results by tenant field.

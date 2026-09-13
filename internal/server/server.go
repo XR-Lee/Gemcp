@@ -213,6 +213,7 @@ func New(deps Dependencies) *http.Server {
 	protected.GET("/projects/:id/research", researchHandlers.Get)
 	protected.PUT("/projects/:id/research", researchHandlers.Update)
 	protected.POST("/projects/:id/research/close-run", researchHandlers.CloseRun)
+	protected.POST("/projects/:id/research/plan-sync", researchHandlers.PlanSync)
 	protected.GET("/projects/:id/experiment-catalog", researchHandlers.Catalog)
 	diagnosticService := diagnostic.NewService(
 		deps.Ent, deps.Secrets, repositoryService, providerService, runtimeOperations, experimentService,

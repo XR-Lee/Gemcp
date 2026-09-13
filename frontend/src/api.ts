@@ -190,6 +190,8 @@ export type Repository = {
   last_verified_at?: string
   access?: 'public_https' | 'ssh_deploy_key'
   deploy_key_settings_url?: string
+  observation_writes_allowed?: boolean
+  pending_note?: string
 }
 
 export type RepositoryReadinessBlocker = {
@@ -217,6 +219,8 @@ export type RepositoryReadiness = {
   commit_sha?: string
   deploy_public_key?: string
   deploy_key_settings_url?: string
+  observation_writes_allowed?: boolean
+  pending_note?: string
   ready: boolean
   manifest: {
     present: boolean
@@ -619,6 +623,31 @@ export type ResearchPlan = {
   created_at: string
   updated_at: string
 }
+export type ResearchGitIdentity = {
+  repository_id?: string
+  repository_name?: string
+  repository?: string
+  requested_ref?: string
+  commit_sha?: string
+  default_branch?: string
+  host_process?: boolean
+}
+export type ResearchRoute = {
+  protocol_branch?: string
+  protocol_doc_path?: string
+  code_ref_pattern?: string
+}
+export type ResearchPlanSyncExport = {
+  study_id: string
+  dry_run: boolean
+  target_branch: string
+  target_path: string
+  title: string
+  markdown: string
+  warning?: string
+  recorded: boolean
+  generated_at: string
+}
 export type ResearchNode = {
   id: string
   kind: string
@@ -632,6 +661,7 @@ export type ResearchNode = {
   occurred_at?: string
   commit_sha?: string
   branch?: string
+  git_identity?: ResearchGitIdentity
   created_at: string
   updated_at: string
 }
@@ -642,6 +672,8 @@ export type ResearchStudyRepository = {
   ssh_url: string
   default_branch: string
   status: string
+  observation_writes_allowed?: boolean
+  pending_note?: string
 }
 export type ResearchHypothesisExperiment = {
   run_node_id: string
@@ -650,6 +682,7 @@ export type ResearchHypothesisExperiment = {
   state: string
   branch?: string
   commit_sha?: string
+  git_identity?: ResearchGitIdentity
   result_title?: string
   highlight_title?: string
 }
@@ -659,6 +692,7 @@ export type ResearchHypothesis = {
   summary?: string
   status: string
   branch?: string
+  git_identity?: ResearchGitIdentity
   experiments: ResearchHypothesisExperiment[]
 }
 export type ResearchStudy = {
@@ -668,6 +702,7 @@ export type ResearchStudy = {
   summary?: string
   status: string
   repository?: ResearchStudyRepository
+  route?: ResearchRoute
   plan?: ResearchPlan
   nodes: ResearchNode[]
   edges: ResearchEdge[]
@@ -682,6 +717,9 @@ export type ResearchNextAction = {
   experiment_id?: string
   title: string
   detail: string
+  allowed_ref_pattern?: string
+  protocol_branch?: string
+  protocol_doc_path?: string
 }
 export type ResearchWorkspace = {
   project_id: string
@@ -711,6 +749,8 @@ export type ExperimentCatalogRepository = {
   default_branch: string
   status: string
   last_verified_at?: string
+  observation_writes_allowed?: boolean
+  pending_note?: string
   rows: ExperimentCatalogRow[]
 }
 export type ExperimentCatalog = {
@@ -1523,7 +1563,10 @@ export const api = {
     method: 'POST', body: JSON.stringify(payload),
   }),
   updateResearch: (projectID: string, payload: {
-    study?: { id?: string; name: string; question: string; summary?: string; status?: string; repository_id?: string }
+    study?: {
+      id?: string; name: string; question: string; summary?: string; status?: string; repository_id?: string
+      protocol_branch?: string; protocol_doc_path?: string; code_ref_pattern?: string
+    }
     plan?: { study_id?: string; goal: string; next_action: string; rationale?: string; steps?: ResearchPlanStep[] }
     node?: {
       study_id?: string; kind: string; title: string; summary?: string; status?: string
@@ -1532,6 +1575,10 @@ export const api = {
   }) => request<ResearchWorkspace>(`/api/v1/projects/${encodeURIComponent(projectID)}/research`, {
     method: 'PUT', body: JSON.stringify(payload),
   }),
+  exportPlanSync: (projectID: string, payload: { study_id?: string; dry_run?: boolean; target_path?: string } = {}) =>
+    request<ResearchPlanSyncExport>(`/api/v1/projects/${encodeURIComponent(projectID)}/research/plan-sync`, {
+      method: 'POST', body: JSON.stringify(payload),
+    }),
   diagnosticOptions: (projectID: string) =>
     request<DiagnosticOptions>(`/api/v1/projects/${encodeURIComponent(projectID)}/diagnostics/options`),
   diagnosticPreflight: (projectID: string, payload: DiagnosticInput) =>

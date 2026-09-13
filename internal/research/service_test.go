@@ -162,8 +162,11 @@ func TestAgentMaintainsStudyPlanAndGraphWithoutStartingWorkloads(t *testing.T) {
 	if len(updated.Study.Hypotheses) != 1 || len(updated.Study.Hypotheses[0].Experiments) != 1 {
 		t.Fatalf("hypothesis records = %+v", updated.Study.Hypotheses)
 	}
-	if rec := updated.Study.Hypotheses[0].Experiments[0]; rec.Branch != "main" || rec.CommitSHA == "" || rec.HighlightTitle == "" {
+	if rec := updated.Study.Hypotheses[0].Experiments[0]; rec.Branch != "" || rec.CommitSHA == "" || rec.HighlightTitle == "" {
 		t.Fatalf("hypothesis experiment record = %+v", rec)
+	}
+	if rec := updated.Study.Hypotheses[0].Experiments[0]; rec.GitIdentity != nil && rec.GitIdentity.RequestedRef != "" {
+		t.Fatalf("invented requested_ref = %+v", rec.GitIdentity)
 	}
 
 	readOnly := principal

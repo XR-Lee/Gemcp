@@ -55,7 +55,7 @@ func (s *Service) SubmitPrepared(ctx context.Context, principal agentauth.Princi
 		if err != nil {
 			return SubmitPreparedResult{}, err
 		}
-		return s.bindPreparedGraph(ctx, principal, record.ProjectSnapshot, SubmitPreparedResult{Experiment: makeView(experimentRecord), Idempotent: true})
+		return s.bindPreparedGraph(ctx, principal, record.ProjectSnapshot, submitPreparedView(experimentRecord, true))
 	}
 	if !s.now().UTC().Before(record.ExpiresAt) {
 		return SubmitPreparedResult{}, ErrProposalExpired
@@ -97,7 +97,7 @@ func (s *Service) SubmitPrepared(ctx context.Context, principal agentauth.Princi
 			if edgeErr != nil {
 				return SubmitPreparedResult{}, edgeErr
 			}
-			return s.bindPreparedGraph(ctx, principal, existing.ProjectSnapshot, SubmitPreparedResult{Experiment: makeView(experimentRecord), Idempotent: true})
+			return s.bindPreparedGraph(ctx, principal, existing.ProjectSnapshot, submitPreparedView(experimentRecord, true))
 		}
 		if lookupErr != nil && !ent.IsNotFound(lookupErr) {
 			return SubmitPreparedResult{}, lookupErr
@@ -202,7 +202,7 @@ func (s *Service) createPreparedExperiment(ctx context.Context, principal agenta
 		if err := tx.Commit(); err != nil {
 			return result, err
 		}
-		return SubmitPreparedResult{Experiment: makeView(experimentRecord), Idempotent: true}, nil
+		return submitPreparedView(experimentRecord, true), nil
 	}
 	if !s.now().UTC().Before(proposalRecord.ExpiresAt) {
 		return result, ErrProposalExpired
@@ -303,7 +303,7 @@ func (s *Service) createPreparedExperiment(ctx context.Context, principal agenta
 		SetMaxRuntimeSeconds(proposalRecord.MaxRuntimeSeconds).
 		SetTimeoutExtensionSeconds(projectRecord.TimeoutExtensionSeconds).
 		SetTerminationGraceSeconds(projectRecord.TerminationGraceSeconds).
-		SetRepositorySnapshot(repositorySnapshot(repositoryRecord, projectRecord.PublicID.String())).
+		SetRepositorySnapshot(repositorySnapshotWithRef(repositoryRecord, projectRecord.PublicID.String(), proposalRecord.RequestedRef)).
 		SetEnvironmentSnapshot(proposalRecord.EnvironmentSnapshot).
 		SetResourceSnapshot(resourceSnapshot(profileRecord)).
 		SetSecretNames([]string{}).
@@ -359,7 +359,12 @@ func (s *Service) createPreparedExperiment(ctx context.Context, principal agenta
 	if err := tx.Commit(); err != nil {
 		return result, err
 	}
-	return SubmitPreparedResult{Experiment: makeView(experimentRecord)}, nil
+	return submitPreparedView(experimentRecord, false), nil
+}
+
+func submitPreparedView(experimentRecord *ent.Experiment, idempotent bool) SubmitPreparedResult {
+	view := makeView(experimentRecord)
+	return SubmitPreparedResult{Experiment: view, GitIdentity: view.GitIdentity, Idempotent: idempotent}
 }
 
 func proposalRuntimeInTransaction(ctx context.Context, tx *ent.Tx, projectRecord *ent.Project, environmentRecord *ent.Environment, profileRecord *ent.ResourceProfile, snapshot map[string]any) (string, *proposalWorkspace, error) {

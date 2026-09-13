@@ -127,6 +127,12 @@ export function buildResearchAttachPrompt(input: ResearchAttachPromptInput) {
         `- 已绑定仓库：${study.repository.name} [${study.repository.status}] ${study.repository.ssh_url} @ ${study.repository.default_branch}`,
       )
     }
+    if (study.route?.protocol_branch || study.route?.code_ref_pattern) {
+      add(
+        `- Route: protocol ${study.route.protocol_branch || 'unset'} / ${study.route.protocol_doc_path || 'research-plan/GEMCP-SYNC.md'}; live code refs ${study.route.code_ref_pattern || 'any'}. Do not dump training code onto the protocol branch.`,
+        `- 路由：协议 ${study.route.protocol_branch || '未设'} / ${study.route.protocol_doc_path || 'research-plan/GEMCP-SYNC.md'}；活代码 ref ${study.route.code_ref_pattern || '任意'}。不要把训练代码写进协议分支。`,
+      )
+    }
     if (study.plan?.next_action) {
       add(`- Plan next action: ${study.plan.next_action}`, `- 计划中的下一步：${study.plan.next_action}`)
     }

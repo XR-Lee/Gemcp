@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Bot, Check, Clipboard, FlaskConical, GitBranch, Network, Plus, Sparkles } from '@lucide/vue'
+import { Bot, Check, Clipboard, FileText, FlaskConical, GitBranch, Network, Plus, Sparkles } from '@lucide/vue'
 import { motion } from 'motion-v'
 import type { AgentReadiness, Experiment, ExperimentCatalog, Project, Repository, RepositoryReadiness, ResearchWorkspace, RuntimeStatus } from '../api'
 import { localizedState, useI18n } from '../i18n'
@@ -38,6 +38,7 @@ const emit = defineEmits<{
   handshake: []
   verifyRepository: []
   openProjects: []
+  exportPlanSync: []
 }>()
 const { locale, languageTag, t } = useI18n()
 const attachOpen = ref(false)
@@ -96,9 +97,12 @@ const catalogRepositories = computed(() => {
     default_branch: repository.default_branch,
     status: repository.status,
     last_verified_at: repository.last_verified_at,
+    observation_writes_allowed: repository.observation_writes_allowed,
+    pending_note: repository.pending_note,
     rows: [],
   }))
 })
+const studyRoute = computed(() => study.value?.route ?? null)
 function dateTime(value?: string) {
   if (!value) return t('Not set', '未设置')
   return new Intl.DateTimeFormat(languageTag.value, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
@@ -113,6 +117,12 @@ function dateTime(value?: string) {
         <h2>{{ study?.name ?? t('No study yet', '还没有 Study') }}</h2>
         <p>{{ study?.question ?? t('Import an existing research repository, or write a question. Docker execution stays in the Lab layer.', '从已有研究仓库导入，或先写下问题。Docker 执行仍留在 Lab 层。') }}</p>
         <p v-if="study?.repository" class="research-repo"><GitBranch :size="13" />{{ study.repository.name }} · {{ study.repository.ssh_url }}</p>
+        <p v-if="studyRoute" class="research-route" data-testid="study-route">
+          {{ t('Route', '路由') }}
+          <template v-if="studyRoute.protocol_branch"> · {{ t('protocol', '协议') }} <code>{{ studyRoute.protocol_branch }}</code></template>
+          <template v-if="studyRoute.protocol_doc_path"> · <code>{{ studyRoute.protocol_doc_path }}</code></template>
+          <template v-if="studyRoute.code_ref_pattern"> · {{ t('code refs', '代码 ref') }} <code>{{ studyRoute.code_ref_pattern }}</code></template>
+        </p>
       </div>
       <div class="research-heading-actions">
         <WorkbenchSelect
@@ -122,6 +132,7 @@ function dateTime(value?: string) {
           :options="studyOptions"
         />
         <button class="secondary-button small-button" type="button" :aria-label="t('Attach prompt', '入图 Prompt')" @click="attachOpen = true"><Clipboard :size="16" />{{ t('Attach prompt', '入图 Prompt') }}</button>
+        <button v-if="study" class="secondary-button small-button" type="button" data-testid="export-plan-sync" @click="emit('exportPlanSync')"><FileText :size="16" />{{ t('Export plan sync', '导出计划同步') }}</button>
         <button class="secondary-button small-button" type="button" @click="emit('createStudy')"><Plus :size="16" />{{ t('New study', '新建 Study') }}</button>
       </div>
     </motion.div>
@@ -168,6 +179,10 @@ function dateTime(value?: string) {
               <div>
                 <dt>{{ t('Status', '状态') }}</dt>
                 <dd>{{ localizedState(repository.status) }}</dd>
+              </div>
+              <div v-if="repository.pending_note">
+                <dt>{{ t('While pending', '待验证期间') }}</dt>
+                <dd>{{ repository.pending_note }}</dd>
               </div>
               <div>
                 <dt>{{ t('Last verified', '上次验证') }}</dt>
@@ -240,6 +255,12 @@ function dateTime(value?: string) {
                 type="button"
                 @click="emit('closeRun', action.experiment_id ?? '')"
               >{{ t('Close run', '结束 run') }}</button>
+              <button
+                v-if="action.kind === 'export_plan_sync'"
+                class="text-button"
+                type="button"
+                @click="emit('exportPlanSync')"
+              >{{ t('Export plan sync', '导出计划同步') }}</button>
             </li>
           </ul>
         </motion.article>
@@ -261,7 +282,7 @@ function dateTime(value?: string) {
         <div class="section-heading">
           <div>
             <h2>{{ t('Hypotheses', '假设') }}</h2>
-            <p>{{ t('Each hypothesis lists its Graph experiments, git branch, commit, and run records. Orphans stay a Lab badge for legacy or bad data, not a way to create new work.', '每条假设列出入图实验、git 分支、commit 和 run 记录。孤儿只作为 Lab 徽章标出历史或坏数据，不是新工作的入口。') }}</p>
+            <p>{{ t('Each hypothesis lists its Graph experiments, requested git ref, commit, and run records. The repository default branch is informational only and is never invented as a live experiment ref.', '每条假设列出入图实验、请求的 git ref、commit 和 run 记录。仓库默认分支只作说明，不会被填成活实验 ref。') }}</p>
           </div>
           <span class="live-label">{{ study.hypotheses.length }} {{ t('hypotheses', '条假设') }}</span>
         </div>

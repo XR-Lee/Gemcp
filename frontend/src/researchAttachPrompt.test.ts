@@ -27,6 +27,7 @@ const workspace: ResearchWorkspace = {
       id: 'repo-1', name: 'dynamic-point-mamba',
       ssh_url: 'git@github.com:research/dynamic-point-mamba.git', default_branch: 'main', status: 'active',
     },
+    route: { protocol_branch: 'research-plan', protocol_doc_path: 'research-plan/STATUS.md', code_ref_pattern: 'autoresearch/*' },
     plan: {
       id: 'plan-1', status: 'active', goal: 'Baseline first',
       next_action: 'Attach the existing smoke run',
@@ -80,6 +81,8 @@ describe('buildResearchAttachPrompt', () => {
     expect(prompt).toContain('git@github.com:research/dynamic-point-mamba.git')
     expect(prompt).toContain('Study: objbg-scan (study-1)')
     expect(prompt).toContain('Bound repository: dynamic-point-mamba')
+    expect(prompt).toContain('Route: protocol research-plan')
+    expect(prompt).toContain('autoresearch/*')
     expect(prompt).toContain('Coverage: thin')
     expect(prompt).toContain('prepare_experiment → prepare_experiment from_node_id=node-h')
     expect(prompt).toContain('experiment-orphan')

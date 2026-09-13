@@ -49,4 +49,20 @@ describe('RepositoryReadinessPanel', () => {
     expect(wrapper.text()).toContain('Blocked')
     expect(wrapper.get('a.form-note-link').attributes('href')).toBe('https://github.com/research/dynamic-point-mamba/settings/keys')
   })
+
+  it('says Graph writes remain possible while the Deploy Key is pending', () => {
+    const wrapper = mount(RepositoryReadinessPanel, {
+      props: {
+        readiness: {
+          ...ready, status: 'pending_key', ready: false,
+          pending_note: 'Graph and experiment-catalog observation writes remain possible while status is pending_key. Prepare of a git-backed Experiment still requires verify.',
+          blockers: [{
+            kind: 'deploy_key_required', title: 'Add a read-only Deploy Key',
+            detail: 'Install the key.',
+          }],
+        },
+      },
+    })
+    expect(wrapper.get('[data-testid="pending-note"]').text()).toContain('observation writes remain possible')
+  })
 })

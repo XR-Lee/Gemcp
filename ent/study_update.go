@@ -120,6 +120,66 @@ func (_u *StudyUpdate) SetNillableStatus(v *study.Status) *StudyUpdate {
 	return _u
 }
 
+// SetProtocolBranch sets the "protocol_branch" field.
+func (_u *StudyUpdate) SetProtocolBranch(v string) *StudyUpdate {
+	_u.mutation.SetProtocolBranch(v)
+	return _u
+}
+
+// SetNillableProtocolBranch sets the "protocol_branch" field if the given value is not nil.
+func (_u *StudyUpdate) SetNillableProtocolBranch(v *string) *StudyUpdate {
+	if v != nil {
+		_u.SetProtocolBranch(*v)
+	}
+	return _u
+}
+
+// ClearProtocolBranch clears the value of the "protocol_branch" field.
+func (_u *StudyUpdate) ClearProtocolBranch() *StudyUpdate {
+	_u.mutation.ClearProtocolBranch()
+	return _u
+}
+
+// SetProtocolDocPath sets the "protocol_doc_path" field.
+func (_u *StudyUpdate) SetProtocolDocPath(v string) *StudyUpdate {
+	_u.mutation.SetProtocolDocPath(v)
+	return _u
+}
+
+// SetNillableProtocolDocPath sets the "protocol_doc_path" field if the given value is not nil.
+func (_u *StudyUpdate) SetNillableProtocolDocPath(v *string) *StudyUpdate {
+	if v != nil {
+		_u.SetProtocolDocPath(*v)
+	}
+	return _u
+}
+
+// ClearProtocolDocPath clears the value of the "protocol_doc_path" field.
+func (_u *StudyUpdate) ClearProtocolDocPath() *StudyUpdate {
+	_u.mutation.ClearProtocolDocPath()
+	return _u
+}
+
+// SetCodeRefPattern sets the "code_ref_pattern" field.
+func (_u *StudyUpdate) SetCodeRefPattern(v string) *StudyUpdate {
+	_u.mutation.SetCodeRefPattern(v)
+	return _u
+}
+
+// SetNillableCodeRefPattern sets the "code_ref_pattern" field if the given value is not nil.
+func (_u *StudyUpdate) SetNillableCodeRefPattern(v *string) *StudyUpdate {
+	if v != nil {
+		_u.SetCodeRefPattern(*v)
+	}
+	return _u
+}
+
+// ClearCodeRefPattern clears the value of the "code_ref_pattern" field.
+func (_u *StudyUpdate) ClearCodeRefPattern() *StudyUpdate {
+	_u.mutation.ClearCodeRefPattern()
+	return _u
+}
+
 // SetRepository sets the "repository" edge to the Repository entity.
 func (_u *StudyUpdate) SetRepository(v *Repository) *StudyUpdate {
 	return _u.SetRepositoryID(v.ID)
@@ -297,6 +357,21 @@ func (_u *StudyUpdate) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Study.status": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ProtocolBranch(); ok {
+		if err := study.ProtocolBranchValidator(v); err != nil {
+			return &ValidationError{Name: "protocol_branch", err: fmt.Errorf(`ent: validator failed for field "Study.protocol_branch": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ProtocolDocPath(); ok {
+		if err := study.ProtocolDocPathValidator(v); err != nil {
+			return &ValidationError{Name: "protocol_doc_path", err: fmt.Errorf(`ent: validator failed for field "Study.protocol_doc_path": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.CodeRefPattern(); ok {
+		if err := study.CodeRefPatternValidator(v); err != nil {
+			return &ValidationError{Name: "code_ref_pattern", err: fmt.Errorf(`ent: validator failed for field "Study.code_ref_pattern": %w`, err)}
+		}
+	}
 	if _u.mutation.TenantCleared() && len(_u.mutation.TenantIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "Study.tenant"`)
 	}
@@ -335,6 +410,24 @@ func (_u *StudyUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(study.FieldStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.ProtocolBranch(); ok {
+		_spec.SetField(study.FieldProtocolBranch, field.TypeString, value)
+	}
+	if _u.mutation.ProtocolBranchCleared() {
+		_spec.ClearField(study.FieldProtocolBranch, field.TypeString)
+	}
+	if value, ok := _u.mutation.ProtocolDocPath(); ok {
+		_spec.SetField(study.FieldProtocolDocPath, field.TypeString, value)
+	}
+	if _u.mutation.ProtocolDocPathCleared() {
+		_spec.ClearField(study.FieldProtocolDocPath, field.TypeString)
+	}
+	if value, ok := _u.mutation.CodeRefPattern(); ok {
+		_spec.SetField(study.FieldCodeRefPattern, field.TypeString, value)
+	}
+	if _u.mutation.CodeRefPatternCleared() {
+		_spec.ClearField(study.FieldCodeRefPattern, field.TypeString)
 	}
 	if _u.mutation.RepositoryCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -608,6 +701,66 @@ func (_u *StudyUpdateOne) SetNillableStatus(v *study.Status) *StudyUpdateOne {
 	return _u
 }
 
+// SetProtocolBranch sets the "protocol_branch" field.
+func (_u *StudyUpdateOne) SetProtocolBranch(v string) *StudyUpdateOne {
+	_u.mutation.SetProtocolBranch(v)
+	return _u
+}
+
+// SetNillableProtocolBranch sets the "protocol_branch" field if the given value is not nil.
+func (_u *StudyUpdateOne) SetNillableProtocolBranch(v *string) *StudyUpdateOne {
+	if v != nil {
+		_u.SetProtocolBranch(*v)
+	}
+	return _u
+}
+
+// ClearProtocolBranch clears the value of the "protocol_branch" field.
+func (_u *StudyUpdateOne) ClearProtocolBranch() *StudyUpdateOne {
+	_u.mutation.ClearProtocolBranch()
+	return _u
+}
+
+// SetProtocolDocPath sets the "protocol_doc_path" field.
+func (_u *StudyUpdateOne) SetProtocolDocPath(v string) *StudyUpdateOne {
+	_u.mutation.SetProtocolDocPath(v)
+	return _u
+}
+
+// SetNillableProtocolDocPath sets the "protocol_doc_path" field if the given value is not nil.
+func (_u *StudyUpdateOne) SetNillableProtocolDocPath(v *string) *StudyUpdateOne {
+	if v != nil {
+		_u.SetProtocolDocPath(*v)
+	}
+	return _u
+}
+
+// ClearProtocolDocPath clears the value of the "protocol_doc_path" field.
+func (_u *StudyUpdateOne) ClearProtocolDocPath() *StudyUpdateOne {
+	_u.mutation.ClearProtocolDocPath()
+	return _u
+}
+
+// SetCodeRefPattern sets the "code_ref_pattern" field.
+func (_u *StudyUpdateOne) SetCodeRefPattern(v string) *StudyUpdateOne {
+	_u.mutation.SetCodeRefPattern(v)
+	return _u
+}
+
+// SetNillableCodeRefPattern sets the "code_ref_pattern" field if the given value is not nil.
+func (_u *StudyUpdateOne) SetNillableCodeRefPattern(v *string) *StudyUpdateOne {
+	if v != nil {
+		_u.SetCodeRefPattern(*v)
+	}
+	return _u
+}
+
+// ClearCodeRefPattern clears the value of the "code_ref_pattern" field.
+func (_u *StudyUpdateOne) ClearCodeRefPattern() *StudyUpdateOne {
+	_u.mutation.ClearCodeRefPattern()
+	return _u
+}
+
 // SetRepository sets the "repository" edge to the Repository entity.
 func (_u *StudyUpdateOne) SetRepository(v *Repository) *StudyUpdateOne {
 	return _u.SetRepositoryID(v.ID)
@@ -798,6 +951,21 @@ func (_u *StudyUpdateOne) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Study.status": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ProtocolBranch(); ok {
+		if err := study.ProtocolBranchValidator(v); err != nil {
+			return &ValidationError{Name: "protocol_branch", err: fmt.Errorf(`ent: validator failed for field "Study.protocol_branch": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ProtocolDocPath(); ok {
+		if err := study.ProtocolDocPathValidator(v); err != nil {
+			return &ValidationError{Name: "protocol_doc_path", err: fmt.Errorf(`ent: validator failed for field "Study.protocol_doc_path": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.CodeRefPattern(); ok {
+		if err := study.CodeRefPatternValidator(v); err != nil {
+			return &ValidationError{Name: "code_ref_pattern", err: fmt.Errorf(`ent: validator failed for field "Study.code_ref_pattern": %w`, err)}
+		}
+	}
 	if _u.mutation.TenantCleared() && len(_u.mutation.TenantIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "Study.tenant"`)
 	}
@@ -853,6 +1021,24 @@ func (_u *StudyUpdateOne) sqlSave(ctx context.Context) (_node *Study, err error)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(study.FieldStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.ProtocolBranch(); ok {
+		_spec.SetField(study.FieldProtocolBranch, field.TypeString, value)
+	}
+	if _u.mutation.ProtocolBranchCleared() {
+		_spec.ClearField(study.FieldProtocolBranch, field.TypeString)
+	}
+	if value, ok := _u.mutation.ProtocolDocPath(); ok {
+		_spec.SetField(study.FieldProtocolDocPath, field.TypeString, value)
+	}
+	if _u.mutation.ProtocolDocPathCleared() {
+		_spec.ClearField(study.FieldProtocolDocPath, field.TypeString)
+	}
+	if value, ok := _u.mutation.CodeRefPattern(); ok {
+		_spec.SetField(study.FieldCodeRefPattern, field.TypeString, value)
+	}
+	if _u.mutation.CodeRefPatternCleared() {
+		_spec.ClearField(study.FieldCodeRefPattern, field.TypeString)
 	}
 	if _u.mutation.RepositoryCleared() {
 		edge := &sqlgraph.EdgeSpec{

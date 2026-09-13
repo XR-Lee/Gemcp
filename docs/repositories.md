@@ -33,7 +33,7 @@ Content-Type: application/json
 }
 ```
 
-`ssh_url` remains accepted as an alias of `url`. A public repository returns `status=active` and `access=public_https`. A private repository returns `status=pending_key`, `access=ssh_deploy_key`, and `deploy_public_key`. Add that key to the GitHub repository as a read-only Deploy Key. Do not enable write access.
+`ssh_url` remains accepted as an alias of `url`. A public repository returns `status=active` and `access=public_https`. A private repository returns `status=pending_key`, `access=ssh_deploy_key`, and `deploy_public_key`. Add that key to the GitHub repository as a read-only Deploy Key. Do not enable write access. Views include `observation_writes_allowed` and, while `pending_key` or `error`, `pending_note`: Graph and experiment-catalog observation writes remain possible; prepare of a git-backed Experiment still requires verify.
 
 ## Verify a private repository
 
@@ -48,6 +48,8 @@ Content-Type: application/json
 ```
 
 Gemcp scans `github.com`, requires one returned host key to match the release-pinned fingerprint, and performs a noninteractive read-only Git fetch with an isolated HOME, no system Git configuration, strict host-key checking, and the repository Deploy Key. The repository becomes `active` only after that succeeds. The optional `host_key_fingerprint` request field remains an Advanced override for a separately reviewed pin; never derive it from untrusted `ssh-keyscan` output alone.
+
+If GitHub rejects the key, the API returns the classified failure (`REPOSITORY_DEPLOY_KEYS_DISABLED`, `REPOSITORY_DEPLOY_KEY_MISSING`, or `REPOSITORY_VERIFICATION_FAILED`) and the full error text, including that observation writes remain possible while pending. The Owner console shows that message instead of a generic “add the key” note.
 
 Public repositories skip this step. Later commit and archive fetches try anonymous GitHub HTTPS first and fall back to the Deploy Key only when HTTPS is unauthorized.
 

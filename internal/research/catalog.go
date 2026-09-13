@@ -15,6 +15,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/repository"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
+	gitrepository "github.com/XR-Lee/Gemcp/internal/repository"
 	"github.com/google/uuid"
 )
 
@@ -67,13 +68,15 @@ type CatalogRowView struct {
 }
 
 type CatalogRepositoryView struct {
-	ID             string           `json:"id"`
-	Name           string           `json:"name"`
-	SSHURL         string           `json:"ssh_url"`
-	DefaultBranch  string           `json:"default_branch"`
-	Status         string           `json:"status"`
-	LastVerifiedAt *time.Time       `json:"last_verified_at,omitempty"`
-	Rows           []CatalogRowView `json:"rows"`
+	ID                       string           `json:"id"`
+	Name                     string           `json:"name"`
+	SSHURL                   string           `json:"ssh_url"`
+	DefaultBranch            string           `json:"default_branch"`
+	Status                   string           `json:"status"`
+	LastVerifiedAt           *time.Time       `json:"last_verified_at,omitempty"`
+	ObservationWritesAllowed bool             `json:"observation_writes_allowed"`
+	PendingNote              string           `json:"pending_note,omitempty"`
+	Rows                     []CatalogRowView `json:"rows"`
 }
 
 type CatalogView struct {
@@ -257,12 +260,14 @@ func (s *Service) catalog(ctx context.Context, current actor, repositoryID strin
 	views := make([]CatalogRepositoryView, 0, len(repos))
 	for _, repo := range repos {
 		view := CatalogRepositoryView{
-			ID:            repo.PublicID.String(),
-			Name:          repo.Name,
-			SSHURL:        repo.SSHURL,
-			DefaultBranch: repo.DefaultBranch,
-			Status:        string(repo.Status),
-			Rows:          byRepo[repo.ID],
+			ID:                       repo.PublicID.String(),
+			Name:                     repo.Name,
+			SSHURL:                   repo.SSHURL,
+			DefaultBranch:            repo.DefaultBranch,
+			Status:                   string(repo.Status),
+			ObservationWritesAllowed: gitrepository.ObservationWritesAllowed(string(repo.Status)),
+			PendingNote:              gitrepository.PendingNote(string(repo.Status)),
+			Rows:                     byRepo[repo.ID],
 		}
 		if repo.LastVerifiedAt != nil {
 			stamp := repo.LastVerifiedAt.UTC()

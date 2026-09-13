@@ -101,8 +101,11 @@ The Graph is the execution contract. External harnesses stay outside Gemcp; MCP 
 - `prepare_experiment` (`submit`): when a Study exists, `from_node_id` must be a connected hypothesis or a plan under that Study. Isolated nodes cannot prepare. The origin is bound into the confirmation digest.
 - `submit_prepared_experiment` (`submit`): creates the Experiment and writes the `run` node. Bind failure is an error, not a silent skip.
 - `close_run` (`submit`): the only way to write a `result` on that run after the Experiment is terminal. It also writes a highlight observation linked to the originating hypothesis. Monitor with `get_experiment`; do not SSH or infer metrics from logs.
+- `export_research_plan_sync` (`read` dry-run, `submit` to record a receipt): export a docs-only markdown amendment for the Study protocol branch. Never a training run. Gemcp never pushes git.
 - `get_experiment_catalog` (`read`): return registered repository identity plus extracted catalog rows. Never starts a workload.
 - `record_experiment_catalog` (`submit`): persist raw experiment rows from research branches of a registered repository. Never starts a workload.
+
+A Study may bind a **route**: protocol branch/path (docs-only, e.g. `research-plan`) and an allowed live code-ref family (e.g. `autoresearch/*`). `prepare_experiment` refuses an omitted or out-of-family `ref` when that pattern is set and the prepare is git-backed. Owner cards show `requested_ref` and do not invent the repository default branch.
 
 Calling `get_next_actions` before spending is an Agent operating requirement, not a separately persisted server precondition. The server enforces the Graph boundary at the write operations: `prepare_experiment` requires a connected hypothesis or plan `from_node_id`, submission binds the `run`, and `close_run` writes the terminal `result` plus the highlight observation.
 
@@ -114,8 +117,10 @@ The research home shows:
 
 - the active Study question
 - the current next action
-- each hypothesis with linked Experiments, git branch, commit, and run records
-- the Graph, whose node-detail sidebar repeats git branch next to commit
+- the Study route (protocol branch / allowed code refs) when bound
+- each hypothesis with linked Experiments, requested git ref, commit, and run records
+- the Graph, whose node-detail sidebar repeats that requested ref next to commit when one exists
+- Export plan sync: a dry-run markdown amendment for the protocol branch
 - the latest linked result by evidence time (`occurred_at`), not Graph write time
 
 UUIDs, digests, backend IDs, and reservation math remain in Experiment detail and the Lab layer.

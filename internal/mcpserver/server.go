@@ -51,7 +51,7 @@ type UsageGuide struct {
 	Markdown    string   `json:"markdown"`
 }
 
-const serverInstructions = "Treat the research Graph as the execution contract. Call get_next_actions before spending; it proposes the next decision or Experiment from the hypothesis, its runs, and its observations. Keep the Owner-facing Study current with get_research_workspace. For a registered GitHub repository, extract raw experiment rows from distinct research branches into record_experiment_catalog (Setting, 方法/method, 实现/implementation, metric, 结果/result, link, hash). That catalog is the table-ready evidence store and is not the Graph; it never starts a workload. Confirm with get_experiment_catalog. Never include prompts, private reasoning, credentials, or environment dumps in research text. prepare_experiment requires a connected hypothesis or plan from_node_id when a Study exists; isolated nodes cannot prepare; that origin is bound into the confirmation digest. Project budget and submit scope are limits and technical capabilities, not financial approval. Show the immutable proposal and exact confirmation digest to the Owner, and never call submit_prepared_experiment until the Owner explicitly confirms that digest. submit_prepared_experiment writes the run node; bind failure is an error. Poll get_experiment for state, log_tail, and metrics; never SSH, fetch remote files, or infer metrics from logs. close_run is the only way to record a result after a terminal Experiment and also writes a highlight observation on the originating hypothesis; omit metric_name to copy the prepared expected_metric from the Experiment; result_commit_sha may attach the full Git commit containing its durable result manifest. Linking a Graph node never starts a workload. submit_experiment is rejected when an active Study exists."
+const serverInstructions = "Treat the research Graph as the execution contract. Call get_next_actions before spending; it proposes the next decision or Experiment from the hypothesis, its runs, and its observations. Keep the Owner-facing Study current with get_research_workspace. For a registered GitHub repository, extract raw experiment rows from distinct research branches into record_experiment_catalog (Setting, 方法/method, 实现/implementation, metric, 结果/result, link, hash). That catalog is the table-ready evidence store and is not the Graph; it never starts a workload. Confirm with get_experiment_catalog. Never include prompts, private reasoning, credentials, or environment dumps in research text. prepare_experiment requires a connected hypothesis or plan from_node_id when a Study exists; isolated nodes cannot prepare; that origin is bound into the confirmation digest. When a Study has a code_ref_pattern, pass a matching live code ref; omitting ref would bind the repository default branch. After decisions, export_research_plan_sync dry-runs a docs-only research-plan amendment; Gemcp never pushes git. Project budget and submit scope are limits and technical capabilities, not financial approval. Show the immutable proposal and exact confirmation digest to the Owner, and never call submit_prepared_experiment until the Owner explicitly confirms that digest. submit_prepared_experiment writes the run node; bind failure is an error. Poll get_experiment for state, log_tail, and metrics; never SSH, fetch remote files, or infer metrics from logs. close_run is the only way to record a result after a terminal Experiment and also writes a highlight observation on the originating hypothesis; omit metric_name to copy the prepared expected_metric from the Experiment; result_commit_sha may attach the full Git commit containing its durable result manifest. Linking a Graph node never starts a workload. submit_experiment is rejected when an active Study exists."
 
 type Option func(*Server)
 
@@ -155,6 +155,9 @@ func New(agentAuth *agentauth.Service, experiments *experiment.Service, version 
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "get_next_actions", Description: "Return the next scientific step for the selected Study from its hypotheses, runs, and observations. Call this before prepare_experiment or close_run.",
 	}, server.getNextActions)
+	mcp.AddTool(mcpServer, &mcp.Tool{
+		Name: "export_research_plan_sync", Description: "Export a docs-only markdown amendment for the Study protocol branch (default research-plan). Dry-run is the default. This never starts a training run, never pushes git, and never writes frozen recipe files. Requires read for dry-run and submit to record an audit receipt.",
+	}, server.exportResearchPlanSync)
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "close_run", Description: "Record a result and a highlight observation on a terminal Experiment that already has a Graph run. The observation is linked to the originating hypothesis. Copy the metric from get_experiment or omit it to use the prepared expected_metric. Optional highlight sets the observation title. Do not infer metrics from logs. An optional full result_commit_sha can attach its durable Git manifest commit. Requires submit scope.",
 	}, server.closeRun)
@@ -589,6 +592,18 @@ func (s *Server) getNextActions(ctx context.Context, request *mcp.CallToolReques
 	return nil, output, s.researchToolError("get_next_actions", err)
 }
 
+func (s *Server) exportResearchPlanSync(ctx context.Context, request *mcp.CallToolRequest, input research.PlanSyncInput) (*mcp.CallToolResult, research.PlanSyncExport, error) {
+	principal, err := principalFrom(request)
+	if err != nil {
+		return nil, research.PlanSyncExport{}, err
+	}
+	if s.research == nil {
+		return nil, research.PlanSyncExport{}, errors.New("research workspace service is unavailable")
+	}
+	output, err := s.research.AgentExportPlanSync(ctx, principal, input)
+	return nil, output, s.researchToolError("export_research_plan_sync", err)
+}
+
 func (s *Server) closeRun(ctx context.Context, request *mcp.CallToolRequest, input research.CloseRunInput) (*mcp.CallToolResult, research.Workspace, error) {
 	principal, err := principalFrom(request)
 	if err != nil {
@@ -857,9 +872,12 @@ func (s *Server) configurationToolError(tool string, err error) error {
 	if errors.As(err, &bakeValidation) {
 		return errors.New(bakeValidation.Message)
 	}
+	if errors.Is(err, gitrepository.ErrVerificationFailed) {
+		return err
+	}
 	for _, public := range []error{
 		experiment.ErrForbidden,
-		gitrepository.ErrNotFound, gitrepository.ErrNotActive, gitrepository.ErrVerificationFailed, gitrepository.ErrConflict,
+		gitrepository.ErrNotFound, gitrepository.ErrNotActive, gitrepository.ErrConflict,
 		workspacecatalog.ErrForbidden, workspacecatalog.ErrNotFound, workspacecatalog.ErrTrustedWorkspace,
 		workspacecatalog.ErrWorkspaceChoice, workspacecatalog.ErrDatasetConflict, workspacecatalog.ErrDatasetLimit,
 		datasetcatalog.ErrForbidden, datasetcatalog.ErrNotFound, datasetcatalog.ErrProject, datasetcatalog.ErrConflict, datasetcatalog.ErrLimit,

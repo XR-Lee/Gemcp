@@ -321,4 +321,40 @@ describe('ResearchView', () => {
     expect(wrapper.text()).toContain('Import from a research repository')
     expect(wrapper.get('[data-testid="repository-readiness"]').text()).toContain('Add a read-only Deploy Key')
   })
+
+  it('shows the Study route and exports a plan-sync patch without inventing a default branch', async () => {
+    useI18n().setLocale('en')
+    const wrapper = mount(ResearchView, {
+      props: {
+        workspace: {
+          ...workspace,
+          study: {
+            ...workspace.study,
+            route: { protocol_branch: 'research-plan', protocol_doc_path: 'research-plan/STATUS.md', code_ref_pattern: 'autoresearch/*' },
+            hypotheses: [{
+              id: 'node-hypothesis-1', title: 'Background noise caps accuracy', status: 'open',
+              experiments: [{
+                run_node_id: 'node-run-1', experiment_id: 'experiment-1', title: 'Imported without a requested ref',
+                state: 'succeeded',
+              }],
+            }],
+          },
+          next_actions: [{
+            kind: 'export_plan_sync', tool: 'export_research_plan_sync', study_id: 'study-1',
+            title: 'Export a research-plan docs patch',
+            detail: 'Dry-run a markdown amendment for the protocol branch.',
+          }],
+        },
+        loading: false,
+        selectedStudyId: 'study-1',
+      },
+      global: { stubs: flowStubs },
+    })
+    expect(wrapper.get('[data-testid="study-route"]').text()).toContain('research-plan')
+    expect(wrapper.get('[data-testid="study-route"]').text()).toContain('autoresearch/*')
+    expect(wrapper.get('[data-testid="hypothesis-records"]').find('.hypothesis-branch').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="hypothesis-records"]').text()).not.toMatch(/Branch/)
+    await wrapper.get('[data-testid="export-plan-sync"]').trigger('click')
+    expect(wrapper.emitted('exportPlanSync')).toEqual([[]])
+  })
 })
