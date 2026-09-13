@@ -10,6 +10,7 @@ import (
 	"github.com/XR-Lee/Gemcp/internal/nodeprotocol"
 	"github.com/XR-Lee/Gemcp/internal/provider"
 	gitrepository "github.com/XR-Lee/Gemcp/internal/repository"
+	"github.com/XR-Lee/Gemcp/internal/research"
 )
 
 const (
@@ -146,30 +147,31 @@ type ProposalDatasetBinding struct {
 }
 
 type PreparedProposal struct {
-	ID                      string             `json:"id"`
-	ProjectID               string             `json:"project_id"`
-	Eligible                bool               `json:"eligible"`
-	RequiresConfirmation    bool               `json:"requires_confirmation"`
-	Repository              ProposalRepository `json:"repository"`
-	Execution               ProposalExecution  `json:"execution"`
-	Resource                ProposalResource   `json:"resource"`
-	RuntimePreset           string             `json:"runtime_preset"`
-	MaxRuntimeSeconds       int                `json:"max_runtime_seconds"`
-	TimeoutExtensionSeconds int                `json:"timeout_extension_seconds"`
-	TerminationGraceSeconds int                `json:"termination_grace_seconds"`
-	ReservedCostMilli       int64              `json:"reserved_cost_milli"`
-	ReservedCostCNY         string             `json:"reserved_cost_cny"`
-	Checks                  []ProposalCheck    `json:"checks"`
-	ConfirmationDigest      string             `json:"confirmation_digest"`
-	FromNodeID              string             `json:"from_node_id,omitempty"`
-	ExpectedMetric          string             `json:"expected_metric,omitempty"`
-	Workload                string             `json:"workload,omitempty"`
-	Parameters              map[string]string  `json:"parameters,omitempty"`
-	Dataset                 string             `json:"dataset,omitempty"`
-	InstallDependencies     bool               `json:"install_dependencies,omitempty"`
-	RequirementsFile        string             `json:"requirements_file,omitempty"`
-	ExpiresAt               time.Time          `json:"expires_at"`
-	CreatedAt               time.Time          `json:"created_at"`
+	ID                      string               `json:"id"`
+	ProjectID               string               `json:"project_id"`
+	Eligible                bool                 `json:"eligible"`
+	RequiresConfirmation    bool                 `json:"requires_confirmation"`
+	Repository              ProposalRepository   `json:"repository"`
+	Execution               ProposalExecution    `json:"execution"`
+	Resource                ProposalResource     `json:"resource"`
+	RuntimePreset           string               `json:"runtime_preset"`
+	MaxRuntimeSeconds       int                  `json:"max_runtime_seconds"`
+	TimeoutExtensionSeconds int                  `json:"timeout_extension_seconds"`
+	TerminationGraceSeconds int                  `json:"termination_grace_seconds"`
+	ReservedCostMilli       int64                `json:"reserved_cost_milli"`
+	ReservedCostCNY         string               `json:"reserved_cost_cny"`
+	Checks                  []ProposalCheck      `json:"checks"`
+	ConfirmationDigest      string               `json:"confirmation_digest"`
+	FromNodeID              string               `json:"from_node_id,omitempty"`
+	ExpectedMetric          string               `json:"expected_metric,omitempty"`
+	Workload                string               `json:"workload,omitempty"`
+	Parameters              map[string]string    `json:"parameters,omitempty"`
+	Dataset                 string               `json:"dataset,omitempty"`
+	InstallDependencies     bool                 `json:"install_dependencies,omitempty"`
+	RequirementsFile        string               `json:"requirements_file,omitempty"`
+	GitIdentity             research.GitIdentity `json:"git_identity"`
+	ExpiresAt               time.Time            `json:"expires_at"`
+	CreatedAt               time.Time            `json:"created_at"`
 }
 
 type PrepareResult struct {
@@ -193,5 +195,6 @@ type SubmitPreparedResult struct {
 	Idempotent bool   `json:"idempotent"`
 	// GraphBindWarning is set when the Experiment was submitted but the Graph
 	// run could not be bound; the agent must not prepare again.
-	GraphBindWarning string `json:"graph_bind_warning,omitempty"`
+	GraphBindWarning string               `json:"graph_bind_warning,omitempty"`
+	GitIdentity      research.GitIdentity `json:"git_identity,omitempty"`
 }

@@ -54656,6 +54656,9 @@ type StudyMutation struct {
 	question               *string
 	summary                *string
 	status                 *study.Status
+	protocol_branch        *string
+	protocol_doc_path      *string
+	code_ref_pattern       *string
 	clearedFields          map[string]struct{}
 	tenant                 *int
 	clearedtenant          bool
@@ -55212,6 +55215,153 @@ func (m *StudyMutation) ResetStatus() {
 	m.status = nil
 }
 
+// SetProtocolBranch sets the "protocol_branch" field.
+func (m *StudyMutation) SetProtocolBranch(s string) {
+	m.protocol_branch = &s
+}
+
+// ProtocolBranch returns the value of the "protocol_branch" field in the mutation.
+func (m *StudyMutation) ProtocolBranch() (r string, exists bool) {
+	v := m.protocol_branch
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProtocolBranch returns the old "protocol_branch" field's value of the Study entity.
+// If the Study object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StudyMutation) OldProtocolBranch(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProtocolBranch is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProtocolBranch requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProtocolBranch: %w", err)
+	}
+	return oldValue.ProtocolBranch, nil
+}
+
+// ClearProtocolBranch clears the value of the "protocol_branch" field.
+func (m *StudyMutation) ClearProtocolBranch() {
+	m.protocol_branch = nil
+	m.clearedFields[study.FieldProtocolBranch] = struct{}{}
+}
+
+// ProtocolBranchCleared returns if the "protocol_branch" field was cleared in this mutation.
+func (m *StudyMutation) ProtocolBranchCleared() bool {
+	_, ok := m.clearedFields[study.FieldProtocolBranch]
+	return ok
+}
+
+// ResetProtocolBranch resets all changes to the "protocol_branch" field.
+func (m *StudyMutation) ResetProtocolBranch() {
+	m.protocol_branch = nil
+	delete(m.clearedFields, study.FieldProtocolBranch)
+}
+
+// SetProtocolDocPath sets the "protocol_doc_path" field.
+func (m *StudyMutation) SetProtocolDocPath(s string) {
+	m.protocol_doc_path = &s
+}
+
+// ProtocolDocPath returns the value of the "protocol_doc_path" field in the mutation.
+func (m *StudyMutation) ProtocolDocPath() (r string, exists bool) {
+	v := m.protocol_doc_path
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProtocolDocPath returns the old "protocol_doc_path" field's value of the Study entity.
+// If the Study object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StudyMutation) OldProtocolDocPath(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProtocolDocPath is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProtocolDocPath requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProtocolDocPath: %w", err)
+	}
+	return oldValue.ProtocolDocPath, nil
+}
+
+// ClearProtocolDocPath clears the value of the "protocol_doc_path" field.
+func (m *StudyMutation) ClearProtocolDocPath() {
+	m.protocol_doc_path = nil
+	m.clearedFields[study.FieldProtocolDocPath] = struct{}{}
+}
+
+// ProtocolDocPathCleared returns if the "protocol_doc_path" field was cleared in this mutation.
+func (m *StudyMutation) ProtocolDocPathCleared() bool {
+	_, ok := m.clearedFields[study.FieldProtocolDocPath]
+	return ok
+}
+
+// ResetProtocolDocPath resets all changes to the "protocol_doc_path" field.
+func (m *StudyMutation) ResetProtocolDocPath() {
+	m.protocol_doc_path = nil
+	delete(m.clearedFields, study.FieldProtocolDocPath)
+}
+
+// SetCodeRefPattern sets the "code_ref_pattern" field.
+func (m *StudyMutation) SetCodeRefPattern(s string) {
+	m.code_ref_pattern = &s
+}
+
+// CodeRefPattern returns the value of the "code_ref_pattern" field in the mutation.
+func (m *StudyMutation) CodeRefPattern() (r string, exists bool) {
+	v := m.code_ref_pattern
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCodeRefPattern returns the old "code_ref_pattern" field's value of the Study entity.
+// If the Study object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StudyMutation) OldCodeRefPattern(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCodeRefPattern is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCodeRefPattern requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCodeRefPattern: %w", err)
+	}
+	return oldValue.CodeRefPattern, nil
+}
+
+// ClearCodeRefPattern clears the value of the "code_ref_pattern" field.
+func (m *StudyMutation) ClearCodeRefPattern() {
+	m.code_ref_pattern = nil
+	m.clearedFields[study.FieldCodeRefPattern] = struct{}{}
+}
+
+// CodeRefPatternCleared returns if the "code_ref_pattern" field was cleared in this mutation.
+func (m *StudyMutation) CodeRefPatternCleared() bool {
+	_, ok := m.clearedFields[study.FieldCodeRefPattern]
+	return ok
+}
+
+// ResetCodeRefPattern resets all changes to the "code_ref_pattern" field.
+func (m *StudyMutation) ResetCodeRefPattern() {
+	m.code_ref_pattern = nil
+	delete(m.clearedFields, study.FieldCodeRefPattern)
+}
+
 // ClearTenant clears the "tenant" edge to the Tenant entity.
 func (m *StudyMutation) ClearTenant() {
 	m.clearedtenant = true
@@ -55516,7 +55666,7 @@ func (m *StudyMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *StudyMutation) Fields() []string {
-	fields := make([]string, 0, 11)
+	fields := make([]string, 0, 14)
 	if m.public_id != nil {
 		fields = append(fields, study.FieldPublicID)
 	}
@@ -55550,6 +55700,15 @@ func (m *StudyMutation) Fields() []string {
 	if m.status != nil {
 		fields = append(fields, study.FieldStatus)
 	}
+	if m.protocol_branch != nil {
+		fields = append(fields, study.FieldProtocolBranch)
+	}
+	if m.protocol_doc_path != nil {
+		fields = append(fields, study.FieldProtocolDocPath)
+	}
+	if m.code_ref_pattern != nil {
+		fields = append(fields, study.FieldCodeRefPattern)
+	}
 	return fields
 }
 
@@ -55580,6 +55739,12 @@ func (m *StudyMutation) Field(name string) (ent.Value, bool) {
 		return m.Summary()
 	case study.FieldStatus:
 		return m.Status()
+	case study.FieldProtocolBranch:
+		return m.ProtocolBranch()
+	case study.FieldProtocolDocPath:
+		return m.ProtocolDocPath()
+	case study.FieldCodeRefPattern:
+		return m.CodeRefPattern()
 	}
 	return nil, false
 }
@@ -55611,6 +55776,12 @@ func (m *StudyMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldSummary(ctx)
 	case study.FieldStatus:
 		return m.OldStatus(ctx)
+	case study.FieldProtocolBranch:
+		return m.OldProtocolBranch(ctx)
+	case study.FieldProtocolDocPath:
+		return m.OldProtocolDocPath(ctx)
+	case study.FieldCodeRefPattern:
+		return m.OldCodeRefPattern(ctx)
 	}
 	return nil, fmt.Errorf("unknown Study field %s", name)
 }
@@ -55697,6 +55868,27 @@ func (m *StudyMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetStatus(v)
 		return nil
+	case study.FieldProtocolBranch:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProtocolBranch(v)
+		return nil
+	case study.FieldProtocolDocPath:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProtocolDocPath(v)
+		return nil
+	case study.FieldCodeRefPattern:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCodeRefPattern(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Study field %s", name)
 }
@@ -55739,6 +55931,15 @@ func (m *StudyMutation) ClearedFields() []string {
 	if m.FieldCleared(study.FieldSummary) {
 		fields = append(fields, study.FieldSummary)
 	}
+	if m.FieldCleared(study.FieldProtocolBranch) {
+		fields = append(fields, study.FieldProtocolBranch)
+	}
+	if m.FieldCleared(study.FieldProtocolDocPath) {
+		fields = append(fields, study.FieldProtocolDocPath)
+	}
+	if m.FieldCleared(study.FieldCodeRefPattern) {
+		fields = append(fields, study.FieldCodeRefPattern)
+	}
 	return fields
 }
 
@@ -55761,6 +55962,15 @@ func (m *StudyMutation) ClearField(name string) error {
 		return nil
 	case study.FieldSummary:
 		m.ClearSummary()
+		return nil
+	case study.FieldProtocolBranch:
+		m.ClearProtocolBranch()
+		return nil
+	case study.FieldProtocolDocPath:
+		m.ClearProtocolDocPath()
+		return nil
+	case study.FieldCodeRefPattern:
+		m.ClearCodeRefPattern()
 		return nil
 	}
 	return fmt.Errorf("unknown Study nullable field %s", name)
@@ -55802,6 +56012,15 @@ func (m *StudyMutation) ResetField(name string) error {
 		return nil
 	case study.FieldStatus:
 		m.ResetStatus()
+		return nil
+	case study.FieldProtocolBranch:
+		m.ResetProtocolBranch()
+		return nil
+	case study.FieldProtocolDocPath:
+		m.ResetProtocolDocPath()
+		return nil
+	case study.FieldCodeRefPattern:
+		m.ResetCodeRefPattern()
 		return nil
 	}
 	return fmt.Errorf("unknown Study field %s", name)

@@ -77,17 +77,19 @@ type ListResult struct {
 }
 
 type View struct {
-	ID                   string     `json:"id"`
-	ProjectID            string     `json:"project_id"`
-	Name                 string     `json:"name"`
-	SSHURL               string     `json:"ssh_url"`
-	DefaultBranch        string     `json:"default_branch"`
-	Status               string     `json:"status"`
-	DeployPublicKey      string     `json:"deploy_public_key,omitempty"`
-	HostKeyFingerprint   *string    `json:"host_key_fingerprint,omitempty"`
-	LastVerifiedAt       *time.Time `json:"last_verified_at,omitempty"`
-	Access               string     `json:"access,omitempty"`
-	DeployKeySettingsURL string     `json:"deploy_key_settings_url,omitempty"`
+	ID                       string     `json:"id"`
+	ProjectID                string     `json:"project_id"`
+	Name                     string     `json:"name"`
+	SSHURL                   string     `json:"ssh_url"`
+	DefaultBranch            string     `json:"default_branch"`
+	Status                   string     `json:"status"`
+	DeployPublicKey          string     `json:"deploy_public_key,omitempty"`
+	HostKeyFingerprint       *string    `json:"host_key_fingerprint,omitempty"`
+	LastVerifiedAt           *time.Time `json:"last_verified_at,omitempty"`
+	Access                   string     `json:"access,omitempty"`
+	DeployKeySettingsURL     string     `json:"deploy_key_settings_url,omitempty"`
+	ObservationWritesAllowed bool       `json:"observation_writes_allowed"`
+	PendingNote              string     `json:"pending_note,omitempty"`
 }
 
 type GitVerifier interface {
@@ -303,7 +305,7 @@ func (s *Service) VerifyForAgent(ctx context.Context, tenantID int, actorID, pro
 	}
 	defer wipe(privateKey)
 	if err := s.verifier.VerifyAccess(ctx, record.SSHURL, record.SSHHost, privateKey, fingerprint); err != nil {
-		return View{}, fmt.Errorf("%w: %v", ErrVerificationFailed, err)
+		return View{}, WrapVerifyError(err)
 	}
 	tx, err := s.client.Tx(ctx)
 	if err != nil {
@@ -408,7 +410,7 @@ func (s *Service) Verify(ctx context.Context, tenantID int, publicID, fingerprin
 	}
 	defer wipe(privateKey)
 	if err := s.verifier.VerifyAccess(ctx, record.SSHURL, record.SSHHost, privateKey, fingerprint); err != nil {
-		return view, fmt.Errorf("%w: %v", ErrVerificationFailed, err)
+		return view, WrapVerifyError(err)
 	}
 	now := s.now().UTC()
 	record, err = record.Update().
@@ -599,7 +601,8 @@ func makeView(record *ent.Repository, projectID string, includePublicKey bool) V
 	view := View{
 		ID: record.PublicID.String(), ProjectID: projectID, Name: record.Name, SSHURL: record.SSHURL,
 		DefaultBranch: record.DefaultBranch, Status: string(record.Status), LastVerifiedAt: record.LastVerifiedAt,
-		Access: AccessOf(record),
+		Access: AccessOf(record), ObservationWritesAllowed: ObservationWritesAllowed(string(record.Status)),
+		PendingNote: PendingNote(string(record.Status)),
 	}
 	if view.Access == AccessSSHDeploy {
 		view.DeployKeySettingsURL = DeployKeySettingsURL(record.SSHURL)

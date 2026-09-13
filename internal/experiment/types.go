@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/XR-Lee/Gemcp/internal/executionmeta"
+	"github.com/XR-Lee/Gemcp/internal/research"
 )
 
 type ExecutionContextView struct {
@@ -83,6 +84,7 @@ type View struct {
 	DesiredState          string                   `json:"desired_state"`
 	CommitSHA             string                   `json:"commit_sha"`
 	StudyID               string                   `json:"study_id,omitempty"`
+	GitIdentity           research.GitIdentity     `json:"git_identity,omitempty"`
 	ExecutionMode         string                   `json:"execution_mode"`
 	Argv                  []string                 `json:"argv,omitempty"`
 	Command               string                   `json:"command"`
@@ -427,22 +429,24 @@ type ArtifactView struct {
 }
 
 type RepositoryReadiness struct {
-	ID                    string                   `json:"id"`
-	ProjectID             string                   `json:"project_id"`
-	Name                  string                   `json:"name"`
-	SSHURL                string                   `json:"ssh_url"`
-	Status                string                   `json:"status"`
-	Access                string                   `json:"access"`
-	DefaultBranch         string                   `json:"default_branch"`
-	DetectedDefaultBranch string                   `json:"detected_default_branch,omitempty"`
-	CommitSHA             string                   `json:"commit_sha,omitempty"`
-	DeployPublicKey       string                   `json:"deploy_public_key,omitempty"`
-	DeployKeySettingsURL  string                   `json:"deploy_key_settings_url,omitempty"`
-	Ready                 bool                     `json:"ready"`
-	Manifest              ManifestReadiness        `json:"manifest"`
-	ProjectWorkloads      []string                 `json:"project_workloads,omitempty"`
-	Defaults              ProjectDefaultsReadiness `json:"defaults"`
-	Blockers              []ReadinessBlocker       `json:"blockers"`
+	ID                       string                   `json:"id"`
+	ProjectID                string                   `json:"project_id"`
+	Name                     string                   `json:"name"`
+	SSHURL                   string                   `json:"ssh_url"`
+	Status                   string                   `json:"status"`
+	Access                   string                   `json:"access"`
+	DefaultBranch            string                   `json:"default_branch"`
+	DetectedDefaultBranch    string                   `json:"detected_default_branch,omitempty"`
+	CommitSHA                string                   `json:"commit_sha,omitempty"`
+	DeployPublicKey          string                   `json:"deploy_public_key,omitempty"`
+	DeployKeySettingsURL     string                   `json:"deploy_key_settings_url,omitempty"`
+	ObservationWritesAllowed bool                     `json:"observation_writes_allowed"`
+	PendingNote              string                   `json:"pending_note,omitempty"`
+	Ready                    bool                     `json:"ready"`
+	Manifest                 ManifestReadiness        `json:"manifest"`
+	ProjectWorkloads         []string                 `json:"project_workloads,omitempty"`
+	Defaults                 ProjectDefaultsReadiness `json:"defaults"`
+	Blockers                 []ReadinessBlocker       `json:"blockers"`
 }
 
 type ManifestReadiness struct {

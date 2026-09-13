@@ -22,6 +22,9 @@ func (Study) Fields() []ent.Field {
 		field.Text("question").NotEmpty(),
 		field.Text("summary").Optional(),
 		field.Enum("status").Values("active", "paused", "archived").Default("active"),
+		field.String("protocol_branch").Optional().MaxLen(255).Comment("docs-only protocol ref, e.g. research-plan"),
+		field.String("protocol_doc_path").Optional().MaxLen(512).Comment("protocol chapter, card id, or markdown path on the protocol branch"),
+		field.String("code_ref_pattern").Optional().MaxLen(255).Comment("allowed live experiment refs, e.g. autoresearch/*"),
 	}
 }
 

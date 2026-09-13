@@ -21,13 +21,16 @@ var terminalExperimentStates = map[string]struct{}{
 }
 
 type NextAction struct {
-	Kind         string `json:"kind"`
-	Tool         string `json:"tool"`
-	StudyID      string `json:"study_id,omitempty"`
-	FromNodeID   string `json:"from_node_id,omitempty"`
-	ExperimentID string `json:"experiment_id,omitempty"`
-	Title        string `json:"title"`
-	Detail       string `json:"detail"`
+	Kind              string `json:"kind"`
+	Tool              string `json:"tool"`
+	StudyID           string `json:"study_id,omitempty"`
+	FromNodeID        string `json:"from_node_id,omitempty"`
+	ExperimentID      string `json:"experiment_id,omitempty"`
+	Title             string `json:"title"`
+	Detail            string `json:"detail"`
+	AllowedRefPattern string `json:"allowed_ref_pattern,omitempty"`
+	ProtocolBranch    string `json:"protocol_branch,omitempty"`
+	ProtocolDocPath   string `json:"protocol_doc_path,omitempty"`
 }
 
 type NextActionsView struct {
@@ -113,6 +116,11 @@ func deriveNextActions(view *StudyView) []NextAction {
 			return
 		}
 		action.StudyID = view.ID
+		if view.Route != nil {
+			action.AllowedRefPattern = view.Route.CodeRefPattern
+			action.ProtocolBranch = view.Route.ProtocolBranch
+			action.ProtocolDocPath = view.Route.ProtocolDocPath
+		}
 		actions = append(actions, action)
 	}
 	if len(hypotheses) == 0 {
@@ -188,7 +196,7 @@ func deriveNextActions(view *StudyView) []NextAction {
 			add(NextAction{
 				Kind: "prepare_experiment", Tool: "prepare_experiment", FromNodeID: hypothesis.ID,
 				Title:  "Prepare the next Experiment for " + hypothesis.Title,
-				Detail: "A decision is recorded on this hypothesis. Propose the next Experiment from it, or record a follow-up hypothesis first.",
+				Detail: prepareRouteDetail(view, "A decision is recorded on this hypothesis. Propose the next Experiment from it, or record a follow-up hypothesis first."),
 			})
 			addedPrepare = true
 			continue
@@ -197,7 +205,7 @@ func deriveNextActions(view *StudyView) []NextAction {
 			add(NextAction{
 				Kind: "prepare_experiment", Tool: "prepare_experiment", FromNodeID: hypothesis.ID,
 				Title:  "Prepare an Experiment for " + hypothesis.Title,
-				Detail: "from_node_id must be this hypothesis or a plan under it. The confirmation digest binds that origin; submit_prepared_experiment writes the run.",
+				Detail: prepareRouteDetail(view, "from_node_id must be this hypothesis or a plan under it. The confirmation digest binds that origin; submit_prepared_experiment writes the run."),
 			})
 			addedPrepare = true
 		}
@@ -208,11 +216,37 @@ func deriveNextActions(view *StudyView) []NextAction {
 			add(NextAction{
 				Kind: "prepare_experiment", Tool: "prepare_experiment", FromNodeID: newest.ID,
 				Title:  "Prepare the next Experiment for " + newest.Title,
-				Detail: "Existing runs and observations are on the Graph. Propose the next Experiment from this hypothesis.",
+				Detail: prepareRouteDetail(view, "Existing runs and observations are on the Graph. Propose the next Experiment from this hypothesis."),
 			})
 		}
 	}
+	if shouldSuggestPlanSync(view) && len(actions) < 8 {
+		add(NextAction{
+			Kind: "export_plan_sync", Tool: "export_research_plan_sync",
+			Title:  "Export a research-plan docs patch",
+			Detail: "Dry-run a markdown amendment for the protocol branch. This is not a training run. Do not force-push or write frozen recipe files.",
+		})
+	}
 	return actions
+}
+
+func prepareRouteDetail(view *StudyView, base string) string {
+	if view == nil || view.Route == nil || strings.TrimSpace(view.Route.CodeRefPattern) == "" {
+		return base
+	}
+	return base + " Pass ref matching " + view.Route.CodeRefPattern + ". Do not omit ref (that binds the repository default branch) and do not prepare against the protocol branch."
+}
+
+func shouldSuggestPlanSync(view *StudyView) bool {
+	if view == nil {
+		return false
+	}
+	for _, node := range view.Nodes {
+		if node.Kind == "decision" || node.Kind == "result" {
+			return true
+		}
+	}
+	return false
 }
 
 func descendantsOf(outgoing map[string][]EdgeView, nodes map[string]NodeView, startID string) []NodeView {

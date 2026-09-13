@@ -170,7 +170,7 @@ func (s *Service) Prepare(ctx context.Context, principal agentauth.Principal, in
 		SetTimeoutExtensionSeconds(resolved.project.TimeoutExtensionSeconds).
 		SetTerminationGraceSeconds(resolved.project.TerminationGraceSeconds).
 		SetProjectSnapshot(proposalStoredProjectSnapshot(resolved)).
-		SetRepositorySnapshot(repositorySnapshot(resolved.repository, resolved.project.PublicID.String())).
+		SetRepositorySnapshot(repositorySnapshotWithRef(resolved.repository, resolved.project.PublicID.String(), resolved.ref)).
 		SetEnvironmentSnapshot(proposalEnvironmentSnapshot(resolved)).
 		SetResourceSnapshot(resourceSnapshot(resolved.profile)).
 		SetChecks(checkMaps).
@@ -324,6 +324,9 @@ func (s *Service) resolveProposal(ctx context.Context, principal agentauth.Princ
 	}
 	fromNodeID, expectedMetric, err := s.resolveGraphOrigin(ctx, principal, input)
 	if err != nil {
+		return result, nil, err
+	}
+	if err := s.enforceStudyRoute(ctx, fromNodeID, strings.TrimSpace(input.Ref), repositoryRecord != nil); err != nil {
 		return result, nil, err
 	}
 	now := s.now().UTC().Truncate(time.Microsecond)
@@ -1239,7 +1242,8 @@ func preparedProposal(resolved proposalResolved, digest string, createdAt time.T
 		ConfirmationDigest: digest, FromNodeID: resolved.fromNodeID, ExpectedMetric: resolved.expectedMetric,
 		Workload: resolved.workload, Parameters: resolved.parameters, Dataset: resolved.dataset,
 		InstallDependencies: resolved.installDependencies, RequirementsFile: resolved.requirementsFile,
-		ExpiresAt: resolved.expiresAt, CreatedAt: createdAt,
+		GitIdentity: gitIdentityFromResolved(resolved),
+		ExpiresAt:   resolved.expiresAt, CreatedAt: createdAt,
 	}
 }
 

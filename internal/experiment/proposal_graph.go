@@ -10,6 +10,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/researchnode"
 	"github.com/XR-Lee/Gemcp/ent/study"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
+	"github.com/XR-Lee/Gemcp/internal/research"
 	"github.com/google/uuid"
 )
 
@@ -73,6 +74,51 @@ func (s *Service) resolveGraphOrigin(ctx context.Context, principal agentauth.Pr
 		}
 	}
 	return node.PublicID.String(), expectedMetric, nil
+}
+
+func (s *Service) enforceStudyRoute(ctx context.Context, fromNodeID, requestedRef string, hasRepository bool) error {
+	if fromNodeID == "" || !hasRepository {
+		return nil
+	}
+	publicID, err := uuid.Parse(fromNodeID)
+	if err != nil {
+		return nil
+	}
+	node, err := s.client.ResearchNode.Query().Where(researchnode.PublicIDEQ(publicID)).WithStudy().Only(ctx)
+	if ent.IsNotFound(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	selected, err := node.Edges.StudyOrErr()
+	if err != nil || selected == nil {
+		return nil
+	}
+	pattern := strings.TrimSpace(selected.CodeRefPattern)
+	if pattern == "" {
+		return nil
+	}
+	if !research.MatchCodeRef(pattern, requestedRef) {
+		return &ValidationError{Message: research.RouteRefRejectedMessage(pattern, requestedRef)}
+	}
+	return nil
+}
+
+func gitIdentityFromResolved(resolved proposalResolved) research.GitIdentity {
+	identity := research.GitIdentity{
+		RequestedRef: publicGitToken(resolved.ref),
+		CommitSHA:    publicGitToken(resolved.commitSHA),
+	}
+	if resolved.repository != nil {
+		identity.RepositoryID = resolved.repository.PublicID.String()
+		identity.RepositoryName = resolved.repository.Name
+		identity.Repository = resolved.repository.SSHURL
+		identity.DefaultBranch = resolved.repository.DefaultBranch
+	} else {
+		identity.HostProcess = true
+	}
+	return identity
 }
 
 // planTracesToHypothesis mirrors the research-side ancestor walk: close_run

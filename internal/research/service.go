@@ -21,6 +21,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/researchnode"
 	"github.com/XR-Lee/Gemcp/ent/study"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
+	gitrepository "github.com/XR-Lee/Gemcp/internal/repository"
 	"github.com/XR-Lee/Gemcp/internal/sshcloud"
 	"github.com/XR-Lee/Gemcp/internal/validation"
 	"github.com/google/uuid"
@@ -65,12 +66,15 @@ type WorkspaceInput struct {
 }
 
 type StudyInput struct {
-	ID           string `json:"id,omitempty" jsonschema:"existing Study ID when updating"`
-	Name         string `json:"name" jsonschema:"stable Study name"`
-	Question     string `json:"question" jsonschema:"research question shown to the Owner"`
-	Summary      string `json:"summary,omitempty" jsonschema:"short scientific summary without prompts or credentials"`
-	Status       string `json:"status,omitempty" jsonschema:"active, paused, or archived"`
-	RepositoryID string `json:"repository_id,omitempty" jsonschema:"same-Project repository to bind as this Study's source"`
+	ID              string `json:"id,omitempty" jsonschema:"existing Study ID when updating"`
+	Name            string `json:"name" jsonschema:"stable Study name"`
+	Question        string `json:"question" jsonschema:"research question shown to the Owner"`
+	Summary         string `json:"summary,omitempty" jsonschema:"short scientific summary without prompts or credentials"`
+	Status          string `json:"status,omitempty" jsonschema:"active, paused, or archived"`
+	RepositoryID    string `json:"repository_id,omitempty" jsonschema:"same-Project repository to bind as this Study's source"`
+	ProtocolBranch  string `json:"protocol_branch,omitempty" jsonschema:"docs-only protocol ref, e.g. research-plan"`
+	ProtocolDocPath string `json:"protocol_doc_path,omitempty" jsonschema:"protocol chapter, card id, or markdown path on the protocol branch"`
+	CodeRefPattern  string `json:"code_ref_pattern,omitempty" jsonschema:"allowed live experiment refs, e.g. autoresearch/*"`
 }
 
 type PlanStep struct {
@@ -132,20 +136,21 @@ type PlanView struct {
 }
 
 type NodeView struct {
-	ID              string     `json:"id"`
-	Kind            string     `json:"kind"`
-	Title           string     `json:"title"`
-	Summary         string     `json:"summary,omitempty"`
-	Status          string     `json:"status"`
-	MetricName      string     `json:"metric_name,omitempty"`
-	MetricValue     *float64   `json:"metric_value,omitempty"`
-	ExperimentID    string     `json:"experiment_id,omitempty"`
-	ExperimentState string     `json:"experiment_state,omitempty"`
-	OccurredAt      *time.Time `json:"occurred_at,omitempty"`
-	CommitSHA       string     `json:"commit_sha,omitempty"`
-	Branch          string     `json:"branch,omitempty"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
+	ID              string       `json:"id"`
+	Kind            string       `json:"kind"`
+	Title           string       `json:"title"`
+	Summary         string       `json:"summary,omitempty"`
+	Status          string       `json:"status"`
+	MetricName      string       `json:"metric_name,omitempty"`
+	MetricValue     *float64     `json:"metric_value,omitempty"`
+	ExperimentID    string       `json:"experiment_id,omitempty"`
+	ExperimentState string       `json:"experiment_state,omitempty"`
+	OccurredAt      *time.Time   `json:"occurred_at,omitempty"`
+	CommitSHA       string       `json:"commit_sha,omitempty"`
+	Branch          string       `json:"branch,omitempty"`
+	GitIdentity     *GitIdentity `json:"git_identity,omitempty"`
+	CreatedAt       time.Time    `json:"created_at"`
+	UpdatedAt       time.Time    `json:"updated_at"`
 }
 
 type EdgeView struct {
@@ -156,22 +161,25 @@ type EdgeView struct {
 }
 
 type StudyRepositoryView struct {
-	ID            string `json:"id"`
-	Name          string `json:"name"`
-	SSHURL        string `json:"ssh_url"`
-	DefaultBranch string `json:"default_branch"`
-	Status        string `json:"status"`
+	ID                       string `json:"id"`
+	Name                     string `json:"name"`
+	SSHURL                   string `json:"ssh_url"`
+	DefaultBranch            string `json:"default_branch"`
+	Status                   string `json:"status"`
+	ObservationWritesAllowed bool   `json:"observation_writes_allowed"`
+	PendingNote              string `json:"pending_note,omitempty"`
 }
 
 type HypothesisRunRecord struct {
-	RunNodeID      string `json:"run_node_id"`
-	ExperimentID   string `json:"experiment_id,omitempty"`
-	Title          string `json:"title"`
-	State          string `json:"state"`
-	Branch         string `json:"branch,omitempty"`
-	CommitSHA      string `json:"commit_sha,omitempty"`
-	ResultTitle    string `json:"result_title,omitempty"`
-	HighlightTitle string `json:"highlight_title,omitempty"`
+	RunNodeID      string       `json:"run_node_id"`
+	ExperimentID   string       `json:"experiment_id,omitempty"`
+	Title          string       `json:"title"`
+	State          string       `json:"state"`
+	Branch         string       `json:"branch,omitempty"`
+	CommitSHA      string       `json:"commit_sha,omitempty"`
+	GitIdentity    *GitIdentity `json:"git_identity,omitempty"`
+	ResultTitle    string       `json:"result_title,omitempty"`
+	HighlightTitle string       `json:"highlight_title,omitempty"`
 }
 
 type HypothesisView struct {
@@ -180,6 +188,7 @@ type HypothesisView struct {
 	Summary     string                `json:"summary,omitempty"`
 	Status      string                `json:"status"`
 	Branch      string                `json:"branch,omitempty"`
+	GitIdentity *GitIdentity          `json:"git_identity,omitempty"`
 	Experiments []HypothesisRunRecord `json:"experiments"`
 }
 
@@ -190,6 +199,7 @@ type StudyView struct {
 	Summary    string               `json:"summary,omitempty"`
 	Status     string               `json:"status"`
 	Repository *StudyRepositoryView `json:"repository,omitempty"`
+	Route      *RouteBinding        `json:"route,omitempty"`
 	Plan       *PlanView            `json:"plan,omitempty"`
 	Nodes      []NodeView           `json:"nodes"`
 	Edges      []EdgeView           `json:"edges"`
@@ -372,6 +382,10 @@ func upsertStudy(ctx context.Context, tx *ent.Tx, current actor, studies []*ent.
 	if err != nil {
 		return nil, err
 	}
+	route, err := normalizeRouteBinding(input.ProtocolBranch, input.ProtocolDocPath, input.CodeRefPattern)
+	if err != nil {
+		return nil, err
+	}
 	var bound *ent.Repository
 	if strings.TrimSpace(input.RepositoryID) != "" {
 		bound, err = findProjectRepository(ctx, tx, current.projectID, input.RepositoryID)
@@ -389,7 +403,9 @@ func upsertStudy(ctx context.Context, tx *ent.Tx, current actor, studies []*ent.
 		}
 		create := tx.Study.Create().
 			SetTenantID(current.tenantID).SetProjectID(current.projectID).
-			SetName(name).SetQuestion(question).SetSummary(summary).SetStatus(status)
+			SetName(name).SetQuestion(question).SetSummary(summary).SetStatus(status).
+			SetProtocolBranch(route.ProtocolBranch).SetProtocolDocPath(route.ProtocolDocPath).
+			SetCodeRefPattern(route.CodeRefPattern)
 		if bound != nil {
 			create.SetRepositoryID(bound.ID)
 		}
@@ -427,6 +443,9 @@ func upsertStudy(ctx context.Context, tx *ent.Tx, current actor, studies []*ent.
 		status = existing.Status
 	}
 	update := existing.Update().SetName(name).SetQuestion(question).SetSummary(summary).SetStatus(status)
+	if strings.TrimSpace(input.ProtocolBranch) != "" || strings.TrimSpace(input.ProtocolDocPath) != "" || strings.TrimSpace(input.CodeRefPattern) != "" || !route.Empty() {
+		update.SetProtocolBranch(route.ProtocolBranch).SetProtocolDocPath(route.ProtocolDocPath).SetCodeRefPattern(route.CodeRefPattern)
+	}
 	if bound != nil {
 		update.SetRepositoryID(bound.ID)
 	}
@@ -697,8 +716,11 @@ func (s *Service) studyView(ctx context.Context, selected *ent.Study) (StudyView
 		view.Repository = &StudyRepositoryView{
 			ID: repo.PublicID.String(), Name: repo.Name, SSHURL: repo.SSHURL,
 			DefaultBranch: repo.DefaultBranch, Status: string(repo.Status),
+			ObservationWritesAllowed: gitrepository.ObservationWritesAllowed(string(repo.Status)),
+			PendingNote:              gitrepository.PendingNote(string(repo.Status)),
 		}
 	}
+	view.Route = routeFromStudy(selected.ProtocolBranch, selected.ProtocolDocPath, selected.CodeRefPattern)
 	for _, plan := range plans {
 		if plan.Status == iterationplan.StatusActive {
 			copied := makePlanView(plan)
@@ -719,22 +741,19 @@ func (s *Service) studyView(ctx context.Context, selected *ent.Study) (StudyView
 			ID: edge.PublicID.String(), FromID: from.PublicID.String(), ToID: to.PublicID.String(), Relation: string(edge.Relation),
 		})
 	}
-	branchByExperiment, err := experimentBranches(ctx, s.client, nodes)
+	identities, err := experimentIdentities(ctx, s.client, nodes)
 	if err != nil {
 		return StudyView{}, err
 	}
-	defaultBranch := ""
-	if view.Repository != nil {
-		defaultBranch = view.Repository.DefaultBranch
-	}
-	view.Hypotheses = makeHypothesisRecords(view, defaultBranch, branchByExperiment)
-	applyNodeBranches(&view, defaultBranch, branchByExperiment)
+	view.Hypotheses = makeHypothesisRecords(view, identities)
+	applyNodeBranches(&view, identities)
 	return view, nil
 }
 
-func experimentBranches(ctx context.Context, client *ent.Client, nodes []*ent.ResearchNode) (map[string]string, error) {
+func experimentIdentities(ctx context.Context, client *ent.Client, nodes []*ent.ResearchNode) (map[string]GitIdentity, error) {
 	ids := make([]int, 0, len(nodes))
 	publicByID := map[int]string{}
+	identities := map[string]GitIdentity{}
 	repositoryIDs := map[int]int{}
 	for _, node := range nodes {
 		experimentRecord, err := node.Edges.ExperimentOrErr()
@@ -742,15 +761,24 @@ func experimentBranches(ctx context.Context, client *ent.Client, nodes []*ent.Re
 			continue
 		}
 		ids = append(ids, experimentRecord.ID)
-		publicByID[experimentRecord.ID] = experimentRecord.PublicID.String()
+		publicID := experimentRecord.PublicID.String()
+		publicByID[experimentRecord.ID] = publicID
+		identities[publicID] = GitIdentity{
+			RepositoryID:   snapshotString(experimentRecord.RepositorySnapshot, "id"),
+			RepositoryName: snapshotString(experimentRecord.RepositorySnapshot, "name"),
+			Repository:     snapshotString(experimentRecord.RepositorySnapshot, "ssh_url"),
+			RequestedRef:   liveRequestedRef(snapshotString(experimentRecord.RepositorySnapshot, "requested_ref")),
+			CommitSHA:      evidenceCommit(experimentRecord.CommitSha),
+			DefaultBranch:  snapshotString(experimentRecord.RepositorySnapshot, "default_branch"),
+			HostProcess:    sshcloud.IsHostSentinel(experimentRecord.CommitSha),
+		}
 		if experimentRecord.RepositoryID != nil {
 			repositoryIDs[experimentRecord.ID] = *experimentRecord.RepositoryID
 		}
 	}
 	if len(ids) == 0 {
-		return map[string]string{}, nil
+		return identities, nil
 	}
-	refs := map[string]string{}
 	if len(repositoryIDs) > 0 {
 		repoIDs := make([]int, 0, len(repositoryIDs))
 		for _, id := range repositoryIDs {
@@ -760,14 +788,28 @@ func experimentBranches(ctx context.Context, client *ent.Client, nodes []*ent.Re
 		if err != nil {
 			return nil, err
 		}
-		byRepo := map[int]string{}
+		byRepo := map[int]*ent.Repository{}
 		for _, repo := range repos {
-			byRepo[repo.ID] = repo.DefaultBranch
+			byRepo[repo.ID] = repo
 		}
 		for experimentID, repoID := range repositoryIDs {
-			if branch := strings.TrimSpace(byRepo[repoID]); branch != "" {
-				refs[publicByID[experimentID]] = branch
+			repo := byRepo[repoID]
+			if repo == nil {
+				continue
 			}
+			publicID := publicByID[experimentID]
+			identity := identities[publicID]
+			if identity.RepositoryID == "" {
+				identity.RepositoryID = repo.PublicID.String()
+			}
+			if identity.RepositoryName == "" {
+				identity.RepositoryName = repo.Name
+			}
+			if identity.Repository == "" {
+				identity.Repository = repo.SSHURL
+			}
+			identity.DefaultBranch = repo.DefaultBranch
+			identities[publicID] = identity
 		}
 	}
 	proposals, err := client.ExperimentProposal.Query().Where(experimentproposal.ExperimentIDIn(ids...)).All(ctx)
@@ -779,18 +821,35 @@ func experimentBranches(ctx context.Context, client *ent.Client, nodes []*ent.Re
 			continue
 		}
 		publicID := publicByID[*proposal.ExperimentID]
-		if publicID == "" || strings.TrimSpace(proposal.RequestedRef) == "" {
+		if publicID == "" {
 			continue
 		}
-		if sshcloud.IsHostSentinel(proposal.RequestedRef) {
-			continue
+		identity := identities[publicID]
+		if ref := liveRequestedRef(proposal.RequestedRef); ref != "" {
+			identity.RequestedRef = ref
 		}
-		refs[publicID] = proposal.RequestedRef
+		if sha := evidenceCommit(proposal.CommitSha); sha != "" && identity.CommitSHA == "" {
+			identity.CommitSHA = sha
+		}
+		identities[publicID] = identity
 	}
-	return refs, nil
+	return identities, nil
 }
 
-func makeHypothesisRecords(view StudyView, defaultBranch string, branchByExperiment map[string]string) []HypothesisView {
+func liveRequestedRef(value string) string {
+	ref := strings.TrimSpace(value)
+	if sshcloud.IsHostSentinel(ref) {
+		return ""
+	}
+	return ref
+}
+
+func snapshotString(snapshot map[string]any, key string) string {
+	value, _ := snapshot[key].(string)
+	return strings.TrimSpace(value)
+}
+
+func makeHypothesisRecords(view StudyView, identities map[string]GitIdentity) []HypothesisView {
 	outgoing := map[string][]EdgeView{}
 	for _, edge := range view.Edges {
 		outgoing[edge.FromID] = append(outgoing[edge.FromID], edge)
@@ -826,10 +885,13 @@ func makeHypothesisRecords(view StudyView, defaultBranch string, branchByExperim
 			if record.State == "" {
 				record.State = run.Status
 			}
-			if ref := branchByExperiment[run.ExperimentID]; ref != "" {
-				record.Branch = ref
-			} else {
-				record.Branch = defaultBranch
+			if identity, ok := identities[run.ExperimentID]; ok {
+				copied := identity
+				record.GitIdentity = &copied
+				record.Branch = identity.RequestedRef
+				if record.CommitSHA == "" {
+					record.CommitSHA = identity.CommitSHA
+				}
 			}
 			producedResultID := ""
 			for _, result := range results {
@@ -872,31 +934,36 @@ func makeHypothesisRecords(view StudyView, defaultBranch string, branchByExperim
 			}
 			experiments = append(experiments, record)
 		}
+		branch, identity := hypothesisGit(experiments)
 		records = append(records, HypothesisView{
 			ID: hypothesis.ID, Title: hypothesis.Title, Summary: hypothesis.Summary,
-			Status: hypothesis.Status, Branch: hypothesisBranch(experiments, defaultBranch), Experiments: experiments,
+			Status: hypothesis.Status, Branch: branch, GitIdentity: identity, Experiments: experiments,
 		})
 	}
 	return records
 }
 
-func hypothesisBranch(experiments []HypothesisRunRecord, defaultBranch string) string {
+func hypothesisGit(experiments []HypothesisRunRecord) (string, *GitIdentity) {
 	for i := len(experiments) - 1; i >= 0; i-- {
 		if ref := strings.TrimSpace(experiments[i].Branch); ref != "" {
-			return ref
+			return ref, experiments[i].GitIdentity
 		}
 	}
-	return defaultBranch
+	return "", nil
 }
 
-func applyNodeBranches(view *StudyView, defaultBranch string, branchByExperiment map[string]string) {
+func applyNodeBranches(view *StudyView, identities map[string]GitIdentity) {
 	if view == nil {
 		return
 	}
 	hypothesisBranchByID := map[string]string{}
+	hypothesisIdentityByID := map[string]GitIdentity{}
 	for _, record := range view.Hypotheses {
 		if ref := strings.TrimSpace(record.Branch); ref != "" {
 			hypothesisBranchByID[record.ID] = ref
+		}
+		if record.GitIdentity != nil {
+			hypothesisIdentityByID[record.ID] = *record.GitIdentity
 		}
 	}
 	runByID := map[string]int{}
@@ -905,9 +972,15 @@ func applyNodeBranches(view *StudyView, defaultBranch string, branchByExperiment
 		if ref := hypothesisBranchByID[node.ID]; ref != "" {
 			node.Branch = ref
 		} else if node.ExperimentID != "" {
-			if ref := strings.TrimSpace(branchByExperiment[node.ExperimentID]); ref != "" {
-				node.Branch = ref
+			if identity, ok := identities[node.ExperimentID]; ok {
+				copied := identity
+				node.GitIdentity = &copied
+				node.Branch = identity.RequestedRef
 			}
+		}
+		if identity, ok := hypothesisIdentityByID[node.ID]; ok && node.GitIdentity == nil {
+			copied := identity
+			node.GitIdentity = &copied
 		}
 		if node.Kind == "run" {
 			runByID[node.ID] = i
@@ -930,16 +1003,14 @@ func applyNodeBranches(view *StudyView, defaultBranch string, branchByExperiment
 			if node.Branch == "" {
 				node.Branch = run.Branch
 			}
+			if node.GitIdentity == nil && run.GitIdentity != nil {
+				copied := *run.GitIdentity
+				node.GitIdentity = &copied
+			}
 			if node.ExperimentID == "" {
 				node.ExperimentID = run.ExperimentID
 				node.ExperimentState = run.ExperimentState
 			}
-		}
-	}
-	for i := range view.Nodes {
-		node := &view.Nodes[i]
-		if node.Branch == "" && (node.Kind == "run" || node.Kind == "result") {
-			node.Branch = defaultBranch
 		}
 	}
 }

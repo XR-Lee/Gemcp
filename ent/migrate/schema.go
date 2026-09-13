@@ -2062,6 +2062,9 @@ var (
 		{Name: "question", Type: field.TypeString, Size: 2147483647},
 		{Name: "summary", Type: field.TypeString, Nullable: true, Size: 2147483647},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "paused", "archived"}, Default: "active"},
+		{Name: "protocol_branch", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "protocol_doc_path", Type: field.TypeString, Nullable: true, Size: 512},
+		{Name: "code_ref_pattern", Type: field.TypeString, Nullable: true, Size: 255},
 		{Name: "agent_token_id", Type: field.TypeInt, Nullable: true},
 		{Name: "project_id", Type: field.TypeInt},
 		{Name: "repository_id", Type: field.TypeInt, Nullable: true},
@@ -2075,25 +2078,25 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "studies_agent_tokens_studies",
-				Columns:    []*schema.Column{StudiesColumns[8]},
+				Columns:    []*schema.Column{StudiesColumns[11]},
 				RefColumns: []*schema.Column{AgentTokensColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "studies_projects_studies",
-				Columns:    []*schema.Column{StudiesColumns[9]},
+				Columns:    []*schema.Column{StudiesColumns[12]},
 				RefColumns: []*schema.Column{ProjectsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "studies_repositories_studies",
-				Columns:    []*schema.Column{StudiesColumns[10]},
+				Columns:    []*schema.Column{StudiesColumns[13]},
 				RefColumns: []*schema.Column{RepositoriesColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "studies_tenants_studies",
-				Columns:    []*schema.Column{StudiesColumns[11]},
+				Columns:    []*schema.Column{StudiesColumns[14]},
 				RefColumns: []*schema.Column{TenantsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -2102,12 +2105,12 @@ var (
 			{
 				Name:    "study_project_id_name",
 				Unique:  true,
-				Columns: []*schema.Column{StudiesColumns[9], StudiesColumns[4]},
+				Columns: []*schema.Column{StudiesColumns[12], StudiesColumns[4]},
 			},
 			{
 				Name:    "study_project_id_status_updated_at",
 				Unique:  false,
-				Columns: []*schema.Column{StudiesColumns[9], StudiesColumns[7], StudiesColumns[3]},
+				Columns: []*schema.Column{StudiesColumns[12], StudiesColumns[7], StudiesColumns[3]},
 			},
 		},
 	}

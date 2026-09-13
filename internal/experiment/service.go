@@ -25,6 +25,7 @@ import (
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
 	"github.com/XR-Lee/Gemcp/internal/datasetcatalog"
 	gitrepository "github.com/XR-Lee/Gemcp/internal/repository"
+	"github.com/XR-Lee/Gemcp/internal/research"
 	"github.com/XR-Lee/Gemcp/internal/secrets"
 	"github.com/XR-Lee/Gemcp/internal/sshcloud"
 	"github.com/XR-Lee/Gemcp/internal/validation"
@@ -564,14 +565,26 @@ func isRetryableTransaction(err error) bool {
 }
 
 func repositorySnapshot(record *ent.Repository, projectID string) map[string]any {
+	return repositorySnapshotWithRef(record, projectID, "")
+}
+
+func repositorySnapshotWithRef(record *ent.Repository, projectID, requestedRef string) map[string]any {
 	if record == nil {
-		return map[string]any{"project_id": projectID, "source": "host"}
+		snapshot := map[string]any{"project_id": projectID, "source": "host"}
+		if ref := publicGitToken(requestedRef); ref != "" {
+			snapshot["requested_ref"] = ref
+		}
+		return snapshot
 	}
-	return map[string]any{
+	snapshot := map[string]any{
 		"id": record.PublicID.String(), "project_id": projectID, "name": record.Name, "ssh_url": record.SSHURL,
 		"default_branch": record.DefaultBranch, "host_key_fingerprint": record.HostKeyFingerprint,
 		"access": repositoryAccess(record),
 	}
+	if ref := publicGitToken(requestedRef); ref != "" {
+		snapshot["requested_ref"] = ref
+	}
+	return snapshot
 }
 
 func repositoryAccess(record *ent.Repository) string {
@@ -619,7 +632,7 @@ func makeView(record *ent.Experiment) View {
 		ID: record.PublicID.String(), ProjectID: snapshotString(record.RepositorySnapshot, "project_id"),
 		RepositoryID: snapshotString(record.RepositorySnapshot, "id"), EnvironmentID: snapshotString(record.EnvironmentSnapshot, "id"),
 		ResourceProfileID: snapshotString(record.ResourceSnapshot, "id"), State: record.State, DesiredState: record.DesiredState,
-		CommitSHA: publicGitToken(record.CommitSha), Command: record.Command, MaxRuntimeSeconds: record.MaxRuntimeSeconds,
+		CommitSHA: publicGitToken(record.CommitSha), GitIdentity: gitIdentityFromRecord(record), Command: record.Command, MaxRuntimeSeconds: record.MaxRuntimeSeconds,
 		ExecutionMode: string(record.ExecutionMode), Argv: append([]string(nil), record.Argv...),
 		ReservedCostMilli: record.ReservedCostMilli, EstimatedCostMilli: record.EstimatedCostMilli, OutputPath: record.OutputPath,
 		ProviderResourceID: record.ProviderResourceID, ProviderStatus: record.ProviderStatus, ExitCode: record.ExitCode,
@@ -634,6 +647,19 @@ func makeView(record *ent.Experiment) View {
 		CreatedAt: record.CreatedAt, UpdatedAt: record.UpdatedAt, StartedAt: record.StartedAt, DeadlineAt: record.DeadlineAt,
 		FinishedAt: record.FinishedAt, CancelRequestedAt: record.CancelRequestedAt,
 	}
+}
+
+func gitIdentityFromRecord(record *ent.Experiment) research.GitIdentity {
+	identity := research.GitIdentity{
+		RepositoryID:   snapshotString(record.RepositorySnapshot, "id"),
+		RepositoryName: snapshotString(record.RepositorySnapshot, "name"),
+		Repository:     snapshotString(record.RepositorySnapshot, "ssh_url"),
+		RequestedRef:   publicGitToken(snapshotString(record.RepositorySnapshot, "requested_ref")),
+		CommitSHA:      publicGitToken(record.CommitSha),
+		DefaultBranch:  snapshotString(record.RepositorySnapshot, "default_branch"),
+		HostProcess:    sshcloud.IsHostSentinel(record.CommitSha),
+	}
+	return identity
 }
 
 func snapshotString(snapshot map[string]any, key string) string {

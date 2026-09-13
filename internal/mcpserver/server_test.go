@@ -133,8 +133,8 @@ func TestStreamableHTTPToolsWithAgentToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListTools() error = %v", err)
 	}
-	if len(tools.Tools) != 34 {
-		t.Fatalf("tool count = %d, want 34", len(tools.Tools))
+	if len(tools.Tools) != 35 {
+		t.Fatalf("tool count = %d, want 35", len(tools.Tools))
 	}
 	if !strings.Contains(serverInstructions, "never call submit_prepared_experiment until the Owner explicitly confirms that digest") || !strings.Contains(serverInstructions, "submit scope are limits and technical capabilities, not financial approval") {
 		t.Fatal("MCP server instructions omit the exact-digest Owner approval boundary")
@@ -143,7 +143,7 @@ func TestStreamableHTTPToolsWithAgentToken(t *testing.T) {
 	for _, tool := range tools.Tools {
 		toolNames[tool.Name] = true
 	}
-	if !toolNames["get_research_workspace"] || !toolNames["update_research_workspace"] || !toolNames["get_next_actions"] || !toolNames["close_run"] ||
+	if !toolNames["get_research_workspace"] || !toolNames["update_research_workspace"] || !toolNames["get_next_actions"] || !toolNames["export_research_plan_sync"] || !toolNames["close_run"] ||
 		!toolNames["get_experiment_catalog"] || !toolNames["record_experiment_catalog"] ||
 		!toolNames["report_agent_activity"] || !toolNames["prepare_experiment"] || !toolNames["submit_prepared_experiment"] || !toolNames["submit_experiment"] ||
 		!toolNames["register_repository"] || !toolNames["verify_repository"] || !toolNames["register_workspace_dataset"] ||

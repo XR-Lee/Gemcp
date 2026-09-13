@@ -150,6 +150,48 @@ func (_c *StudyCreate) SetNillableStatus(v *study.Status) *StudyCreate {
 	return _c
 }
 
+// SetProtocolBranch sets the "protocol_branch" field.
+func (_c *StudyCreate) SetProtocolBranch(v string) *StudyCreate {
+	_c.mutation.SetProtocolBranch(v)
+	return _c
+}
+
+// SetNillableProtocolBranch sets the "protocol_branch" field if the given value is not nil.
+func (_c *StudyCreate) SetNillableProtocolBranch(v *string) *StudyCreate {
+	if v != nil {
+		_c.SetProtocolBranch(*v)
+	}
+	return _c
+}
+
+// SetProtocolDocPath sets the "protocol_doc_path" field.
+func (_c *StudyCreate) SetProtocolDocPath(v string) *StudyCreate {
+	_c.mutation.SetProtocolDocPath(v)
+	return _c
+}
+
+// SetNillableProtocolDocPath sets the "protocol_doc_path" field if the given value is not nil.
+func (_c *StudyCreate) SetNillableProtocolDocPath(v *string) *StudyCreate {
+	if v != nil {
+		_c.SetProtocolDocPath(*v)
+	}
+	return _c
+}
+
+// SetCodeRefPattern sets the "code_ref_pattern" field.
+func (_c *StudyCreate) SetCodeRefPattern(v string) *StudyCreate {
+	_c.mutation.SetCodeRefPattern(v)
+	return _c
+}
+
+// SetNillableCodeRefPattern sets the "code_ref_pattern" field if the given value is not nil.
+func (_c *StudyCreate) SetNillableCodeRefPattern(v *string) *StudyCreate {
+	if v != nil {
+		_c.SetCodeRefPattern(*v)
+	}
+	return _c
+}
+
 // SetTenant sets the "tenant" edge to the Tenant entity.
 func (_c *StudyCreate) SetTenant(v *Tenant) *StudyCreate {
 	return _c.SetTenantID(v.ID)
@@ -309,6 +351,21 @@ func (_c *StudyCreate) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Study.status": %w`, err)}
 		}
 	}
+	if v, ok := _c.mutation.ProtocolBranch(); ok {
+		if err := study.ProtocolBranchValidator(v); err != nil {
+			return &ValidationError{Name: "protocol_branch", err: fmt.Errorf(`ent: validator failed for field "Study.protocol_branch": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.ProtocolDocPath(); ok {
+		if err := study.ProtocolDocPathValidator(v); err != nil {
+			return &ValidationError{Name: "protocol_doc_path", err: fmt.Errorf(`ent: validator failed for field "Study.protocol_doc_path": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.CodeRefPattern(); ok {
+		if err := study.CodeRefPatternValidator(v); err != nil {
+			return &ValidationError{Name: "code_ref_pattern", err: fmt.Errorf(`ent: validator failed for field "Study.code_ref_pattern": %w`, err)}
+		}
+	}
 	if len(_c.mutation.TenantIDs()) == 0 {
 		return &ValidationError{Name: "tenant", err: errors.New(`ent: missing required edge "Study.tenant"`)}
 	}
@@ -368,6 +425,18 @@ func (_c *StudyCreate) createSpec() (*Study, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(study.FieldStatus, field.TypeEnum, value)
 		_node.Status = value
+	}
+	if value, ok := _c.mutation.ProtocolBranch(); ok {
+		_spec.SetField(study.FieldProtocolBranch, field.TypeString, value)
+		_node.ProtocolBranch = value
+	}
+	if value, ok := _c.mutation.ProtocolDocPath(); ok {
+		_spec.SetField(study.FieldProtocolDocPath, field.TypeString, value)
+		_node.ProtocolDocPath = value
+	}
+	if value, ok := _c.mutation.CodeRefPattern(); ok {
+		_spec.SetField(study.FieldCodeRefPattern, field.TypeString, value)
+		_node.CodeRefPattern = value
 	}
 	if nodes := _c.mutation.TenantIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
