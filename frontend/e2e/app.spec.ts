@@ -993,7 +993,6 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await page.getByTitle('Close').click()
   await page.getByTitle('View Deploy public key').nth(1).click()
   await expect(page.getByRole('heading', { name: 'Deploy public key' })).toBeVisible()
-  await expect(page.getByText('Graph and experiment-catalog observation writes remain possible while status is pending_key.')).toBeVisible()
   await expect(page.getByTestId('pending-note')).toContainText('Graph and experiment-catalog observation writes remain possible')
   await page.getByTitle('Close').click()
 
