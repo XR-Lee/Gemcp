@@ -619,7 +619,7 @@ func makeView(record *ent.Experiment) View {
 		ID: record.PublicID.String(), ProjectID: snapshotString(record.RepositorySnapshot, "project_id"),
 		RepositoryID: snapshotString(record.RepositorySnapshot, "id"), EnvironmentID: snapshotString(record.EnvironmentSnapshot, "id"),
 		ResourceProfileID: snapshotString(record.ResourceSnapshot, "id"), State: record.State, DesiredState: record.DesiredState,
-		CommitSHA: record.CommitSha, Command: record.Command, MaxRuntimeSeconds: record.MaxRuntimeSeconds,
+		CommitSHA: publicGitToken(record.CommitSha), Command: record.Command, MaxRuntimeSeconds: record.MaxRuntimeSeconds,
 		ExecutionMode: string(record.ExecutionMode), Argv: append([]string(nil), record.Argv...),
 		ReservedCostMilli: record.ReservedCostMilli, EstimatedCostMilli: record.EstimatedCostMilli, OutputPath: record.OutputPath,
 		ProviderResourceID: record.ProviderResourceID, ProviderStatus: record.ProviderStatus, ExitCode: record.ExitCode,

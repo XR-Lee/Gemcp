@@ -21,6 +21,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/researchnode"
 	"github.com/XR-Lee/Gemcp/ent/study"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
+	"github.com/XR-Lee/Gemcp/internal/sshcloud"
 	"github.com/XR-Lee/Gemcp/internal/validation"
 	"github.com/google/uuid"
 )
@@ -537,7 +538,7 @@ func recordNode(ctx context.Context, tx *ent.Tx, current actor, selected *ent.St
 			occurredAt = &stamp
 		}
 		if commitSHA == "" {
-			commitSHA = experimentRecord.CommitSha
+			commitSHA = evidenceCommit(experimentRecord.CommitSha)
 		}
 	}
 	nodes, err := tx.ResearchNode.Query().Where(researchnode.StudyIDEQ(selected.ID)).WithExperiment().All(ctx)
@@ -779,6 +780,9 @@ func experimentBranches(ctx context.Context, client *ent.Client, nodes []*ent.Re
 		}
 		publicID := publicByID[*proposal.ExperimentID]
 		if publicID == "" || strings.TrimSpace(proposal.RequestedRef) == "" {
+			continue
+		}
+		if sshcloud.IsHostSentinel(proposal.RequestedRef) {
 			continue
 		}
 		refs[publicID] = proposal.RequestedRef
@@ -1122,7 +1126,7 @@ func makeNodeView(record *ent.ResearchNode) NodeView {
 		view.ExperimentID = experimentRecord.PublicID.String()
 		view.ExperimentState = experimentRecord.State
 		if view.CommitSHA == "" {
-			view.CommitSHA = experimentRecord.CommitSha
+			view.CommitSHA = evidenceCommit(experimentRecord.CommitSha)
 		}
 		if view.OccurredAt == nil {
 			stamp := experimentEvidenceTime(experimentRecord)
@@ -1134,7 +1138,7 @@ func makeNodeView(record *ent.ResearchNode) NodeView {
 		view.OccurredAt = &stamp
 	}
 	if record.CommitSha != nil && strings.TrimSpace(*record.CommitSha) != "" {
-		view.CommitSHA = *record.CommitSha
+		view.CommitSHA = evidenceCommit(*record.CommitSha)
 	}
 	return view
 }
@@ -1164,13 +1168,21 @@ func parseOccurredAt(value string) (*time.Time, error) {
 
 func normalizeEvidenceCommit(value string) (string, error) {
 	sha := strings.ToLower(strings.TrimSpace(value))
-	if sha == "" {
+	if sha == "" || sshcloud.IsHostSentinel(sha) {
 		return "", nil
 	}
 	if !evidenceCommitPattern.MatchString(sha) {
 		return "", invalid("commit_sha must be a 7 to 64 character hexadecimal SHA")
 	}
 	return sha, nil
+}
+
+func evidenceCommit(value string) string {
+	sha, err := normalizeEvidenceCommit(value)
+	if err != nil {
+		return ""
+	}
+	return sha
 }
 
 func experimentEvidenceTime(record *ent.Experiment) time.Time {

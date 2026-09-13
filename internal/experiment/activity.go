@@ -213,8 +213,8 @@ func (s *Service) OwnerOperations(ctx context.Context, tenantID int, projectID s
 		}
 		checks := proposalChecksFromMaps(proposal.Checks)
 		view := ProposalActivityView{
-			ID: proposal.PublicID.String(), Status: status, Eligible: proposalChecksEligible(checks), RequestedRef: proposal.RequestedRef,
-			CommitSHA: proposal.CommitSha, DisplayCommand: proposal.DisplayCommand, Backend: snapshotString(proposal.ResourceSnapshot, "backend"),
+			ID: proposal.PublicID.String(), Status: status, Eligible: proposalChecksEligible(checks), RequestedRef: publicGitToken(proposal.RequestedRef),
+			CommitSHA: publicGitToken(proposal.CommitSha), DisplayCommand: proposal.DisplayCommand, Backend: snapshotString(proposal.ResourceSnapshot, "backend"),
 			RepositoryName: snapshotString(proposal.RepositorySnapshot, "name"), EnvironmentName: snapshotString(proposal.EnvironmentSnapshot, "name"),
 			Image: snapshotString(proposal.EnvironmentSnapshot, "image_uuid"), ResourceProfileName: snapshotString(proposal.ResourceSnapshot, "name"),
 			GPUModels: snapshotStrings(proposal.ResourceSnapshot, "gpu_names"), GPUNum: snapshotInt(proposal.ResourceSnapshot, "gpu_num"),

@@ -6,6 +6,7 @@ New dispatch remains disabled after upgrade until `GEMCP_SCHEDULER_ENABLED=true`
 
 ## On `main` after v0.20.0
 
+- `close_run` after a local CPU / Cloud SSH host-process Experiment no longer fails on the stored `commit_sha` placeholder `host`, and no longer requires a human-invented `result_commit_sha`. `get_experiment` omits that placeholder and returns `study_id` for a Graph-linked run so `close_run` can resolve the Study when several exist. Verify with `./scripts/local-http-smoke.sh` then `./scripts/local-cpu-loop.sh`.
 - Local HTTP + CPU loop (no NVIDIA): `./scripts/bootstrap-local.sh`, `./scripts/dev-serve.sh`, `./scripts/local-http-smoke.sh`, `./scripts/local-cpu-loop.sh`. Loopback compute, host Environment, and catalog `modelnet40-mini` register when `GEMCP_LOCAL_PROCESS_ENABLED` is on. Those powerful defaults require `GEMCP_ENV=development`.
 - Hypothesis–experiment Graph contract: happy path is `hypothesis` → `prepare_experiment` (`from_node_id` that traces back to a hypothesis) → `submit_prepared_experiment` (bind pre-flight before spend) → `close_run` (result and highlight). See [Graph contract](graph-contract.md).
 - Issue #5 Public Elastic MCP path is on `main` (PR #12): register image Environment and dataset, prepare/submit/schedule/monitor, short Runner finish without waiting for the heartbeat interval, and bounded paid smoke with compensating cleanup. MCP now registers **33** tools, including `request_image_bake` / `get_image_bake` / `list_image_bakes`. Lab → Images is a bake workspace, not a Graph run. Live Pro create stays fail-closed.

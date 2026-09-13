@@ -36,7 +36,7 @@ type NextActionsView struct {
 }
 
 type CloseRunInput struct {
-	StudyID         string   `json:"study_id,omitempty" jsonschema:"Study ID; omit when the Project has exactly one Study"`
+	StudyID         string   `json:"study_id,omitempty" jsonschema:"Study ID; omit when the Project has exactly one Study or when experiment_id already identifies a bound Graph run"`
 	RunNodeID       string   `json:"run_node_id,omitempty" jsonschema:"Graph run node ID to close"`
 	ExperimentID    string   `json:"experiment_id,omitempty" jsonschema:"same-Project Experiment ID when run_node_id is omitted"`
 	Title           string   `json:"title" jsonschema:"short result title"`
@@ -372,8 +372,10 @@ func (s *Service) BindPreparedRun(ctx context.Context, principal agentauth.Princ
 		SetTenantID(current.tenantID).SetProjectID(current.projectID).SetStudyID(selected.ID).
 		SetKind(researchnode.KindRun).SetTitle(runTitle).SetStatus(researchnode.StatusRunning).
 		SetExperimentID(experimentRecord.ID).
-		SetOccurredAt(experimentEvidenceTime(experimentRecord)).
-		SetCommitSha(experimentRecord.CommitSha)
+		SetOccurredAt(experimentEvidenceTime(experimentRecord))
+	if sha := evidenceCommit(experimentRecord.CommitSha); sha != "" {
+		create.SetCommitSha(sha)
+	}
 	if current.tokenID != nil {
 		create.SetAgentTokenID(*current.tokenID)
 	}
@@ -454,7 +456,23 @@ func (s *Service) closeRun(ctx context.Context, current actor, input CloseRunInp
 	if err != nil {
 		return Workspace{}, err
 	}
+	if selected == nil && strings.TrimSpace(input.StudyID) == "" {
+		bound, bindErr := findBoundRunStudy(ctx, tx, current.projectID, input.RunNodeID, input.ExperimentID)
+		if bindErr != nil {
+			return Workspace{}, bindErr
+		}
+		selected = bound
+	}
 	if selected == nil {
+		if strings.TrimSpace(input.ExperimentID) != "" {
+			if _, expErr := findProjectExperiment(ctx, tx, current.projectID, input.ExperimentID); expErr != nil {
+				return Workspace{}, expErr
+			}
+			return Workspace{}, invalid("no Graph run is bound to this Experiment")
+		}
+		if strings.TrimSpace(input.RunNodeID) != "" {
+			return Workspace{}, invalid("run_node_id was not found in this Study")
+		}
 		if len(studies) > 1 {
 			return Workspace{}, ErrChoice
 		}
@@ -553,7 +571,7 @@ func writeHighlightObservation(ctx context.Context, tx *ent.Tx, current actor, s
 	}
 	commitSHA := resultCommitSHA
 	if commitSHA == "" {
-		commitSHA = experimentRecord.CommitSha
+		commitSHA = evidenceCommit(experimentRecord.CommitSha)
 	}
 	observation, err := recordNode(ctx, tx, current, selected, NodeInput{
 		Kind: string(researchnode.KindObservation), Title: highlightTitle, Summary: input.Summary, Status: string(status),
@@ -803,6 +821,40 @@ func scalarMetric(value any) (float64, bool) {
 func sameMetric(observed, reported float64) bool {
 	scale := math.Max(1, math.Max(math.Abs(observed), math.Abs(reported)))
 	return math.Abs(observed-reported) <= scale*1e-12
+}
+
+func findBoundRunStudy(ctx context.Context, tx *ent.Tx, projectID int, runNodeID, experimentID string) (*ent.Study, error) {
+	query := tx.ResearchNode.Query().Where(
+		researchnode.ProjectIDEQ(projectID), researchnode.KindEQ(researchnode.KindRun),
+	).WithStudy()
+	switch {
+	case strings.TrimSpace(runNodeID) != "":
+		publicID, err := uuid.Parse(strings.TrimSpace(runNodeID))
+		if err != nil {
+			return nil, invalid("run_node_id must be a Graph run node ID")
+		}
+		query = query.Where(researchnode.PublicIDEQ(publicID))
+	case strings.TrimSpace(experimentID) != "":
+		experimentRecord, err := findProjectExperiment(ctx, tx, projectID, experimentID)
+		if err != nil {
+			return nil, err
+		}
+		query = query.Where(researchnode.ExperimentIDEQ(experimentRecord.ID))
+	default:
+		return nil, nil
+	}
+	record, err := query.Only(ctx)
+	if ent.IsNotFound(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	studyRecord, err := record.Edges.StudyOrErr()
+	if err != nil || studyRecord == nil {
+		return nil, err
+	}
+	return studyRecord, nil
 }
 
 func findCloseRunNode(ctx context.Context, tx *ent.Tx, projectID, studyID int, runNodeID, experimentID string) (*ent.ResearchNode, error) {

@@ -1202,12 +1202,12 @@ func proposalProjectSnapshot(record *ent.Project) map[string]any {
 }
 
 func preparedProposal(resolved proposalResolved, digest string, createdAt time.Time) PreparedProposal {
-	repo := ProposalRepository{RequestedRef: resolved.ref, CommitSHA: resolved.commitSHA}
+	repo := ProposalRepository{RequestedRef: publicGitToken(resolved.ref), CommitSHA: publicGitToken(resolved.commitSHA)}
 	if resolved.repository != nil {
 		repo = ProposalRepository{
 			ID: resolved.repository.PublicID.String(), Name: resolved.repository.Name, SSHURL: resolved.repository.SSHURL,
-			HostKeyFingerprint: resolved.repository.HostKeyFingerprint, RequestedRef: resolved.ref,
-			CommitSHA: resolved.commitSHA, DefaultBranch: resolved.repository.DefaultBranch,
+			HostKeyFingerprint: resolved.repository.HostKeyFingerprint, RequestedRef: publicGitToken(resolved.ref),
+			CommitSHA: publicGitToken(resolved.commitSHA), DefaultBranch: resolved.repository.DefaultBranch,
 			Access: repositoryAccess(resolved.repository),
 		}
 	}

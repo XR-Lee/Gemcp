@@ -241,6 +241,7 @@ export type Experiment = {
   state: string
   desired_state: string
   commit_sha: string
+  study_id?: string
   execution_mode?: 'shell' | 'argv'
   argv?: string[]
   command: string

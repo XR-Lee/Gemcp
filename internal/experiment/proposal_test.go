@@ -803,6 +803,106 @@ func TestPreparedSSHCloudPassesOnLoopbackWhileAutoDLRequiresHTTPS(t *testing.T) 
 	}
 }
 
+func TestSSHCloudHostProcessCloseRunWithoutInventedSHA(t *testing.T) {
+	f := newFixture(t, 1, 1)
+	ctx := context.Background()
+	node := createSSHCloudHost(t, f, map[string]any{"os": "Linux"})
+	environmentName, profileName := createSSHCloudRuntime(t, f, node)
+	controller := &fakeSSHCloudController{result: sshcloud.EnsureResult{
+		EnvironmentName: environmentName, ProfileName: profileName, ResolvedImage: sshcloud.HostImage,
+	}}
+	git := &proposalGit{resolved: proposalCommit, archive: proposalArchive(t)}
+	service := NewService(f.client, f.box, git, WithSSHCloud(controller), WithPreparedExperiments(
+		git, git, nil, proposalStatusRuntime{status: execution.RuntimeStatus{
+			SchedulerEnabled: true, SchedulerHealthy: true, PublicURLConfigured: true, SSHCloudEnabled: true, GlobalConcurrency: 2,
+		}}, ProposalConfig{SourceMaxBytes: 1 << 20, SSHCloudEnabled: true},
+	))
+	researchService := mustResearchService(t, f)
+	service.SetGraphBinder(researchService)
+	created, err := researchService.AgentUpdate(ctx, f.principal, researchUpdate(f, "cpu-loop", "Can a CPU host process close without a git SHA?"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	hypothesis, err := researchService.AgentUpdate(ctx, f.principal, research.UpdateInput{
+		Node: &research.NodeInput{Kind: "hypothesis", Title: "Host process can close", FromNodeID: created.Study.Nodes[0].ID, Relation: "leads_to"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := researchService.AgentUpdate(ctx, f.principal, researchUpdate(f, "cpu-loop leftover", "A second Study left from an earlier loop.")); err != nil {
+		t.Fatal(err)
+	}
+	input := prepareFrom(hypothesis.Study.Nodes[1].ID)
+	input.ExpectedMetric = "overall_accuracy"
+	prepared, err := service.Prepare(ctx, f.principal, input)
+	if err != nil || prepared.Proposal == nil || !prepared.Proposal.Eligible {
+		t.Fatalf("Prepare() = %+v, %v", prepared, err)
+	}
+	if prepared.Proposal.Repository.CommitSHA != "" || prepared.Proposal.Repository.RequestedRef != "" {
+		t.Fatalf("prepared host proposal leaked sentinel git fields: %+v", prepared.Proposal.Repository)
+	}
+	submitted, err := service.SubmitPrepared(ctx, f.principal, SubmitPreparedInput{
+		ProposalID: prepared.Proposal.ID, ConfirmationDigest: prepared.Proposal.ConfirmationDigest,
+	})
+	if err != nil || submitted.Experiment.ID == "" || submitted.RunNodeID == "" {
+		t.Fatalf("SubmitPrepared() = %+v, %v", submitted, err)
+	}
+	record, err := service.getRecord(ctx, f.project.ID, submitted.Experiment.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if record.CommitSha != sshcloud.HostCommit {
+		t.Fatalf("stored host commit_sha = %q", record.CommitSha)
+	}
+	if _, err := record.Update().SetState("succeeded").SetMetrics(map[string]any{"overall_accuracy": 0.75}).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	got, err := service.Get(ctx, f.principal, submitted.Experiment.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.CommitSHA != "" {
+		t.Fatalf("get_experiment commit_sha = %q", got.CommitSHA)
+	}
+	if got.StudyID != created.Study.ID {
+		t.Fatalf("get_experiment study_id = %q want %q", got.StudyID, created.Study.ID)
+	}
+	if got.ExecutionContext.RequestedRef != "" {
+		t.Fatalf("get_experiment requested_ref = %q", got.ExecutionContext.RequestedRef)
+	}
+	if !got.ClosableRun {
+		t.Fatalf("closable Get() = %+v", got)
+	}
+	closed, err := researchService.AgentCloseRun(ctx, f.principal, research.CloseRunInput{
+		ExperimentID: submitted.Experiment.ID,
+		Title:        "ModelNet40-mini CPU fixture finished",
+		Summary:      "Copied overall_accuracy from the scraped metrics.json.",
+		Status:       "succeeded",
+	})
+	if err != nil || closed.Study == nil || closed.Study.ID != created.Study.ID {
+		t.Fatalf("close_run = %+v, %v", closed.Study, err)
+	}
+	var result research.NodeView
+	var highlight bool
+	for _, node := range closed.Study.Nodes {
+		if node.Kind == "result" {
+			result = node
+		}
+		if node.Kind == "observation" && node.Title == "ModelNet40-mini CPU fixture finished" {
+			highlight = true
+			if node.CommitSHA != "" {
+				t.Fatalf("highlight copied host sentinel commit_sha = %q", node.CommitSHA)
+			}
+		}
+	}
+	if result.Kind != "result" || result.CommitSHA != "" || result.MetricName != "overall_accuracy" {
+		t.Fatalf("closed result = %+v", result)
+	}
+	if !highlight {
+		t.Fatalf("closed workspace missing highlight: %+v", closed.Study)
+	}
+}
+
 func TestPrepareSSHCloudWithoutImageOrRepository(t *testing.T) {
 	f := newFixture(t, 1, 1)
 	ctx := context.Background()

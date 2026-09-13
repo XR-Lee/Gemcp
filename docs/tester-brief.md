@@ -48,7 +48,7 @@ In a second terminal:
 ./scripts/local-cpu-loop.sh
 ```
 
-`local-http-smoke.sh` checks `/healthz`, `/readyz`, `/api/v1/version`, `/api/v1/setup/status`, runs first-run setup with `skip_provider` when needed, and `POST /mcp` initialize. `local-cpu-loop.sh` then hits the five no-NVIDIA flows: register compute / environment / dataset (Cloud SSH loopback + `modelnet40-mini`), schedule through Gemcp, record the assumption vs sub-assumption graph, wait until `get_experiment` shows a scraped heartbeat, and pull the result back onto the graph with a `CLI_DECISION`. Open `http://127.0.0.1:8080` and use the Owner email/password from `.env` (`GEMCP_DEV_OWNER_*`).
+`local-http-smoke.sh` checks `/healthz`, `/readyz`, `/api/v1/version`, `/api/v1/setup/status`, runs first-run setup with `skip_provider` when needed, and `POST /mcp` initialize. `local-cpu-loop.sh` then hits the five no-NVIDIA flows: register compute / environment / dataset (Cloud SSH loopback + `modelnet40-mini`), schedule through Gemcp, record the assumption vs sub-assumption graph, wait until `get_experiment` shows a scraped heartbeat, and pull the result back onto the graph with a `CLI_DECISION`. FLOW5 `close_run` must succeed without inventing a Git SHA. Open `http://127.0.0.1:8080` and use the Owner email/password from `.env` (`GEMCP_DEV_OWNER_*`).
 
 Compose (`deploy/`) is for a tunneled HTTPS host. Do not expose port 8080 to the public Internet. Do not require a GPU to finish this HTTP + MCP check.
 

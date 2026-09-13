@@ -36,7 +36,7 @@ func (s *Service) enrichExecutionObservation(ctx context.Context, record *ent.Ex
 	}
 	if err == nil {
 		view.ExecutionContext.ProposalID = proposal.PublicID.String()
-		view.ExecutionContext.RequestedRef = proposal.RequestedRef
+		view.ExecutionContext.RequestedRef = publicGitToken(proposal.RequestedRef)
 		view.ExecutionContext.Workload = snapshotString(proposal.ProjectSnapshot, "workload")
 		view.ExecutionContext.ExpectedMetric = snapshotString(proposal.ProjectSnapshot, "expected_metric")
 		view.SavableWorkload = record.State == "succeeded" &&
