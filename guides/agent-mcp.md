@@ -10,7 +10,7 @@ Gemcp schedules bounded AutoDL, authorized Self-hosted, and experimental Cloud S
 ## Non-negotiable rules
 
 1. Treat the Agent Token as a secret. Never print it, commit it, place it in experiment arguments, or include it in chat or logs.
-2. Treat the research Graph as the execution contract ([Hypothesis–experiment Graph contract](../docs/graph-contract.md)). Call `get_next_actions` before spending. Keep the Owner-facing Study current with `get_research_workspace`. For a registered GitHub repository, extract raw experiment rows from distinct research branches into `record_experiment_catalog` (Setting, 方法, 实现, metric, 结果, link, hash) and confirm with `get_experiment_catalog`. That catalog is table-ready evidence, not the Graph, and never starts a workload. Never place prompts, private reasoning, credentials, or environment dumps in research text. Recording a Graph node never starts a workload.
+2. Treat the research Graph as the execution contract ([Hypothesis–experiment Graph contract](../docs/graph-contract.md)). Call `get_next_actions` before spending. Keep the Owner-facing Study current with `get_research_workspace`. When the Study has a route, pass a live code `ref` matching `code_ref_pattern` (for example `autoresearch/*`); omitting `ref` would bind the repository default branch. After a decision or closed result, `export_research_plan_sync` dry-runs a docs-only amendment for the protocol branch — not a training run, and Gemcp never pushes git. For a registered GitHub repository, extract raw experiment rows from distinct research branches into `record_experiment_catalog` (Setting, 方法, 实现, metric, 结果, link, hash) and confirm with `get_experiment_catalog`. That catalog is table-ready evidence, not the Graph, and never starts a workload. Never place prompts, private reasoning, credentials, or environment dumps in research text. Recording a Graph node never starts a workload.
 3. Report controlled workflow transitions with `report_agent_activity`. Never send prompts, private reasoning, arbitrary free text, environment variables, credentials, or source contents as activity.
 4. Use `prepare_experiment` as the normal execution path. Let Gemcp resolve the repository, moving ref, full commit SHA, compatible defaults, preflight checks, cost, and idempotency.
 5. Submit normal workloads as an ordered `argv`. Do not wrap it in a shell, add output-path wrappers, or interpolate typed values into shell text.
@@ -93,7 +93,10 @@ A typical update is:
 {
   "study": {
     "name": "objbg-scan",
-    "question": "Can a cleaner OBJ-BG traversal raise ScanObjectNN accuracy without extra GPU hours?"
+    "question": "Can a cleaner OBJ-BG traversal raise ScanObjectNN accuracy without extra GPU hours?",
+    "protocol_branch": "research-plan",
+    "protocol_doc_path": "research-plan/STATUS.md",
+    "code_ref_pattern": "autoresearch/*"
   },
   "plan": {
     "goal": "Establish a reproducible OBJ-BG baseline.",
@@ -102,7 +105,7 @@ A typical update is:
 }
 ```
 
-`prepare_experiment` requires `from_node_id` when the Project has an active Study. That ID must be a connected hypothesis, or a plan that traces back to a hypothesis through `leads_to` parents — isolated nodes and plans hanging only off the question cannot prepare — and is bound into the confirmation digest the Owner approves. `submit_prepared_experiment` re-validates that origin before committing budget and then writes the `run` node; if the Graph changes in that instant, the response carries the submitted Experiment plus `graph_bind_warning` — fix the Graph and retry the same submit instead of preparing again. `produced` edges are only legal from `run` to `result`, and only `close_run` may write that result plus the highlight observation on the hypothesis. Historical evidence uses `observation` nodes hung off a hypothesis with `leads_to`; do not leave observations unlinked. Set `occurred_at` from `git log -1 --format=%cI <sha>` and pass `commit_sha`; the Owner axis uses that evidence time, not the MCP write time. The Graph is still claim-based, not one node per commit. argv, image, GPU, logs, and cleanup stay in Experiment detail. Multiple Studies require an explicit `study_id` except `close_run`, which can resolve the Study from a bound `experiment_id`. Host-process Cloud SSH Experiments have no Git checkout: omit `result_commit_sha` and do not invent a SHA. `get_next_actions` proposes the next decision or Experiment from the hypothesis and its evidence.
+`prepare_experiment` requires `from_node_id` when the Project has an active Study. That ID must be a connected hypothesis, or a plan that traces back to a hypothesis through `leads_to` parents — isolated nodes and plans hanging only off the question cannot prepare — and is bound into the confirmation digest the Owner approves. When the Study route names `code_ref_pattern`, also pass `ref` matching that family; do not prepare against the protocol branch. `submit_prepared_experiment` re-validates that origin before committing budget and then writes the `run` node; if the Graph changes in that instant, the response carries the submitted Experiment plus `graph_bind_warning` — fix the Graph and retry the same submit instead of preparing again. `produced` edges are only legal from `run` to `result`, and only `close_run` may write that result plus the highlight observation on the hypothesis. Historical evidence uses `observation` nodes hung off a hypothesis with `leads_to`; do not leave observations unlinked. Set `occurred_at` from `git log -1 --format=%cI <sha>` and pass `commit_sha`; the Owner axis uses that evidence time, not the MCP write time. The Graph is still claim-based, not one node per commit. argv, image, GPU, logs, and cleanup stay in Experiment detail. Multiple Studies require an explicit `study_id` except `close_run`, which can resolve the Study from a bound `experiment_id`. Host-process Cloud SSH Experiments have no Git checkout: omit `result_commit_sha` and do not invent a SHA. `get_next_actions` proposes the next decision or Experiment from the hypothesis and its evidence. `export_research_plan_sync` is a docs-only patch for the protocol branch after decisions change; dry-run first; do not force-push.
 
 ## Required workflow
 
@@ -294,6 +297,7 @@ The optional context is limited to repository remote, ref, and Experiment ID. `m
 | `get_research_workspace` | Return Studies, the selected plan, Graph, hypothesis records, and next actions | `read` |
 | `update_research_workspace` | Create or update a Study, plan, or Graph node without starting a workload | `submit` |
 | `get_next_actions` | Propose the next decision or Experiment from the hypothesis and its evidence | `read` |
+| `export_research_plan_sync` | Dry-run (default) or record a docs-only research-plan markdown amendment; never a training run and never a git push | `read` / `submit` |
 | `close_run` | Write a result and a highlight observation on a terminal Experiment that already has a run | `submit` |
 | `get_experiment_catalog` | Return registered repository identity and extracted experiment catalog rows | `read` |
 | `record_experiment_catalog` | Persist research-branch experiment rows (Setting, 方法, 实现, metric, 结果, link, hash) without starting a workload | `submit` |

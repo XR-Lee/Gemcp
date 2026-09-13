@@ -8,6 +8,7 @@ import {
   Check,
   Clipboard,
   Cpu,
+  FileText,
   FlaskConical,
   GitBranch,
   Images,
@@ -24,7 +25,7 @@ import {
   WalletCards,
   X,
 } from '@lucide/vue'
-import { APIError, api, githubDeployKeySettingsURL, type AgentReadiness, type Attempt, type BuildInfo, type DatasetBinding, type DatasetCatalogEntry, type Experiment, type ExperimentCatalog, type OperationsFeed, type PreparedProposal, type Project, type ProjectEnvironment, type ProjectWorkload, type ProposalActivity, type Repository, type RepositoryReadiness, type ResearchWorkspace, type RuntimeStatus, type User } from '../api'
+import { APIError, api, githubDeployKeySettingsURL, type AgentReadiness, type Attempt, type BuildInfo, type DatasetBinding, type DatasetCatalogEntry, type Experiment, type ExperimentCatalog, type OperationsFeed, type PreparedProposal, type Project, type ProjectEnvironment, type ProjectWorkload, type ProposalActivity, type Repository, type RepositoryReadiness, type ResearchPlanSyncExport, type ResearchWorkspace, type RuntimeStatus, type User } from '../api'
 import { localizedState, useI18n } from '../i18n'
 import { pickDefaultProjectID } from '../projectSelect'
 import { draftStudyFromRepository, repositoryNameFromSSHURL } from '../studyImport'
@@ -65,7 +66,14 @@ const repositoryReadiness = ref<RepositoryReadiness | null>(null)
 const repositoryReadinessLoading = ref(false)
 const studyDialog = ref(false)
 const studyBusy = ref(false)
-const studyForm = reactive({ name: '', question: '', summary: '', importSource: 'url', sshURL: '', defaultBranch: 'main' })
+const studyForm = reactive({
+  name: '', question: '', summary: '', importSource: 'url', sshURL: '', defaultBranch: 'main',
+  protocolBranch: '', protocolDocPath: '', codeRefPattern: '',
+})
+const planSyncDialog = ref(false)
+const planSyncBusy = ref(false)
+const planSyncExport = ref<ResearchPlanSyncExport | null>(null)
+const planSyncError = ref('')
 const operationsLoading = ref(false)
 const loading = ref(false)
 const error = ref('')
@@ -555,10 +563,47 @@ function openCreateStudy() {
   studyForm.summary = ''
   studyForm.sshURL = ''
   studyForm.defaultBranch = 'main'
+  studyForm.protocolBranch = ''
+  studyForm.protocolDocPath = ''
+  studyForm.codeRefPattern = ''
   studyForm.importSource = repositories.value[0]?.id ?? 'url'
   if (repositories.value[0]) applyStudyDraft(repositories.value[0])
   dialogError.value = ''
   studyDialog.value = true
+}
+
+async function openPlanSync() {
+  if (!selectedProject.value) return
+  planSyncDialog.value = true
+  planSyncError.value = ''
+  planSyncBusy.value = true
+  try {
+    planSyncExport.value = await api.exportPlanSync(selectedProject.value.id, {
+      study_id: selectedStudyID.value || undefined,
+      dry_run: true,
+    })
+  } catch (caught) {
+    planSyncExport.value = null
+    planSyncError.value = caught instanceof APIError ? caught.message : t('Plan sync export failed.', '计划同步导出失败。')
+  } finally {
+    planSyncBusy.value = false
+  }
+}
+
+async function recordPlanSync() {
+  if (!selectedProject.value) return
+  planSyncBusy.value = true
+  planSyncError.value = ''
+  try {
+    planSyncExport.value = await api.exportPlanSync(selectedProject.value.id, {
+      study_id: selectedStudyID.value || undefined,
+      dry_run: false,
+    })
+  } catch (caught) {
+    planSyncError.value = caught instanceof APIError ? caught.message : t('Plan sync export failed.', '计划同步导出失败。')
+  } finally {
+    planSyncBusy.value = false
+  }
 }
 
 async function selectStudy(studyID: string) {
@@ -600,6 +645,9 @@ async function createStudy() {
         question: studyForm.question.trim(),
         summary: studyForm.summary.trim() || undefined,
         repository_id: repositoryID || undefined,
+        protocol_branch: studyForm.protocolBranch.trim() || undefined,
+        protocol_doc_path: studyForm.protocolDocPath.trim() || undefined,
+        code_ref_pattern: studyForm.codeRefPattern.trim() || undefined,
       },
     })
     researchWorkspace.value = created
@@ -656,14 +704,17 @@ function openKey(repository: Repository) {
   repositoryDialog.value = 'key'
 }
 
-async function tryVerifyRepository(repository: Repository) {
+async function tryVerifyRepository(repository: Repository, silent = false) {
   attemptedVerify.add(repository.id)
   try {
     const verified = await api.verifyRepository(repository.id)
     repositories.value = repositories.value.map((item) => item.id === verified.id ? verified : item)
     if (selectedRepository.value?.id === verified.id) selectedRepository.value = verified
     return verified
-  } catch {
+  } catch (caught) {
+    if (!silent && selectedRepository.value?.id === repository.id) {
+      dialogError.value = caught instanceof APIError ? caught.message : t('Repository verification failed.', '仓库验证失败。')
+    }
     return null
   }
 }
@@ -689,7 +740,7 @@ async function loadRepositoryReadiness(repository?: Repository | null, projectID
 async function verifyPendingGitHubRepositories(generation: number, projectID: string) {
   const pending = repositories.value.filter((item) => item.status === 'pending_key' && !attemptedVerify.has(item.id))
   for (const repository of pending) {
-    const verified = await tryVerifyRepository(repository)
+    const verified = await tryVerifyRepository(repository, true)
     if (generation !== projectRefreshGeneration || selectedProjectID.value !== projectID) return
     if (verified?.status === 'active' && repositoryDialog.value && selectedRepository.value?.id === verified.id) {
       repositoryDialog.value = null
@@ -708,11 +759,14 @@ async function verifyRepository(repository = selectedRepository.value) {
       await refreshProject(false)
       await loadRepositoryReadiness(verified)
       repositoryDialog.value = 'key'
+      dialogError.value = ''
       return
     }
     repositoryDialog.value = 'key'
     await loadRepositoryReadiness(repository)
-    dialogError.value = t('Add this Gemcp public key on GitHub first: a read-only repository Deploy Key, or your account SSH keys if Deploy Key is unavailable. Then verify again.', '请先把这把 Gemcp 公钥加到 GitHub：仓库只读 Deploy Key，或 Deploy Key 加不上时加到账号 SSH keys。然后再验证。')
+    if (!dialogError.value) {
+      dialogError.value = t('Add this Gemcp public key on GitHub first: a read-only repository Deploy Key, or your account SSH keys if Deploy Key is unavailable. Then verify again.', '请先把这把 Gemcp 公钥加到 GitHub：仓库只读 Deploy Key，或 Deploy Key 加不上时加到账号 SSH keys。然后再验证。')
+    }
   } catch (caught) {
     dialogError.value = caught instanceof APIError ? caught.message : t('Repository verification failed.', '仓库验证失败。')
     repositoryDialog.value = 'key'
@@ -903,7 +957,7 @@ onMounted(async () => {
         <span><strong>{{ t('Scheduler is disabled', '调度器已关闭') }}</strong>{{ t('Prepared proposals can still be confirmed, but their Experiments remain queued. Set GEMCP_SCHEDULER_ENABLED=true and restart Gemcp when an execution backend is ready.', '准备好的提案仍可确认，但对应 Experiment 会保持 queued。执行后端就绪后，请设置 GEMCP_SCHEDULER_ENABLED=true 并重启 Gemcp。') }}</span>
       </div>
 
-      <ResearchView v-if="activeView === 'research'" :workspace="researchWorkspace" :loading="loading" :selected-study-id="selectedStudyID" :project="selectedProject" :repositories="repositories" :experiments="experiments" :has-active-agent="hasActiveAgent" :readiness="agentReadiness" :readiness-loading="loading" :runtime="runtimeStatus" :catalog="experimentCatalog" :repository-readiness="repositoryReadiness" :repository-readiness-loading="repositoryReadinessLoading" @select-study="selectStudy" @open-experiment="openExperimentByID" @close-run="openCloseRun" @create-study="openCreateStudy" @open-agents="activeView = 'agents'" @handshake="activeView = 'agents'" @open-nodes="activeView = 'nodes'" @verify-repository="selectedRepository && verifyRepository(selectedRepository)" @open-projects="activeView = 'projects'" />
+      <ResearchView v-if="activeView === 'research'" :workspace="researchWorkspace" :loading="loading" :selected-study-id="selectedStudyID" :project="selectedProject" :repositories="repositories" :experiments="experiments" :has-active-agent="hasActiveAgent" :readiness="agentReadiness" :readiness-loading="loading" :runtime="runtimeStatus" :catalog="experimentCatalog" :repository-readiness="repositoryReadiness" :repository-readiness-loading="repositoryReadinessLoading" @select-study="selectStudy" @open-experiment="openExperimentByID" @close-run="openCloseRun" @create-study="openCreateStudy" @open-agents="activeView = 'agents'" @handshake="activeView = 'agents'" @open-nodes="activeView = 'nodes'" @verify-repository="selectedRepository && verifyRepository(selectedRepository)" @open-projects="activeView = 'projects'" @export-plan-sync="openPlanSync" />
 
       <section v-else-if="activeView === 'experiments'" class="page-workspace">
         <div class="section-heading page-section-heading"><div><h2>{{ t('Evidence', '证据') }}</h2><p>{{ t('Linked Experiments remain the execution evidence behind the Graph.', '关联的 Experiment 仍是 Graph 背后的执行证据。') }}</p></div><div class="segmented-control" :aria-label="t('Experiment state filter', '实验状态筛选')"><button v-for="filter in ['all', 'queued', 'running', 'succeeded', 'failed']" :key="filter" type="button" :class="{ active: stateFilter === filter }" @click="stateFilter = filter">{{ filter === 'all' ? t('all', '全部') : stateLabel(filter) }}</button></div></div>
@@ -1091,6 +1145,10 @@ onMounted(async () => {
       <label>{{ t('Name', '名称') }}<input v-model="studyForm.name" required maxlength="80" placeholder="objbg-scan" spellcheck="false" /></label>
       <label>{{ t('Research question', '研究问题') }}<textarea v-model="studyForm.question" required rows="4" maxlength="400" :placeholder="t('What should this Study answer?', '这个 Study 要回答什么问题？')"></textarea></label>
       <label>{{ t('Summary', '摘要') }}<textarea v-model="studyForm.summary" rows="3" maxlength="800" :placeholder="t('Optional scientific context. No prompts or credentials.', '可选科学背景。不要写 prompt 或凭据。')"></textarea></label>
+      <label>{{ t('Protocol branch', '协议分支') }}<input v-model="studyForm.protocolBranch" maxlength="255" placeholder="research-plan" spellcheck="false" /></label>
+      <label>{{ t('Protocol doc path', '协议文档路径') }}<input v-model="studyForm.protocolDocPath" maxlength="512" placeholder="research-plan/STATUS.md" spellcheck="false" /></label>
+      <label>{{ t('Allowed code refs', '允许的代码 ref') }}<input v-model="studyForm.codeRefPattern" maxlength="255" placeholder="autoresearch/*" spellcheck="false" /></label>
+      <p class="form-note">{{ t('Route binding is optional. Protocol branch is docs-only. Live Experiments must pass a matching code ref; omitting ref would bind the repository default branch.', '路由绑定可选。协议分支只写文档。活实验必须传入匹配的代码 ref；省略 ref 会绑到仓库默认分支。') }}</p>
       <div v-if="dialogError" class="form-error">{{ dialogError }}</div>
       <button class="primary-button" type="submit" :disabled="studyBusy"><LoaderCircle v-if="studyBusy" :size="16" class="spinning" /><Plus v-else :size="16" />{{ importingNewRepository ? t('Import repository and study', '导入仓库并创建 Study') : t('Create study', '创建 Study') }}</button>
     </form>
@@ -1110,6 +1168,7 @@ onMounted(async () => {
         <p>{{ t('Add this public key to', '将此公钥添加到') }} <strong>{{ selectedRepository.name }}</strong> {{ t('as a read-only GitHub Deploy Key.', '设为只读 GitHub Deploy Key。') }}</p>
         <div class="code-box"><code>{{ selectedRepository.deploy_public_key }}</code><button class="icon-button" type="button" :title="copied === 'deploy-key' ? t('Copied', '已复制') : t('Copy Deploy public key', '复制 Deploy 公钥')" @click="copy(selectedRepository.deploy_public_key ?? '', 'deploy-key')"><Check v-if="copied === 'deploy-key'" :size="16" /><Clipboard v-else :size="16" /></button></div>
         <p class="form-note">{{ t('The required GitHub action is a read-only Deploy Key on this repository.', '必须完成的 GitHub 操作是给这个仓库加一把只读 Deploy Key。') }} <a v-if="selectedDeployKeyURL" class="form-note-link" :href="selectedDeployKeyURL" target="_blank" rel="noreferrer">{{ t('GitHub repository → Deploy keys', 'GitHub 仓库 → Deploy keys') }}</a></p>
+        <p v-if="selectedRepository.status === 'pending_key' || selectedRepository.pending_note" class="form-note">{{ selectedRepository.pending_note || t('Graph and experiment-catalog observation writes remain possible while status is pending_key. Prepare of a git-backed Experiment still requires verify.', '仓库仍是 pending_key 时，Graph 和实验目录观察写入仍然可以。基于 git 的 Experiment 准备仍需先验证。') }}</p>
         <p class="form-note">{{ t('If you cannot add a repository Deploy Key, add this same Gemcp public key to your GitHub account SSH keys. Verification still works. That is wider than a Deploy Key, but it is still this Gemcp key, not your personal id_ed25519.', '仓库 Deploy Key 加不上时，把这把 Gemcp 公钥加到 GitHub 账号的 SSH keys。验证同样能过。权限比 Deploy Key 宽，但仍是 Gemcp 这把钥匙，不是你的 id_ed25519。') }} <a class="form-note-link" href="https://github.com/settings/keys" target="_blank" rel="noreferrer">{{ t('Settings → SSH and GPG keys', 'Settings → SSH and GPG keys') }}</a></p>
         <RepositoryReadinessPanel :readiness="repositoryReadiness" :loading="repositoryReadinessLoading" @verify="verifyRepository(selectedRepository)" @register-defaults="repositoryDialog = null; activeView = 'projects'" />
         <p class="form-note">{{ t('Gemcp pins GitHub with the official Ed25519 host fingerprint. After the key is on GitHub, verification runs without a fingerprint field.', 'Gemcp 使用 GitHub 官方 Ed25519 主机指纹。公钥加到 GitHub 后会自动验证，不用再填指纹。') }}</p>
@@ -1118,4 +1177,29 @@ onMounted(async () => {
       </div>
     </section>
   </div>
+
+  <WorkbenchDialog
+    v-model:open="planSyncDialog"
+    :title="t('Export research-plan sync', '导出 research-plan 同步')"
+    :label="t('Export research-plan sync', '导出 research-plan 同步')"
+    :description="t('Dry-run a docs-only markdown amendment for the protocol branch. Gemcp never pushes git, never force-pushes, and never writes frozen recipe files. Metrics stay on the Graph.', '先干跑一份只写文档的协议分支补丁。Gemcp 不会推 git、不会 force-push、也不会写冻结配方文件。指标仍在 Graph 上。')"
+  >
+    <div class="dialog-form">
+      <p v-if="planSyncBusy && !planSyncExport" class="form-note">{{ t('Building the amendment…', '正在生成补丁…') }}</p>
+      <template v-else-if="planSyncExport">
+        <p class="form-note">{{ t('Target', '目标') }} <code>{{ planSyncExport.target_path }}</code> {{ t('on', '于') }} <code>{{ planSyncExport.target_branch }}</code></p>
+        <p v-if="planSyncExport.warning" class="form-note">{{ planSyncExport.warning }}</p>
+        <label>
+          <span>{{ t('Markdown patch', 'Markdown 补丁') }}</span>
+          <textarea class="attach-prompt" readonly rows="16" spellcheck="false" :value="planSyncExport.markdown"></textarea>
+        </label>
+        <p v-if="planSyncExport.recorded" class="form-note">{{ t('Audit receipt recorded. Apply this markdown on the docs-only protocol branch yourself.', '已写入审计回执。请自行把这份 markdown 应用到只写文档的协议分支。') }}</p>
+      </template>
+      <div v-if="planSyncError" class="form-error" role="alert">{{ planSyncError }}</div>
+      <button v-if="planSyncExport && !planSyncExport.recorded" class="primary-button" type="button" :disabled="planSyncBusy" @click="recordPlanSync">
+        <LoaderCircle v-if="planSyncBusy" :size="16" class="spinning" /><FileText v-else :size="16" />
+        {{ t('Record audit receipt', '记录审计回执') }}
+      </button>
+    </div>
+  </WorkbenchDialog>
 </template>

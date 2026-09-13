@@ -96,6 +96,7 @@ const research = {
     question: '更干净的 OBJ-BG 遍历能否在不增加 GPU 小时的前提下提高 ScanObjectNN 精度？',
     summary: 'Owner 先看科学问题；后续 Experiment 只作为证据挂到 Graph 上。',
     status: 'active', updated_at: '2026-08-17T18:05:00Z',
+    route: { protocol_branch: 'research-plan', protocol_doc_path: 'research-plan/STATUS.md', code_ref_pattern: 'autoresearch/*' },
     plan: {
       id: 'plan-objbg-2', status: 'active',
       goal: '先建立可复现的 OBJ-BG baseline，再决定要不要换遍历。',
@@ -138,6 +139,11 @@ const research = {
     kind: 'record_decision', tool: 'update_research_workspace', study_id: 'study-objbg-1',
     from_node_id: 'n-r', title: 'Record a decision from OBJ-BG smoke accuracy',
     detail: 'Say whether the result supports the hypothesis before preparing another run.',
+  }, {
+    kind: 'export_plan_sync', tool: 'export_research_plan_sync', study_id: 'study-objbg-1',
+    title: 'Export a research-plan docs patch',
+    detail: 'Dry-run a markdown amendment for the protocol branch. This is not a training run.',
+    protocol_branch: 'research-plan', protocol_doc_path: 'research-plan/STATUS.md', allowed_ref_pattern: 'autoresearch/*',
   }],
 }
 

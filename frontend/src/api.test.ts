@@ -248,6 +248,28 @@ describe('API security headers', () => {
     })
   })
 
+  it('exports a research-plan sync dry-run through the Owner project endpoint', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true, status: 200, json: async () => ({
+        data: {
+          study_id: 'study-1', dry_run: true, target_branch: 'research-plan',
+          target_path: 'research-plan/STATUS.md', title: 'Gemcp research-plan amendment',
+          markdown: '# patch', recorded: false, generated_at: '2026-09-13T00:00:00Z',
+        },
+      }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    setCSRFToken('csrf-plan-sync')
+
+    await api.exportPlanSync('project/id', { study_id: 'study-1', dry_run: true })
+
+    const [path, options] = fetchMock.mock.calls[0]
+    expect(path).toBe('/api/v1/projects/project%2Fid/research/plan-sync')
+    expect(options.method).toBe('POST')
+    expect((options.headers as Headers).get('X-CSRF-Token')).toBe('csrf-plan-sync')
+    expect(JSON.parse(String(options.body))).toEqual({ study_id: 'study-1', dry_run: true })
+  })
+
   it('reads the experiment catalog through the Owner project endpoint', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true, status: 200, json: async () => ({ data: { project_id: 'project/id', repositories: [], generated_at: '2026-07-17T00:00:00Z' } }),

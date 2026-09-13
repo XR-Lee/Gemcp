@@ -6,7 +6,7 @@ Gemcp exposes the official MCP Streamable HTTP transport at:
 https://<gemcp-host>/mcp
 ```
 
-Production is HTTPS. Local HTTP loopback is also accepted, for example `http://127.0.0.1:8080/mcp`, when `GEMCP_PUBLIC_URL` is that origin. The server currently registers **28** tools. A Streamable HTTP `initialize` against loopback returns 200 with a valid Agent Token.
+Production is HTTPS. Local HTTP loopback is also accepted, for example `http://127.0.0.1:8080/mcp`, when `GEMCP_PUBLIC_URL` is that origin. The server currently registers **35** tools. A Streamable HTTP `initialize` against loopback returns 200 with a valid Agent Token.
 
 Every request requires a project-scoped Agent Token:
 
@@ -20,13 +20,13 @@ Create a short-lived **MCP setup link** from the Owner console and let the Agent
 
 The Owner sends one URL from `/agent/setup#code=...`. The Agent reads the public setup instructions at `/agent/setup` and enrolls its own MCP client. The code remains in the URL fragment and is not sent by link previews or ordinary page requests.
 
-Claiming creates a short-lived `read`-only credential. After the Agent discovers all thirty-four tools and verifies guide, options, and cost, completion activates the Owner-selected scopes and lifetime. Claim and complete are retry-safe if the final response is lost.
+Claiming creates a short-lived `read`-only credential. After the Agent discovers all thirty-five tools and verifies guide, options, and cost, completion activates the Owner-selected scopes and lifetime. Claim and complete are retry-safe if the final response is lost.
 
 ## Pi with pi-mcp-adapter
 
 Pi can run the fixed installer from the same configured origin when `pi-mcp-adapter` is already installed.
 
-The installer merges a `gemcp-<project>` server into `<Pi agent dir>/mcp.json`, preserves existing servers, writes mode `0600`, exposes all thirty-four bounded Gemcp tools through `directTools`, and verifies tool discovery plus guide, options, and cost calls. A local credential-reading helper supports the current session without printing the Token. One `/reload` activates native `gemcp-<project>_*` tools through the adapter.
+The installer merges a `gemcp-<project>` server into `<Pi agent dir>/mcp.json`, preserves existing servers, writes mode `0600`, exposes all thirty-five bounded Gemcp tools through `directTools`, and verifies tool discovery plus guide, options, and cost calls. A local credential-reading helper supports the current session without printing the Token. One `/reload` activates native `gemcp-<project>_*` tools through the adapter.
 
 Claimed credentials remain `read`-only and expire at the setup deadline until verification completes. Completion activates the Owner-selected scopes and lifetime, clears the setup capability, and leaves only a credential-free local receipt. The complete API and installer are retry-safe if the final response is lost.
 
@@ -276,17 +276,18 @@ Study, hypothesis, run, result, highlight observation, and orphan have one defin
 - `get_usage_guide`: current Agent operating guide, authenticated project ID, Token scopes, Resource URI, and Prompt name.
 - `list_repository_registrations`: active and pending repositories in the authenticated Project, including non-secret deploy public keys.
 - `register_repository`: register a GitHub SSH or HTTPS URL in the authenticated Project; public repositories activate immediately; private repositories return a pending Deploy Key; requires `configure`.
-- `verify_repository`: activate a pending repository after its read-only Deploy Key is installed; requires `configure`.
+- `verify_repository`: activate a pending repository after its read-only Deploy Key is installed; requires `configure`. Failures return the classified GitHub reason (Deploy Keys disabled vs missing key) and say Graph/catalog observation writes remain possible while pending.
 - `list_workspace_datasets`: declared dataset paths below Owner-approved trusted workspace roots.
 - `register_workspace_dataset`: declare one normalized relative dataset path without authorizing a new host root; requires `configure`.
 - `remove_workspace_dataset`: disable one declaration without deleting host data; requires `configure`.
-- `get_research_workspace`: return Studies, the selected iteration plan, the research Graph (nodes include git `branch` when known), hypothesis records, and next actions without starting a workload.
-- `update_research_workspace`: create or update a Study, replace the active plan, or record a Graph node; historical nodes should set `occurred_at` from the evidence committer date and optional `commit_sha`. Requires `submit` and never starts a workload.
-- `get_next_actions`: return the next scientific step for the selected Study from its hypotheses, runs, and observations — a decision or Experiment proposal, not only a legal-edge checklist.
+- `get_research_workspace`: return Studies (including optional route binding), the selected iteration plan, the research Graph (nodes include `requested_ref` as `branch` when known — never an invented default branch), hypothesis records with `git_identity`, and next actions without starting a workload.
+- `update_research_workspace`: create or update a Study (optional `protocol_branch`, `protocol_doc_path`, `code_ref_pattern`), replace the active plan, or record a Graph node; historical nodes should set `occurred_at` from the evidence committer date and optional `commit_sha`. Requires `submit` and never starts a workload.
+- `get_next_actions`: return the next scientific step for the selected Study from its hypotheses, runs, and observations — a decision or Experiment proposal, not only a legal-edge checklist. Prepare actions carry `allowed_ref_pattern` when the Study has a route. A result or decision may also suggest `export_research_plan_sync`.
+- `export_research_plan_sync`: dry-run (default) a docs-only markdown amendment for the protocol branch; `dry_run=false` records an audit receipt. Never a training run. Gemcp never pushes git. Requires `read` for dry-run and `submit` to record.
 - `close_run`: write a result node on a terminal Experiment that already has a Graph run, and a highlight observation linked to the originating hypothesis; omit `metric_name` to copy the prepared `expected_metric` from the Experiment; optionally attach the full Git commit containing a durable result manifest as `result_commit_sha`; host-process Cloud SSH runs have no Git checkout and must omit `result_commit_sha`; `study_id` may be omitted when `experiment_id` already identifies the bound run; requires `submit`.
 - `get_experiment_catalog`: return registered repository identity plus extracted catalog rows (Setting, method, implementation, metric, result, link, hash, branch) without starting a workload.
 - `record_experiment_catalog`: persist raw experiment rows from research branches of a registered GitHub repository; requires `submit` and never starts a workload.
-- `prepare_experiment`: resolve a repository/ref, safe argv or a named `workload` plus typed `parameters`, compatible defaults, preflight checks, cost, and a short-lived immutable proposal without reserving budget. A named workload resolves from `gemcp.yaml` at the verified commit when present; otherwise it can use a Project workload saved from a succeeded one-shot. `runtime_preset` may be `smoke` (300s), `probe` (3600s), `train` (up to the Project max runtime), or `provision` (Gemcp-owned AutoDL dataset fetch; omit argv and workload). Optional `install_dependencies` runs `python -m pip install --user` from the verified commit. AutoDL probe/train require a Project dataset binding under `/root/autodl-fs/`. When a Study exists, `from_node_id` must be a connected hypothesis, or a plan that traces back to a hypothesis through `leads_to` parents, and is bound into the confirmation digest. Isolated nodes and plans hanging only off the question cannot prepare. For experimental Cloud SSH, omit `image` and optionally omit repository; pass `argv` and optional `cwd`. Do not invent SSH credentials, wrap argv in a shell, or write wget/curl/conda.
+- `prepare_experiment`: resolve a repository/ref, safe argv or a named `workload` plus typed `parameters`, compatible defaults, preflight checks, cost, and a short-lived immutable proposal without reserving budget. A named workload resolves from `gemcp.yaml` at the verified commit when present; otherwise it can use a Project workload saved from a succeeded one-shot. `runtime_preset` may be `smoke` (300s), `probe` (3600s), `train` (up to the Project max runtime), or `provision` (Gemcp-owned AutoDL dataset fetch; omit argv and workload). Optional `install_dependencies` runs `python -m pip install --user` from the verified commit. AutoDL probe/train require a Project dataset binding under `/root/autodl-fs/`. When a Study exists, `from_node_id` must be a connected hypothesis, or a plan that traces back to a hypothesis through `leads_to` parents, and is bound into the confirmation digest. Isolated nodes and plans hanging only off the question cannot prepare. When the Study route names `code_ref_pattern`, pass a matching live `ref`; omitting `ref` would bind the repository default branch. The proposal and submitted Experiment include `git_identity`. For experimental Cloud SSH, omit `image` and optionally omit repository; pass `argv` and optional `cwd`. Do not invent SSH credentials, wrap argv in a shell, or write wget/curl/conda.
 - `list_dataset_bindings` / `register_dataset_binding` / `remove_dataset_binding`: Project AutoDL or Cloud SSH dataset roots, optional catalog (`scanobjectnn-objbg` or local CPU `modelnet40-mini`) and HTTPS sources, and `GEMCP_DATASET_*` injection; AutoDL write tools require `configure`. Catalog `modelnet40-mini` also accepts `submit` when `GEMCP_LOCAL_PROCESS_ENABLED` is on so a skip_provider smoke token can register the CPU fixture. Registration never uploads data; `runtime_preset=provision` downloads allowlisted sources.
 - `register_environment` / `remove_environment`: register or disable a Provider-visible AutoDL image for the Project, or ensure the Cloud SSH host Environment (`backend=ssh_cloud` or `image_uuid` `host`/`cpu`/`local`). AutoDL writes require `configure`. The local CPU host Environment accepts `submit` when `GEMCP_LOCAL_PROCESS_ENABLED` is on. A finished image bake `image_uuid` is accepted.
 - `request_image_bake`: persist a zero-cost `requested` AutoDL Pro bake with a confirmation digest. Requires `configure`. Does not create a Pro instance, Experiment, Graph node, or budget reservation.
@@ -307,8 +308,8 @@ Scope mapping:
 
 | Scope | Required for |
 | --- | --- |
-| `read` | usage guide, options, research workspace, next actions, experiment queries, artifact listing and bounded artifact reads, cost queries, and image bake status |
-| `submit` | research updates, close_run, prepare, prepared submission, Advanced direct submission, and the local CPU stub (`register_ssh_cloud_node` loopback, host Environment, catalog `modelnet40-mini`) when `GEMCP_LOCAL_PROCESS_ENABLED` is on. While that flag is on, MCP requests are verified as if the token also held `configure` and `operate_nodes`; the stored token scopes never change, so turning the flag off restores the token's real authority |
+| `read` | usage guide, options, research workspace, next actions, experiment queries, artifact listing and bounded artifact reads, cost queries, image bake status, and `export_research_plan_sync` dry-run |
+| `submit` | research updates, close_run, prepare, prepared submission, Advanced direct submission, recording a plan-sync audit receipt, and the local CPU stub (`register_ssh_cloud_node` loopback, host Environment, catalog `modelnet40-mini`) when `GEMCP_LOCAL_PROCESS_ENABLED` is on. While that flag is on, MCP requests are verified as if the token also held `configure` and `operate_nodes`; the stored token scopes never change, so turning the flag off restores the token's real authority |
 | `cancel` | `cancel_experiment` |
 | `configure` | register and verify Project repositories; register or disable trusted-workspace dataset paths and AutoDL dataset bindings; request a zero-cost image bake |
 | `operate_nodes` | register Cloud SSH hosts and rotate their credentials; off by default in production and not included in `configure`. skip_provider local setup tokens include it |
@@ -317,7 +318,7 @@ Issue the minimum scopes needed by the third-party Agent.
 
 ## Prepared submission contract
 
-The normal call may omit the repository and ref when the Project has one active repository with a default branch:
+The normal call may omit the repository and ref when the Project has one active repository with a default branch **and the Study has no `code_ref_pattern`**. If the Study route names an allowed live-ref family, `ref` is required and must match:
 
 ```json
 {

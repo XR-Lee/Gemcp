@@ -49,6 +49,7 @@ function blockerAction(blocker: RepositoryReadinessBlocker) {
       </div>
       <span class="state-badge" :data-state="readiness.status"><span />{{ localizedState(readiness.status) }}</span>
     </header>
+    <p v-if="readiness.pending_note" class="repo-readiness-pending" data-testid="pending-note">{{ readiness.pending_note }}</p>
     <dl class="repo-readiness-facts">
       <div>
         <dt>{{ t('Access', '访问') }}</dt>

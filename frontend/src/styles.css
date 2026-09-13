@@ -467,6 +467,8 @@ label small { color: #858e88; font-size: 10px; font-weight: 500; }
 .research-heading h2 { margin: 0; font-size: 22px; line-height: 28px; }
 .research-heading p { max-width: 640px; margin: 6px 0 0; color: #6d776f; font-size: 13px; line-height: 20px; }
 .research-repo { display: inline-flex; align-items: center; gap: 6px; color: #4d5a52; font-family: var(--mono); font-size: 12px; }
+.research-route { margin: 6px 0 0; color: #5c6560; font-size: 12px; line-height: 18px; }
+.research-route code { font-size: 11px; }
 .research-heading-actions { display: flex; align-items: center; gap: 10px; }
 .research-loading, .research-updated { margin: 16px 4px 0; color: #7b847e; font-size: 12px; }
 .research-mcp-banner {
@@ -527,6 +529,7 @@ label small { color: #858e88; font-size: 10px; font-weight: 500; }
 .repo-readiness-blockers li { display: flex; gap: 8px; align-items: flex-start; color: #6a5a2b; }
 .repo-readiness-blockers p { margin: 2px 0 0; color: #667069; font-size: 12px; }
 .repo-readiness-ok, .repo-readiness-key { display: inline-flex; align-items: center; gap: 6px; }
+.repo-readiness-pending { margin: 0; color: #6a5a2b; font-size: 12px; line-height: 18px; }
 .research-empty .repo-readiness { width: min(720px, 100%); margin-left: auto; margin-right: auto; }
 .research-summary { margin-top: 16px; display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 12px; }
 .research-card { min-width: 0; min-height: 148px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }

@@ -149,7 +149,7 @@ func TestLocalDevBootstrapMatchesBinary(t *testing.T) {
 			}
 		case strings.HasSuffix(filename, "tester-brief.md"):
 			for _, required := range []string{
-				"registers **34** tools", "Lab → Project, Agents, Finance, Alerts, Provider, Images",
+				"registers **35** tools", "Lab → Project, Agents, Finance, Alerts, Provider, Images",
 				"request_image_bake", "fail-closed", "invents no `image_uuid`",
 			} {
 				if !strings.Contains(body, required) {
@@ -230,7 +230,7 @@ export async function verifyConfiguredServer(configPath, serverName) {
   const config = JSON.parse(await fs.readFile(configPath, 'utf8'))
   const server = config.mcpServers?.[serverName]
   if (!server?.bearerToken?.startsWith('gmc_')) throw new Error('missing test credential')
-  return { toolCount: 34, checks: ['tools', 'guide', 'options', 'cost'] }
+  return { toolCount: 35, checks: ['tools', 'guide', 'options', 'cost'] }
 }
 `))
 		case "/api/v1/agent-enrollments/claim":
@@ -241,7 +241,7 @@ export async function verifyConfiguredServer(configPath, serverName) {
 				"pi_config": map[string]any{
 					"type": "http", "url": serverURL + "/mcp", "auth": "bearer",
 					"bearerToken": "gmc_test_install_secret", "lifecycle": "lazy", "exposeResources": true,
-					"directTools": []string{"get_usage_guide", "list_repository_registrations", "register_repository", "verify_repository", "list_workspace_datasets", "register_workspace_dataset", "remove_workspace_dataset", "list_dataset_bindings", "register_dataset_binding", "remove_dataset_binding", "register_environment", "remove_environment", "request_image_bake", "get_image_bake", "list_image_bakes", "get_research_workspace", "update_research_workspace", "get_next_actions", "close_run", "get_experiment_catalog", "record_experiment_catalog", "report_agent_activity", "prepare_experiment", "submit_prepared_experiment", "get_project_options", "get_project_cost", "submit_experiment", "get_experiment", "list_experiments", "cancel_experiment", "list_artifacts", "read_artifact", "register_ssh_cloud_node", "rotate_ssh_cloud_node_credential"},
+					"directTools": []string{"get_usage_guide", "list_repository_registrations", "register_repository", "verify_repository", "list_workspace_datasets", "register_workspace_dataset", "remove_workspace_dataset", "list_dataset_bindings", "register_dataset_binding", "remove_dataset_binding", "register_environment", "remove_environment", "request_image_bake", "get_image_bake", "list_image_bakes", "get_research_workspace", "update_research_workspace", "get_next_actions", "export_research_plan_sync", "close_run", "get_experiment_catalog", "record_experiment_catalog", "report_agent_activity", "prepare_experiment", "submit_prepared_experiment", "get_project_options", "get_project_cost", "submit_experiment", "get_experiment", "list_experiments", "cancel_experiment", "list_artifacts", "read_artifact", "register_ssh_cloud_node", "rotate_ssh_cloud_node_credential"},
 				},
 			}})
 		case "/api/v1/agent-enrollments/complete":
