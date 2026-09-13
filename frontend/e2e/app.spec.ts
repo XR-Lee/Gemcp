@@ -18,6 +18,8 @@ const repositories = [
     id: 'cd3bb6ae-fc36-47f7-8715-ce044b676515', project_id: project.id, name: 'new-baseline',
     ssh_url: 'git@github.com:research/new-baseline.git', default_branch: 'main', status: 'pending_key',
     deploy_public_key: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAnotherFakePublicKeyForVisualTestingOnly gemcp-test',
+    observation_writes_allowed: true,
+    pending_note: 'Graph and experiment-catalog observation writes remain possible while status is pending_key. Prepare of a git-backed Experiment still requires verify.',
   },
 ]
 const experiments = [
@@ -179,6 +181,7 @@ const researchWorkspace = {
     id: 'study-objbg-1', name: 'objbg-scan', question: 'Can a cleaner OBJ-BG traversal raise ScanObjectNN accuracy without extra GPU hours?',
     summary: 'Keep the Owner on the scientific question; attach later Experiments as evidence.',
     status: 'active', updated_at: '2026-07-28T18:05:00Z',
+    route: { protocol_branch: 'research-plan', protocol_doc_path: 'research-plan/STATUS.md', code_ref_pattern: 'autoresearch/*' },
     plan: {
       id: 'plan-objbg-1', status: 'active', goal: 'Establish a reproducible OBJ-BG baseline.',
       next_action: 'Record the current smoke-run accuracy as the first Graph result.',
@@ -209,6 +212,11 @@ const researchWorkspace = {
     kind: 'record_hypothesis', tool: 'update_research_workspace', study_id: 'study-objbg-1',
     from_node_id: 'node-question-1', title: 'Record a hypothesis',
     detail: 'A paid run must start from a hypothesis or plan node, not from the question alone.',
+  }, {
+    kind: 'export_plan_sync', tool: 'export_research_plan_sync', study_id: 'study-objbg-1',
+    title: 'Export a research-plan docs patch',
+    detail: 'Dry-run a markdown amendment for the protocol branch. This is not a training run.',
+    protocol_branch: 'research-plan', protocol_doc_path: 'research-plan/STATUS.md', allowed_ref_pattern: 'autoresearch/*',
   }],
   generated_at: '2026-07-28T18:05:00Z',
 }
@@ -742,6 +750,9 @@ async function mockConsole(page: Page, counters?: { providerQueries?: number; se
           resource_profile: { name: 'rtx4090' },
           dataset_binding: { name: 'scanobjectnn-objbg' },
         },
+        pending_note: repository.status === 'pending_key'
+          ? 'Graph and experiment-catalog observation writes remain possible while status is pending_key. Prepare of a git-backed Experiment still requires verify.'
+          : undefined,
         blockers: repository.status === 'active' ? [] : [{
           kind: 'deploy_key_required', title: 'Add a read-only Deploy Key',
           detail: 'Install this Gemcp public key on the GitHub repository as a read-only Deploy Key, then verify access.',
@@ -750,6 +761,20 @@ async function mockConsole(page: Page, counters?: { providerQueries?: number; se
       })
     }
     if (path === '/api/v1/experiments') return fulfill(route, experiments)
+    if (path === `/api/v1/projects/${project.id}/research/plan-sync` && route.request().method() === 'POST') {
+      const body = route.request().postDataJSON()
+      return fulfill(route, {
+        study_id: 'study-objbg-1',
+        dry_run: body.dry_run !== false,
+        target_branch: 'research-plan',
+        target_path: 'research-plan/STATUS.md',
+        title: 'Gemcp research-plan amendment: objbg-scan',
+        markdown: '# Gemcp research-plan amendment\n\n- Study: objbg-scan\n- Protocol branch: `research-plan`\n- Allowed code refs: `autoresearch/*`\n\nMetrics and scalars live on the Gemcp Graph. This markdown is a docs-only amendment for the protocol branch, not the source of truth.\n',
+        warning: 'Gemcp does not push this patch. Apply it on the docs-only protocol branch.',
+        recorded: body.dry_run === false,
+        generated_at: '2026-07-28T18:05:00Z',
+      })
+    }
     if (path === `/api/v1/projects/${project.id}/research`) return fulfill(route, researchWorkspace)
     if (path === `/api/v1/projects/${project.id}/experiment-catalog`) {
       return fulfill(route, {
@@ -859,8 +884,21 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Research', exact: true }).first()).toBeVisible()
   await expect(page.getByRole('heading', { name: 'objbg-scan' })).toBeVisible()
+  await expect(page.getByTestId('study-route')).toContainText('research-plan')
+  await expect(page.getByTestId('study-route')).toContainText('autoresearch/*')
+  await expect(page.getByTestId('hypothesis-records')).toContainText('autoresearch/objbg-baseline')
+  await expect(page.getByTestId('hypothesis-records')).not.toContainText('main')
   await expect(page.getByText('Record the current smoke-run accuracy as the first Graph result.')).toBeVisible()
   await expect(page.getByText('Record a hypothesis')).toBeVisible()
+  await page.getByTestId('export-plan-sync').click()
+  const planSyncDialog = page.getByRole('dialog', { name: 'Export research-plan sync' })
+  await expect(planSyncDialog).toBeVisible()
+  await expect(planSyncDialog).toContainText('research-plan/STATUS.md')
+  await expect(planSyncDialog.locator('textarea')).toHaveValue(/Metrics and scalars live on the Gemcp Graph/)
+  await planSyncDialog.getByRole('button', { name: 'Record audit receipt' }).click()
+  await expect(planSyncDialog.getByText('Audit receipt recorded')).toBeVisible()
+  await planSyncDialog.getByTitle('Close').click()
+  await expect(planSyncDialog).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'Research Graph' })).toBeVisible()
   const catalog = page.getByTestId('repo-experiment-catalog')
   await expect(catalog).toBeVisible()
@@ -885,6 +923,8 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await page.getByRole('button', { name: 'New study' }).click()
   await expect(page.getByRole('dialog', { name: 'Import study' })).toBeVisible()
   await expect(page.getByText('Import from')).toBeVisible()
+  await expect(page.getByPlaceholder('research-plan')).toBeVisible()
+  await expect(page.getByPlaceholder('autoresearch/*')).toBeVisible()
   await expect(page.getByPlaceholder('git@github.com:owner/repository.git')).toHaveCount(0)
   await page.getByRole('dialog', { name: 'Import study' }).getByTitle('Close').click()
   await expect(page.locator('.vue-flow')).toBeVisible()
@@ -949,6 +989,11 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await expect(page.getByTestId('repository-readiness')).toBeVisible()
   await expect(page.getByTestId('repository-readiness')).toContainText('objbg-smoke')
   await page.screenshot({ path: '/tmp/gemcp-repository-dialog.png', fullPage: true })
+  await page.getByTitle('Close').click()
+  await page.getByTitle('View Deploy public key').nth(1).click()
+  await expect(page.getByRole('heading', { name: 'Deploy public key' })).toBeVisible()
+  await expect(page.getByText('Graph and experiment-catalog observation writes remain possible while status is pending_key.')).toBeVisible()
+  await expect(page.getByTestId('pending-note')).toContainText('Graph and experiment-catalog observation writes remain possible')
   await page.getByTitle('Close').click()
 
   await page.getByRole('button', { name: 'Evidence', exact: true }).click()

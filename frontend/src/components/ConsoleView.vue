@@ -1148,7 +1148,7 @@ onMounted(async () => {
       <label>{{ t('Protocol branch', '协议分支') }}<input v-model="studyForm.protocolBranch" maxlength="255" placeholder="research-plan" spellcheck="false" /></label>
       <label>{{ t('Protocol doc path', '协议文档路径') }}<input v-model="studyForm.protocolDocPath" maxlength="512" placeholder="research-plan/STATUS.md" spellcheck="false" /></label>
       <label>{{ t('Allowed code refs', '允许的代码 ref') }}<input v-model="studyForm.codeRefPattern" maxlength="255" placeholder="autoresearch/*" spellcheck="false" /></label>
-      <p class="form-note">{{ t('Route binding is optional. Protocol branch is docs-only. Live Experiments must pass a matching code ref; omitting ref would bind the repository default branch.', '路由绑定可选。协议分支只写文档。活实验必须传入匹配的代码 ref；省略 ref 会绑到仓库默认分支。') }}</p>
+      <p class="form-note">{{ t('Route binding is optional. Protocol branch is docs-only. When Allowed code refs is set, live Experiments must pass a matching ref — omitting ref is refused. Do not dump training code onto the protocol branch.', '路由绑定可选。协议分支只写文档。设置了允许的代码 ref 时，活实验必须传入匹配的 ref，省略会被拒绝。不要把训练代码写进协议分支。') }}</p>
       <div v-if="dialogError" class="form-error">{{ dialogError }}</div>
       <button class="primary-button" type="submit" :disabled="studyBusy"><LoaderCircle v-if="studyBusy" :size="16" class="spinning" /><Plus v-else :size="16" />{{ importingNewRepository ? t('Import repository and study', '导入仓库并创建 Study') : t('Create study', '创建 Study') }}</button>
     </form>

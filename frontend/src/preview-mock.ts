@@ -298,6 +298,47 @@ function match(url: URL, method: string, body?: unknown): Response | null {
   if (path.includes('/experiment-proposals/') && path.endsWith('/submit') && method === 'POST') {
     return json({ experiment: experiments[0], idempotent: false })
   }
+  if (path === `/api/v1/projects/${projectID}/research/plan-sync` && method === 'POST') {
+    const input = body && typeof body === 'object' ? body as Record<string, unknown> : {}
+    const dryRun = input.dry_run !== false
+    return json({
+      study_id: 'study-objbg-1',
+      dry_run: dryRun,
+      target_branch: 'research-plan',
+      target_path: 'research-plan/STATUS.md',
+      title: 'Gemcp research-plan amendment: objbg-scan',
+      markdown: '# Gemcp research-plan amendment\n\n- Study: objbg-scan\n- Protocol branch: `research-plan`\n- Allowed code refs: `autoresearch/*`\n\nMetrics and scalars live on the Gemcp Graph. This markdown is a docs-only amendment for the protocol branch, not the source of truth.\n',
+      warning: 'Gemcp does not push this patch. Apply it on the docs-only protocol branch. Do not force-push. Do not write training code or frozen recipe files.',
+      recorded: !dryRun,
+      generated_at: '2026-08-17T18:05:00Z',
+    })
+  }
+  if (path === `/api/v1/projects/${projectID}/research` && method === 'PUT') {
+    const input = body && typeof body === 'object' ? body as Record<string, unknown> : {}
+    const studyInput = input.study && typeof input.study === 'object' ? input.study as Record<string, unknown> : {}
+    if (studyInput.name) {
+      const route = {
+        protocol_branch: String(studyInput.protocol_branch || ''),
+        protocol_doc_path: String(studyInput.protocol_doc_path || ''),
+        code_ref_pattern: String(studyInput.code_ref_pattern || ''),
+      }
+      const created = {
+        id: 'study-imported-1',
+        name: String(studyInput.name),
+        question: String(studyInput.question || ''),
+        summary: String(studyInput.summary || ''),
+        status: 'active',
+        updated_at: '2026-08-17T18:06:00Z',
+        ...(route.protocol_branch || route.protocol_doc_path || route.code_ref_pattern ? { route } : {}),
+      }
+      research.studies = [created, ...(research.studies || [])]
+      Object.assign(research, {
+        study: { ...created, plan: undefined, nodes: [], edges: [], hypotheses: [] },
+        next_actions: [],
+      })
+    }
+    return json(research)
+  }
   if (path === `/api/v1/projects/${projectID}/research`) return json(research)
   if (path === `/api/v1/projects/${projectID}/experiment-catalog`) {
     return json({

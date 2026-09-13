@@ -70,7 +70,7 @@ It reads the selected Study and, for each hypothesis, looks at existing runs, re
 - closed evidence with a decision → prepare the next Experiment from that hypothesis, until the decision spawns a follow-up hypothesis, which then owns its own next step
 - a result or decision is on the Graph → also offer `export_research_plan_sync` (docs-only; never a training run)
 
-When the Study has a route, prepare actions include `allowed_ref_pattern`, `protocol_branch`, and `protocol_doc_path`. Pass a matching live code `ref`. Omitting `ref` would bind the repository default branch.
+When the Study has a route, prepare actions include `allowed_ref_pattern`, `protocol_branch`, and `protocol_doc_path`. Pass a matching live code `ref`. With `code_ref_pattern` set, omitting `ref` is refused (it would otherwise bind the repository default branch).
 
 Import-time mapping of historical branches still uses `update_research_workspace`. `get_next_actions` is not a stop signal for that reconstruction, and it is not a license to spend before the Owner confirms the digest.
 
