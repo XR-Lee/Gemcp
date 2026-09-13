@@ -702,6 +702,7 @@ function openKey(repository: Repository) {
   selectedRepository.value = repository
   dialogError.value = ''
   repositoryDialog.value = 'key'
+  void loadRepositoryReadiness(repository)
 }
 
 async function tryVerifyRepository(repository: Repository, silent = false) {
