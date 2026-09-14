@@ -108,10 +108,10 @@ func New(agentAuth *agentauth.Service, experiments *experiment.Service, version 
 		Name: "list_repository_registrations", Description: "List active and pending Git repositories for the authenticated Project, including public deploy keys.",
 	}, server.listRepositoryRegistrations)
 	mcp.AddTool(mcpServer, &mcp.Tool{
-		Name: "register_repository", Description: "Register a GitHub repository from an SSH or HTTPS URL. Public repositories activate immediately with no Deploy Key. Private repositories return a pending record and a read-only deploy public key. Requires configure scope.",
+		Name: "register_repository", Description: "Register a GitHub repository from an SSH or HTTPS URL. Public repositories activate immediately with no Deploy Key. Private repositories return a pending record and a read-only deploy public key. When Deploy Keys are disabled, pass a write-only https_token to verify_repository. Requires configure scope.",
 	}, server.registerRepository)
 	mcp.AddTool(mcpServer, &mcp.Tool{
-		Name: "verify_repository", Description: "Verify one pending Project repository after its read-only deploy key is installed. Requires configure scope.",
+		Name: "verify_repository", Description: "Verify one pending Project repository after its read-only deploy key is installed, or after a write-only GitHub HTTPS token (PAT or fine-grained token with Contents: Read) is supplied as https_token. Requires configure scope.",
 	}, server.verifyRepository)
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "list_workspace_datasets", Description: "List dataset paths declared below this Project's Owner-approved trusted workspace roots.",

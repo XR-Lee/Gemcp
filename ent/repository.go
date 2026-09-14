@@ -41,6 +41,8 @@ type Repository struct {
 	DeployPublicKey string `json:"-"`
 	// DeployPrivateKeyCiphertext holds the value of the "deploy_private_key_ciphertext" field.
 	DeployPrivateKeyCiphertext string `json:"-"`
+	// HTTPSTokenCiphertext holds the value of the "https_token_ciphertext" field.
+	HTTPSTokenCiphertext string `json:"-"`
 	// Status holds the value of the "status" field.
 	Status repository.Status `json:"status,omitempty"`
 	// LastVerifiedAt holds the value of the "last_verified_at" field.
@@ -133,7 +135,7 @@ func (*Repository) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case repository.FieldID, repository.FieldProjectID:
 			values[i] = new(sql.NullInt64)
-		case repository.FieldName, repository.FieldSSHURL, repository.FieldSSHHost, repository.FieldDefaultBranch, repository.FieldHostKeyFingerprint, repository.FieldDeployPublicKey, repository.FieldDeployPrivateKeyCiphertext, repository.FieldStatus:
+		case repository.FieldName, repository.FieldSSHURL, repository.FieldSSHHost, repository.FieldDefaultBranch, repository.FieldHostKeyFingerprint, repository.FieldDeployPublicKey, repository.FieldDeployPrivateKeyCiphertext, repository.FieldHTTPSTokenCiphertext, repository.FieldStatus:
 			values[i] = new(sql.NullString)
 		case repository.FieldCreatedAt, repository.FieldUpdatedAt, repository.FieldLastVerifiedAt:
 			values[i] = new(sql.NullTime)
@@ -225,6 +227,12 @@ func (_m *Repository) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field deploy_private_key_ciphertext", values[i])
 			} else if value.Valid {
 				_m.DeployPrivateKeyCiphertext = value.String
+			}
+		case repository.FieldHTTPSTokenCiphertext:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field https_token_ciphertext", values[i])
+			} else if value.Valid {
+				_m.HTTPSTokenCiphertext = value.String
 			}
 		case repository.FieldStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -335,6 +343,8 @@ func (_m *Repository) String() string {
 	builder.WriteString("deploy_public_key=<sensitive>")
 	builder.WriteString(", ")
 	builder.WriteString("deploy_private_key_ciphertext=<sensitive>")
+	builder.WriteString(", ")
+	builder.WriteString("https_token_ciphertext=<sensitive>")
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Status))

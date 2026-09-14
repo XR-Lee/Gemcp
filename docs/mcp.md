@@ -276,7 +276,7 @@ Study, hypothesis, run, result, highlight observation, and orphan have one defin
 - `get_usage_guide`: current Agent operating guide, authenticated project ID, Token scopes, Resource URI, and Prompt name.
 - `list_repository_registrations`: active and pending repositories in the authenticated Project, including non-secret deploy public keys.
 - `register_repository`: register a GitHub SSH or HTTPS URL in the authenticated Project; public repositories activate immediately; private repositories return a pending Deploy Key; requires `configure`.
-- `verify_repository`: activate a pending repository after its read-only Deploy Key is installed; requires `configure`. Failures return the classified GitHub reason (Deploy Keys disabled vs missing key) and say Graph/catalog observation writes remain possible while pending.
+- `verify_repository`: activate a pending repository after its read-only Deploy Key is installed, or after a write-only GitHub HTTPS token (`https_token`, PAT or fine-grained token with Contents: Read) is supplied; requires `configure`. Failures return the classified GitHub reason (Deploy Keys disabled, missing key, or invalid HTTPS token) and say Graph/catalog observation writes remain possible while pending. Deploy Keys disabled errors point at `https_token`. The token is never returned.
 - `list_workspace_datasets`: declared dataset paths below Owner-approved trusted workspace roots.
 - `register_workspace_dataset`: declare one normalized relative dataset path without authorizing a new host root; requires `configure`.
 - `remove_workspace_dataset`: disable one declaration without deleting host data; requires `configure`.

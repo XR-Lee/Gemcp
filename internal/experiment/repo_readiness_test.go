@@ -38,6 +38,30 @@ func TestOwnerRepositoryReadinessPendingDeployKey(t *testing.T) {
 	}
 }
 
+func TestOwnerRepositoryReadinessPendingHTTPSToken(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	ctx := context.Background()
+	pending, err := f.client.Repository.Create().
+		SetProjectID(f.project.ID).SetName("dynamic-point-mamba").
+		SetSSHURL("git@github.com:XR-Lee/DynamicPointMamba.git").SetSSHHost("github.com").
+		SetDefaultBranch("main").SetHTTPSTokenCiphertext("v1.stored-ciphertext-not-a-secret").
+		SetStatus(repository.StatusPendingKey).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := NewService(f.client, f.box, f.verifier)
+	view, err := service.OwnerRepositoryReadiness(ctx, f.principal.TenantID, f.project.PublicID.String(), pending.PublicID.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if view.Ready || view.Access != "https_token" || !view.HTTPSTokenConfigured {
+		t.Fatalf("pending HTTPS token readiness = %+v", view)
+	}
+	if len(view.Blockers) < 1 || view.Blockers[0].Kind != "https_token_verify_required" {
+		t.Fatalf("pending HTTPS token blockers = %+v", view.Blockers)
+	}
+}
+
 func TestOwnerRepositoryReadinessInspectsManifestAndDefaults(t *testing.T) {
 	f := newFixture(t, 100000, 20000)
 	ctx := context.Background()

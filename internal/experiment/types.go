@@ -440,6 +440,8 @@ type RepositoryReadiness struct {
 	CommitSHA                string                   `json:"commit_sha,omitempty"`
 	DeployPublicKey          string                   `json:"deploy_public_key,omitempty"`
 	DeployKeySettingsURL     string                   `json:"deploy_key_settings_url,omitempty"`
+	HTTPSTokenConfigured     bool                     `json:"https_token_configured,omitempty"`
+	HTTPSTokenSettingsURL    string                   `json:"https_token_settings_url,omitempty"`
 	ObservationWritesAllowed bool                     `json:"observation_writes_allowed"`
 	PendingNote              string                   `json:"pending_note,omitempty"`
 	Ready                    bool                     `json:"ready"`

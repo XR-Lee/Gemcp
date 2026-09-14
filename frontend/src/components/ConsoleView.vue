@@ -25,7 +25,7 @@ import {
   WalletCards,
   X,
 } from '@lucide/vue'
-import { APIError, api, githubDeployKeySettingsURL, type AgentReadiness, type Attempt, type BuildInfo, type DatasetBinding, type DatasetCatalogEntry, type Experiment, type ExperimentCatalog, type OperationsFeed, type PreparedProposal, type Project, type ProjectEnvironment, type ProjectWorkload, type ProposalActivity, type Repository, type RepositoryReadiness, type ResearchPlanSyncExport, type ResearchWorkspace, type RuntimeStatus, type User } from '../api'
+import { APIError, api, githubDeployKeySettingsURL, githubFineGrainedTokenSettingsURL, type AgentReadiness, type Attempt, type BuildInfo, type DatasetBinding, type DatasetCatalogEntry, type Experiment, type ExperimentCatalog, type OperationsFeed, type PreparedProposal, type Project, type ProjectEnvironment, type ProjectWorkload, type ProposalActivity, type Repository, type RepositoryReadiness, type ResearchPlanSyncExport, type ResearchWorkspace, type RuntimeStatus, type User } from '../api'
 import { localizedState, useI18n } from '../i18n'
 import { pickDefaultProjectID } from '../projectSelect'
 import { draftStudyFromRepository, repositoryNameFromSSHURL } from '../studyImport'
@@ -89,7 +89,7 @@ const selectedRepository = ref<Repository | null>(null)
 const repositoryBusy = ref(false)
 const dialogError = ref('')
 const copied = ref('')
-const repositoryForm = reactive({ name: '', sshURL: '', defaultBranch: 'main' })
+const repositoryForm = reactive({ name: '', sshURL: '', defaultBranch: 'main', httpsToken: '' })
 const policyForm = reactive({ monthlyBudgetCNY: '' })
 const policyBusy = ref(false)
 const datasetBindings = ref<DatasetBinding[]>([])
@@ -700,15 +700,22 @@ async function createRepository() {
 
 function openKey(repository: Repository) {
   selectedRepository.value = repository
+  repositoryForm.httpsToken = ''
   dialogError.value = ''
   repositoryDialog.value = 'key'
   void loadRepositoryReadiness(repository)
 }
 
-async function tryVerifyRepository(repository: Repository, silent = false) {
+function repositoryAccessLabel(access?: string) {
+  if (access === 'public_https') return t('Public HTTPS', '公开 HTTPS')
+  if (access === 'https_token') return t('HTTPS token', 'HTTPS 令牌')
+  return t('Deploy Key', 'Deploy Key')
+}
+
+async function tryVerifyRepository(repository: Repository, silent = false, httpsToken = '') {
   attemptedVerify.add(repository.id)
   try {
-    const verified = await api.verifyRepository(repository.id)
+    const verified = await api.verifyRepository(repository.id, '', httpsToken)
     repositories.value = repositories.value.map((item) => item.id === verified.id ? verified : item)
     if (selectedRepository.value?.id === verified.id) selectedRepository.value = verified
     return verified
@@ -766,11 +773,36 @@ async function verifyRepository(repository = selectedRepository.value) {
     repositoryDialog.value = 'key'
     await loadRepositoryReadiness(repository)
     if (!dialogError.value) {
-      dialogError.value = t('Add this Gemcp public key on GitHub first: a read-only repository Deploy Key, or your account SSH keys if Deploy Key is unavailable. Then verify again.', '请先把这把 Gemcp 公钥加到 GitHub：仓库只读 Deploy Key，或 Deploy Key 加不上时加到账号 SSH keys。然后再验证。')
+      dialogError.value = t('Add this Gemcp public key as a read-only GitHub Deploy Key, or paste a fine-grained HTTPS token with Contents: Read and activate with the token. Then verify again.', '请先把这把 Gemcp 公钥加为只读 GitHub Deploy Key，或粘贴一把 Contents: Read 的细粒度 HTTPS 令牌并激活。然后再验证。')
     }
   } catch (caught) {
     dialogError.value = caught instanceof APIError ? caught.message : t('Repository verification failed.', '仓库验证失败。')
     repositoryDialog.value = 'key'
+  } finally {
+    repositoryBusy.value = false
+  }
+}
+
+async function activateWithHTTPSToken(repository = selectedRepository.value) {
+  if (!repository) return
+  const token = repositoryForm.httpsToken.trim()
+  if (!token) {
+    dialogError.value = t('Paste a GitHub fine-grained token with Contents: Read on this repository.', '请粘贴一把对此仓库有 Contents: Read 的 GitHub 细粒度令牌。')
+    return
+  }
+  selectedRepository.value = repository
+  repositoryBusy.value = true
+  dialogError.value = ''
+  try {
+    const verified = await tryVerifyRepository(repository, false, token)
+    repositoryForm.httpsToken = ''
+    if (verified?.status === 'active') {
+      await refreshProject(false)
+      await loadRepositoryReadiness(verified)
+      dialogError.value = ''
+      return
+    }
+    await loadRepositoryReadiness(repository)
   } finally {
     repositoryBusy.value = false
   }
@@ -1106,7 +1138,7 @@ onMounted(async () => {
     <form v-if="confirmationTarget" class="dialog-form proposal-confirmation-form" @submit.prevent="submitProposalConfirmation">
       <dl class="proposal-confirmation-grid">
         <div class="span-two"><dt>{{ t('Repository and ref', '仓库与 ref') }}</dt><dd><strong>{{ confirmationTarget.repository_name }}</strong><code>{{ confirmationTarget.requested_ref }}</code></dd></div>
-        <div v-if="confirmationTarget.repository_access"><dt>{{ t('Repository access', '仓库访问') }}</dt><dd>{{ confirmationTarget.repository_access === 'public_https' ? t('Public HTTPS', '公开 HTTPS') : t('Deploy Key', 'Deploy Key') }}</dd></div>
+        <div v-if="confirmationTarget.repository_access"><dt>{{ t('Repository access', '仓库访问') }}</dt><dd>{{ repositoryAccessLabel(confirmationTarget.repository_access) }}</dd></div>
         <div v-if="confirmationTarget.repository_url" class="wide"><dt>{{ t('Remote', '远程') }}</dt><dd><code>{{ confirmationTarget.repository_url }}</code></dd></div>
         <div><dt>{{ t('Commit', '提交') }}</dt><dd><code>{{ confirmationTarget.commit_sha }}</code></dd></div>
         <div v-if="confirmationTarget.workload"><dt>{{ t('Named workload', '命名工作负载') }}</dt><dd><code>{{ confirmationTarget.workload }}</code></dd></div>
@@ -1168,13 +1200,17 @@ onMounted(async () => {
       <div v-else-if="repositoryDialog === 'key' && selectedRepository" class="key-panel">
         <p>{{ t('Add this public key to', '将此公钥添加到') }} <strong>{{ selectedRepository.name }}</strong> {{ t('as a read-only GitHub Deploy Key.', '设为只读 GitHub Deploy Key。') }}</p>
         <div class="code-box"><code>{{ selectedRepository.deploy_public_key }}</code><button class="icon-button" type="button" :title="copied === 'deploy-key' ? t('Copied', '已复制') : t('Copy Deploy public key', '复制 Deploy 公钥')" @click="copy(selectedRepository.deploy_public_key ?? '', 'deploy-key')"><Check v-if="copied === 'deploy-key'" :size="16" /><Clipboard v-else :size="16" /></button></div>
-        <p class="form-note">{{ t('The required GitHub action is a read-only Deploy Key on this repository.', '必须完成的 GitHub 操作是给这个仓库加一把只读 Deploy Key。') }} <a v-if="selectedDeployKeyURL" class="form-note-link" :href="selectedDeployKeyURL" target="_blank" rel="noreferrer">{{ t('GitHub repository → Deploy keys', 'GitHub 仓库 → Deploy keys') }}</a></p>
+        <p class="form-note">{{ t('The usual GitHub action is a read-only Deploy Key on this repository.', '通常的 GitHub 操作是给这个仓库加一把只读 Deploy Key。') }} <a v-if="selectedDeployKeyURL" class="form-note-link" :href="selectedDeployKeyURL" target="_blank" rel="noreferrer">{{ t('GitHub repository → Deploy keys', 'GitHub 仓库 → Deploy keys') }}</a></p>
         <p v-if="selectedRepository.status === 'pending_key' || selectedRepository.pending_note" class="form-note">{{ selectedRepository.pending_note || t('Graph and experiment-catalog observation writes remain possible while status is pending_key. Prepare of a git-backed Experiment still requires verify.', '仓库仍是 pending_key 时，Graph 和实验目录观察写入仍然可以。基于 git 的 Experiment 准备仍需先验证。') }}</p>
-        <p class="form-note">{{ t('If you cannot add a repository Deploy Key, add this same Gemcp public key to your GitHub account SSH keys. Verification still works. That is wider than a Deploy Key, but it is still this Gemcp key, not your personal id_ed25519.', '仓库 Deploy Key 加不上时，把这把 Gemcp 公钥加到 GitHub 账号的 SSH keys。验证同样能过。权限比 Deploy Key 宽，但仍是 Gemcp 这把钥匙，不是你的 id_ed25519。') }} <a class="form-note-link" href="https://github.com/settings/keys" target="_blank" rel="noreferrer">{{ t('Settings → SSH and GPG keys', 'Settings → SSH and GPG keys') }}</a></p>
+        <p class="form-note">{{ t('If Deploy Keys are disabled, paste a GitHub fine-grained token with Contents: Read on this one repository. Gemcp stores it encrypted and never shows it again. Personal machine SSH cannot help: Gemcp does not inherit SSH_AUTH_SOCK.', '若 Deploy Keys 被关闭，请粘贴一把仅对此仓库有 Contents: Read 的 GitHub 细粒度令牌。Gemcp 会加密保存且不再回显。个人机器 SSH 帮不上忙：Gemcp 不会继承 SSH_AUTH_SOCK。') }} <a class="form-note-link" :href="selectedRepository.https_token_settings_url || githubFineGrainedTokenSettingsURL" target="_blank" rel="noreferrer">{{ t('Settings → Fine-grained tokens', 'Settings → Fine-grained tokens') }}</a></p>
+        <label>{{ t('GitHub HTTPS token', 'GitHub HTTPS 令牌') }}<input v-model="repositoryForm.httpsToken" type="password" autocomplete="off" spellcheck="false" :placeholder="selectedRepository.https_token_configured ? t('Token stored. Paste a replacement to rotate.', '令牌已保存。粘贴新令牌可轮换。') : t('Fine-grained token, write-only', '细粒度令牌，只写不回显')" /></label>
         <RepositoryReadinessPanel :readiness="repositoryReadiness" :loading="repositoryReadinessLoading" @verify="verifyRepository(selectedRepository)" @register-defaults="repositoryDialog = null; activeView = 'projects'" />
-        <p class="form-note">{{ t('Gemcp pins GitHub with the official Ed25519 host fingerprint. After the key is on GitHub, verification runs without a fingerprint field.', 'Gemcp 使用 GitHub 官方 Ed25519 主机指纹。公钥加到 GitHub 后会自动验证，不用再填指纹。') }}</p>
+        <p class="form-note">{{ t('Gemcp pins GitHub with the official Ed25519 host fingerprint for Deploy Key verify. HTTPS token verify does not use host SSH.', 'Deploy Key 验证使用 GitHub 官方 Ed25519 主机指纹。HTTPS 令牌验证不走主机 SSH。') }}</p>
         <div v-if="dialogError" class="form-error">{{ dialogError }}</div>
-        <button class="primary-button" type="button" :disabled="repositoryBusy" @click="verifyRepository(selectedRepository)"><LoaderCircle v-if="repositoryBusy" :size="16" class="spinning" /><ShieldCheck v-else :size="16" />{{ t('Verify repository', '验证仓库') }}</button>
+        <div class="table-actions">
+          <button class="primary-button" type="button" :disabled="repositoryBusy" @click="activateWithHTTPSToken(selectedRepository)"><LoaderCircle v-if="repositoryBusy && repositoryForm.httpsToken" :size="16" class="spinning" /><ShieldCheck v-else :size="16" />{{ t('Activate with HTTPS token', '用 HTTPS 令牌激活') }}</button>
+          <button class="primary-button" type="button" :disabled="repositoryBusy" @click="verifyRepository(selectedRepository)"><LoaderCircle v-if="repositoryBusy && !repositoryForm.httpsToken" :size="16" class="spinning" /><ShieldCheck v-else :size="16" />{{ t('Verify repository', '验证仓库') }}</button>
+        </div>
       </div>
     </section>
   </div>

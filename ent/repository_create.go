@@ -149,6 +149,20 @@ func (_c *RepositoryCreate) SetNillableDeployPrivateKeyCiphertext(v *string) *Re
 	return _c
 }
 
+// SetHTTPSTokenCiphertext sets the "https_token_ciphertext" field.
+func (_c *RepositoryCreate) SetHTTPSTokenCiphertext(v string) *RepositoryCreate {
+	_c.mutation.SetHTTPSTokenCiphertext(v)
+	return _c
+}
+
+// SetNillableHTTPSTokenCiphertext sets the "https_token_ciphertext" field if the given value is not nil.
+func (_c *RepositoryCreate) SetNillableHTTPSTokenCiphertext(v *string) *RepositoryCreate {
+	if v != nil {
+		_c.SetHTTPSTokenCiphertext(*v)
+	}
+	return _c
+}
+
 // SetStatus sets the "status" field.
 func (_c *RepositoryCreate) SetStatus(v repository.Status) *RepositoryCreate {
 	_c.mutation.SetStatus(v)
@@ -441,6 +455,10 @@ func (_c *RepositoryCreate) createSpec() (*Repository, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.DeployPrivateKeyCiphertext(); ok {
 		_spec.SetField(repository.FieldDeployPrivateKeyCiphertext, field.TypeString, value)
 		_node.DeployPrivateKeyCiphertext = value
+	}
+	if value, ok := _c.mutation.HTTPSTokenCiphertext(); ok {
+		_spec.SetField(repository.FieldHTTPSTokenCiphertext, field.TypeString, value)
+		_node.HTTPSTokenCiphertext = value
 	}
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(repository.FieldStatus, field.TypeEnum, value)

@@ -67,6 +67,12 @@ func (s *Service) OwnerRepositoryReadiness(ctx context.Context, tenantID int, pr
 		result.DeployPublicKey = record.DeployPublicKey
 		result.DeployKeySettingsURL = gitrepository.DeployKeySettingsURL(record.SSHURL)
 	}
+	if gitrepository.HasHTTPSToken(record) {
+		result.HTTPSTokenConfigured = true
+	}
+	if result.Access != gitrepository.AccessPublicHTTPS {
+		result.HTTPSTokenSettingsURL = gitrepository.FineGrainedTokenSettingsURL
+	}
 	if saved, listErr := s.client.ProjectWorkload.Query().Where(
 		projectworkload.ProjectIDEQ(projectRecord.ID),
 	).Order(ent.Asc(projectworkload.FieldName)).All(ctx); listErr != nil {
@@ -78,12 +84,21 @@ func (s *Service) OwnerRepositoryReadiness(ctx context.Context, tenantID int, pr
 		}
 	}
 	if record.Status != repository.StatusActive {
-		result.Blockers = append(result.Blockers, ReadinessBlocker{
-			Kind:   "deploy_key_required",
-			Title:  "Add a read-only Deploy Key",
-			Detail: "Install this Gemcp public key on the GitHub repository as a read-only Deploy Key, then verify access.",
-			Href:   result.DeployKeySettingsURL,
-		})
+		if gitrepository.HasHTTPSToken(record) {
+			result.Blockers = append(result.Blockers, ReadinessBlocker{
+				Kind:   "https_token_verify_required",
+				Title:  "Verify the GitHub HTTPS token",
+				Detail: "Gemcp stored a write-only HTTPS token for this repository. Verify access to activate access=https_token. A fine-grained token with Contents: Read on this repository is enough.",
+				Href:   result.HTTPSTokenSettingsURL,
+			})
+		} else {
+			result.Blockers = append(result.Blockers, ReadinessBlocker{
+				Kind:   "deploy_key_required",
+				Title:  "Add a read-only Deploy Key",
+				Detail: "Install this Gemcp public key on the GitHub repository as a read-only Deploy Key, then verify access. If Deploy Keys are disabled, configure a GitHub fine-grained token with Contents: Read and verify with https_token.",
+				Href:   result.DeployKeySettingsURL,
+			})
+		}
 		s.appendProjectDefaultBlockers(ctx, projectRecord, &result)
 		result.Ready = len(result.Blockers) == 0
 		return result, nil
@@ -102,7 +117,7 @@ func (s *Service) inspectRepositorySource(ctx context.Context, record *ent.Repos
 			result.Blockers = append(result.Blockers, ReadinessBlocker{
 				Kind:   "repository_inspect_failed",
 				Title:  "Repository access check failed",
-				Detail: "Gemcp could not read HEAD after verification. Confirm the Deploy Key is read-only on this repository and verify again.",
+				Detail: "Gemcp could not read HEAD after verification. Confirm the Deploy Key or HTTPS token still has Contents: Read on this repository and verify again.",
 			})
 			return
 		}

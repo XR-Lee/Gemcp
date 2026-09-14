@@ -9,12 +9,22 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"golang.org/x/crypto/ssh"
 )
 
-const maxCommandOutput = 64 << 10
+const (
+	maxCommandOutput    = 64 << 10
+	httpsTokenFileName  = "https_token"
+	httpsHelperFileName = "git-credential-gemcp"
+)
+
+var (
+	gitUserinfoPattern = regexp.MustCompile(`://[^/\s:]+:[^/\s@]+@`)
+	gitTokenPattern    = regexp.MustCompile(`(?i)\b(?:github_pat|ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]+\b`)
+)
 
 type CommandVerifier struct {
 	gitBinary        string
@@ -104,16 +114,16 @@ func NewCommandVerifier() *CommandVerifier {
 	return &CommandVerifier{gitBinary: "git", sshKeyscanBinary: "ssh-keyscan"}
 }
 
-func (v *CommandVerifier) VerifyAccess(ctx context.Context, sshURL, host string, privateKey []byte, fingerprint string) error {
-	return v.verify(ctx, sshURL, host, privateKey, fingerprint, "HEAD")
+func (v *CommandVerifier) VerifyAccess(ctx context.Context, auth FetchAuth) error {
+	return v.verify(ctx, auth, "HEAD")
 }
 
-func (v *CommandVerifier) VerifyCommit(ctx context.Context, sshURL, host string, privateKey []byte, fingerprint, commitSHA string) error {
-	return v.verify(ctx, sshURL, host, privateKey, fingerprint, commitSHA)
+func (v *CommandVerifier) VerifyCommit(ctx context.Context, auth FetchAuth, commitSHA string) error {
+	return v.verify(ctx, auth, commitSHA)
 }
 
-func (v *CommandVerifier) ResolveRef(ctx context.Context, sshURL, host string, privateKey []byte, fingerprint, ref string) (string, error) {
-	tempDir, repositoryPath, environment, err := v.fetchResolved(ctx, sshURL, host, privateKey, fingerprint, ref, false)
+func (v *CommandVerifier) ResolveRef(ctx context.Context, auth FetchAuth, ref string) (string, error) {
+	tempDir, repositoryPath, environment, err := v.fetchResolved(ctx, auth, ref, false)
 	if tempDir != "" {
 		defer os.RemoveAll(tempDir)
 	}
@@ -123,7 +133,7 @@ func (v *CommandVerifier) ResolveRef(ctx context.Context, sshURL, host string, p
 	revParse := exec.CommandContext(ctx, v.gitBinary, "-C", repositoryPath, "rev-parse", "FETCH_HEAD")
 	output, stderr, err := run(revParse, environment)
 	if err != nil {
-		return "", fmt.Errorf("resolve fetched commit: %w: %s", err, stderr)
+		return "", fmt.Errorf("resolve fetched commit: %w: %s", err, redactGitOutput(stderr))
 	}
 	commitSHA := strings.ToLower(strings.TrimSpace(string(output)))
 	if len(commitSHA) != 40 && len(commitSHA) != 64 {
@@ -132,16 +142,18 @@ func (v *CommandVerifier) ResolveRef(ctx context.Context, sshURL, host string, p
 	return commitSHA, nil
 }
 
-func (v *CommandVerifier) ArchiveCommit(ctx context.Context, sshURL, host string, privateKey []byte, fingerprint, commitSHA string, maxBytes int64) (Archive, error) {
+func (v *CommandVerifier) ArchiveCommit(ctx context.Context, auth FetchAuth, commitSHA string, maxBytes int64) (Archive, error) {
 	if maxBytes <= 0 {
 		return nil, fmt.Errorf("source archive size limit must be positive")
 	}
-	tempDir, repositoryPath, environment, err := v.fetch(ctx, sshURL, host, privateKey, fingerprint, commitSHA)
+	tempDir, repositoryPath, environment, err := v.fetch(ctx, auth, commitSHA)
 	if err != nil {
 		return nil, err
 	}
 	_ = os.Remove(filepath.Join(tempDir, "deploy_key"))
 	_ = os.Remove(filepath.Join(tempDir, "known_hosts"))
+	_ = os.Remove(filepath.Join(tempDir, httpsTokenFileName))
+	_ = os.Remove(filepath.Join(tempDir, httpsHelperFileName))
 	cleanup := true
 	defer func() {
 		if cleanup {
@@ -189,16 +201,16 @@ func (v *CommandVerifier) ArchiveCommit(ctx context.Context, sshURL, host string
 	return &SourceArchive{path: archivePath, tempDir: tempDir, Size: compressed.Size(), RawSize: info.Size()}, nil
 }
 
-func (v *CommandVerifier) verify(ctx context.Context, sshURL, host string, privateKey []byte, fingerprint, ref string) error {
-	tempDir, _, _, err := v.fetch(ctx, sshURL, host, privateKey, fingerprint, ref)
+func (v *CommandVerifier) verify(ctx context.Context, auth FetchAuth, ref string) error {
+	tempDir, _, _, err := v.fetch(ctx, auth, ref)
 	if tempDir != "" {
 		defer os.RemoveAll(tempDir)
 	}
 	return err
 }
 
-func (v *CommandVerifier) fetch(ctx context.Context, sshURL, host string, privateKey []byte, fingerprint, ref string) (string, string, []string, error) {
-	return v.fetchResolved(ctx, sshURL, host, privateKey, fingerprint, ref, true)
+func (v *CommandVerifier) fetch(ctx context.Context, auth FetchAuth, ref string) (string, string, []string, error) {
+	return v.fetchResolved(ctx, auth, ref, true)
 }
 
 func (v *CommandVerifier) ProbePublicHTTPS(ctx context.Context, httpsURL string) error {
@@ -209,42 +221,49 @@ func (v *CommandVerifier) ProbePublicHTTPS(ctx context.Context, httpsURL string)
 	environment := verificationEnvironment("")
 	command := exec.CommandContext(ctx, v.gitBinary, "-c", "credential.helper=", "-c", "credential.interactive=never", "ls-remote", "--exit-code", httpsURL, "HEAD")
 	if _, stderr, err := run(command, environment); err != nil {
-		return fmt.Errorf("public GitHub HTTPS probe failed: %w: %s", err, stderr)
+		return fmt.Errorf("public GitHub HTTPS probe failed: %w: %s", err, redactGitOutput(stderr))
 	}
 	return nil
 }
 
-func (v *CommandVerifier) DetectDefaultBranch(ctx context.Context, sshURL, host string, privateKey []byte, fingerprint string) (string, string, error) {
-	if httpsURL := githubHTTPSURLFromSSH(sshURL); httpsURL != "" {
-		branch, sha, err := v.lsRemoteHEAD(ctx, httpsURL, verificationEnvironment(""), true)
-		if err == nil {
-			return branch, sha, nil
+func (v *CommandVerifier) DetectDefaultBranch(ctx context.Context, auth FetchAuth) (string, string, error) {
+	if httpsURL := githubHTTPSURLFromSSH(auth.SSHURL); httpsURL != "" {
+		environment, extraArgs, cleanup, err := v.httpsAuth(auth.HTTPSToken)
+		if cleanup != nil {
+			defer cleanup()
 		}
-		if len(privateKey) == 0 {
-			return "", "", err
+		if err != nil {
+			if len(auth.HTTPSToken) > 0 || len(auth.PrivateKey) == 0 {
+				return "", "", err
+			}
+		} else {
+			branch, sha, probeErr := v.lsRemoteHEAD(ctx, httpsURL, environment, extraArgs)
+			if probeErr == nil {
+				return branch, sha, nil
+			}
+			if len(auth.HTTPSToken) > 0 || len(auth.PrivateKey) == 0 {
+				return "", "", probeErr
+			}
 		}
-	} else if len(privateKey) == 0 {
-		return "", "", fmt.Errorf("repository fetch requires a deploy key or a public GitHub HTTPS URL")
+	} else if len(auth.PrivateKey) == 0 {
+		return "", "", fmt.Errorf("repository fetch requires a deploy key, a GitHub HTTPS token, or a public GitHub HTTPS URL")
 	}
-	tempDir, environment, err := v.prepareSSHFetch(ctx, host, privateKey, fingerprint)
+	tempDir, environment, err := v.prepareSSHFetch(ctx, auth.Host, auth.PrivateKey, auth.Fingerprint)
 	if tempDir != "" {
 		defer os.RemoveAll(tempDir)
 	}
 	if err != nil {
 		return "", "", err
 	}
-	return v.lsRemoteHEAD(ctx, sshURL, environment, false)
+	return v.lsRemoteHEAD(ctx, auth.SSHURL, environment, nil)
 }
 
-func (v *CommandVerifier) lsRemoteHEAD(ctx context.Context, remote string, environment []string, https bool) (string, string, error) {
-	args := []string{"ls-remote", "--symref", remote, "HEAD"}
-	if https {
-		args = append([]string{"-c", "credential.helper=", "-c", "credential.interactive=never"}, args...)
-	}
+func (v *CommandVerifier) lsRemoteHEAD(ctx context.Context, remote string, environment []string, extraArgs []string) (string, string, error) {
+	args := append(append([]string{}, extraArgs...), "ls-remote", "--symref", remote, "HEAD")
 	command := exec.CommandContext(ctx, v.gitBinary, args...)
 	output, stderr, err := run(command, environment)
 	if err != nil {
-		return "", "", fmt.Errorf("detect default branch: %w: %s", err, stderr)
+		return "", "", fmt.Errorf("detect default branch: %w: %s", err, redactGitOutput(stderr))
 	}
 	return parseSymrefHEAD(output)
 }
@@ -311,17 +330,17 @@ func (v *CommandVerifier) prepareSSHFetch(ctx context.Context, host string, priv
 	return tempDir, environment, nil
 }
 
-func (v *CommandVerifier) fetchResolved(ctx context.Context, sshURL, host string, privateKey []byte, fingerprint, ref string, requireExact bool) (string, string, []string, error) {
-	if httpsURL := githubHTTPSURLFromSSH(sshURL); httpsURL != "" {
-		tempDir, repositoryPath, environment, err := v.fetchHTTPS(ctx, httpsURL, ref, requireExact)
+func (v *CommandVerifier) fetchResolved(ctx context.Context, auth FetchAuth, ref string, requireExact bool) (string, string, []string, error) {
+	if httpsURL := githubHTTPSURLFromSSH(auth.SSHURL); httpsURL != "" {
+		tempDir, repositoryPath, environment, err := v.fetchHTTPS(ctx, httpsURL, ref, auth.HTTPSToken, requireExact)
 		if err == nil {
 			return tempDir, repositoryPath, environment, nil
 		}
-		if len(privateKey) == 0 {
+		if len(auth.HTTPSToken) > 0 || len(auth.PrivateKey) == 0 {
 			return "", "", nil, err
 		}
-	} else if len(privateKey) == 0 {
-		return "", "", nil, fmt.Errorf("repository fetch requires a deploy key or a public GitHub HTTPS URL")
+	} else if len(auth.PrivateKey) == 0 {
+		return "", "", nil, fmt.Errorf("repository fetch requires a deploy key, a GitHub HTTPS token, or a public GitHub HTTPS URL")
 	}
 
 	tempDir, err := os.MkdirTemp("", "gemcp-git-fetch-*")
@@ -336,16 +355,16 @@ func (v *CommandVerifier) fetchResolved(ctx context.Context, sshURL, host string
 	keyPath := filepath.Join(tempDir, "deploy_key")
 	knownHostsPath := filepath.Join(tempDir, "known_hosts")
 	repositoryPath := filepath.Join(tempDir, "repository.git")
-	if err := os.WriteFile(keyPath, privateKey, 0o600); err != nil {
+	if err := os.WriteFile(keyPath, auth.PrivateKey, 0o600); err != nil {
 		return fail(fmt.Errorf("write deploy key: %w", err))
 	}
 
-	scan := exec.CommandContext(ctx, v.sshKeyscanBinary, "-T", "10", "-t", "ed25519,ecdsa,rsa", host)
+	scan := exec.CommandContext(ctx, v.sshKeyscanBinary, "-T", "10", "-t", "ed25519,ecdsa,rsa", auth.Host)
 	hostKeys, scanStderr, err := run(scan, verificationEnvironment(tempDir))
 	if err != nil || len(hostKeys) == 0 {
 		return fail(fmt.Errorf("scan SSH host key: %w: %s", err, scanStderr))
 	}
-	pinnedHostKeys, ok := filterPinnedHostKeys(hostKeys, fingerprint)
+	pinnedHostKeys, ok := filterPinnedHostKeys(hostKeys, auth.Fingerprint)
 	if !ok {
 		return fail(fmt.Errorf("SSH host key fingerprint did not match the pinned value"))
 	}
@@ -358,17 +377,17 @@ func (v *CommandVerifier) fetchResolved(ctx context.Context, sshURL, host string
 		" -o BatchMode=yes -o ConnectTimeout=15")
 	initCommand := exec.CommandContext(ctx, v.gitBinary, "init", "--bare", repositoryPath)
 	if _, stderr, err := run(initCommand, environment); err != nil {
-		return fail(fmt.Errorf("initialize Git repository: %w: %s", err, stderr))
+		return fail(fmt.Errorf("initialize Git repository: %w: %s", err, redactGitOutput(stderr)))
 	}
-	fetchCommand := exec.CommandContext(ctx, v.gitBinary, "-C", repositoryPath, "fetch", "--depth=1", "--no-tags", sshURL, ref)
+	fetchCommand := exec.CommandContext(ctx, v.gitBinary, "-C", repositoryPath, "fetch", "--depth=1", "--no-tags", auth.SSHURL, ref)
 	if _, stderr, err := run(fetchCommand, environment); err != nil {
-		return fail(fmt.Errorf("fetch requested Git ref: %w: %s", err, stderr))
+		return fail(fmt.Errorf("fetch requested Git ref: %w: %s", err, redactGitOutput(stderr)))
 	}
 	if requireExact && ref != "HEAD" {
 		revParse := exec.CommandContext(ctx, v.gitBinary, "-C", repositoryPath, "rev-parse", "FETCH_HEAD")
 		output, stderr, err := run(revParse, environment)
 		if err != nil {
-			return fail(fmt.Errorf("resolve fetched commit: %w: %s", err, stderr))
+			return fail(fmt.Errorf("resolve fetched commit: %w: %s", err, redactGitOutput(stderr)))
 		}
 		if !strings.EqualFold(strings.TrimSpace(string(output)), strings.TrimSpace(ref)) {
 			return fail(fmt.Errorf("fetched commit did not match the requested SHA"))
@@ -377,7 +396,7 @@ func (v *CommandVerifier) fetchResolved(ctx context.Context, sshURL, host string
 	return tempDir, repositoryPath, environment, nil
 }
 
-func (v *CommandVerifier) fetchHTTPS(ctx context.Context, httpsURL, ref string, requireExact bool) (string, string, []string, error) {
+func (v *CommandVerifier) fetchHTTPS(ctx context.Context, httpsURL, ref string, token []byte, requireExact bool) (string, string, []string, error) {
 	tempDir, err := os.MkdirTemp("", "gemcp-git-https-*")
 	if err != nil {
 		return "", "", nil, fmt.Errorf("create Git workspace: %w", err)
@@ -388,25 +407,89 @@ func (v *CommandVerifier) fetchHTTPS(ctx context.Context, httpsURL, ref string, 
 	}
 	repositoryPath := filepath.Join(tempDir, "repository.git")
 	environment := verificationEnvironment(tempDir)
+	credArgs := anonymousHTTPSGitArgs()
+	if len(token) > 0 {
+		helperPath, err := writeHTTPSCredentialHelper(tempDir, token)
+		if err != nil {
+			return fail(err)
+		}
+		credArgs = httpsGitArgs(helperPath)
+	}
 	initCommand := exec.CommandContext(ctx, v.gitBinary, "init", "--bare", repositoryPath)
 	if _, stderr, err := run(initCommand, environment); err != nil {
-		return fail(fmt.Errorf("initialize Git repository: %w: %s", err, stderr))
+		return fail(fmt.Errorf("initialize Git repository: %w: %s", err, redactGitOutput(stderr)))
 	}
-	fetchCommand := exec.CommandContext(ctx, v.gitBinary, "-C", repositoryPath, "-c", "credential.helper=", "-c", "credential.interactive=never", "fetch", "--depth=1", "--no-tags", httpsURL, ref)
+	fetchArgs := append([]string{"-C", repositoryPath}, credArgs...)
+	fetchArgs = append(fetchArgs, "fetch", "--depth=1", "--no-tags", httpsURL, ref)
+	fetchCommand := exec.CommandContext(ctx, v.gitBinary, fetchArgs...)
 	if _, stderr, err := run(fetchCommand, environment); err != nil {
-		return fail(fmt.Errorf("fetch public GitHub HTTPS ref: %w: %s", err, stderr))
+		kind := "public GitHub HTTPS"
+		if len(token) > 0 {
+			kind = "GitHub HTTPS"
+		}
+		return fail(fmt.Errorf("fetch %s ref: %w: %s", kind, err, redactGitOutput(stderr)))
 	}
 	if requireExact && ref != "HEAD" {
 		revParse := exec.CommandContext(ctx, v.gitBinary, "-C", repositoryPath, "rev-parse", "FETCH_HEAD")
 		output, stderr, err := run(revParse, environment)
 		if err != nil {
-			return fail(fmt.Errorf("resolve fetched commit: %w: %s", err, stderr))
+			return fail(fmt.Errorf("resolve fetched commit: %w: %s", err, redactGitOutput(stderr)))
 		}
 		if !strings.EqualFold(strings.TrimSpace(string(output)), strings.TrimSpace(ref)) {
 			return fail(fmt.Errorf("fetched commit did not match the requested SHA"))
 		}
 	}
 	return tempDir, repositoryPath, environment, nil
+}
+
+func (v *CommandVerifier) httpsAuth(token []byte) ([]string, []string, func(), error) {
+	if len(token) == 0 {
+		return verificationEnvironment(""), anonymousHTTPSGitArgs(), func() {}, nil
+	}
+	tempDir, err := os.MkdirTemp("", "gemcp-git-https-cred-*")
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("create Git HTTPS credential workspace: %w", err)
+	}
+	helperPath, err := writeHTTPSCredentialHelper(tempDir, token)
+	if err != nil {
+		_ = os.RemoveAll(tempDir)
+		return nil, nil, nil, err
+	}
+	return verificationEnvironment(tempDir), httpsGitArgs(helperPath), func() { _ = os.RemoveAll(tempDir) }, nil
+}
+
+func writeHTTPSCredentialHelper(dir string, token []byte) (string, error) {
+	tokenPath := filepath.Join(dir, httpsTokenFileName)
+	helperPath := filepath.Join(dir, httpsHelperFileName)
+	if err := os.WriteFile(tokenPath, token, 0o600); err != nil {
+		return "", fmt.Errorf("write HTTPS token: %w", err)
+	}
+	script := "#!/bin/sh\n" +
+		"if [ \"$1\" = get ]; then\n" +
+		"  printf 'username=x-access-token\\npassword=%s\\n' \"$(cat -- " + shellQuote(tokenPath) + ")\"\n" +
+		"fi\n"
+	if err := os.WriteFile(helperPath, []byte(script), 0o700); err != nil {
+		return "", fmt.Errorf("write HTTPS credential helper: %w", err)
+	}
+	return helperPath, nil
+}
+
+func anonymousHTTPSGitArgs() []string {
+	return []string{"-c", "credential.helper=", "-c", "credential.interactive=never"}
+}
+
+func httpsGitArgs(helperPath string) []string {
+	return []string{
+		"-c", "credential.helper=",
+		"-c", "credential.helper=" + helperPath,
+		"-c", "credential.interactive=never",
+		"-c", "credential.useHttpPath=true",
+	}
+}
+
+func redactGitOutput(value string) string {
+	value = gitUserinfoPattern.ReplaceAllString(value, "://***@")
+	return gitTokenPattern.ReplaceAllString(value, "[redacted-token]")
 }
 
 func gzipFile(sourcePath, destinationPath string) error {

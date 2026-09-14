@@ -31,6 +31,7 @@ var (
 const (
 	AccessPublicHTTPS = "public_https"
 	AccessSSHDeploy   = "ssh_deploy_key"
+	AccessHTTPSToken  = "https_token"
 )
 
 type GitPublicProber interface {
@@ -44,7 +45,13 @@ const (
 	githubEd25519Fingerprint = "SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU"
 )
 
-const deployKeyAADPrefix = "gemcp:repository-deploy-key:v1:"
+const (
+	deployKeyAADPrefix  = "gemcp:repository-deploy-key:v1:"
+	httpsTokenAADPrefix = "gemcp:repository-https-token:v1:"
+	// FineGrainedTokenSettingsURL is GitHub's fine-grained PAT list. Contents: Read
+	// on one repository is enough for ls-remote and archive.
+	FineGrainedTokenSettingsURL = "https://github.com/settings/personal-access-tokens"
+)
 
 type validationDomain struct{}
 
@@ -70,6 +77,22 @@ type AgentInput struct {
 type AgentVerifyInput struct {
 	RepositoryID    string `json:"repository_id" jsonschema:"pending repository ID returned by register_repository"`
 	HostFingerprint string `json:"host_key_fingerprint,omitempty" jsonschema:"optional SHA256 SSH host fingerprint; omit to use GitHub's official pin or this Project's established pin"`
+	HTTPSToken      string `json:"https_token,omitempty" jsonschema:"optional write-only GitHub PAT or fine-grained token with Contents: Read; stored encrypted and never returned"`
+}
+
+type OwnerVerifyInput struct {
+	HostKeyFingerprint string `json:"host_key_fingerprint,omitempty"`
+	HTTPSToken         string `json:"https_token,omitempty"`
+}
+
+// FetchAuth is the isolated credential set used for one GitHub fetch. HTTPSToken
+// is a PAT or fine-grained token; PrivateKey is the per-repository Deploy Key.
+type FetchAuth struct {
+	SSHURL      string
+	Host        string
+	PrivateKey  []byte
+	Fingerprint string
+	HTTPSToken  []byte
 }
 
 type ListResult struct {
@@ -88,25 +111,27 @@ type View struct {
 	LastVerifiedAt           *time.Time `json:"last_verified_at,omitempty"`
 	Access                   string     `json:"access,omitempty"`
 	DeployKeySettingsURL     string     `json:"deploy_key_settings_url,omitempty"`
+	HTTPSTokenConfigured     bool       `json:"https_token_configured,omitempty"`
+	HTTPSTokenSettingsURL    string     `json:"https_token_settings_url,omitempty"`
 	ObservationWritesAllowed bool       `json:"observation_writes_allowed"`
 	PendingNote              string     `json:"pending_note,omitempty"`
 }
 
 type GitVerifier interface {
-	VerifyAccess(context.Context, string, string, []byte, string) error
-	VerifyCommit(context.Context, string, string, []byte, string, string) error
+	VerifyAccess(context.Context, FetchAuth) error
+	VerifyCommit(context.Context, FetchAuth, string) error
 }
 
 type GitArchiver interface {
-	ArchiveCommit(context.Context, string, string, []byte, string, string, int64) (Archive, error)
+	ArchiveCommit(context.Context, FetchAuth, string, int64) (Archive, error)
 }
 
 type GitRefResolver interface {
-	ResolveRef(context.Context, string, string, []byte, string, string) (string, error)
+	ResolveRef(context.Context, FetchAuth, string) (string, error)
 }
 
 type GitHEADDetector interface {
-	DetectDefaultBranch(context.Context, string, string, []byte, string) (string, string, error)
+	DetectDefaultBranch(context.Context, FetchAuth) (string, string, error)
 }
 
 type Service struct {
@@ -295,16 +320,17 @@ func (s *Service) VerifyForAgent(ctx context.Context, tenantID int, actorID, pro
 	if err != nil {
 		return View{}, err
 	}
-	fingerprint, err := s.resolveVerifyFingerprint(ctx, tenantID, projectID, record.SSHHost, input.HostFingerprint)
+	if strings.TrimSpace(input.HTTPSToken) != "" {
+		record, err = s.storeHTTPSToken(ctx, record, input.HTTPSToken)
+		if err != nil {
+			return View{}, err
+		}
+	}
+	fingerprint, err := s.fingerprintForVerify(ctx, tenantID, projectID, record, input.HostFingerprint)
 	if err != nil {
 		return View{}, err
 	}
-	privateKey, err := s.decryptKey(record)
-	if err != nil {
-		return View{}, err
-	}
-	defer wipe(privateKey)
-	if err := s.verifier.VerifyAccess(ctx, record.SSHURL, record.SSHHost, privateKey, fingerprint); err != nil {
+	if err := s.verifyAccess(ctx, record, fingerprint); err != nil {
 		return View{}, WrapVerifyError(err)
 	}
 	tx, err := s.client.Tx(ctx)
@@ -327,7 +353,7 @@ func (s *Service) VerifyForAgent(ctx context.Context, tenantID int, actorID, pro
 	if _, err := tx.AuditEvent.Create().SetTenantID(tenantID).
 		SetActorType("agent_token").SetActorID(actorID).
 		SetAction("repository.verified").SetTargetType("repository").SetTargetID(current.PublicID.String()).
-		SetMetadata(map[string]any{"project_id": projectPublicID, "ssh_url": current.SSHURL, "host_key_fingerprint": fingerprint}).
+		SetMetadata(map[string]any{"project_id": projectPublicID, "ssh_url": current.SSHURL, "host_key_fingerprint": fingerprint, "access": AccessOf(current)}).
 		Save(ctx); err != nil {
 		return View{}, err
 	}
@@ -394,22 +420,23 @@ func (s *Service) establishedHostFingerprint(ctx context.Context, tenantID int, 
 	return "", invalid("host_key_fingerprint is required")
 }
 
-func (s *Service) Verify(ctx context.Context, tenantID int, publicID, fingerprint string) (View, error) {
+func (s *Service) Verify(ctx context.Context, tenantID int, publicID string, input OwnerVerifyInput) (View, error) {
 	var view View
 	record, projectID, err := s.findForTenant(ctx, tenantID, publicID)
 	if err != nil {
 		return view, err
 	}
-	fingerprint, err = resolveHostFingerprint(record.SSHHost, fingerprint)
+	if strings.TrimSpace(input.HTTPSToken) != "" {
+		record, err = s.storeHTTPSToken(ctx, record, input.HTTPSToken)
+		if err != nil {
+			return view, err
+		}
+	}
+	fingerprint, err := s.fingerprintForOwnerVerify(record, input.HostKeyFingerprint)
 	if err != nil {
 		return view, err
 	}
-	privateKey, err := s.decryptKey(record)
-	if err != nil {
-		return view, err
-	}
-	defer wipe(privateKey)
-	if err := s.verifier.VerifyAccess(ctx, record.SSHURL, record.SSHHost, privateKey, fingerprint); err != nil {
+	if err := s.verifyAccess(ctx, record, fingerprint); err != nil {
 		return view, WrapVerifyError(err)
 	}
 	now := s.now().UTC()
@@ -452,15 +479,15 @@ func (s *Service) VerifyCommit(ctx context.Context, repositoryID int, commitSHA 
 	if err != nil {
 		return err
 	}
-	if record.Status != "active" || record.HostKeyFingerprint == "" {
+	if !isFetchReady(record) {
 		return ErrNotActive
 	}
-	privateKey, err := s.decryptKey(record)
+	auth, cleanup, err := s.fetchAuth(record, record.HostKeyFingerprint)
 	if err != nil {
 		return err
 	}
-	defer wipe(privateKey)
-	return s.verifier.VerifyCommit(ctx, record.SSHURL, record.SSHHost, privateKey, record.HostKeyFingerprint, commitSHA)
+	defer cleanup()
+	return s.verifier.VerifyCommit(ctx, auth, commitSHA)
 }
 
 func (s *Service) ResolveRef(ctx context.Context, repositoryID int, ref string) (string, error) {
@@ -475,19 +502,19 @@ func (s *Service) ResolveRef(ctx context.Context, repositoryID int, ref string) 
 	if err != nil {
 		return "", err
 	}
-	if record.Status != "active" || record.HostKeyFingerprint == "" {
+	if !isFetchReady(record) {
 		return "", ErrNotActive
 	}
 	resolver, ok := s.verifier.(GitRefResolver)
 	if !ok {
 		return "", fmt.Errorf("repository ref resolver is unavailable")
 	}
-	privateKey, err := s.decryptKey(record)
+	auth, cleanup, err := s.fetchAuth(record, record.HostKeyFingerprint)
 	if err != nil {
 		return "", err
 	}
-	defer wipe(privateKey)
-	return resolver.ResolveRef(ctx, record.SSHURL, record.SSHHost, privateKey, record.HostKeyFingerprint, ref)
+	defer cleanup()
+	return resolver.ResolveRef(ctx, auth, ref)
 }
 
 func (s *Service) DetectDefaultBranch(ctx context.Context, repositoryID int) (string, string, error) {
@@ -498,19 +525,19 @@ func (s *Service) DetectDefaultBranch(ctx context.Context, repositoryID int) (st
 	if err != nil {
 		return "", "", err
 	}
-	if record.Status != "active" || record.HostKeyFingerprint == "" {
+	if !isFetchReady(record) {
 		return "", "", ErrNotActive
 	}
 	detector, ok := s.verifier.(GitHEADDetector)
 	if !ok {
 		return record.DefaultBranch, "", nil
 	}
-	privateKey, err := s.decryptKey(record)
+	auth, cleanup, err := s.fetchAuth(record, record.HostKeyFingerprint)
 	if err != nil {
 		return "", "", err
 	}
-	defer wipe(privateKey)
-	branch, sha, err := detector.DetectDefaultBranch(ctx, record.SSHURL, record.SSHHost, privateKey, record.HostKeyFingerprint)
+	defer cleanup()
+	branch, sha, err := detector.DetectDefaultBranch(ctx, auth)
 	if err != nil {
 		return "", "", err
 	}
@@ -525,19 +552,19 @@ func (s *Service) ArchiveCommit(ctx context.Context, repositoryID int, commitSHA
 	if err != nil {
 		return nil, err
 	}
-	if record.Status != "active" || record.HostKeyFingerprint == "" {
+	if !isFetchReady(record) {
 		return nil, ErrNotActive
 	}
 	archiver, ok := s.verifier.(GitArchiver)
 	if !ok {
 		return nil, fmt.Errorf("repository archiver is unavailable")
 	}
-	privateKey, err := s.decryptKey(record)
+	auth, cleanup, err := s.fetchAuth(record, record.HostKeyFingerprint)
 	if err != nil {
 		return nil, err
 	}
-	defer wipe(privateKey)
-	return archiver.ArchiveCommit(ctx, record.SSHURL, record.SSHHost, privateKey, record.HostKeyFingerprint, commitSHA, maxBytes)
+	defer cleanup()
+	return archiver.ArchiveCommit(ctx, auth, commitSHA, maxBytes)
 }
 
 func wipe(value []byte) {
@@ -571,6 +598,94 @@ func (s *Service) decryptKey(record *ent.Repository) ([]byte, error) {
 	return s.box.Decrypt(record.DeployPrivateKeyCiphertext, deployKeyAADPrefix+record.PublicID.String())
 }
 
+func (s *Service) decryptHTTPSToken(record *ent.Repository) ([]byte, error) {
+	if !HasHTTPSToken(record) {
+		return nil, nil
+	}
+	return s.box.Decrypt(record.HTTPSTokenCiphertext, httpsTokenAADPrefix+record.PublicID.String())
+}
+
+func (s *Service) storeHTTPSToken(ctx context.Context, record *ent.Repository, token string) (*ent.Repository, error) {
+	normalized, err := normalizeHTTPSToken(token)
+	if err != nil {
+		return nil, err
+	}
+	ciphertext, err := s.box.Encrypt([]byte(normalized), httpsTokenAADPrefix+record.PublicID.String())
+	if err != nil {
+		return nil, err
+	}
+	return record.Update().SetHTTPSTokenCiphertext(ciphertext).Save(ctx)
+}
+
+func normalizeHTTPSToken(value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", invalid("https_token is required")
+	}
+	if strings.ContainsAny(value, " \t\r\n") {
+		return "", invalid("https_token must not contain whitespace")
+	}
+	if len(value) < 20 || len(value) > 512 {
+		return "", invalid("https_token must be a GitHub PAT or fine-grained token")
+	}
+	if strings.Contains(value, "://") || strings.Contains(value, "@") {
+		return "", invalid("https_token must be the token secret only, not a URL")
+	}
+	return value, nil
+}
+
+func (s *Service) fetchAuth(record *ent.Repository, fingerprint string) (FetchAuth, func(), error) {
+	privateKey, err := s.decryptKey(record)
+	if err != nil {
+		return FetchAuth{}, nil, err
+	}
+	token, err := s.decryptHTTPSToken(record)
+	if err != nil {
+		wipe(privateKey)
+		return FetchAuth{}, nil, err
+	}
+	return FetchAuth{
+		SSHURL: record.SSHURL, Host: record.SSHHost, PrivateKey: privateKey,
+		Fingerprint: fingerprint, HTTPSToken: token,
+	}, func() { wipe(privateKey); wipe(token) }, nil
+}
+
+func (s *Service) verifyAccess(ctx context.Context, record *ent.Repository, fingerprint string) error {
+	auth, cleanup, err := s.fetchAuth(record, fingerprint)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+	return s.verifier.VerifyAccess(ctx, auth)
+}
+
+func (s *Service) fingerprintForVerify(ctx context.Context, tenantID int, projectID uuid.UUID, record *ent.Repository, provided string) (string, error) {
+	if HasHTTPSToken(record) {
+		return officialGitHubFingerprint(record.SSHHost), nil
+	}
+	return s.resolveVerifyFingerprint(ctx, tenantID, projectID, record.SSHHost, provided)
+}
+
+func (s *Service) fingerprintForOwnerVerify(record *ent.Repository, provided string) (string, error) {
+	if HasHTTPSToken(record) {
+		if fingerprint := officialGitHubFingerprint(record.SSHHost); fingerprint != "" {
+			return fingerprint, nil
+		}
+	}
+	return resolveHostFingerprint(record.SSHHost, provided)
+}
+
+func isFetchReady(record *ent.Repository) bool {
+	if record == nil || record.Status != "active" {
+		return false
+	}
+	return record.HostKeyFingerprint != "" || HasHTTPSToken(record)
+}
+
+func HasHTTPSToken(record *ent.Repository) bool {
+	return record != nil && strings.TrimSpace(record.HTTPSTokenCiphertext) != ""
+}
+
 func generateDeployKey(comment string) (string, []byte, error) {
 	public, private, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
@@ -591,6 +706,9 @@ func AccessOf(record *ent.Repository) string {
 	if record == nil {
 		return ""
 	}
+	if HasHTTPSToken(record) {
+		return AccessHTTPSToken
+	}
 	if strings.TrimSpace(record.DeployPrivateKeyCiphertext) == "" && record.Status == entrepository.StatusActive {
 		return AccessPublicHTTPS
 	}
@@ -606,6 +724,12 @@ func makeView(record *ent.Repository, projectID string, includePublicKey bool) V
 	}
 	if view.Access == AccessSSHDeploy {
 		view.DeployKeySettingsURL = DeployKeySettingsURL(record.SSHURL)
+	}
+	if HasHTTPSToken(record) {
+		view.HTTPSTokenConfigured = true
+	}
+	if view.Access != AccessPublicHTTPS {
+		view.HTTPSTokenSettingsURL = FineGrainedTokenSettingsURL
 	}
 	if includePublicKey {
 		view.DeployPublicKey = record.DeployPublicKey

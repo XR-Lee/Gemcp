@@ -46,9 +46,10 @@ To onboard a GitHub repository:
 
 1. Call `list_repository_registrations` and reuse an existing matching record when present.
 2. Call `register_repository` with `url` set to `https://github.com/owner/repository` or `git@github.com:owner/repository.git`. The name may be omitted; Gemcp derives it from the repository. Public repositories return `status=active` and `access=public_https` with no Deploy Key.
-3. If the record is `pending_key`, show the public key and repository to the human. Wait while a repository administrator adds it as a read-only GitHub Deploy Key. Never request a GitHub credential or claim the key was installed yourself.
-4. For pending private repositories, call `verify_repository`. Omit `host_key_fingerprint` only when Gemcp can reuse the Project's established GitHub host pin. A successful fetch changes the record to `active`.
-5. Confirm the active repository appears in `get_project_options` before preparing work.
+3. If the record is `pending_key`, show the public key and repository to the human. Wait while a repository administrator adds it as a read-only GitHub Deploy Key. Do not claim the key was installed yourself. Personal machine SSH cannot help: Gemcp clears `SSH_AUTH_SOCK` and uses only the repository Deploy Key.
+4. If GitHub reports that Deploy Keys are disabled, ask the Owner for a fine-grained personal access token with Contents: Read on that one repository. Call `verify_repository` once with `repository_id` and write-only `https_token`. Never echo the token, put it in research text, activity, or a confirmation digest. Success returns `status=active` and `access=https_token`.
+5. Otherwise, for pending private repositories, call `verify_repository` after the Deploy Key is installed. Omit `host_key_fingerprint` only when Gemcp can reuse the Project's established GitHub host pin. A successful fetch changes the record to `active`.
+6. Confirm the active repository appears in `get_project_options` before preparing work.
 
 To declare existing data below a trusted workspace root, call `register_workspace_dataset` with a stable name and normalized relative path. Absolute paths, traversal, symlink escape, and a new host root are forbidden. The tool returns a container path and a fixed environment variable. For example:
 
@@ -282,7 +283,7 @@ The optional context is limited to repository remote, ref, and Experiment ID. `m
 | `get_usage_guide` | Return this operating guide and discovery metadata | `read` |
 | `list_repository_registrations` | List active and pending Project repositories and deploy public keys | `read` |
 | `register_repository` | Create a pending GitHub SSH repository registration | `configure` |
-| `verify_repository` | Verify access after the read-only Deploy Key is installed | `configure` |
+| `verify_repository` | Verify access after the read-only Deploy Key is installed, or after a write-only GitHub HTTPS token is supplied | `configure` |
 | `list_workspace_datasets` | List declared dataset paths below approved workspace roots | `read` |
 | `register_workspace_dataset` | Declare a normalized relative dataset path | `configure` |
 | `remove_workspace_dataset` | Disable a dataset declaration without deleting data | `configure` |

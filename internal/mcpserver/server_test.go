@@ -34,11 +34,11 @@ func (allowCommitVerifier) VerifyCommit(context.Context, int, string) error { re
 
 type stubGitVerifier struct{}
 
-func (stubGitVerifier) VerifyAccess(context.Context, string, string, []byte, string) error {
+func (stubGitVerifier) VerifyAccess(context.Context, repositoryservice.FetchAuth) error {
 	return nil
 }
 
-func (stubGitVerifier) VerifyCommit(context.Context, string, string, []byte, string, string) error {
+func (stubGitVerifier) VerifyCommit(context.Context, repositoryservice.FetchAuth, string) error {
 	return nil
 }
 
@@ -630,6 +630,90 @@ func TestRegisterRepositoryAcceptsPublicHTTPSURL(t *testing.T) {
 type publicGitVerifier struct{ stubGitVerifier }
 
 func (publicGitVerifier) ProbePublicHTTPS(context.Context, string) error { return nil }
+
+type capturingHTTPSGitVerifier struct {
+	httpsToken []byte
+}
+
+func (capturingHTTPSGitVerifier) ProbePublicHTTPS(context.Context, string) error {
+	return errors.New("not a public GitHub repository")
+}
+
+func (c *capturingHTTPSGitVerifier) VerifyAccess(_ context.Context, auth repositoryservice.FetchAuth) error {
+	c.httpsToken = append([]byte(nil), auth.HTTPSToken...)
+	return nil
+}
+
+func (capturingHTTPSGitVerifier) VerifyCommit(context.Context, repositoryservice.FetchAuth, string) error {
+	return nil
+}
+
+func (c *capturingHTTPSGitVerifier) ResolveRef(_ context.Context, auth repositoryservice.FetchAuth, _ string) (string, error) {
+	c.httpsToken = append([]byte(nil), auth.HTTPSToken...)
+	return strings.Repeat("a", 40), nil
+}
+
+func TestVerifyRepositoryHTTPSTokenNeverLeaks(t *testing.T) {
+	client := enttest.Open(t, dialect.SQLite, "file:mcp-https-token?mode=memory&cache=shared&_fk=1")
+	defer client.Close()
+	ctx := context.Background()
+	tenant, _ := client.Tenant.Create().SetName("Test").Save(ctx)
+	project, _ := client.Project.Create().
+		SetTenantID(tenant.ID).SetName("Project").SetSlug("project").
+		SetMonthlyBudgetMilli(100000).SetMaxExperimentMilli(20000).Save(ctx)
+	key, _ := secrets.GenerateMasterKey()
+	box, _ := secrets.New(key)
+	rawToken, prefix, _ := secrets.RandomToken("gmc", 32)
+	_, _ = client.AgentToken.Create().SetProjectID(project.ID).SetLabel("agent").SetPrefix(prefix).
+		SetTokenHash(box.Digest("agent-token", rawToken)).SetScopes([]string{"read", "configure"}).Save(ctx)
+	const httpsToken = "github_pat_mcp_secret_token_value"
+	capturing := &capturingHTTPSGitVerifier{}
+	handler := New(
+		agentauth.NewService(client, box),
+		experiment.NewService(client, box, allowCommitVerifier{}),
+		"test", nil, WithConfiguration(repositoryservice.NewService(client, box, capturing), workspacecatalog.NewService(client), datasetcatalog.NewService(client)),
+	).Handler()
+	httpServer := httptest.NewServer(handler)
+	defer httpServer.Close()
+	httpClient := &http.Client{Transport: bearerTransport{token: rawToken, base: http.DefaultTransport}}
+	mcpClient := mcp.NewClient(&mcp.Implementation{Name: "gemcp-test", Version: "test"}, nil)
+	session, err := mcpClient.Connect(ctx, &mcp.StreamableClientTransport{
+		Endpoint: httpServer.URL, HTTPClient: httpClient,
+	}, nil)
+	if err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	defer session.Close()
+	registered, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "register_repository", Arguments: map[string]any{
+		"url": "https://github.com/XR-Lee/DynamicPointMamba",
+	}})
+	if err != nil || registered.IsError {
+		t.Fatalf("register_repository = %+v, %v", registered, err)
+	}
+	var created repositoryservice.View
+	decodeStructured(t, registered.StructuredContent, &created)
+	if created.Status != "pending_key" {
+		t.Fatalf("registered = %+v", created)
+	}
+	verified, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "verify_repository", Arguments: map[string]any{
+		"repository_id": created.ID, "https_token": httpsToken,
+	}})
+	if err != nil || verified.IsError {
+		t.Fatalf("verify_repository = %+v, %v", verified, err)
+	}
+	var view repositoryservice.View
+	decodeStructured(t, verified.StructuredContent, &view)
+	if view.Status != "active" || view.Access != repositoryservice.AccessHTTPSToken || !view.HTTPSTokenConfigured {
+		t.Fatalf("verified view = %+v", view)
+	}
+	if string(capturing.httpsToken) != httpsToken {
+		t.Fatalf("captured token = %q", capturing.httpsToken)
+	}
+	encoded, _ := json.Marshal(verified.StructuredContent)
+	if strings.Contains(string(encoded), httpsToken) || strings.Contains(string(encoded), "ciphertext") {
+		t.Fatalf("MCP view leaked token: %s", encoded)
+	}
+}
 
 func decodeStructured(t *testing.T, value any, target any) {
 	t.Helper()

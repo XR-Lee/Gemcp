@@ -21,6 +21,7 @@ func (Repository) Fields() []ent.Field {
 		field.String("host_key_fingerprint").Optional().MaxLen(255),
 		field.String("deploy_public_key").Optional().Sensitive(),
 		field.String("deploy_private_key_ciphertext").Optional().Sensitive(),
+		field.String("https_token_ciphertext").Optional().Sensitive(),
 		field.Enum("status").Values("pending_key", "active", "disabled", "error").Default("pending_key"),
 		field.Time("last_verified_at").Optional().Nillable(),
 	}

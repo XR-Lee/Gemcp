@@ -14,7 +14,7 @@ An Agent Token is bound to one project and a selected set of scopes:
 | `configure` | Register and verify repositories, register AutoDL dataset bindings and HTTPS sources, register Provider-visible Environments, request a zero-cost image bake, and declare dataset paths below an already approved trusted workspace root |
 | `operate_nodes` | Register Cloud SSH hosts and rotate their credentials. Off by default. Not included in `configure`. |
 
-The Token does not expose AutoDL credentials, repository deploy private keys, Runner Tokens, arbitrary machines, or arbitrary Provider operations. A `configure` Agent receives only the generated deploy public key so a repository administrator can install it read-only.
+The Token does not expose AutoDL credentials, repository deploy private keys, stored GitHub HTTPS tokens, Runner Tokens, arbitrary machines, or arbitrary Provider operations. A `configure` Agent receives only the generated deploy public key so a repository administrator can install it read-only. When Deploy Keys are disabled, the Owner pastes a write-only fine-grained token (Contents: Read on that repository) into `verify_repository`; the Agent must not echo it.
 
 Existing active Token scopes can be edited from the Agents table. The update takes effect on the next authenticated request and is audited; no Token secret is displayed or rotated.
 

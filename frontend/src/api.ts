@@ -188,8 +188,10 @@ export type Repository = {
   deploy_public_key?: string
   host_key_fingerprint?: string
   last_verified_at?: string
-  access?: 'public_https' | 'ssh_deploy_key'
+  access?: 'public_https' | 'ssh_deploy_key' | 'https_token'
   deploy_key_settings_url?: string
+  https_token_configured?: boolean
+  https_token_settings_url?: string
   observation_writes_allowed?: boolean
   pending_note?: string
 }
@@ -213,12 +215,14 @@ export type RepositoryReadiness = {
   name: string
   ssh_url: string
   status: Repository['status']
-  access: 'public_https' | 'ssh_deploy_key'
+  access: 'public_https' | 'ssh_deploy_key' | 'https_token'
   default_branch: string
   detected_default_branch?: string
   commit_sha?: string
   deploy_public_key?: string
   deploy_key_settings_url?: string
+  https_token_configured?: boolean
+  https_token_settings_url?: string
   observation_writes_allowed?: boolean
   pending_note?: string
   ready: boolean
@@ -1508,10 +1512,13 @@ export const api = {
     request<Repository[]>(`/api/v1/repositories?project_id=${encodeURIComponent(projectID)}`),
   createRepository: (payload: { project_id: string; name?: string; ssh_url?: string; url?: string; default_branch: string }) =>
     request<Repository>('/api/v1/repositories', { method: 'POST', body: JSON.stringify(payload) }),
-  verifyRepository: (repositoryID: string, hostKeyFingerprint = '') =>
+  verifyRepository: (repositoryID: string, hostKeyFingerprint = '', httpsToken = '') =>
     request<Repository>(`/api/v1/repositories/${encodeURIComponent(repositoryID)}/verify`, {
       method: 'POST',
-      body: JSON.stringify(hostKeyFingerprint ? { host_key_fingerprint: hostKeyFingerprint } : {}),
+      body: JSON.stringify({
+        ...(hostKeyFingerprint ? { host_key_fingerprint: hostKeyFingerprint } : {}),
+        ...(httpsToken ? { https_token: httpsToken } : {}),
+      }),
     }),
   repositoryReadiness: (repositoryID: string, projectID: string) =>
     request<RepositoryReadiness>(
@@ -1663,3 +1670,5 @@ export function githubDeployKeySettingsURL(sshURL?: string, provided?: string) {
   if (!match) return ''
   return `https://github.com/${match[1]}/${match[2]}/settings/keys`
 }
+
+export const githubFineGrainedTokenSettingsURL = 'https://github.com/settings/personal-access-tokens'

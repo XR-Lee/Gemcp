@@ -28,6 +28,9 @@ func TestWrapVerifyErrorSurfacesDeployKeysDisabled(t *testing.T) {
 	if !strings.Contains(err.Error(), "GitHub Deploy Keys are disabled") || !strings.Contains(err.Error(), ObservationWritesPendingNote) {
 		t.Fatalf("wrap message = %q", err)
 	}
+	if !strings.Contains(err.Error(), "https_token") || !strings.Contains(err.Error(), "Contents: Read") {
+		t.Fatalf("wrap should point at HTTPS token: %q", err)
+	}
 	if VerifyFailureCode(err) != "REPOSITORY_DEPLOY_KEYS_DISABLED" {
 		t.Fatalf("code = %q", VerifyFailureCode(err))
 	}

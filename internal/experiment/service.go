@@ -588,13 +588,7 @@ func repositorySnapshotWithRef(record *ent.Repository, projectID, requestedRef s
 }
 
 func repositoryAccess(record *ent.Repository) string {
-	if record == nil {
-		return ""
-	}
-	if strings.TrimSpace(record.DeployPrivateKeyCiphertext) == "" && record.Status == repository.StatusActive {
-		return gitrepository.AccessPublicHTTPS
-	}
-	return gitrepository.AccessSSHDeploy
+	return gitrepository.AccessOf(record)
 }
 
 func environmentSnapshot(record *ent.Environment) map[string]any {
