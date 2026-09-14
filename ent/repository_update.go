@@ -155,6 +155,26 @@ func (_u *RepositoryUpdate) ClearDeployPrivateKeyCiphertext() *RepositoryUpdate 
 	return _u
 }
 
+// SetHTTPSTokenCiphertext sets the "https_token_ciphertext" field.
+func (_u *RepositoryUpdate) SetHTTPSTokenCiphertext(v string) *RepositoryUpdate {
+	_u.mutation.SetHTTPSTokenCiphertext(v)
+	return _u
+}
+
+// SetNillableHTTPSTokenCiphertext sets the "https_token_ciphertext" field if the given value is not nil.
+func (_u *RepositoryUpdate) SetNillableHTTPSTokenCiphertext(v *string) *RepositoryUpdate {
+	if v != nil {
+		_u.SetHTTPSTokenCiphertext(*v)
+	}
+	return _u
+}
+
+// ClearHTTPSTokenCiphertext clears the value of the "https_token_ciphertext" field.
+func (_u *RepositoryUpdate) ClearHTTPSTokenCiphertext() *RepositoryUpdate {
+	_u.mutation.ClearHTTPSTokenCiphertext()
+	return _u
+}
+
 // SetStatus sets the "status" field.
 func (_u *RepositoryUpdate) SetStatus(v repository.Status) *RepositoryUpdate {
 	_u.mutation.SetStatus(v)
@@ -492,6 +512,12 @@ func (_u *RepositoryUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	}
 	if _u.mutation.DeployPrivateKeyCiphertextCleared() {
 		_spec.ClearField(repository.FieldDeployPrivateKeyCiphertext, field.TypeString)
+	}
+	if value, ok := _u.mutation.HTTPSTokenCiphertext(); ok {
+		_spec.SetField(repository.FieldHTTPSTokenCiphertext, field.TypeString, value)
+	}
+	if _u.mutation.HTTPSTokenCiphertextCleared() {
+		_spec.ClearField(repository.FieldHTTPSTokenCiphertext, field.TypeString)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(repository.FieldStatus, field.TypeEnum, value)
@@ -869,6 +895,26 @@ func (_u *RepositoryUpdateOne) ClearDeployPrivateKeyCiphertext() *RepositoryUpda
 	return _u
 }
 
+// SetHTTPSTokenCiphertext sets the "https_token_ciphertext" field.
+func (_u *RepositoryUpdateOne) SetHTTPSTokenCiphertext(v string) *RepositoryUpdateOne {
+	_u.mutation.SetHTTPSTokenCiphertext(v)
+	return _u
+}
+
+// SetNillableHTTPSTokenCiphertext sets the "https_token_ciphertext" field if the given value is not nil.
+func (_u *RepositoryUpdateOne) SetNillableHTTPSTokenCiphertext(v *string) *RepositoryUpdateOne {
+	if v != nil {
+		_u.SetHTTPSTokenCiphertext(*v)
+	}
+	return _u
+}
+
+// ClearHTTPSTokenCiphertext clears the value of the "https_token_ciphertext" field.
+func (_u *RepositoryUpdateOne) ClearHTTPSTokenCiphertext() *RepositoryUpdateOne {
+	_u.mutation.ClearHTTPSTokenCiphertext()
+	return _u
+}
+
 // SetStatus sets the "status" field.
 func (_u *RepositoryUpdateOne) SetStatus(v repository.Status) *RepositoryUpdateOne {
 	_u.mutation.SetStatus(v)
@@ -1236,6 +1282,12 @@ func (_u *RepositoryUpdateOne) sqlSave(ctx context.Context) (_node *Repository, 
 	}
 	if _u.mutation.DeployPrivateKeyCiphertextCleared() {
 		_spec.ClearField(repository.FieldDeployPrivateKeyCiphertext, field.TypeString)
+	}
+	if value, ok := _u.mutation.HTTPSTokenCiphertext(); ok {
+		_spec.SetField(repository.FieldHTTPSTokenCiphertext, field.TypeString, value)
+	}
+	if _u.mutation.HTTPSTokenCiphertextCleared() {
+		_spec.ClearField(repository.FieldHTTPSTokenCiphertext, field.TypeString)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(repository.FieldStatus, field.TypeEnum, value)

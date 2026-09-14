@@ -28,11 +28,22 @@ function defaultLabel(value?: { name?: string }) {
 }
 
 function blockerAction(blocker: RepositoryReadinessBlocker) {
-  if (blocker.kind === 'deploy_key_required') return 'verify'
+  if (blocker.kind === 'deploy_key_required' || blocker.kind === 'https_token_verify_required') return 'verify'
   if (blocker.kind === 'environment_required' || blocker.kind === 'resource_profile_required' || blocker.kind === 'dataset_binding_required' || blocker.kind === 'incompatible_defaults') {
     return 'defaults'
   }
   return ''
+}
+
+function accessLabel(access?: string) {
+  if (access === 'public_https') return t('Public HTTPS', '公开 HTTPS')
+  if (access === 'https_token') return t('HTTPS token', 'HTTPS 令牌')
+  return t('Deploy Key', 'Deploy Key')
+}
+
+function blockerLinkLabel(blocker: RepositoryReadinessBlocker) {
+  if (blocker.kind === 'https_token_verify_required') return t('Open fine-grained tokens', '打开细粒度令牌')
+  return t('Open repository Deploy Keys', '打开仓库 Deploy Keys')
 }
 </script>
 
@@ -53,7 +64,7 @@ function blockerAction(blocker: RepositoryReadinessBlocker) {
     <dl class="repo-readiness-facts">
       <div>
         <dt>{{ t('Access', '访问') }}</dt>
-        <dd>{{ readiness.access === 'public_https' ? t('Public HTTPS', '公开 HTTPS') : t('Deploy Key', 'Deploy Key') }}</dd>
+        <dd>{{ accessLabel(readiness.access) }}</dd>
       </div>
       <div>
         <dt>{{ t('Default branch', '默认分支') }}</dt>
@@ -84,7 +95,7 @@ function blockerAction(blocker: RepositoryReadinessBlocker) {
         <div>
           <strong>{{ blocker.title }}</strong>
           <p>{{ blocker.detail }}</p>
-          <a v-if="blocker.href" class="form-note-link" :href="blocker.href" target="_blank" rel="noreferrer">{{ t('Open repository Deploy Keys', '打开仓库 Deploy Keys') }}</a>
+          <a v-if="blocker.href" class="form-note-link" :href="blocker.href" target="_blank" rel="noreferrer">{{ blockerLinkLabel(blocker) }}</a>
           <button v-else-if="blockerAction(blocker) === 'verify'" class="text-button" type="button" @click="emit('verify')">{{ t('Verify repository', '验证仓库') }}</button>
           <button v-else-if="blockerAction(blocker) === 'defaults'" class="text-button" type="button" @click="emit('registerDefaults')">{{ t('Open Project defaults', '打开 Project 默认项') }}</button>
         </div>

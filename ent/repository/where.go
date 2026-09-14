@@ -111,6 +111,11 @@ func DeployPrivateKeyCiphertext(v string) predicate.Repository {
 	return predicate.Repository(sql.FieldEQ(FieldDeployPrivateKeyCiphertext, v))
 }
 
+// HTTPSTokenCiphertext applies equality check predicate on the "https_token_ciphertext" field. It's identical to HTTPSTokenCiphertextEQ.
+func HTTPSTokenCiphertext(v string) predicate.Repository {
+	return predicate.Repository(sql.FieldEQ(FieldHTTPSTokenCiphertext, v))
+}
+
 // LastVerifiedAt applies equality check predicate on the "last_verified_at" field. It's identical to LastVerifiedAtEQ.
 func LastVerifiedAt(v time.Time) predicate.Repository {
 	return predicate.Repository(sql.FieldEQ(FieldLastVerifiedAt, v))
@@ -739,6 +744,81 @@ func DeployPrivateKeyCiphertextEqualFold(v string) predicate.Repository {
 // DeployPrivateKeyCiphertextContainsFold applies the ContainsFold predicate on the "deploy_private_key_ciphertext" field.
 func DeployPrivateKeyCiphertextContainsFold(v string) predicate.Repository {
 	return predicate.Repository(sql.FieldContainsFold(FieldDeployPrivateKeyCiphertext, v))
+}
+
+// HTTPSTokenCiphertextEQ applies the EQ predicate on the "https_token_ciphertext" field.
+func HTTPSTokenCiphertextEQ(v string) predicate.Repository {
+	return predicate.Repository(sql.FieldEQ(FieldHTTPSTokenCiphertext, v))
+}
+
+// HTTPSTokenCiphertextNEQ applies the NEQ predicate on the "https_token_ciphertext" field.
+func HTTPSTokenCiphertextNEQ(v string) predicate.Repository {
+	return predicate.Repository(sql.FieldNEQ(FieldHTTPSTokenCiphertext, v))
+}
+
+// HTTPSTokenCiphertextIn applies the In predicate on the "https_token_ciphertext" field.
+func HTTPSTokenCiphertextIn(vs ...string) predicate.Repository {
+	return predicate.Repository(sql.FieldIn(FieldHTTPSTokenCiphertext, vs...))
+}
+
+// HTTPSTokenCiphertextNotIn applies the NotIn predicate on the "https_token_ciphertext" field.
+func HTTPSTokenCiphertextNotIn(vs ...string) predicate.Repository {
+	return predicate.Repository(sql.FieldNotIn(FieldHTTPSTokenCiphertext, vs...))
+}
+
+// HTTPSTokenCiphertextGT applies the GT predicate on the "https_token_ciphertext" field.
+func HTTPSTokenCiphertextGT(v string) predicate.Repository {
+	return predicate.Repository(sql.FieldGT(FieldHTTPSTokenCiphertext, v))
+}
+
+// HTTPSTokenCiphertextGTE applies the GTE predicate on the "https_token_ciphertext" field.
+func HTTPSTokenCiphertextGTE(v string) predicate.Repository {
+	return predicate.Repository(sql.FieldGTE(FieldHTTPSTokenCiphertext, v))
+}
+
+// HTTPSTokenCiphertextLT applies the LT predicate on the "https_token_ciphertext" field.
+func HTTPSTokenCiphertextLT(v string) predicate.Repository {
+	return predicate.Repository(sql.FieldLT(FieldHTTPSTokenCiphertext, v))
+}
+
+// HTTPSTokenCiphertextLTE applies the LTE predicate on the "https_token_ciphertext" field.
+func HTTPSTokenCiphertextLTE(v string) predicate.Repository {
+	return predicate.Repository(sql.FieldLTE(FieldHTTPSTokenCiphertext, v))
+}
+
+// HTTPSTokenCiphertextContains applies the Contains predicate on the "https_token_ciphertext" field.
+func HTTPSTokenCiphertextContains(v string) predicate.Repository {
+	return predicate.Repository(sql.FieldContains(FieldHTTPSTokenCiphertext, v))
+}
+
+// HTTPSTokenCiphertextHasPrefix applies the HasPrefix predicate on the "https_token_ciphertext" field.
+func HTTPSTokenCiphertextHasPrefix(v string) predicate.Repository {
+	return predicate.Repository(sql.FieldHasPrefix(FieldHTTPSTokenCiphertext, v))
+}
+
+// HTTPSTokenCiphertextHasSuffix applies the HasSuffix predicate on the "https_token_ciphertext" field.
+func HTTPSTokenCiphertextHasSuffix(v string) predicate.Repository {
+	return predicate.Repository(sql.FieldHasSuffix(FieldHTTPSTokenCiphertext, v))
+}
+
+// HTTPSTokenCiphertextIsNil applies the IsNil predicate on the "https_token_ciphertext" field.
+func HTTPSTokenCiphertextIsNil() predicate.Repository {
+	return predicate.Repository(sql.FieldIsNull(FieldHTTPSTokenCiphertext))
+}
+
+// HTTPSTokenCiphertextNotNil applies the NotNil predicate on the "https_token_ciphertext" field.
+func HTTPSTokenCiphertextNotNil() predicate.Repository {
+	return predicate.Repository(sql.FieldNotNull(FieldHTTPSTokenCiphertext))
+}
+
+// HTTPSTokenCiphertextEqualFold applies the EqualFold predicate on the "https_token_ciphertext" field.
+func HTTPSTokenCiphertextEqualFold(v string) predicate.Repository {
+	return predicate.Repository(sql.FieldEqualFold(FieldHTTPSTokenCiphertext, v))
+}
+
+// HTTPSTokenCiphertextContainsFold applies the ContainsFold predicate on the "https_token_ciphertext" field.
+func HTTPSTokenCiphertextContainsFold(v string) predicate.Repository {
+	return predicate.Repository(sql.FieldContainsFold(FieldHTTPSTokenCiphertext, v))
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.

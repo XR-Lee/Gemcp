@@ -4,8 +4,11 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"encoding/json"
 	"errors"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -23,6 +26,7 @@ type fakeGitVerifier struct {
 	publicOK    bool
 	probedURL   string
 	privateKey  []byte
+	httpsToken  []byte
 	fingerprint string
 	commitSHA   string
 	ref         string
@@ -40,20 +44,23 @@ func (f *fakeGitVerifier) ProbePublicHTTPS(_ context.Context, httpsURL string) e
 	return errors.New("not a public GitHub repository")
 }
 
-func (f *fakeGitVerifier) VerifyAccess(_ context.Context, _, _ string, privateKey []byte, fingerprint string) error {
-	f.privateKey = append([]byte(nil), privateKey...)
-	f.fingerprint = fingerprint
+func (f *fakeGitVerifier) VerifyAccess(_ context.Context, auth FetchAuth) error {
+	f.privateKey = append([]byte(nil), auth.PrivateKey...)
+	f.httpsToken = append([]byte(nil), auth.HTTPSToken...)
+	f.fingerprint = auth.Fingerprint
 	return f.accessErr
 }
 
-func (f *fakeGitVerifier) VerifyCommit(_ context.Context, _, _ string, privateKey []byte, _ string, sha string) error {
-	f.privateKey = append([]byte(nil), privateKey...)
+func (f *fakeGitVerifier) VerifyCommit(_ context.Context, auth FetchAuth, sha string) error {
+	f.privateKey = append([]byte(nil), auth.PrivateKey...)
+	f.httpsToken = append([]byte(nil), auth.HTTPSToken...)
 	f.commitSHA = sha
 	return f.commitErr
 }
 
-func (f *fakeGitVerifier) ResolveRef(_ context.Context, _, _ string, privateKey []byte, _ string, ref string) (string, error) {
-	f.privateKey = append([]byte(nil), privateKey...)
+func (f *fakeGitVerifier) ResolveRef(_ context.Context, auth FetchAuth, ref string) (string, error) {
+	f.privateKey = append([]byte(nil), auth.PrivateKey...)
+	f.httpsToken = append([]byte(nil), auth.HTTPSToken...)
 	f.ref = ref
 	if f.commitErr != nil {
 		return "", f.commitErr
@@ -64,8 +71,9 @@ func (f *fakeGitVerifier) ResolveRef(_ context.Context, _, _ string, privateKey 
 	return f.resolvedSHA, nil
 }
 
-func (f *fakeGitVerifier) DetectDefaultBranch(_ context.Context, _, _ string, privateKey []byte, _ string) (string, string, error) {
-	f.privateKey = append([]byte(nil), privateKey...)
+func (f *fakeGitVerifier) DetectDefaultBranch(_ context.Context, auth FetchAuth) (string, string, error) {
+	f.privateKey = append([]byte(nil), auth.PrivateKey...)
+	f.httpsToken = append([]byte(nil), auth.HTTPSToken...)
 	if f.commitErr != nil {
 		return "", "", f.commitErr
 	}
@@ -124,7 +132,7 @@ func TestRepositoryDeployKeyLifecycle(t *testing.T) {
 		t.Fatal("deploy private key was stored as plaintext")
 	}
 
-	verified, err := service.Verify(ctx, tenant.ID, created.ID, "SHA256:expected-host-key-fingerprint")
+	verified, err := service.Verify(ctx, tenant.ID, created.ID, OwnerVerifyInput{HostKeyFingerprint: "SHA256:expected-host-key-fingerprint"})
 	if err != nil {
 		t.Fatalf("Verify() error = %v", err)
 	}
@@ -271,7 +279,7 @@ func TestVerifyDoesNotActivateOnFailure(t *testing.T) {
 	box, _ := secrets.New(key)
 	service := NewService(client, box, &fakeGitVerifier{accessErr: errors.New("access denied")})
 	created, _ := service.Create(ctx, tenant.ID, Input{ProjectID: project.PublicID.String(), Name: "main", SSHURL: "git@github.com:XR-Lee/Gemcp.git"})
-	if _, err := service.Verify(ctx, tenant.ID, created.ID, "SHA256:expected-host-key-fingerprint"); err == nil {
+	if _, err := service.Verify(ctx, tenant.ID, created.ID, OwnerVerifyInput{HostKeyFingerprint: "SHA256:expected-host-key-fingerprint"}); err == nil {
 		t.Fatal("Verify() succeeded despite verifier failure")
 	}
 	record, _ := client.Repository.Query().Only(ctx)
@@ -295,7 +303,7 @@ func TestAgentRepositoryRegistrationIsProjectScopedAndAudited(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := service.Verify(ctx, tenant.ID, pinned.ID, "SHA256:established-github-host-key"); err != nil {
+	if _, err := service.Verify(ctx, tenant.ID, pinned.ID, OwnerVerifyInput{HostKeyFingerprint: "SHA256:established-github-host-key"}); err != nil {
 		t.Fatal(err)
 	}
 	created, err := service.CreateForAgent(ctx, tenant.ID, "agent-public-id", project.PublicID.String(), AgentInput{
@@ -340,7 +348,7 @@ func TestVerifyUsesOfficialGitHubFingerprintWhenOmitted(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	verified, err := service.Verify(ctx, tenant.ID, created.ID, "")
+	verified, err := service.Verify(ctx, tenant.ID, created.ID, OwnerVerifyInput{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -350,4 +358,164 @@ func TestVerifyUsesOfficialGitHubFingerprintWhenOmitted(t *testing.T) {
 	if verified.Status != "active" || verified.HostKeyFingerprint == nil || *verified.HostKeyFingerprint != githubEd25519Fingerprint {
 		t.Fatalf("verified repository = %+v", verified)
 	}
+}
+
+func TestHTTPSTokenActivatesPrivateRepositoryAndStaysOutOfView(t *testing.T) {
+	client := enttest.Open(t, dialect.SQLite, "file:repository-https-token?mode=memory&cache=shared&_fk=1")
+	defer client.Close()
+	ctx := context.Background()
+	tenant, _ := client.Tenant.Create().SetName("Test").Save(ctx)
+	project, _ := client.Project.Create().SetTenantID(tenant.ID).SetName("Project").SetSlug("project").SetMonthlyBudgetMilli(100000).SetMaxExperimentMilli(20000).Save(ctx)
+	key, _ := secrets.GenerateMasterKey()
+	box, _ := secrets.New(key)
+	verifier := &fakeGitVerifier{}
+	service := NewService(client, box, verifier)
+	const token = "github_pat_unit_test_secret_token_value"
+
+	created, err := service.Create(ctx, tenant.ID, Input{
+		ProjectID: project.PublicID.String(), Name: "dynamic-point-mamba", SSHURL: "git@github.com:XR-Lee/DynamicPointMamba.git",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if created.Status != "pending_key" || created.Access != AccessSSHDeploy || created.HTTPSTokenConfigured {
+		t.Fatalf("created = %+v", created)
+	}
+
+	verified, err := service.Verify(ctx, tenant.ID, created.ID, OwnerVerifyInput{HTTPSToken: token})
+	if err != nil {
+		t.Fatalf("Verify() error = %v", err)
+	}
+	if verified.Status != "active" || verified.Access != AccessHTTPSToken || !verified.HTTPSTokenConfigured {
+		t.Fatalf("verified = %+v", verified)
+	}
+	if verified.HTTPSTokenSettingsURL != FineGrainedTokenSettingsURL {
+		t.Fatalf("token settings URL = %q", verified.HTTPSTokenSettingsURL)
+	}
+	if string(verifier.httpsToken) != token {
+		t.Fatalf("verifier token = %q", verifier.httpsToken)
+	}
+	if verifier.fingerprint != githubEd25519Fingerprint {
+		t.Fatalf("token verify fingerprint = %q", verifier.fingerprint)
+	}
+
+	encoded, err := json.Marshal(verified)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, forbidden := range []string{token, "github_pat", "ciphertext", "https_token_ciphertext"} {
+		if strings.Contains(string(encoded), forbidden) {
+			t.Fatalf("view JSON leaked %q: %s", forbidden, encoded)
+		}
+	}
+
+	record, _ := client.Repository.Query().Only(ctx)
+	if record.HTTPSTokenCiphertext == "" || strings.Contains(record.HTTPSTokenCiphertext, token) {
+		t.Fatal("HTTPS token was not stored as ciphertext")
+	}
+	if AccessOf(record) != AccessHTTPSToken {
+		t.Fatalf("AccessOf = %q", AccessOf(record))
+	}
+
+	resolved, err := service.ResolveRef(ctx, record.ID, "main")
+	if err != nil || resolved != strings.Repeat("a", 40) || string(verifier.httpsToken) != token || verifier.ref != "main" {
+		t.Fatalf("ResolveRef() = %q token=%q ref=%q err=%v", resolved, verifier.httpsToken, verifier.ref, err)
+	}
+}
+
+func TestHTTPSTokenVerifyFailureKeepsPendingAndStoresToken(t *testing.T) {
+	client := enttest.Open(t, dialect.SQLite, "file:repository-https-token-fail?mode=memory&cache=shared&_fk=1")
+	defer client.Close()
+	ctx := context.Background()
+	tenant, _ := client.Tenant.Create().SetName("Test").Save(ctx)
+	project, _ := client.Project.Create().SetTenantID(tenant.ID).SetName("Project").SetSlug("project").SetMonthlyBudgetMilli(1).SetMaxExperimentMilli(1).Save(ctx)
+	key, _ := secrets.GenerateMasterKey()
+	box, _ := secrets.New(key)
+	const token = "github_pat_retry_secret_token_value"
+	service := NewService(client, box, &fakeGitVerifier{accessErr: errors.New("Authentication failed for https://github.com/XR-Lee/DynamicPointMamba.git")})
+	created, err := service.Create(ctx, tenant.ID, Input{ProjectID: project.PublicID.String(), URL: "https://github.com/XR-Lee/DynamicPointMamba"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Verify(ctx, tenant.ID, created.ID, OwnerVerifyInput{HTTPSToken: token}); err == nil {
+		t.Fatal("Verify() succeeded despite token rejection")
+	} else if !errors.Is(err, ErrVerificationFailed) || VerifyFailureCode(err) != "REPOSITORY_HTTPS_TOKEN_INVALID" {
+		t.Fatalf("Verify() error = %v code=%s", err, VerifyFailureCode(err))
+	}
+	record, _ := client.Repository.Query().Only(ctx)
+	if record.Status != "pending_key" || record.HTTPSTokenCiphertext == "" {
+		t.Fatalf("status=%s ciphertext empty=%t", record.Status, record.HTTPSTokenCiphertext == "")
+	}
+	listed, err := service.List(ctx, tenant.ID, project.PublicID.String())
+	if err != nil || len(listed) != 1 || listed[0].Access != AccessHTTPSToken || listed[0].Status != "pending_key" {
+		t.Fatalf("list after failed token verify = %+v err=%v", listed, err)
+	}
+	encoded, _ := json.Marshal(listed[0])
+	if strings.Contains(string(encoded), token) {
+		t.Fatalf("list view leaked token: %s", encoded)
+	}
+}
+
+func TestNormalizeHTTPSToken(t *testing.T) {
+	t.Parallel()
+	if _, err := normalizeHTTPSToken("short"); err == nil {
+		t.Fatal("accepted a short token")
+	}
+	if _, err := normalizeHTTPSToken("https://x-access-token:secret@github.com/o/r.git"); err == nil {
+		t.Fatal("accepted a URL")
+	}
+	if _, err := normalizeHTTPSToken("github_pat token with spaces 12345"); err == nil {
+		t.Fatal("accepted whitespace")
+	}
+	got, err := normalizeHTTPSToken("  github_pat_fine_grained_contents_read  ")
+	if err != nil || got != "github_pat_fine_grained_contents_read" {
+		t.Fatalf("normalize = %q %v", got, err)
+	}
+}
+
+func TestRedactGitOutput(t *testing.T) {
+	t.Parallel()
+	input := "fatal: Authentication failed for 'https://x-access-token:github_pat_secretvaluehere@github.com/XR-Lee/DynamicPointMamba.git/'"
+	got := redactGitOutput(input)
+	if strings.Contains(got, "github_pat_secretvaluehere") || strings.Contains(got, "x-access-token:github_pat") {
+		t.Fatalf("redact leaked token: %q", got)
+	}
+}
+
+func TestHTTPSCredentialHelperKeepsTokenOutOfArgv(t *testing.T) {
+	dir := t.TempDir()
+	const token = "github_pat_helper_secret_token_value"
+	helperPath, err := writeHTTPSCredentialHelper(dir, []byte(token))
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(helperPath)
+	if err != nil || info.Mode()&0o111 == 0 {
+		t.Fatalf("helper mode = %v err=%v", info, err)
+	}
+	output, err := os.ReadFile(helperPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(output), token) {
+		t.Fatal("helper script embedded the token")
+	}
+	for _, arg := range httpsGitArgs(helperPath) {
+		if strings.Contains(arg, token) {
+			t.Fatalf("git arg leaked token: %q", arg)
+		}
+	}
+	cmd := filepath.Join(dir, httpsHelperFileName)
+	got, err := runHelperGet(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(got, "username=x-access-token") || !strings.Contains(got, "password="+token) {
+		t.Fatalf("helper get = %q", got)
+	}
+}
+
+func runHelperGet(helperPath string) (string, error) {
+	output, err := exec.Command(helperPath, "get").CombinedOutput()
+	return string(output), err
 }

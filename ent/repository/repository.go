@@ -38,6 +38,8 @@ const (
 	FieldDeployPublicKey = "deploy_public_key"
 	// FieldDeployPrivateKeyCiphertext holds the string denoting the deploy_private_key_ciphertext field in the database.
 	FieldDeployPrivateKeyCiphertext = "deploy_private_key_ciphertext"
+	// FieldHTTPSTokenCiphertext holds the string denoting the https_token_ciphertext field in the database.
+	FieldHTTPSTokenCiphertext = "https_token_ciphertext"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
 	// FieldLastVerifiedAt holds the string denoting the last_verified_at field in the database.
@@ -114,6 +116,7 @@ var Columns = []string{
 	FieldHostKeyFingerprint,
 	FieldDeployPublicKey,
 	FieldDeployPrivateKeyCiphertext,
+	FieldHTTPSTokenCiphertext,
 	FieldStatus,
 	FieldLastVerifiedAt,
 }
@@ -240,6 +243,11 @@ func ByDeployPublicKey(opts ...sql.OrderTermOption) OrderOption {
 // ByDeployPrivateKeyCiphertext orders the results by the deploy_private_key_ciphertext field.
 func ByDeployPrivateKeyCiphertext(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDeployPrivateKeyCiphertext, opts...).ToFunc()
+}
+
+// ByHTTPSTokenCiphertext orders the results by the https_token_ciphertext field.
+func ByHTTPSTokenCiphertext(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldHTTPSTokenCiphertext, opts...).ToFunc()
 }
 
 // ByStatus orders the results by the status field.

@@ -60,16 +60,14 @@ func (h *RepositoryHandlers) Verify(c *gin.Context) {
 		writeError(c, http.StatusUnauthorized, "UNAUTHENTICATED", "authentication required")
 		return
 	}
-	var input struct {
-		HostKeyFingerprint string `json:"host_key_fingerprint"`
-	}
+	var input gitrepository.OwnerVerifyInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		writeError(c, http.StatusBadRequest, "INVALID_JSON", "request body must be valid JSON")
 		return
 	}
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 90*time.Second)
 	defer cancel()
-	view, err := h.service.Verify(ctx, principal.TenantID, c.Param("id"), input.HostKeyFingerprint)
+	view, err := h.service.Verify(ctx, principal.TenantID, c.Param("id"), input)
 	if err != nil {
 		h.writeError(c, err)
 		return

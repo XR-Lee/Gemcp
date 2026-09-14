@@ -1704,6 +1704,7 @@ var (
 		{Name: "host_key_fingerprint", Type: field.TypeString, Nullable: true, Size: 255},
 		{Name: "deploy_public_key", Type: field.TypeString, Nullable: true},
 		{Name: "deploy_private_key_ciphertext", Type: field.TypeString, Nullable: true},
+		{Name: "https_token_ciphertext", Type: field.TypeString, Nullable: true},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending_key", "active", "disabled", "error"}, Default: "pending_key"},
 		{Name: "last_verified_at", Type: field.TypeTime, Nullable: true},
 		{Name: "project_id", Type: field.TypeInt},
@@ -1716,7 +1717,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "repositories_projects_repositories",
-				Columns:    []*schema.Column{RepositoriesColumns[13]},
+				Columns:    []*schema.Column{RepositoriesColumns[14]},
 				RefColumns: []*schema.Column{ProjectsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -1725,7 +1726,7 @@ var (
 			{
 				Name:    "repository_project_id_name",
 				Unique:  true,
-				Columns: []*schema.Column{RepositoriesColumns[13], RepositoriesColumns[4]},
+				Columns: []*schema.Column{RepositoriesColumns[14], RepositoriesColumns[4]},
 			},
 		},
 	}

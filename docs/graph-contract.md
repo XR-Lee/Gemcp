@@ -98,7 +98,7 @@ A prepared or submitted Experiment records `git_identity`: repository, `requeste
 
 Example: bind `XR-Lee/DynamicPointMamba` (or any similar lab repo) without dumping training code onto `research-plan`.
 
-1. Register the repository (`register_repository` / Owner import). Public HTTPS activates immediately. Private repos stay `pending_key` until verify; Graph and catalog observation writes remain possible while pending.
+1. Register the repository (`register_repository` / Owner import). Public HTTPS activates immediately. Private repos stay `pending_key` until verify (Deploy Key or write-only `https_token`); Graph and catalog observation writes remain possible while pending.
 2. Create or update the Study with `repository_id` plus route: `protocol_branch=research-plan`, `protocol_doc_path` for the chapter/card, `code_ref_pattern=autoresearch/*`.
 3. Record a connected hypothesis. Call `get_next_actions`.
 4. `prepare_experiment` with `from_node_id` on that hypothesis and `ref` on an `autoresearch/…` branch. Owner confirms the digest.

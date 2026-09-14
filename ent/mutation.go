@@ -45009,6 +45009,7 @@ type RepositoryMutation struct {
 	host_key_fingerprint           *string
 	deploy_public_key              *string
 	deploy_private_key_ciphertext  *string
+	https_token_ciphertext         *string
 	status                         *repository.Status
 	last_verified_at               *time.Time
 	clearedFields                  map[string]struct{}
@@ -45567,6 +45568,55 @@ func (m *RepositoryMutation) ResetDeployPrivateKeyCiphertext() {
 	delete(m.clearedFields, repository.FieldDeployPrivateKeyCiphertext)
 }
 
+// SetHTTPSTokenCiphertext sets the "https_token_ciphertext" field.
+func (m *RepositoryMutation) SetHTTPSTokenCiphertext(s string) {
+	m.https_token_ciphertext = &s
+}
+
+// HTTPSTokenCiphertext returns the value of the "https_token_ciphertext" field in the mutation.
+func (m *RepositoryMutation) HTTPSTokenCiphertext() (r string, exists bool) {
+	v := m.https_token_ciphertext
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHTTPSTokenCiphertext returns the old "https_token_ciphertext" field's value of the Repository entity.
+// If the Repository object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RepositoryMutation) OldHTTPSTokenCiphertext(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHTTPSTokenCiphertext is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHTTPSTokenCiphertext requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHTTPSTokenCiphertext: %w", err)
+	}
+	return oldValue.HTTPSTokenCiphertext, nil
+}
+
+// ClearHTTPSTokenCiphertext clears the value of the "https_token_ciphertext" field.
+func (m *RepositoryMutation) ClearHTTPSTokenCiphertext() {
+	m.https_token_ciphertext = nil
+	m.clearedFields[repository.FieldHTTPSTokenCiphertext] = struct{}{}
+}
+
+// HTTPSTokenCiphertextCleared returns if the "https_token_ciphertext" field was cleared in this mutation.
+func (m *RepositoryMutation) HTTPSTokenCiphertextCleared() bool {
+	_, ok := m.clearedFields[repository.FieldHTTPSTokenCiphertext]
+	return ok
+}
+
+// ResetHTTPSTokenCiphertext resets all changes to the "https_token_ciphertext" field.
+func (m *RepositoryMutation) ResetHTTPSTokenCiphertext() {
+	m.https_token_ciphertext = nil
+	delete(m.clearedFields, repository.FieldHTTPSTokenCiphertext)
+}
+
 // SetStatus sets the "status" field.
 func (m *RepositoryMutation) SetStatus(r repository.Status) {
 	m.status = &r
@@ -45983,7 +46033,7 @@ func (m *RepositoryMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *RepositoryMutation) Fields() []string {
-	fields := make([]string, 0, 13)
+	fields := make([]string, 0, 14)
 	if m.public_id != nil {
 		fields = append(fields, repository.FieldPublicID)
 	}
@@ -46016,6 +46066,9 @@ func (m *RepositoryMutation) Fields() []string {
 	}
 	if m.deploy_private_key_ciphertext != nil {
 		fields = append(fields, repository.FieldDeployPrivateKeyCiphertext)
+	}
+	if m.https_token_ciphertext != nil {
+		fields = append(fields, repository.FieldHTTPSTokenCiphertext)
 	}
 	if m.status != nil {
 		fields = append(fields, repository.FieldStatus)
@@ -46053,6 +46106,8 @@ func (m *RepositoryMutation) Field(name string) (ent.Value, bool) {
 		return m.DeployPublicKey()
 	case repository.FieldDeployPrivateKeyCiphertext:
 		return m.DeployPrivateKeyCiphertext()
+	case repository.FieldHTTPSTokenCiphertext:
+		return m.HTTPSTokenCiphertext()
 	case repository.FieldStatus:
 		return m.Status()
 	case repository.FieldLastVerifiedAt:
@@ -46088,6 +46143,8 @@ func (m *RepositoryMutation) OldField(ctx context.Context, name string) (ent.Val
 		return m.OldDeployPublicKey(ctx)
 	case repository.FieldDeployPrivateKeyCiphertext:
 		return m.OldDeployPrivateKeyCiphertext(ctx)
+	case repository.FieldHTTPSTokenCiphertext:
+		return m.OldHTTPSTokenCiphertext(ctx)
 	case repository.FieldStatus:
 		return m.OldStatus(ctx)
 	case repository.FieldLastVerifiedAt:
@@ -46178,6 +46235,13 @@ func (m *RepositoryMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetDeployPrivateKeyCiphertext(v)
 		return nil
+	case repository.FieldHTTPSTokenCiphertext:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHTTPSTokenCiphertext(v)
+		return nil
 	case repository.FieldStatus:
 		v, ok := value.(repository.Status)
 		if !ok {
@@ -46234,6 +46298,9 @@ func (m *RepositoryMutation) ClearedFields() []string {
 	if m.FieldCleared(repository.FieldDeployPrivateKeyCiphertext) {
 		fields = append(fields, repository.FieldDeployPrivateKeyCiphertext)
 	}
+	if m.FieldCleared(repository.FieldHTTPSTokenCiphertext) {
+		fields = append(fields, repository.FieldHTTPSTokenCiphertext)
+	}
 	if m.FieldCleared(repository.FieldLastVerifiedAt) {
 		fields = append(fields, repository.FieldLastVerifiedAt)
 	}
@@ -46259,6 +46326,9 @@ func (m *RepositoryMutation) ClearField(name string) error {
 		return nil
 	case repository.FieldDeployPrivateKeyCiphertext:
 		m.ClearDeployPrivateKeyCiphertext()
+		return nil
+	case repository.FieldHTTPSTokenCiphertext:
+		m.ClearHTTPSTokenCiphertext()
 		return nil
 	case repository.FieldLastVerifiedAt:
 		m.ClearLastVerifiedAt()
@@ -46303,6 +46373,9 @@ func (m *RepositoryMutation) ResetField(name string) error {
 		return nil
 	case repository.FieldDeployPrivateKeyCiphertext:
 		m.ResetDeployPrivateKeyCiphertext()
+		return nil
+	case repository.FieldHTTPSTokenCiphertext:
+		m.ResetHTTPSTokenCiphertext()
 		return nil
 	case repository.FieldStatus:
 		m.ResetStatus()

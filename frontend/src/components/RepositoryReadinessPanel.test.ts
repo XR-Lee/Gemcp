@@ -50,6 +50,18 @@ describe('RepositoryReadinessPanel', () => {
     expect(wrapper.get('a.form-note-link').attributes('href')).toBe('https://github.com/research/dynamic-point-mamba/settings/keys')
   })
 
+  it('labels HTTPS token access', () => {
+    const wrapper = mount(RepositoryReadinessPanel, {
+      props: {
+        readiness: {
+          ...ready, access: 'https_token', https_token_configured: true,
+          https_token_settings_url: 'https://github.com/settings/personal-access-tokens',
+        },
+      },
+    })
+    expect(wrapper.text()).toContain('HTTPS token')
+  })
+
   it('says Graph writes remain possible while the Deploy Key is pending', () => {
     const wrapper = mount(RepositoryReadinessPanel, {
       props: {
