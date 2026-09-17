@@ -2,25 +2,9 @@
 
 [English](README.md) · [中文](README.zh.md)
 
-**私有研究工作台。** 你看到的是 Study、计划和一张研究 Graph。连上来的编码 Agent 提出下一步实验；花钱之前必须由你确认。Gemcp 负责调度、预留预算，再把结果写回成证据。
+编码 Agent 能写出一个像样的实验，也能在你睡觉的时候烧掉你的预算和 GPU 配额。
 
-Provider Token、节点凭据和审计留在单独的 **Lab** 层。Agent 拿不到这些秘密。
-
-> **这份 README 给人读。**
-> 在本仓库里改代码的 Agent：看 [AGENTS.md](AGENTS.md)。
-> 已经通过 MCP 连上运行中 Gemcp 的 Agent：看 [guides/agent-mcp.md](guides/agent-mcp.md)（或调用 `get_usage_guide`）。
-
-当前版本：**v0.20.0**（[`VERSION`](VERSION)，[更新说明](docs/releases.md)）。请用 `main`。
-
-<p align="center">
-  <img src="docs/images/readme-research-zh.png" alt="Gemcp 研究控制台：Study、下一步和 Graph" width="960" />
-</p>
-<p align="center"><em>首页是研究视图。预算、Provider、节点、告警都在 Lab，点一下就能到。</em></p>
-
-<p align="center">
-  <img src="docs/images/readme-graph.png" alt="研究 Graph：问题、假设、计划、运行结果和观察，按证据时间排列" width="960" />
-</p>
-<p align="center"><em>Graph 是科学谱系，不是 git commit 图。付费运行必须从一条连得上的 hypothesis 出发。</em></p>
+**Gemcp 就是这笔钱前面的那道闸。** Agent 只能*准备*一次运行。你确认一条精确 digest —— 仓库、完整 commit、argv、后端、最坏情况人民币 —— 之后才会预留预算。然后 Gemcp 负责调度，并把结果写回研究 Graph 作为证据。
 
 ## 你能用来做什么
 
@@ -29,6 +13,39 @@ Provider Token、节点凭据和审计留在单独的 **Lab** 层。Agent 拿不
 - **在研究仓库里开 MCP** — 支持 Cursor、Claude Code、Codex、OpenCode、Grok、Pi。在那个目录启用 Gemcp，不要开成全局 MCP。
 - **四条算力路径** — 本地 CPU（不需要 NVIDIA）、Cloud SSH、自建 Docker GPU、或 AutoDL。它们不会悄悄互相 fallback。
 - **一套用词** — Study、hypothesis、run、result。控制台、MCP 和 [Graph 契约](docs/graph-contract.md) 用同一套词。
+- **秘密留在你自己的 Lab** — Provider Token、节点凭据和审计在单独的 Lab 层，Agent 拿不到。
+
+## 一次付费运行怎么走
+
+```text
+你在 Graph 上记下一条 hypothesis
+        │
+Agent 零成本准备提案          (prepare_experiment)
+        │
+你确认精确 digest
+        │
+Agent 提交一次                (submit_prepared_experiment)
+        │
+Gemcp 写入 run，再用 close_run 写回 result
+```
+
+这条流程是服务端强制的，不是提示词里的一句请求。在 Graph 上记一个节点 **不会** 启动机器，`submit` 权限也只是技术能力，不是空白支票。`submit_experiment` 是旧的 Advanced 兼容路径，有活跃 Study 时会被拒绝。花钱规则、合法边、`close_run` 能写什么：[Graph 契约](docs/graph-contract.md)。
+
+<p align="center">
+  <img src="docs/images/readme-graph.png" alt="研究 Graph：问题、假设、计划、运行结果和观察，按证据时间排列" width="960" />
+</p>
+<p align="center"><em>Graph 是科学谱系，不是 git commit 图。付费运行必须从一条连得上的 hypothesis 出发。</em></p>
+
+<p align="center">
+  <img src="docs/images/readme-research-zh.png" alt="Gemcp 研究控制台：Study、下一步和 Graph" width="960" />
+</p>
+<p align="center"><em>首页是研究视图。预算、Provider、节点、告警都在 Lab，点一下就能到。</em></p>
+
+> **这份 README 给人读。**
+> 在本仓库里改代码的 Agent：看 [AGENTS.md](AGENTS.md)。
+> 已经通过 MCP 连上运行中 Gemcp 的 Agent：看 [guides/agent-mcp.md](guides/agent-mcp.md)（或调用 `get_usage_guide`）。
+
+当前版本：**v0.20.0**（[`VERSION`](VERSION)，[更新说明](docs/releases.md)）。请用 `main`。
 
 ## 五分钟本地跑起来（笔记本，不用 GPU）
 
@@ -79,22 +96,6 @@ Provider Token、节点凭据和审计留在单独的 **Lab** 层。Agent 拿不
 
 `submit` 权限只是技术能力，不是空白支票。每条准备好的提案，仍然要你确认那条 digest。
 
-## 一次付费运行怎么走
-
-```text
-你在 Graph 上记下一条 hypothesis
-        │
-Agent 零成本准备提案          (prepare_experiment)
-        │
-你确认精确 digest
-        │
-Agent 提交一次                (submit_prepared_experiment)
-        │
-Gemcp 写入 run，再用 close_run 写回 result
-```
-
-在 Graph 上记一个节点 **不会** 启动机器。`submit_experiment` 是旧的 Advanced 兼容路径，有活跃 Study 时会被拒绝。
-
 ## 活跑在哪
 
 | 后端 | 典型用途 | GPU |
@@ -115,11 +116,23 @@ Gemcp 写入 run，再用 close_run 写回 result
 
 Vue 控制台嵌在 Go 发布二进制里。不需要 Redis、Kubernetes，也不需要单独跑前端。
 
+## 路线图
+
+仓库就绪和 Owner 自己准备实验正在做。长期授权、artifact 下载、以及「透明即授权」属于后面的增量。已发布与计划中，一页看完：[docs/roadmap.md](docs/roadmap.md)。
+
+## Gemcp 不是什么
+
+- **不是实验追踪**（MLflow、Weights & Biases）—— 追踪工具记录你已经跑过的；Gemcp 决定一次运行能不能开始。
+- **不是 Agent 框架、作业队列或集群调度**（LangGraph、Slurm、Ray、ClearML）—— harness 留在外面，MCP 是唯一的门，后端也刻意不互相 fallback。
+- 五个品类，每条都附仓内依据：**[NON-GOALS.md](NON-GOALS.md#中文)**。
+
 ## 文档怎么找
 
 | 你想… | 看这里 |
 | --- | --- |
 | 当人来用产品（本页） | [README.md](README.md) · [README.zh.md](README.zh.md) |
+| 知道 Gemcp 刻意不做什么 | [NON-GOALS.md](NON-GOALS.md#中文) |
+| 一页看懂谁对谁做什么 | [docs/framework-map.html](docs/framework-map.html)（中文框架图） |
 | 给 Cursor / Claude / Codex 接线 | [guides/owner-mcp.md](guides/owner-mcp.md) |
 | **作为** MCP Agent 操作 Gemcp | [guides/agent-mcp.md](guides/agent-mcp.md) |
 | 在本仓库里改代码 | [AGENTS.md](AGENTS.md) |
