@@ -5,6 +5,7 @@ autodl_token*
 .env.*
 !.env.example
 .gemcp-local-agent-token
+.mcp.json
 bin/
 coverage/
 data/
