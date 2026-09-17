@@ -6,6 +6,17 @@ A coding agent can write a good experiment. It can also burn your budget and you
 
 **Gemcp is the gate in front of that spend.** An agent may only *prepare* a run. You confirm one exact digest — repository, full commit, argv, backend, worst-case CNY — and only then is budget reserved. Gemcp schedules the work and writes the result back onto a research Graph as evidence.
 
+## What you get
+
+- **Owner-first console** — start from the research question, not from GPU inventory.
+- **Human-confirmed spend** — an agent can only *prepare* a run. You approve the exact digest before budget is reserved.
+- **MCP in the research repo** — Cursor, Claude Code, Codex, OpenCode, Grok, and Pi. Enable Gemcp in that directory, not as a global server.
+- **Four compute backends** — local CPU (no NVIDIA), Cloud SSH, Self-hosted Docker GPUs, or AutoDL. They do not silently fall back to one another.
+- **One vocabulary** — Study, hypothesis, run, result. The same words appear in the console, MCP, and [Graph contract](docs/graph-contract.md).
+- **Secrets stay in your Lab** — provider tokens, node credentials, and audit live in a separate Lab layer. Agents never receive them.
+
+## How a paid run starts
+
 ```text
 You record a hypothesis on the Graph
         │
@@ -18,41 +29,23 @@ Agent submits once                   (submit_prepared_experiment)
 Gemcp writes the run, then the result (close_run)
 ```
 
-Recording a Graph node never starts a machine. A `submit` scope is technical capability, not a blank check.
-
-## What Gemcp is not
-
-- **Not an experiment tracker** (MLflow, Weights & Biases) — a tracker records runs you already started; Gemcp decides whether one may start.
-- **Not an in-process agent framework** (LangGraph) — harnesses and coding agents stay outside; MCP is the only door.
-- **Not a job queue or cluster scheduler** (Slurm, Ray, ClearML) — the backends deliberately never fall back to one another, because a silent swap would make a confirmed digest lie.
-
-One page, with the in-repo evidence behind each line: **[NON-GOALS.md](NON-GOALS.md)**.
+That flow is enforced on the server, not in a prompt. Recording a Graph node never starts a machine, and a `submit` scope is technical capability, not a blank check. `submit_experiment` is an Advanced compatibility path and is rejected while a Study is active. Spend rules, legal edges, and what `close_run` may write: [Graph contract](docs/graph-contract.md).
 
 <p align="center">
   <img src="docs/images/readme-graph.png" alt="Research Graph: question, hypothesis, plan, run result, and observations on a time axis" width="960" />
 </p>
 <p align="center"><em>The Graph is a scientific lineage, not a git commit graph. A paid run starts from a connected hypothesis.</em></p>
 
-Provider tokens, node credentials, and audit stay in a separate **Lab** layer. Agents never receive those secrets.
+<p align="center">
+  <img src="docs/images/readme-research.png" alt="Gemcp Research console: Study, next action, and Graph" width="960" />
+</p>
+<p align="center"><em>Research is the home view. Lab (budget, Provider, nodes, alerts) stays one click away.</em></p>
 
 > **This README is for people.**
 > Coding agents working in this repository: [AGENTS.md](AGENTS.md).
 > Agents connected to a running Gemcp over MCP: [guides/agent-mcp.md](guides/agent-mcp.md) (or call `get_usage_guide`).
 
 Current release: **v0.20.0** ([`VERSION`](VERSION), [notes](docs/releases.md)). Use `main`.
-
-## What you get
-
-- **Owner-first console** — start from the research question, not from GPU inventory.
-- **Human-confirmed spend** — an agent can only *prepare* a run. You approve the exact digest before budget is reserved.
-- **MCP in the research repo** — Cursor, Claude Code, Codex, OpenCode, Grok, and Pi. Enable Gemcp in that directory, not as a global server.
-- **Four compute backends** — local CPU (no NVIDIA), Cloud SSH, Self-hosted Docker GPUs, or AutoDL. They do not silently fall back to one another.
-- **One vocabulary** — Study, hypothesis, run, result. The same words appear in the console, MCP, and [Graph contract](docs/graph-contract.md).
-
-<p align="center">
-  <img src="docs/images/readme-research.png" alt="Gemcp Research console: Study, next action, and Graph" width="960" />
-</p>
-<p align="center"><em>Research is the home view. Lab (budget, Provider, nodes, alerts) stays one click away.</em></p>
 
 ## Quick start (laptop, no GPU)
 
@@ -103,10 +96,6 @@ Production uses `https://<gemcp-host>/mcp`. Client-by-client snippets: [Owner MC
 
 A `submit` scope is technical capability, not a blank check. Every prepared proposal still needs your confirmation of that digest.
 
-## How a paid run starts
-
-The flow at the top of this page is enforced on the server, not in a prompt. `submit_experiment` is an Advanced compatibility path and is rejected while a Study is active. Spend rules, legal edges, and what `close_run` may write: [Graph contract](docs/graph-contract.md).
-
 ## Where work runs
 
 | Backend | Typical use | GPU |
@@ -126,6 +115,16 @@ You  --HTTPS Web-->  Gemcp  --MCP-->  coding agent
 ```
 
 The Vue console is embedded in the Go binary. Redis, Kubernetes, and a separate frontend runtime are not required.
+
+## Roadmap
+
+Repository readiness and Owner-prepared experiments are in progress. Standing approvals, artifact downloads, and transparency-as-authorization are later increments. Shipped versus planned, one page: [docs/roadmap.md](docs/roadmap.md).
+
+## What this is not
+
+- **Not an experiment tracker** (MLflow, Weights & Biases) — a tracker records runs you already started; Gemcp decides whether one may start.
+- **Not an agent framework, job queue, or cluster scheduler** (LangGraph, Slurm, Ray, ClearML) — harnesses stay outside, MCP is the only door, and the backends never silently fall back to one another.
+- Five categories, each with the in-repo evidence behind it: **[NON-GOALS.md](NON-GOALS.md)**.
 
 ## Documentation
 
