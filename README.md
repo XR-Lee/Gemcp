@@ -124,12 +124,13 @@ The Vue console is embedded in the Go binary. Redis, Kubernetes, and a separate 
 | Operate Gemcp *as* an MCP agent | [guides/agent-mcp.md](guides/agent-mcp.md) |
 | Work on this repository | [AGENTS.md](AGENTS.md) |
 | Understand Study / hypothesis / run / result | [docs/graph-contract.md](docs/graph-contract.md) |
+| See how the control plane is put together | [docs/architecture.md](docs/architecture.md) · [interactive map](docs/framework-map.html) |
 | Walk through the console | [docs/web-console.md](docs/web-console.md) · [docs/research-workbench.md](docs/research-workbench.md) |
 | Test a checkout | [docs/tester-brief.md](docs/tester-brief.md) |
 | Deploy with Compose | [deploy/README.md](deploy/README.md) |
 | See what shipped | [docs/releases.md](docs/releases.md) · [docs/roadmap.md](docs/roadmap.md) |
 
-Hosted copies of the Owner and Agent guides are `/docs/owner-mcp.md` and `/docs/agent-mcp.md` on a running control plane. Deeper topics: [setup API](docs/setup-api.md), [Agent Tokens](docs/agent-tokens.md), [architecture](docs/architecture.md), [execution](docs/execution.md), [finance](docs/finance.md), [diagnostics](docs/diagnostics.md), [notifications](docs/notifications.md).
+Hosted copies of the Owner and Agent guides are `/docs/owner-mcp.md` and `/docs/agent-mcp.md` on a running control plane. Deeper topics: [setup API](docs/setup-api.md), [Agent Tokens](docs/agent-tokens.md), [architecture](docs/architecture.md), [interactive map](docs/framework-map.html), [execution](docs/execution.md), [finance](docs/finance.md), [diagnostics](docs/diagnostics.md), [notifications](docs/notifications.md).
 
 ## Production deploy
 

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Gemcp 框架图 · 用户 / Agent / 控制面 / 节点</title>
+  <title>Gemcp 架构 · 用户 / Agent / 控制面 / 计算路径</title>
   <link rel="icon" href="../frontend/public/favicon.svg">
   <style>
     :root {
@@ -168,8 +168,48 @@
 
     .nodes {
       display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+    .packages, .surfaces, .model {
+      display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 10px;
+    }
+    .pkg {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 14px;
+    }
+    .pkg h3 { margin: 0 0 6px; font-size: 14px; }
+    .pkg ul { margin: 0; padding-left: 16px; font-size: 12.5px; color: var(--ink-soft); }
+    .pkg li + li { margin-top: 3px; }
+    .stack {
+      display: grid;
+      gap: 8px;
+    }
+    .stack-row {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 10px;
+      align-items: start;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 14px;
+    }
+    .stack-row b { font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: var(--accent); }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tree {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px 16px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12.5px;
+      line-height: 1.55;
+      overflow-x: auto;
     }
     .node {
       background: #fff;
@@ -356,7 +396,7 @@
     }
 
     @media (max-width: 920px) {
-      header.hero, .detail, .split, .flow, .rules, .row, .nodes, .lanes {
+      header.hero, .detail, .split, .flow, .rules, .row, .nodes, .lanes, .packages, .surfaces, .model, .stack-row {
         grid-template-columns: 1fr;
       }
       nav.jump, header.hero { grid-column: 1; }
@@ -380,12 +420,15 @@
         </svg>
       </div>
       <div>
-        <p class="eyebrow">Gemcp v0.19.0</p>
+        <p class="eyebrow">Gemcp v0.20.0</p>
         <h1>谁对谁做什么</h1>
-        <p class="lede">用户只看研究问题和签字；Agent 只通过 MCP 维护 Graph 和提案；Gemcp 独占凭证、预算和调度；机器节点只执行已确认的 argv。在 Graph 上记一个节点，不会启动任何计算。</p>
-        <p class="meta">对照 <code>docs/architecture.md</code> · <code>docs/research-workbench.md</code> · <code>guides/agent-mcp.md</code></p>
+        <p class="lede">用户只看研究问题和签字；Agent 只通过 MCP 维护 Graph 和提案；Gemcp 独占凭证、预算和调度；机器只执行已确认的 argv。在 Graph 上记一个节点，不会启动任何计算。</p>
+        <p class="meta">对照 <code>docs/architecture.md</code> · <code>docs/graph-contract.md</code> · <code>guides/agent-mcp.md</code></p>
         <nav class="jump">
           <a href="#rel">四角色关系</a>
+          <a href="#runtime">进程与包</a>
+          <a href="#data">数据模型</a>
+          <a href="#surfaces">HTTP / MCP</a>
           <a href="#nodes">两种「节点」</a>
           <a href="#graph">Graph 合约</a>
           <a href="#flow">研究任务流程</a>
@@ -453,22 +496,28 @@
 
           <div class="band exec">
             <div class="band-label">
-              <b>执行层 · 机器节点</b>
-              <span>三条后端互不回退。选错就失败。Agent 和用户都不 SSH 去读实验。</span>
+              <b>执行层 · 计算路径</b>
+              <span>四条路径互不回退。选错就失败。Agent 和用户都不 SSH 去读实验。</span>
             </div>
             <p class="pipe"><b>↓ 仅 Gemcp 派发已确认的 Experiment ↓</b>Agent 不连节点 · Owner 不向节点下 argv</p>
             <div class="nodes">
-              <button class="node" data-id="selfhosted" type="button">
-                <span class="who">Self-hosted</span>
-                <h3>gemcp-node</h3>
-                <p>节点主动出站 HTTPS。Docker 隔离，一卡一 Attempt。工作负载拿不到 Node Token。</p>
-                <small>Owner 登记配对码 · 可选 trusted workspace</small>
+              <button class="node" data-id="local" type="button">
+                <span class="who">Local CPU</span>
+                <h3>笔记本进程</h3>
+                <p>回环 host process。无 NVIDIA。走 Cloud SSH 同一套宿主机通道，不是第五个调度器。</p>
+                <small>GEMCP_LOCAL_PROCESS_ENABLED · 开发默认</small>
               </button>
               <button class="node" data-id="ssh" type="button">
                 <span class="who">Cloud SSH · 实验</span>
                 <h3>宿主机进程</h3>
                 <p>控制面出站 SSH，启动 argv。无镜像、无 Docker、无 Git 归档。digest 钉死 host / user / cwd / argv。</p>
                 <small>需要 operate_nodes · 凭证只写不读</small>
+              </button>
+              <button class="node" data-id="selfhosted" type="button">
+                <span class="who">Self-hosted</span>
+                <h3>gemcp-node</h3>
+                <p>节点主动出站 HTTPS。Docker 隔离，一卡一 Attempt。工作负载拿不到 Node Token。</p>
+                <small>Owner 登记配对码 · 可选 trusted workspace</small>
               </button>
               <button class="node" data-id="autodl" type="button">
                 <span class="who">AutoDL</span>
@@ -482,7 +531,7 @@
 
         <div class="detail">
           <article>
-            <h3 id="focus-title">点上面的角色看职责</h3>
+            <h3 id="focus-title">点上面的角色或计算路径看职责</h3>
             <ul class="cans" id="focus-cans"></ul>
           </article>
           <article>
@@ -490,10 +539,143 @@
             <ul class="cans">
               <li class="no">Agent 不连机器节点：没有 SSH tool，没有远程文件，没有日志推演指标</li>
               <li class="no">Owner 不直接改容器：控制台不下发任意主机命令</li>
-              <li class="no">Self-hosted / AutoDL / Cloud SSH 互不兜底</li>
+              <li class="no">Local CPU / Cloud SSH / Self-hosted / AutoDL 互不兜底</li>
               <li class="no">记录 Graph 节点不等于启动 GPU：只有确认后的 submit 才创建 Experiment</li>
             </ul>
           </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="runtime">
+      <p class="eyebrow">Internals</p>
+      <h2>同一二进制，两份进程，一层包</h2>
+      <div class="stack">
+        <div class="stack-row">
+          <b>入口</b>
+          <div class="chips">
+            <span class="chip">cmd/gemcp serve</span>
+            <span class="chip">cmd/gemcp watchdog</span>
+            <span class="chip">cmd/gemcp-node</span>
+          </div>
+        </div>
+        <div class="stack-row">
+          <b>对外面</b>
+          <div class="chips">
+            <span class="chip">httpapi · Owner REST</span>
+            <span class="chip">mcpserver · 35 tools</span>
+            <span class="chip">web · 嵌入 Vue</span>
+            <span class="chip">guides · Owner / Agent / Node</span>
+          </div>
+        </div>
+        <div class="stack-row">
+          <b>研究</b>
+          <div class="chips">
+            <span class="chip g">research · Graph / close_run / catalog / plan sync / route</span>
+            <span class="chip g">experiment · prepare / submit</span>
+            <span class="chip g">workload · gemcp.yaml</span>
+            <span class="chip g">finance · projectpolicy</span>
+          </div>
+        </div>
+        <div class="stack-row">
+          <b>执行</b>
+          <div class="chips">
+            <span class="chip">execution · FIFO AutoDL</span>
+            <span class="chip">selfhosted</span>
+            <span class="chip">sshcloud · Cloud SSH + 本地 CPU</span>
+            <span class="chip">runner</span>
+            <span class="chip">autodl</span>
+            <span class="chip">nodeaccess / nodeagent</span>
+            <span class="chip">watchdog</span>
+          </div>
+        </div>
+        <div class="stack-row">
+          <b>Lab</b>
+          <div class="chips">
+            <span class="chip">provider</span>
+            <span class="chip">repository · Deploy Key / https_token</span>
+            <span class="chip">environmentcatalog</span>
+            <span class="chip">datasetcatalog</span>
+            <span class="chip">diagnostic</span>
+            <span class="chip">imagebake · fail-closed</span>
+            <span class="chip">notification</span>
+          </div>
+        </div>
+        <div class="stack-row">
+          <b>身份</b>
+          <div class="chips">
+            <span class="chip">auth · Owner cookie</span>
+            <span class="chip">agentauth · Bearer</span>
+            <span class="chip">agentaccess · setup link</span>
+            <span class="chip">secrets · 主密钥</span>
+            <span class="chip">ent/schema · PostgreSQL</span>
+          </div>
+        </div>
+      </div>
+      <p class="note"><code>internal/server</code> 只接线。MCP 和 Owner HTTP 调同一套 service。控制台不单独跑运行时。</p>
+    </section>
+
+    <section id="data">
+      <p class="eyebrow">Schema</p>
+      <h2>权威状态在 PostgreSQL</h2>
+      <div class="model">
+        <div class="card">
+          <span class="who" style="color:var(--accent)">Research</span>
+          <h3>Study 挂在 Project 下</h3>
+          <p>计划、节点、边属于 Study。目录行挂在仓库上，不占 128 节点配额。</p>
+        </div>
+        <div class="card">
+          <span class="who" style="color:var(--node)">Execution</span>
+          <h3>Proposal → Experiment → Attempt</h3>
+          <p>确认后才创建 Experiment。基础设施重试建新 Attempt，不改原请求。</p>
+        </div>
+        <div class="card">
+          <span class="who" style="color:var(--agent)">Lab</span>
+          <h3>凭证与机器是组织资产</h3>
+          <p>Provider、Self-hosted、Cloud SSH 挂在 Tenant。Agent Token 是 Project 租客。</p>
+        </div>
+      </div>
+      <pre class="tree">Tenant
+├── User / ProviderAccount / SelfHostedNode / CloudSSHNode
+└── Project
+    ├── Study  {protocol_branch, protocol_doc_path, code_ref_pattern}
+    │     ├── IterationPlan
+    │     ├── ResearchNode   question · hypothesis · plan · run · result · observation · decision
+    │     └── ResearchEdge   leads_to · compares · supports · contradicts · produced
+    ├── Repository → ExperimentCatalogRow
+    ├── ExperimentProposal → Experiment → Attempt
+    │     └── ProviderResource | NodeAssignment | CloudSSHAssignment
+    ├── Environment / ResourceProfile / DatasetBinding / ProjectWorkload
+    └── AgentToken / BudgetEntry / ImageBake / DiagnosticRun</pre>
+    </section>
+
+    <section id="surfaces">
+      <p class="eyebrow">Surfaces</p>
+      <h2>三张面孔，一份合约</h2>
+      <div class="surfaces">
+        <div class="pkg">
+          <h3>Owner Web · /api/v1</h3>
+          <ul>
+            <li>Cookie + CSRF。研究主屏，Lab 一键之外</li>
+            <li>确认 digest、close_run、plan-sync</li>
+            <li>Agents / Nodes / Provider / Finance / Images</li>
+          </ul>
+        </div>
+        <div class="pkg">
+          <h3>Agent MCP · /mcp</h3>
+          <ul>
+            <li>35 个工具。Streamable HTTP + Bearer</li>
+            <li>花钱：prepare → 人确认 → submit → close_run</li>
+            <li>观测只用 get_experiment。记录 Graph 不开机</li>
+          </ul>
+        </div>
+        <div class="pkg">
+          <h3>机器回连</h3>
+          <ul>
+            <li>AutoDL Runner：bootstrap / spec / source / events</li>
+            <li>gemcp-node：/nodes/sync，出站 HTTPS</li>
+            <li>Cloud SSH / 本地 CPU：控制面出站，无入站控制口</li>
+          </ul>
         </div>
       </div>
     </section>
@@ -507,8 +689,9 @@
           <h3>跑计算的机器</h3>
           <p>组织资产。Owner 授权给 Project。调度器选中一台，占一卡或一个 SSH 进程。</p>
           <div class="kinds">
-            <span class="chip g">Self-hosted GPU PC</span>
+            <span class="chip g">Local CPU 回环</span>
             <span class="chip g">Cloud SSH 主机</span>
+            <span class="chip g">Self-hosted GPU PC</span>
             <span class="chip g">AutoDL Job</span>
           </div>
         </div>
@@ -527,15 +710,15 @@
           </div>
         </div>
       </div>
-      <p class="note">两套节点在 <code>submit_prepared_experiment</code> 才相交：控制面创建 Experiment，并在 Graph 写下 <code>run</code>。<code>close_run</code> 是唯一能写 <code>result</code> 的入口，边只能是 run produced result。没挂上 Graph 的 Experiment 在 Evidence 标 orphaned。</p>
+      <p class="note">两套节点在 <code>submit_prepared_experiment</code> 才相交：控制面先复核 Graph 起点，再创建 Experiment，并写下 <code>run</code>。<code>close_run</code> 是唯一能写 <code>result</code> 的入口（<code>run -produced-> result</code>），并在假说上挂 highlight observation。没挂上 Graph 的 Experiment 在 Evidence 标 orphaned。</p>
     </section>
 
     <section id="graph">
       <p class="eyebrow">Contract</p>
       <h2>Graph 是执行合约，不是海报</h2>
-      <p style="margin:0 0 8px;color:var(--ink-soft)">Agent 花钱前必须 <code>get_next_actions</code>。<code>prepare_experiment</code> 的 <code>from_node_id</code> 必须是 hypothesis 或 plan，并钉进 Owner 确认的 digest。</p>
+      <p style="margin:0 0 8px;color:var(--ink-soft)">花钱起点必须能追溯到 hypothesis。孤立节点、只挂在 question 上的 plan 不能 prepare。<code>from_node_id</code> 钉进 Owner 确认的 digest。Study 若声明 route，live <code>ref</code> 必须匹配 <code>code_ref_pattern</code>。</p>
       <div class="graph" aria-label="合法边">
-        <svg viewBox="0 0 960 250" role="img">
+        <svg viewBox="0 0 960 270" role="img">
           <defs>
             <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
               <path d="M 0 0 L 10 5 L 0 10 z" fill="#8a857b"/>
@@ -546,8 +729,10 @@
             <path d="M342 64 H452"/>
             <path d="M508 64 H602"/>
             <path d="M658 64 H802"/>
-            <path d="M290 92 C240 92 210 130 210 166"/>
-            <path d="M802 92 C802 168 620 188 528 200"/>
+            <path d="M310 96 C310 140 220 160 210 196"/>
+            <path d="M830 96 C830 150 700 188 528 210"/>
+            <path d="M180 166 C180 120 250 100 278 80"/>
+            <path d="M802 92 C760 130 420 150 340 96"/>
           </g>
           <g font-family="ui-sans-serif,system-ui,sans-serif" font-size="12" text-anchor="middle">
             <g>
@@ -575,15 +760,15 @@
               <text fill="#fff" x="180" y="200">observation</text>
             </g>
             <g>
-              <circle class="g-d" cx="500" cy="210" r="28"/>
-              <text fill="#fff" x="500" y="214">decision</text>
+              <circle class="g-d" cx="500" cy="220" r="28"/>
+              <text fill="#fff" x="500" y="224">decision</text>
             </g>
             <text fill="#6d6a63" x="188" y="52">leads_to</text>
             <text fill="#6d6a63" x="402" y="52">leads_to</text>
             <text fill="#c4621a" x="555" y="52">submit 写入</text>
             <text fill="#2d7a58" x="716" y="52">produced · close_run</text>
-            <text fill="#6d6a63" x="248" y="128">历史证据</text>
-            <text fill="#6d6a63" x="720" y="150">result → decision</text>
+            <text fill="#c4621a" x="248" y="150">highlight</text>
+            <text fill="#6d6a63" x="720" y="168">result → decision</text>
           </g>
         </svg>
       </div>
@@ -638,7 +823,7 @@
     </section>
 
     <footer>
-      打开方式：浏览器打开本文件即可，不进控制台。内容按 v0.19.0 的控制面合约绘制；Cloud SSH 仍是实验通道。
+      打开方式：浏览器打开本文件即可，不进控制台。内容按 v0.20.0 绘制。本地 CPU 走 Cloud SSH 的宿主机通道。Cloud SSH 仍是实验通道。MCP 现为 35 个工具。
     </footer>
   </div>
 
@@ -649,15 +834,15 @@
         items: [
           "Owner 默认看见的是问题、下一步和谱系，不是 GPU 控制台",
           "Agent 用 update_research_workspace 维护同一份对象；画节点不会启动计算",
-          "prepare 必须从 hypothesis 或 plan 出发，from_node_id 钉进确认 digest",
-          "submit 才写 run；close_run 才写 result（produced）。没挂 Graph 的实验标 orphaned",
+          "prepare 的 from_node_id 必须能追溯到 hypothesis；只挂在 question 上的 plan 不能花钱",
+          "submit 先复核 Graph 再花预算，并写 run；close_run 写 result 和 highlight observation",
           "不：不准把 prompt、推理、密钥、环境转储写进标题或摘要"
         ]
       },
       owner: {
         title: "Owner · 实验室主人",
         items: [
-          "Web 看 Study、下一步、Graph、最近结果；UUID 和镜像留在 Lab / Experiment 详情",
+          "Web 看 Study、route、下一步、Graph、最近结果；UUID 和镜像留在 Lab / Evidence",
           "唯一花钱动作：确认 Proposal 的精确 digest（host/user/cwd/argv 或镜像/资源/commit）",
           "一次性接入：Project、仓库 Deploy Key、节点配对、MCP setup link、预算",
           "可以停托管资源、紧急停止、轮转 Provider Token；看不到明文 SSH / AutoDL 密钥",
@@ -679,8 +864,8 @@
         items: [
           "研究合约：合法边、from_node_id、run/result 写入权、orphaned 标记",
           "执行合约：2 小时不可变 Proposal、确认后 Serializable 创建、一提案至多一 Experiment",
-          "调度：FIFO、并发、预算预留、三后端独立；Watchdog 在控制面挂掉时仍能停资源",
-          "密钥：AutoDL、Git Deploy、SMTP、Cloud SSH 用主密钥加密，不进 PostgreSQL 明文",
+          "调度：FIFO、并发、预算预留、四条路径独立；Watchdog 在控制面挂掉时仍能停资源",
+          "密钥：AutoDL、Git Deploy、https_token、SMTP、Cloud SSH 用主密钥加密，不进 PostgreSQL 明文",
           "不：不替 harness 推 Git；不把 Provider 密码、容器 root 密码暴露给 API"
         ]
       },
@@ -704,6 +889,16 @@
           "不：不回退到 AutoDL 或 gemcp-node；不给 Agent 开 SSH shell tool"
         ]
       },
+      local: {
+        title: "Local CPU · 笔记本冒烟",
+        items: [
+          "GEMCP_LOCAL_PROCESS_ENABLED，开发环境默认打开",
+          "走 Cloud SSH 的 host-process 回环桩，不是单独的调度器，也不回退到 AutoDL",
+          "host Environment 是 host/cpu/local；catalog=modelnet40-mini 可在 submit 下登记",
+          "close_run 把存储的 host 占位 commit 当成无证据，不必人编 result_commit_sha",
+          "不：不假装有 GPU；不把本地进程当生产 AutoDL"
+        ]
+      },
       autodl: {
         title: "AutoDL · 付费 Job",
         items: [
@@ -717,7 +912,7 @@
     };
 
     const defaultCans = [
-      "点上方卡片：Owner / Graph / Agent / 三种机器节点",
+      "点上方卡片：Owner / Graph / Agent / 四条计算路径",
       "关系是星型：所有人只连 Gemcp，不互相直连执行面",
       "研究层是主屏；Lab 是配置；执行层对 Agent 不可见"
     ];
@@ -741,7 +936,7 @@
       bands.classList.toggle("dim", Boolean(id));
       const fact = facts[id];
       if (!fact) {
-        focusTitle.textContent = "点上面的角色看职责";
+        focusTitle.textContent = "点上面的角色或计算路径看职责";
         renderCans(defaultCans);
         return;
       }
@@ -772,7 +967,7 @@
         k: "1 先问 Graph",
         tool: "get_research_workspace · get_next_actions",
         title: "下一步由 Graph 裁定，不由模型即兴",
-        why: "没有 Study 就先开问题。没有 hypothesis/plan 就不能 prepare。花钱前必须看到合法动作。",
+        why: "没有 Study 就先开问题。没有能追溯到 hypothesis 的起点就不能 prepare。花钱前必须看到合法动作。",
         owner: "主屏已经是问题、next_action、谱系。不必先读 Experiment UUID。",
         agent: "调用两个只读工具。把 prompt 和私有推理留在对话里，不准写入 Graph 文本。",
         gemcp: "按合法边生成最多 8 条 next actions。记录节点本身不会 dispatch。",
@@ -783,9 +978,9 @@
         tool: "update_research_workspace",
         title: "Study、计划、假说先于计算",
         why: "Owner 审的是科学对象。计划更新是 supersede，不是改历史。",
-        owner: "看到问题、当前目标和下一步。",
-        agent: "创建/更新 Study；替换 iteration plan；记录 question / hypothesis / plan / observation。",
-        gemcp: "限额：32 Study / Project，128 节点，256 边。拒绝凭证和思维链。",
+        owner: "看到问题、route（protocol_branch / code_ref_pattern）、当前目标和下一步。",
+        agent: "创建/更新 Study（可带 route）；替换 iteration plan；记录 question / hypothesis / plan。",
+        gemcp: "限额：32 Study / Project，128 节点，256 边。拒绝凭证和思维链。有 code_ref_pattern 时 prepare 必须带匹配 ref。",
         node: "不参与。"
       },
       {
@@ -794,7 +989,7 @@
         title: "解析 commit、默认资源、预检、算出最坏 CNY",
         why: "这一步不创建 Experiment、Attempt、Provider 资源、预算占用。失败可以白改。",
         owner: "还不用签字。若返回 choice_required，只在候选里选，不让 Agent 猜后端。",
-        agent: "带上 argv 和 from_node_id（hypothesis 或 plan）。Cloud SSH 可带 cwd，不要带 image。",
+        agent: "带上 argv 和 from_node_id（hypothesis，或能追到 hypothesis 的 plan）。Cloud SSH 可带 cwd，不要带 image。",
         gemcp: "钉死完整 SHA、环境、资源、后端；Cloud SSH 把 host/user/cwd/argv 写进 digest；提案 2 小时过期。",
         node: "只被探活：Self-hosted last_seen、Cloud SSH probe。不拉起进程。"
       },
@@ -813,16 +1008,16 @@
         tool: "submit_prepared_experiment",
         title: "一提案至多一个 Experiment，并写 run 节点",
         why: "幂等边界在服务器。重试同一对 id+digest 返回同一条，不会双花。",
-        owner: "Graph 上出现 run，详情里出现不可变请求。",
+        owner: "Graph 上出现 run。Evidence 出现不可变请求。",
         agent: "只传 proposal_id 和 confirmation_digest。然后转 monitoring。",
-        gemcp: "Serializable 再检 drift 和预算；创建 Experiment；Graph 写入 run，from_node_id 已在 digest 里。",
+        gemcp: "先复核 Graph 起点，再 Serializable 检 drift 和预算；创建 Experiment 并写 run。绑定失败且已花预算时带 graph_bind_warning。",
         node: "仍未启动。排队归调度器。"
       },
       {
         k: "6 调度到选定后端",
         tool: "scheduler · 不回退",
         title: "queued → provisioning → running",
-        why: "选错后端就失败。Self-hosted 忙不会改去 AutoDL。",
+        why: "选错后端就失败。Self-hosted 忙不会改去 AutoDL。本地 CPU 也不会升级成付费 Job。",
         owner: "Lab 里能看 Attempt、所有权、心跳。Research 仍只显示这条 run。",
         agent: "不要 SSH，不要猜机器。",
         gemcp: "事务里占节点或建 ProviderResource；源码归档（AutoDL/Self-hosted）；Cloud SSH 则打开出站 SSH。",
@@ -841,21 +1036,21 @@
       {
         k: "8 关闭 run",
         tool: "close_run",
-        title: "唯一写 result 的入口",
-        why: "produced 边只能 run→result。标量必须与 Experiment metrics 一致；成功不得把失败实验改贴成功。",
-        owner: "Graph 盖章：绿成功 / 红失败。谱系停在最新挂上的记录。",
+        title: "唯一写 result 的入口，并挂 highlight",
+        why: "produced 边只能 run→result。成功还会写 hypothesis → observation，以及 observation supports|contradicts hypothesis。标量必须来自 get_experiment。",
+        owner: "Graph 盖章：绿成功 / 红失败，假说下出现 highlight。谱系停在最新挂上的记录。",
         agent: "可省略 metric_name 以复制准备时的 expected_metric；可选 result_commit_sha 指向结果清单提交。",
         gemcp: "校验终端态、metrics、status。普通 update_research_workspace 改不了 result。",
         node: "清理已发生或正在发生；不参与科学结论。"
       },
       {
         k: "9 决策和下一步",
-        tool: "update_research_workspace",
-        title: "result → decision → 新 hypothesis/plan",
-        why: "循环关闭在研究层。新的花钱仍要从假说或计划 prepare，不会从 result 直接开火。",
-        owner: "看到被 supersede 的旧计划，和仍在的谱系。",
-        agent: "记录 decision，换新的 iteration plan，再 get_next_actions。",
-        gemcp: "边合法性：result/observation 可 leads_to decision/hypothesis；decision 可回到 hypothesis/plan。",
+        tool: "update_research_workspace · export_research_plan_sync",
+        title: "result → decision → 协议文档补丁",
+        why: "循环关闭在研究层。plan sync 只导出 markdown，默认 dry-run，从不 push git。新的花钱仍要从假说或计划 prepare。",
+        owner: "看到被 supersede 的旧计划；可在控制台 dry-run 同一份 plan-sync。",
+        agent: "记录 decision；需要时 export_research_plan_sync；再 get_next_actions。",
+        gemcp: "边合法性：result/observation 可 leads_to decision/hypothesis。不写冻结配方文件。",
         node: "空闲，等下一份确认过的 Assignment。"
       }
     ];
