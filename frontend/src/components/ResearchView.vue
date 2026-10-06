@@ -162,7 +162,7 @@ function dateTime(value?: string) {
         </header>
         <div class="catalog-panels">
           <section class="catalog-panel" data-testid="catalog-registration">
-            <h3>原始注册数据</h3>
+            <h3>{{ t('Original registration', '原始注册数据') }}</h3>
             <dl>
               <div>
                 <dt>{{ t('Name', '名称') }}</dt>
@@ -191,17 +191,17 @@ function dateTime(value?: string) {
             </dl>
           </section>
           <section class="catalog-panel catalog-analysis" data-testid="catalog-analysis">
-            <h3>分析数据</h3>
+            <h3>{{ t('Analysis', '分析数据') }}</h3>
             <div v-if="repository.rows.length" class="table-scroll">
               <table class="data-table catalog-table">
                 <thead>
                   <tr>
                     <th>{{ t('Branch', '分支') }}</th>
                     <th>Setting</th>
-                    <th>方法</th>
-                    <th>实现</th>
+                    <th>{{ t('Method', '方法') }}</th>
+                    <th>{{ t('Implementation', '实现') }}</th>
                     <th>metric</th>
-                    <th>结果</th>
+                    <th>{{ t('Result', '结果') }}</th>
                     <th>link</th>
                     <th>hash</th>
                   </tr>

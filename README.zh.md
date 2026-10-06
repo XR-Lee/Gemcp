@@ -125,7 +125,8 @@ Vue 控制台嵌在 Go 发布二进制里。不需要 Redis、Kubernetes，也�
 | 在本仓库里改代码 | [AGENTS.md](AGENTS.md) |
 | 搞清 Study / hypothesis / run / result | [docs/graph-contract.md](docs/graph-contract.md) |
 | 走一遍控制台 | [docs/web-console.md](docs/web-console.md) · [docs/research-workbench.md](docs/research-workbench.md) |
-| 测一个 checkout | [docs/tester-brief.md](docs/tester-brief.md) |
+| 看角色关系图 | [docs/framework-map.html](docs/framework-map.html)（中文） |
+| 测一个 checkout | [docs/tester-brief.zh.md](docs/tester-brief.zh.md) |
 | Compose 部署 | [deploy/README.md](deploy/README.md) |
 | 看发了什么 | [docs/releases.md](docs/releases.md) · [docs/roadmap.md](docs/roadmap.md) |
 

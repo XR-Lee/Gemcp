@@ -55,7 +55,7 @@ export function buildResearchAttachPrompt(input: ResearchAttachPromptInput) {
   lines.push('')
   add('## Goal', '## 任务')
   add(
-    'Walk the whole local repository. Collapse its experimental branches, methods, ablations, datasets, failed turns, and reported numbers into key exploration nodes. Put the important hypotheses, conclusions, and evidence on the Owner Graph so a later Agent can see what was already tried. Also persist table-ready raw rows from those research branches into the experiment catalog with `record_experiment_catalog` (Setting, 方法/method, 实现/implementation, metric, 结果/result, link, hash). The catalog is not the Graph and never starts a workload. Do not invent numbers. The Owner time axis uses `occurred_at` (git committer date or Experiment time), not the moment you called the tool.',
+    'Walk the whole local repository. Collapse its experimental branches, methods, ablations, datasets, failed turns, and reported numbers into key exploration nodes. Put the important hypotheses, conclusions, and evidence on the Owner Graph so a later Agent can see what was already tried. Also persist table-ready raw rows from those research branches into the experiment catalog with `record_experiment_catalog` (Setting, Method, Implementation, metric, Result, link, hash). The catalog is not the Graph and never starts a workload. Do not invent numbers. The Owner time axis uses `occurred_at` (git committer date or Experiment time), not the moment you called the tool.',
     '通读整个本地仓库。把不同实验分支、方法、消融、数据集、失败转向和已报道数字收成关键探索节点。把重要假设、结论和证据画到 Owner 可见的 Graph 上，让后来的 Agent 看得出已经试过什么。同时用 `record_experiment_catalog` 把各研究分支的原始实验行写入实验目录（Setting、方法/method、实现/implementation、metric、结果/result、link、hash）。目录不是 Graph，也不会启动作业。不要编造数字。Owner 顶轴用 `occurred_at`（git commit 时间或 Experiment 时间），不是你调用工具的时刻。',
   )
   lines.push('')
@@ -215,7 +215,7 @@ export function buildResearchAttachPrompt(input: ResearchAttachPromptInput) {
     '4. 用多次 `update_research_workspace` 写节点来重建谱系。第一波 hypothesis 从 question 出发（`from_node_id` + `relation=leads_to`）。每条 observation 也用同样方式挂到对应 hypothesis 上。每个历史节点都要带证据 commit 的 `occurred_at` 和 `commit_sha`（`git log -1 --format=%cI <sha>`）。再补互相竞争的 hypothesis（`compares`）和结论的 decision。不要创建没有边的 observation。付费 run 不能只从 question 出发。',
   )
   add(
-    '4b. In parallel, extract every distinct research-branch experiment into `record_experiment_catalog`. Read EXPERIMENTS.md, experiment_graph.yaml, result writeups, configs, named branches, and tags. Each row is bound to the registered `repository_id` plus branch and hash. Copy Setting, 方法, 实现, metric, 结果, and link from the checkout. Do not invent numbers. This never starts a workload and must not create an Experiment. Confirm with `get_experiment_catalog`.',
+    '4b. In parallel, extract every distinct research-branch experiment into `record_experiment_catalog`. Read EXPERIMENTS.md, experiment_graph.yaml, result writeups, configs, named branches, and tags. Each row is bound to the registered `repository_id` plus branch and hash. Copy Setting, Method, Implementation, metric, Result, and link from the checkout. Do not invent numbers. This never starts a workload and must not create an Experiment. Confirm with `get_experiment_catalog`.',
     '4b. 同时把各研究分支的实验原始行写入 `record_experiment_catalog`。读 EXPERIMENTS.md、experiment_graph.yaml、结果文档、配置、命名分支和 tag。每行绑到已注册的 `repository_id` 以及 branch 和 hash。Setting、方法、实现、metric、结果、link 必须来自仓库，不要编造数字。这不会启动作业，也不能创建 Experiment。用 `get_experiment_catalog` 确认。',
   )
   add(
@@ -239,7 +239,7 @@ export function buildResearchAttachPrompt(input: ResearchAttachPromptInput) {
 
   lines.push('')
   add(
-    'Done when the Owner can follow the repository\'s competing experimental branches on the Graph, see the important hypotheses, conclusions, and evidence as nodes, see 原始注册数据 and 分析数据 for the registered repository in the experiment catalog panel, and Evidence no longer marks existing Gemcp Experiments as off-graph. A four-node Graph on a large research repo is not done.',
+    'Done when the Owner can follow the repository\'s competing experimental branches on the Graph, see the important hypotheses, conclusions, and evidence as nodes, see Original registration and Analysis for the registered repository in the experiment catalog panel, and Evidence no longer marks existing Gemcp Experiments as off-graph. A four-node Graph on a large research repo is not done.',
     '完成标准：Owner 能在 Graph 上跟上这个仓库互相竞争的实验分支，看见重要的假设、结论和证据节点；注册仓库的面板能看到原始注册数据和分析数据；证据页不再把已有 Gemcp Experiment 标成未入图。大型研究仓只画出四个节点，不算完成。',
   )
   return `${lines.join('\n')}\n`

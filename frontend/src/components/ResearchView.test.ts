@@ -229,7 +229,7 @@ describe('ResearchView', () => {
     expect(writeText).toHaveBeenCalledWith(prompt.value)
   })
 
-  it('shows 原始注册数据 and 分析数据 for a registered DynamicPointMamba repository', () => {
+  it('shows Original registration and Analysis for a registered DynamicPointMamba repository', async () => {
     useI18n().setLocale('en')
     const wrapper = mount(ResearchView, {
       props: {
@@ -277,16 +277,20 @@ describe('ResearchView', () => {
       global: { stubs: flowStubs },
     })
     const panel = wrapper.get('[data-testid="repo-experiment-catalog"]')
-    expect(panel.text()).toContain('原始注册数据')
-    expect(panel.text()).toContain('分析数据')
+    expect(panel.text()).toContain('Original registration')
+    expect(panel.text()).toContain('Analysis')
+    expect(panel.text()).not.toContain('原始注册数据')
+    expect(panel.text()).not.toContain('分析数据')
     expect(panel.text()).toContain('git@github.com:XR-Lee/DynamicPointMamba.git')
     expect(panel.text()).toContain('main')
     expect(panel.text()).toContain('active')
     expect(panel.text()).toContain('Setting')
-    expect(panel.text()).toContain('方法')
-    expect(panel.text()).toContain('实现')
+    expect(panel.text()).toContain('Method')
+    expect(panel.text()).toContain('Implementation')
     expect(panel.text()).toContain('metric')
-    expect(panel.text()).toContain('结果')
+    expect(panel.text()).toContain('Result')
+    expect(panel.text()).not.toContain('方法')
+    expect(panel.text()).not.toContain('实现')
     expect(panel.text()).toContain('link')
     expect(panel.text()).toContain('hash')
     expect(panel.text()).toContain('G2 seed-2 best-checkpoint Mean U-spec')
@@ -296,6 +300,14 @@ describe('ResearchView', () => {
     expect(panel.text()).toContain('promote_U-spec versus SAST -0.4986 pp')
     expect(panel.text()).toContain('79b9a11f8e7ad9bb384ff4a5c3354b5d1adfc9c0')
     expect(panel.text()).toContain('autoresearch/learnable-membership-20260829')
+    useI18n().setLocale('zh')
+    await flushPromises()
+    const chinese = wrapper.get('[data-testid="repo-experiment-catalog"]')
+    expect(chinese.text()).toContain('原始注册数据')
+    expect(chinese.text()).toContain('分析数据')
+    expect(chinese.text()).toContain('方法')
+    expect(chinese.text()).toContain('实现')
+    expect(chinese.text()).toContain('结果')
   })
 
   it('shows repository readiness on an empty Research home', () => {
