@@ -72,14 +72,14 @@ A Study belongs to one Project. Plans, nodes, and edges belong to one Study.
 ```text
 Project
   ├── Repository
-  │     └── ExperimentCatalogRow (Setting, 方法, 实现, metric, 结果, link, hash, research branch)
+  │     └── ExperimentCatalogRow (Setting, Method, Implementation, metric, Result, link, hash, research branch)
   └── Study
         ├── IterationPlan (current plus superseded history)
         ├── ResearchNode (question, hypothesis, plan, run, result, observation, decision; optional occurred_at + commit_sha)
         └── ResearchEdge (leads_to, compares, supersedes, supports, contradicts, produced)
 ```
 
-The experiment catalog is bound to a registered repository, not to the Graph. It stores table-ready raw rows extracted from research branches so later analysis and paper tables can reuse Setting / 方法 / 实现 / metric / 结果 / link / hash without putting every run on the 128-node Graph. Catalog ingest never starts a workload.
+The experiment catalog is bound to a registered repository, not to the Graph. It stores table-ready raw rows extracted from research branches so later analysis and paper tables can reuse Setting / Method / Implementation / metric / Result / link / hash without putting every run on the 128-node Graph. Catalog ingest never starts a workload.
 
 Constraints:
 

@@ -35,10 +35,10 @@ var catalogBranchPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/-]{0,254
 type CatalogRowInput struct {
 	Branch         string `json:"branch" jsonschema:"research branch, tag, or documented git ref"`
 	Setting        string `json:"setting" jsonschema:"experimental Setting: dataset, protocol, seed, hardware bound, or config identity"`
-	Method         string `json:"method" jsonschema:"方法: named method, arm, or scientific claim"`
-	Implementation string `json:"implementation" jsonschema:"实现: code path, config, serializer, or training recipe actually used"`
+	Method         string `json:"method" jsonschema:"named method, arm, or scientific claim"`
+	Implementation string `json:"implementation" jsonschema:"code path, config, serializer, or training recipe actually used"`
 	Metric         string `json:"metric" jsonschema:"metric name or name=value copied from the repository evidence"`
-	Result         string `json:"result" jsonschema:"结果: reported number or frozen conclusion; do not invent"`
+	Result         string `json:"result" jsonschema:"reported number or frozen conclusion; do not invent"`
 	Link           string `json:"link,omitempty" jsonschema:"source path or URL inside the repository evidence"`
 	Hash           string `json:"hash" jsonschema:"git commit SHA 7 to 64 hex from that research branch"`
 }

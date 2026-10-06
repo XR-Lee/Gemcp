@@ -125,6 +125,7 @@ The Vue console is embedded in the Go binary. Redis, Kubernetes, and a separate 
 | Work on this repository | [AGENTS.md](AGENTS.md) |
 | Understand Study / hypothesis / run / result | [docs/graph-contract.md](docs/graph-contract.md) |
 | Walk through the console | [docs/web-console.md](docs/web-console.md) · [docs/research-workbench.md](docs/research-workbench.md) |
+| See the role diagram | [docs/framework-map.md](docs/framework-map.md) |
 | Test a checkout | [docs/tester-brief.md](docs/tester-brief.md) |
 | Deploy with Compose | [deploy/README.md](deploy/README.md) |
 | See what shipped | [docs/releases.md](docs/releases.md) · [docs/roadmap.md](docs/roadmap.md) |
