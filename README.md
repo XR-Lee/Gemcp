@@ -6,6 +6,8 @@
 
 Provider tokens, node credentials, and audit stay in a separate **Lab** layer. Agents never receive those secrets.
 
+> **Work in progress (WIP).** Gemcp is an early alpha. APIs, the UI, and the docs may change.
+
 > **This README is for people.**
 > Coding agents working in this repository: [AGENTS.md](AGENTS.md).
 > Agents connected to a running Gemcp over MCP: [guides/agent-mcp.md](guides/agent-mcp.md) (or call `get_usage_guide`).
@@ -51,6 +53,14 @@ In a second terminal, optional checks:
 ```
 
 The console language toggle is on the top bar (Chinese / English).
+
+## Roadmap
+
+The index of shipped and planned work is [docs/roadmap.md](docs/roadmap.md). Notes for each release are in [docs/releases.md](docs/releases.md).
+
+**In progress:** register a GitHub repository over HTTPS or SSH. Public repositories activate with anonymous HTTPS; private repositories keep the read-only Deploy Key. From Evidence, an Owner can prepare a proposal without an Agent Token: a reviewed `gemcp.yaml` workload, or a named Project workload saved from a succeeded one-shot.
+
+**Later:** standing approvals, dataset snapshots, and build sessions. Checks that still need a target machine or newly authorized paid resources are under [Further validation](docs/roadmap.md#further-validation).
 
 ## Connect an agent
 
@@ -129,6 +139,7 @@ The Vue console is embedded in the Go binary. Redis, Kubernetes, and a separate 
 | Test a checkout | [docs/tester-brief.md](docs/tester-brief.md) |
 | Deploy with Compose | [deploy/README.md](deploy/README.md) |
 | See what shipped | [docs/releases.md](docs/releases.md) · [docs/roadmap.md](docs/roadmap.md) |
+| Offer an idea or a pull request | [Contributing](#contributing) · [Issues](https://github.com/XR-Lee/Gemcp/issues) |
 
 Hosted copies of the Owner and Agent guides are `/docs/owner-mcp.md` and `/docs/agent-mcp.md` on a running control plane. Deeper topics: [setup API](docs/setup-api.md), [Agent Tokens](docs/agent-tokens.md), [architecture](docs/architecture.md), [execution](docs/execution.md), [finance](docs/finance.md), [diagnostics](docs/diagnostics.md), [notifications](docs/notifications.md).
 
@@ -166,3 +177,20 @@ make frontend-e2e
 ## Security
 
 No real AutoDL, SMTP, Git, Runner, Agent setup, Node setup, or experiment secret belongs in this repository. Provider, SMTP, and Git private credentials are encrypted at rest. Agent and Node setup codes and their long-lived Tokens are stored only as HMAC digests. AutoDL Runner Tokens are Attempt-scoped and never passed to the user command environment. Self-hosted workload containers receive no Gemcp credential.
+
+## Non-goals
+
+- Recording a Graph node never starts a machine. A paid run still needs the confirmed digest in [How a paid run starts](#how-a-paid-run-starts).
+- Provider tokens, node credentials, and SSH material stay in Lab. Agents do not receive them.
+- AutoDL, Self-hosted, and Cloud SSH do not silently fall back to one another.
+- Redis and Kubernetes are not required. The Vue console is embedded in the Go binary.
+
+## Contributing
+
+Ideas, feedback, issues, and pull requests are very welcome.
+
+**Propose an idea.** Open an [issue](https://github.com/XR-Lee/Gemcp/issues). Use it for a bug, a question, or a suggestion: say what you want and why. This repository has no Discussions board, so Issues is the place.
+
+**Send a pull request.** Branch from `main` and open a pull request against `main`. Keep the change focused. Note what you changed and how you checked it. Usual commands are in [Develop](#develop). Coding agents working in this tree should read [AGENTS.md](AGENTS.md) first.
+
+Leave real credentials out of the issue and the diff. See [Security](#security).
