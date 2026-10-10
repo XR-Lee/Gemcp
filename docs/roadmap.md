@@ -162,11 +162,9 @@ Add an opt-in Cloud SSH laboratory. An Agent with `operate_nodes`, or the Owner 
 
 Let a `configure` Agent finish Public Elastic setup without an Owner-baked image or trusted workspace. `register_dataset_binding` accepts a built-in catalog and allowlisted HTTPS sources. `prepare_experiment` gains `runtime_preset=provision` for a Gemcp-owned fetch onto `/root/autodl-fs`, plus optional `pip install --user` from the verified commit. `register_environment` / `remove_environment` register Provider-visible AutoDL images. Cloud SSH injects `GEMCP_DATASET_*`. `get_project_options` returns `dataset_sources`, `provider_images`, and `onboarding.public_cloud.next_steps`.
 
-## In progress
+### On main after v0.20.0 - repository HTTPS registration and Owner prepared experiments
 
-### Repository readiness and Owner prepared experiments
-
-Owner and Agent registration accept a GitHub HTTPS or SSH URL. Public repositories activate over anonymous HTTPS with no Deploy Key; private repositories keep the read-only Deploy Key path. Owner confirmation now shows digest-bound Graph origin, dataset, named workload, repository access, working directory, and dependency install. `prepare_experiment` resolves a reviewed `gemcp.yaml` workload into the same argv proposal, or a Project workload saved from a succeeded one-shot when that file is missing. Owners can prepare that same proposal from Evidence without an Agent Token and can save a succeeded one-shot as a named Project workload without writing git. Standing approvals, dataset snapshots, and build sessions remain later. The released Agent path already removes preliminary options, cost, UUID, full-SHA, reservation calculation, caller idempotency, and shell-command assembly from the common single-repository workflow.
+Owner and Agent registration accept a GitHub HTTPS or SSH URL. Public repositories activate over anonymous HTTPS with no Deploy Key. Private repositories keep the read-only Deploy Key path, or a write-only HTTPS token when Deploy Keys are disabled. Owner confirmation shows digest-bound Graph origin, dataset, named workload, repository access, working directory, and dependency install. `prepare_experiment` resolves a reviewed `gemcp.yaml` workload into the same argv proposal, or a Project workload saved from a succeeded one-shot when that file is missing. Owners can prepare that same proposal from Evidence without an Agent Token and can save a succeeded one-shot as a named Project workload without writing git. Standing approvals, dataset snapshots, and build sessions remain later. The Agent path omits preliminary options, cost, UUID, full-SHA, reservation calculation, caller idempotency, and shell-command assembly from the common single-repository workflow.
 
 ## Further validation
 

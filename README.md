@@ -58,7 +58,7 @@ The console language toggle is on the top bar (Chinese / English).
 
 The index of shipped and planned work is [docs/roadmap.md](docs/roadmap.md). Notes for each release are in [docs/releases.md](docs/releases.md).
 
-**In progress:** register a GitHub repository over HTTPS or SSH. Public repositories activate with anonymous HTTPS; private repositories keep the read-only Deploy Key. From Evidence, an Owner can prepare a proposal without an Agent Token: a reviewed `gemcp.yaml` workload, or a named Project workload saved from a succeeded one-shot.
+**Released:** register a GitHub repository over HTTPS or SSH. Public repositories activate with anonymous HTTPS; private repositories keep the read-only Deploy Key, or a write-only HTTPS token when Deploy Keys are disabled. From Evidence, an Owner can prepare a proposal without an Agent Token: a reviewed `gemcp.yaml` workload, or a named Project workload saved from a succeeded one-shot.
 
 **Later:** standing approvals, dataset snapshots, and build sessions. Checks that still need a target machine or newly authorized paid resources are under [Further validation](docs/roadmap.md#further-validation).
 
