@@ -124,13 +124,14 @@ Vue 控制台嵌在 Go 发布二进制里。不需要 Redis、Kubernetes，也�
 | **作为** MCP Agent 操作 Gemcp | [guides/agent-mcp.md](guides/agent-mcp.md) |
 | 在本仓库里改代码 | [AGENTS.md](AGENTS.md) |
 | 搞清 Study / hypothesis / run / result | [docs/graph-contract.md](docs/graph-contract.md) |
+| 看控制面怎么分层 | [docs/architecture.md](docs/architecture.md) · [交互框架图](docs/framework-map.html) |
 | 走一遍控制台 | [docs/web-console.md](docs/web-console.md) · [docs/research-workbench.md](docs/research-workbench.md) |
 | 看角色关系图 | [docs/framework-map.html](docs/framework-map.html)（中文） |
 | 测一个 checkout | [docs/tester-brief.zh.md](docs/tester-brief.zh.md) |
 | Compose 部署 | [deploy/README.md](deploy/README.md) |
 | 看发了什么 | [docs/releases.md](docs/releases.md) · [docs/roadmap.md](docs/roadmap.md) |
 
-运行中的控制平面也会在 `/docs/owner-mcp.md` 和 `/docs/agent-mcp.md` 提供 Owner / Agent 指南。再往下：[setup API](docs/setup-api.md)、[Agent Token](docs/agent-tokens.md)、[架构](docs/architecture.md)、[执行](docs/execution.md)、[财务](docs/finance.md)、[诊断](docs/diagnostics.md)、[通知](docs/notifications.md)。
+运行中的控制平面也会在 `/docs/owner-mcp.md` 和 `/docs/agent-mcp.md` 提供 Owner / Agent 指南。再往下：[setup API](docs/setup-api.md)、[Agent Token](docs/agent-tokens.md)、[架构](docs/architecture.md)、[交互框架图](docs/framework-map.html)、[执行](docs/execution.md)、[财务](docs/finance.md)、[诊断](docs/diagnostics.md)、[通知](docs/notifications.md)。
 
 ## 生产部署
 
