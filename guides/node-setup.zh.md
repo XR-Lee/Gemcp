@@ -33,7 +33,7 @@
 - NVIDIA Driver 和 `nvidia-smi` 正常工作。
 - Docker Engine 正在运行。
 - NVIDIA Container Toolkit 已正确配置，Docker 可以访问 GPU。
-- 已安装 Go 1.26.6，可用于从源码构建。
+- 已安装 Go 1.26.9，可用于从源码构建。
 - `/var/lib/gemcp-node/storage` 可写，并有足够空间保存源码树、输出和完整日志。
 
 如果缺少前置条件、存储空间不足，或修复过程需要变更 Driver，必须暂停并向 Owner 报告，不得继续。

@@ -33,7 +33,7 @@ Verify all of the following:
 - A working NVIDIA Driver and `nvidia-smi`.
 - Docker Engine is running.
 - NVIDIA Container Toolkit is configured and Docker can access the GPU.
-- Go 1.26.6 is available to build from source.
+- Go 1.26.9 is available to build from source.
 - `/var/lib/gemcp-node/storage` is writable and has sufficient capacity for source trees, outputs, and complete logs.
 
 If a prerequisite is missing, storage is insufficient, or installing it would require a driver change, stop and report the blocker before continuing.

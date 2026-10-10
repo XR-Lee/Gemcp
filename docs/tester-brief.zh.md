@@ -30,7 +30,7 @@ cat VERSION
 
 bootstrap 脚本会检查或安装的前置条件：
 
-- 有一条 Go 1.21+ 命令，这样 `go.mod` 钉死的 `1.26.6` 才能下载官方工具链。Debian 13 / Ubuntu apt 里的 Go 只够当引导编译器，不是要求的编译版本。
+- 有一条 Go 1.21+ 命令，这样 `go.mod` 钉死的 `1.26.9` 才能下载官方工具链。Debian 13 / Ubuntu apt 里的 Go 只够当引导编译器，不是要求的编译版本。
 - Node.js 22+
 - `127.0.0.1:5432` 上的 PostgreSQL 16+（Debian 13 apt 17 和 Ubuntu 24.04 apt 16 都可以）。生产 Compose 仍用 PostgreSQL 18。不需要 GPU，也不需要 NVIDIA Container Toolkit。
 

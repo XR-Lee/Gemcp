@@ -1,5 +1,5 @@
 ARG NODE_IMAGE=node:22-alpine
-ARG GO_IMAGE=golang:1.26.6-alpine
+ARG GO_IMAGE=golang:1.26.9-alpine
 ARG RUNTIME_IMAGE=alpine:3.23
 
 FROM ${NODE_IMAGE} AS frontend-builder

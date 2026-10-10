@@ -34,7 +34,7 @@ Current release: **v0.20.0** ([`VERSION`](VERSION), [notes](docs/releases.md)). 
 
 ## Quick start (laptop, no GPU)
 
-You need a Go 1.21+ command (the `go.mod` pin is 1.26.6 and will download that toolchain), Node.js 22+, and PostgreSQL 16+ on `127.0.0.1:5432`. Debian/Ubuntu apt Go and PostgreSQL are enough to bootstrap.
+You need a Go 1.21+ command (the `go.mod` pin is 1.26.9 and will download that toolchain), Node.js 22+, and PostgreSQL 16+ on `127.0.0.1:5432`. Debian/Ubuntu apt Go and PostgreSQL are enough to bootstrap.
 
 ```bash
 ./scripts/bootstrap-local.sh
@@ -58,7 +58,7 @@ The console language toggle is on the top bar (Chinese / English).
 
 The index of shipped and planned work is [docs/roadmap.md](docs/roadmap.md). Notes for each release are in [docs/releases.md](docs/releases.md).
 
-**In progress:** register a GitHub repository over HTTPS or SSH. Public repositories activate with anonymous HTTPS; private repositories keep the read-only Deploy Key. From Evidence, an Owner can prepare a proposal without an Agent Token: a reviewed `gemcp.yaml` workload, or a named Project workload saved from a succeeded one-shot.
+**Released:** register a GitHub repository over HTTPS or SSH. Public repositories activate with anonymous HTTPS; private repositories keep the read-only Deploy Key, or a write-only HTTPS token when Deploy Keys are disabled. From Evidence, an Owner can prepare a proposal without an Agent Token: a reviewed `gemcp.yaml` workload, or a named Project workload saved from a succeeded one-shot.
 
 **Later:** standing approvals, dataset snapshots, and build sessions. Checks that still need a target machine or newly authorized paid resources are under [Further validation](docs/roadmap.md#further-validation).
 

@@ -20,7 +20,7 @@
     "@vueuse/core": "14.4.0",
     "motion-v": "2.4.0",
     "reka-ui": "2.10.3",
-    "vue": "3.5.41"
+    "vue": "3.5.43"
   },
   "devDependencies": {
     "@playwright/test": "1.61.1",
@@ -36,7 +36,8 @@
     "vue-tsc": "3.3.7"
   },
   "overrides": {
-    "brace-expansion": "5.0.9",
-    "undici": "7.29.0"
+    "brace-expansion": "5.0.12",
+    "source-map-js": "1.2.2",
+    "undici": "7.30.0"
   }
 }
