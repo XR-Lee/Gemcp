@@ -40,7 +40,7 @@ go_ok() {
 install_go() {
   local version archive prefix
   version=$(tr -d ' \n' <"$repo_root/go.mod" | sed -n 's/.*go\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p')
-  [ -n "$version" ] || version=1.26.6
+  [ -n "$version" ] || version=1.26.9
   prefix="${GEMCP_LOCAL_GO_PREFIX:-$HOME/.local/go-$version}"
   archive="/tmp/go${version}.linux-amd64.tar.gz"
   log "Installing official Go $version into $prefix (Debian/Ubuntu apt Go is too old for go.mod)."

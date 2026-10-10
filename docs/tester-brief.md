@@ -30,7 +30,7 @@ cat VERSION
 
 Prerequisites the bootstrap script will check or install:
 
-- A Go 1.21+ command so the `go.mod` pin (`1.26.6`) can download the official toolchain. Debian 13 / Ubuntu apt Go is enough as a bootstrap compiler; it is not the required compile version.
+- A Go 1.21+ command so the `go.mod` pin (`1.26.9`) can download the official toolchain. Debian 13 / Ubuntu apt Go is enough as a bootstrap compiler; it is not the required compile version.
 - Node.js 22+
 - PostgreSQL 16+ on `127.0.0.1:5432` (Debian 13 apt 17 and Ubuntu 24.04 apt 16 both work). Production Compose still uses PostgreSQL 18. No GPU and no NVIDIA Container Toolkit.
 

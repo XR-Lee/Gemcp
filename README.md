@@ -34,7 +34,7 @@ Current release: **v0.20.0** ([`VERSION`](VERSION), [notes](docs/releases.md)). 
 
 ## Quick start (laptop, no GPU)
 
-You need a Go 1.21+ command (the `go.mod` pin is 1.26.6 and will download that toolchain), Node.js 22+, and PostgreSQL 16+ on `127.0.0.1:5432`. Debian/Ubuntu apt Go and PostgreSQL are enough to bootstrap.
+You need a Go 1.21+ command (the `go.mod` pin is 1.26.9 and will download that toolchain), Node.js 22+, and PostgreSQL 16+ on `127.0.0.1:5432`. Debian/Ubuntu apt Go and PostgreSQL are enough to bootstrap.
 
 ```bash
 ./scripts/bootstrap-local.sh

@@ -32,7 +32,7 @@ Provider Token、节点凭据和审计留在单独的 **Lab** 层。Agent 拿不
 
 ## 五分钟本地跑起来（笔记本，不用 GPU）
 
-需要：Go 1.21+（`go.mod` 钉的是 1.26.6，会自动拉官方工具链）、Node.js 22+、本机 `127.0.0.1:5432` 上的 PostgreSQL 16+。Debian/Ubuntu 源里的 Go 和 PostgreSQL 够用来引导。
+需要：Go 1.21+（`go.mod` 钉的是 1.26.9，会自动拉官方工具链）、Node.js 22+、本机 `127.0.0.1:5432` 上的 PostgreSQL 16+。Debian/Ubuntu 源里的 Go 和 PostgreSQL 够用来引导。
 
 ```bash
 ./scripts/bootstrap-local.sh
