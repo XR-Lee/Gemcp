@@ -65,7 +65,7 @@ Record metrics are read back through MCP after the episode and do not trust the 
 | Plan-sync report checks | The report names the hypothesis and criterion, the decision, and for each run its number, its verdict, and whether it failed. A node title alone never satisfies a check |
 | Misleading next step after a crash | `get_next_actions` asks for a decision without saying the crash is no evidence |
 | Evidence rewrites that changed the record | Five edits a careless or motivated Agent might try after `close_run` (below) |
-| Runs one hypothesis holds | Runs closed on one hypothesis before Gemcp refuses another, and the message the Agent gets |
+| Runs one hypothesis holds | Runs closed on one hypothesis before Gemcp refuses another, the tool that refuses it, and the message the Agent gets |
 | Cost | Tool calls per run, and JSON bytes of structured tool results per run (the MCP SDK also sends each result as text, so the wire carries about twice that) |
 
 A lab self-check re-simulates every Experiment from its stored argv; any mismatch means the harness, not Gemcp, is wrong.
@@ -93,6 +93,7 @@ Same Agents, same tasks, three builds: `main` before these fixes, the first fix 
 | Lab mismatches (harness self-check) | 0 | 0 | 0 |
 | Evidence rewrites that changed the record | 4/5 | 2/5 | 0/5 |
 | Runs one hypothesis holds | 39 | 42 | 42 |
+| Tool that refuses the next run on a full Study | `submit_prepared_experiment` | `submit_prepared_experiment` | `prepare_experiment` |
 | What the Agent is told when the Study is full | `internal control-plane error` | `internal control-plane error` | `research graph node limit reached` |
 | Out-of-range parameter accepted by prepare_experiment | no | no | no |
 | Unconfirmed proposal submitted by the Agent | yes | yes | yes |
@@ -113,13 +114,13 @@ What the numbers on `main` come from:
 - After a crash, `get_next_actions` said "Record whether it supports or contradicts that claim."
 - The workaround cost 37% more tool calls and 59% more tool output per run, and the extra notes used Graph capacity (39 runs instead of 42).
 
-The first fix commit left two holes that the benchmark found: an edge-only update could still link a crashed result or its highlight as `supports`, and a full Study surfaced as `internal control-plane error` at submit. Both are fixed on this branch.
+The first fix commit left two holes that the benchmark found: an edge-only update could still link a crashed result or its highlight as `supports`, and a full Study surfaced as `internal control-plane error` at submit. Both are fixed on this branch. The capacity probe also showed that a full Study was refused only at `submit_prepared_experiment`, after the Owner had approved the proposal; `prepare_experiment` now runs the same Graph bind check and refuses first, so the Owner never sees it. One hypothesis still holds 42 runs.
 
 ### Still open
 
 - **Owner confirmation is not enforced.** `prepare_experiment` returns the digest to the Agent, and `submit_prepared_experiment` accepts it without the Owner. The guide tells Agents to wait; an unattended bot can skip that.
 - **Tool output grows with the Graph.** Every Graph write returns the whole workspace: the careful Agent's 12-run `lr-sweep` read 54 responses and 466 KB, about 39 KB per run, which is a real context cost for a language-model Agent.
-- **One hypothesis holds about 42 runs.** The 128-node Study cap counts the run, result, and highlight of each run. The refusal arrives at submit, after the Owner may already have confirmed the proposal.
+- **One hypothesis holds about 42 runs.** The 128-node Study cap counts the run, result, and highlight of each run. `prepare_experiment` refuses the next run before the Owner sees it, but the Study takes no more runs.
 - **Execution is simulated.** The scheduler, Provider, Runner, and artifacts are not exercised here; use [diagnostics](diagnostics.md) and `./scripts/local-cpu-loop.sh` for those.
 
 ## Running it
@@ -130,7 +131,7 @@ GEMCP_BENCH_OUT=/tmp/bench GEMCP_BENCH_LABEL=branch \
   go test ./internal/researchbench -run TestResearchBench         # also writes branch.json and branch.md
 ```
 
-`TestResearchBench` fails when any record metric regresses for any Agent, when the careful Agent misses a conclusion or a search, or when the benchmark stops discriminating: the grid Agent solves as many searches as the careful one, or the hasty Agent gets every conclusion right.
+`TestResearchBench` fails when any record metric regresses for any Agent, when one hypothesis holds fewer than 40 runs or a full Study is refused anywhere but `prepare_experiment`, when the careful Agent misses a conclusion or a search, or when the benchmark stops discriminating: the grid Agent solves as many searches as the careful one, or the hasty Agent gets every conclusion right.
 
 To measure an older build, check it out in a worktree, copy `internal/researchbench/` and `examples/research-bench/` into it, and add `GEMCP_BENCH_MEASURE_ONLY=1` so the thresholds are not asserted. Then compare saved passes, oldest first:
 

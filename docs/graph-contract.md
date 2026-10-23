@@ -55,9 +55,10 @@ A local CPU or CLI Agent follows that path. It does not create an Experiment fir
 
 1. **The origin must trace back to a hypothesis.** `prepare_experiment` needs `from_node_id` on a connected hypothesis, or on a plan that reaches a hypothesis through `leads_to` parents (plans, questions, and decisions are traversed). Isolated nodes, and plans hanging only off the question, cannot spend — `close_run` could never link their highlight.
 2. **Money is only committed to a bindable run.** `submit_prepared_experiment` re-validates the Graph origin *before* creating the Experiment and reserving budget; a doomed bind rejects the submission with nothing spent. If the Graph changes in the instant between that check and the bind, the response still carries the submitted Experiment plus `graph_bind_warning` — do not prepare again; fix the Graph and retry `submit_prepared_experiment` to bind the same Experiment.
-3. **A proposal prepared before the Study existed goes stale once a Study opens.** Submit rejects it; prepare again with `from_node_id` on the Graph.
-4. **Advanced `submit_experiment` cannot skip the Study.** If an active Study exists, that tool is rejected (idempotent retries of a submission accepted before the Study still return the same Experiment). Use `prepare_experiment` with `from_node_id`.
-5. **Orphans are a badge.** Evidence still shows Off-graph for leftover or failed binds. New scientific work does not start that way.
+3. **A full Study cannot take another run.** A Study holds at most 128 nodes, and each closed run adds three (run, result, highlight). Once the Study is full, `prepare_experiment` refuses the origin with `research graph node limit reached`, so the Owner is never shown a digest that cannot be submitted. `submit_prepared_experiment` checks again before spending, because the Graph can fill between prepare and submit.
+4. **A proposal prepared before the Study existed goes stale once a Study opens.** Submit rejects it; prepare again with `from_node_id` on the Graph.
+5. **Advanced `submit_experiment` cannot skip the Study.** If an active Study exists, that tool is rejected (idempotent retries of a submission accepted before the Study still return the same Experiment). Use `prepare_experiment` with `from_node_id`.
+6. **Orphans are a badge.** Evidence still shows Off-graph for leftover or failed binds. New scientific work does not start that way.
 
 ## `get_next_actions`
 
@@ -115,7 +116,7 @@ Example: bind `XR-Lee/DynamicPointMamba` (or any similar lab repo) without dumpi
 
 Because every new spend already required a hypothesis ancestor, that link exists on the happy path. A legacy run bound before this contract still closes: the result is written, the highlight is skipped, and the response carries a warning telling the agent to reconnect the origin.
 
-`close_run` terminal writes are exempt from the Study node and edge caps — a full Graph must never leave a funded run permanently uncloseable. New spending on a full Study is rejected at prepare/submit instead.
+`close_run` terminal writes are exempt from the Study node and edge caps — a full Graph must never leave a funded run permanently uncloseable. New spending on a full Study is refused at `prepare_experiment` instead, and again at `submit_prepared_experiment` if the Graph filled after prepare (spend rule 3).
 
 Copy the scalar from `get_experiment`, pass only `metric_name` to have Gemcp copy that value from the Experiment, or omit `metric_name` to copy the prepared `expected_metric`. Optional `highlight` sets the observation title; omit it to reuse the result title. Optional `result_commit_sha` stamps the durable Git manifest. Host-process Cloud SSH experiments (including the local CPU loop) have no Git checkout: omit `result_commit_sha` and do not invent a SHA. `close_run` treats the stored host-process placeholder as absent evidence. When `experiment_id` already identifies a bound Graph run, `study_id` may be omitted even if the Project has several Studies. `get_experiment` returns that `study_id` on a Graph-linked run.
 

@@ -90,6 +90,7 @@ type GraphBinder interface {
 	BindPreparedRun(context.Context, agentauth.Principal, string, string, string) (string, error)
 	// ValidatePreparedBind runs the same origin checks before any budget is
 	// committed, so a doomed bind rejects the submission instead of spending.
+	// Prepare calls it too, so a full Study never reaches the Owner.
 	ValidatePreparedBind(context.Context, agentauth.Principal, string) error
 }
 

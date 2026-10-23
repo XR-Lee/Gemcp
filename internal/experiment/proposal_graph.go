@@ -73,6 +73,14 @@ func (s *Service) resolveGraphOrigin(ctx context.Context, principal agentauth.Pr
 			return "", "", &ValidationError{Message: "from_node_id must trace back to a hypothesis through leads_to parents; record the hypothesis before spending"}
 		}
 	}
+	// Ask the binder now as well as at submit, so a Study that is already
+	// full refuses before the Owner is shown a digest it could never submit.
+	// Submit asks again because the Graph can fill in between.
+	if s.graphBinder != nil {
+		if err := s.graphBinder.ValidatePreparedBind(ctx, principal, node.PublicID.String()); err != nil {
+			return "", "", err
+		}
+	}
 	return node.PublicID.String(), expectedMetric, nil
 }
 

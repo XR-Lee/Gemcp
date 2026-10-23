@@ -231,9 +231,9 @@ func RenderMarkdown(report Report) string {
 			rows = append(rows, []string{probe.Name, yesNo(probe.Accepted), yesNo(probe.Effective)})
 		}
 		table(&b, []string{"Rewrite attempt", "Accepted", "Changed the record"}, rows)
-		fmt.Fprintf(&b, "\nRuns one hypothesis held before Gemcp refused another: %d (limit hit: %s, probe limit %d; the Agent was told %s). Runs spent without a Graph run: %d. Out-of-range parameter accepted: %s. Agent could submit a proposal the Owner never confirmed: %s.\n",
-			report.Integrity.Capacity, yesNo(report.Integrity.CapacityHit), report.Integrity.CapacityLimit, refusalText(report.Integrity.Refusal),
-			report.Integrity.Orphaned, yesNo(report.Integrity.OutOfBounds), yesNo(report.Integrity.UnapprovedSubmit))
+		fmt.Fprintf(&b, "\nRuns one hypothesis held before Gemcp refused another: %d (limit hit: %s, probe limit %d; refused by %s; the Agent was told %s). Runs spent without a Graph run: %d. Out-of-range parameter accepted: %s. Agent could submit a proposal the Owner never confirmed: %s.\n",
+			report.Integrity.Capacity, yesNo(report.Integrity.CapacityHit), report.Integrity.CapacityLimit, codeText(report.Integrity.RefusedBy),
+			refusalText(report.Integrity.Refusal), report.Integrity.Orphaned, yesNo(report.Integrity.OutOfBounds), yesNo(report.Integrity.UnapprovedSubmit))
 	}
 	b.WriteString("\n## Findings\n\n")
 	listed := false
@@ -267,6 +267,7 @@ func RenderComparison(reports ...Report) string {
 	}{
 		{"Evidence rewrites that changed the record", func(i Integrity) string { return fmt.Sprintf("%d/%d", i.Effective(), len(i.Probes)) }},
 		{"Runs one hypothesis holds", func(i Integrity) string { return fmt.Sprint(i.Capacity) }},
+		{"Tool that refuses the next run on a full Study", func(i Integrity) string { return codeText(i.RefusedBy) }},
 		{"What the Agent is told when the Study is full", func(i Integrity) string { return refusalText(i.Refusal) }},
 		{"Out-of-range parameter accepted by prepare_experiment", func(i Integrity) string { return yesNo(i.OutOfBounds) }},
 		{"Unconfirmed proposal submitted by the Agent", func(i Integrity) string { return yesNo(i.UnapprovedSubmit) }},
@@ -317,8 +318,14 @@ func refusalText(refusal string) string {
 	if index := strings.LastIndex(refusal, ": "); index >= 0 {
 		refusal = refusal[index+2:]
 	}
-	if refusal == "" {
+	return codeText(refusal)
+}
+
+// codeText shows a tool name or message as code, or n/a when there is none,
+// as for a pass recorded before the field existed.
+func codeText(value string) string {
+	if value == "" {
 		return "n/a"
 	}
-	return "`" + refusal + "`"
+	return "`" + value + "`"
 }

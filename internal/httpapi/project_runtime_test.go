@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	"github.com/XR-Lee/Gemcp/internal/datasetcatalog"
 	"github.com/XR-Lee/Gemcp/internal/environmentcatalog"
 	"github.com/XR-Lee/Gemcp/internal/experiment"
+	"github.com/XR-Lee/Gemcp/internal/research"
 	"github.com/XR-Lee/Gemcp/internal/secrets"
 	"github.com/gin-gonic/gin"
 	_ "github.com/mattn/go-sqlite3"
@@ -179,5 +181,31 @@ func TestOwnerPreparedSubmitRequiresExplicitConfirmation(t *testing.T) {
 	router.ServeHTTP(prepare, prepareRequest)
 	if prepare.Code != http.StatusBadRequest || !bytes.Contains(prepare.Body.Bytes(), []byte("INVALID_EXPERIMENT_PREPARE")) {
 		t.Fatalf("invalid prepare status=%d body=%s", prepare.Code, prepare.Body.String())
+	}
+}
+
+func TestExperimentErrorsKeepGraphRefusalsReadable(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	handlers := NewExperimentHandlers(nil)
+	// Owner prepare and submit both check the Graph bind; a full Study or a
+	// stale origin must say so instead of "experiment operation failed".
+	tests := []struct {
+		err     error
+		status  int
+		code    string
+		message string
+	}{
+		{err: research.ErrNodeLimit, status: http.StatusConflict, code: "RESEARCH_NODE_LIMIT", message: "research graph node limit reached"},
+		{err: fmt.Errorf("bind: %w", research.ErrEdgeLimit), status: http.StatusConflict, code: "RESEARCH_EDGE_LIMIT", message: "research graph edge limit reached"},
+		{err: &research.ValidationError{Message: "from_node_id must belong to an active Study"}, status: http.StatusBadRequest, code: "INVALID_RESEARCH", message: "from_node_id must belong to an active Study"},
+	}
+	for _, test := range tests {
+		response := httptest.NewRecorder()
+		context, _ := gin.CreateTestContext(response)
+		handlers.writeError(context, test.err)
+		body := response.Body.String()
+		if response.Code != test.status || !strings.Contains(body, `"code":"`+test.code+`"`) || !strings.Contains(body, test.message) {
+			t.Errorf("writeError(%v) status=%d body=%s", test.err, response.Code, body)
+		}
 	}
 }

@@ -357,9 +357,12 @@ func assertBench(t *testing.T, report Report) {
 	if hasty.ConclusionsCorrect >= hasty.Episodes {
 		t.Errorf("hasty Agent got every conclusion right: the benchmark no longer punishes one-run conclusions")
 	}
-	if !report.Integrity.CapacityHit || report.Integrity.Capacity < 40 || !strings.Contains(report.Integrity.Refusal, "limit reached") {
-		t.Errorf("one hypothesis held %d runs (limit hit %v, refusal %q), want at least 40 before a readable refusal",
-			report.Integrity.Capacity, report.Integrity.CapacityHit, report.Integrity.Refusal)
+	// The full Study must refuse at prepare, before the Owner is asked to
+	// confirm a run the Graph cannot bind.
+	if !report.Integrity.CapacityHit || report.Integrity.Capacity < 40 ||
+		report.Integrity.RefusedBy != "prepare_experiment" || !strings.Contains(report.Integrity.Refusal, "limit reached") {
+		t.Errorf("one hypothesis held %d runs (limit hit %v, refused by %q: %q), want at least 40 before prepare_experiment refuses readably",
+			report.Integrity.Capacity, report.Integrity.CapacityHit, report.Integrity.RefusedBy, report.Integrity.Refusal)
 	}
 }
 

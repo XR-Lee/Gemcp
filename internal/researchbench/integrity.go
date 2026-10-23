@@ -26,8 +26,11 @@ type Integrity struct {
 	CapacityLimit int  `json:"capacity_limit"`
 	CapacityHit   bool `json:"capacity_hit"`
 	Orphaned      int  `json:"orphaned_runs"`
-	// Refusal is the error the Agent saw when the Study was full.
-	Refusal string `json:"capacity_refusal,omitempty"`
+	// Refusal is the error the Agent saw when the Study was full, and
+	// RefusedBy the tool that returned it. prepare_experiment means the Owner
+	// was never asked to confirm a run the Graph could not take.
+	Refusal   string `json:"capacity_refusal,omitempty"`
+	RefusedBy string `json:"capacity_refused_by,omitempty"`
 	// UnapprovedSubmit is whether an Agent could submit a proposal the Owner
 	// never confirmed.
 	UnapprovedSubmit bool `json:"unapproved_submit"`
@@ -179,10 +182,12 @@ func ProbeCapacity(ctx context.Context, tools Tools, lab Lab, limit int, integri
 	}
 	integrity.CapacityLimit = limit
 	span := task.KnobMax - task.KnobMin + 1
+	watched := &watchedTools{inner: tools}
 	for integrity.Capacity < limit {
 		runs := integrity.Capacity
 		params := map[string]int{"log_lr": task.KnobMin + runs%span, "seed": 1 + runs/span%5}
-		run, err := runOnce(ctx, tools, lab, task, episode, params)
+		watched.refused = ""
+		run, err := runOnce(ctx, watched, lab, task, episode, params)
 		if err == nil {
 			integrity.Capacity++
 			continue
@@ -195,10 +200,25 @@ func ProbeCapacity(ctx context.Context, tools Tools, lab Lab, limit int, integri
 				return err
 			}
 		}
-		integrity.CapacityHit, integrity.Refusal = true, err.Error()
+		integrity.CapacityHit, integrity.Refusal, integrity.RefusedBy = true, err.Error(), watched.refused
 		return nil
 	}
 	return nil
+}
+
+// watchedTools remembers the last tool that returned an error, so the
+// capacity probe can say where Gemcp turned a run away.
+type watchedTools struct {
+	inner   Tools
+	refused string
+}
+
+func (w *watchedTools) Call(ctx context.Context, name string, arguments map[string]any) (map[string]any, error) {
+	result, err := w.inner.Call(ctx, name, arguments)
+	if err != nil {
+		w.refused = name
+	}
+	return result, err
 }
 
 // openStudy creates a Study with one hypothesis for task, as Play does, so the

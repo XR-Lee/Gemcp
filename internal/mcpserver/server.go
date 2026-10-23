@@ -794,8 +794,9 @@ func (s *Server) toolError(tool string, err error) error {
 	if errors.As(err, &validation) {
 		return errors.New(validation.Message)
 	}
-	// Submitting a prepared proposal checks the Graph bind first, so a full
-	// Study or a stale origin must read as such, not as an internal failure.
+	// Preparing and submitting a proposal both check the Graph bind, so a
+	// full Study or a stale origin must read as such, not as an internal
+	// failure.
 	var graphValidation *research.ValidationError
 	if errors.As(err, &graphValidation) {
 		return errors.New(graphValidation.Message)

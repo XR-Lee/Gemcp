@@ -16,6 +16,8 @@ import (
 	"github.com/XR-Lee/Gemcp/ent"
 	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/nodeprojectaccess"
+	"github.com/XR-Lee/Gemcp/ent/researchnode"
+	"github.com/XR-Lee/Gemcp/ent/study"
 	"github.com/XR-Lee/Gemcp/internal/execution"
 	"github.com/XR-Lee/Gemcp/internal/provider"
 	gitrepository "github.com/XR-Lee/Gemcp/internal/repository"
@@ -690,6 +692,76 @@ func TestSubmitPreparedRejectsDoomedGraphBindBeforeSpending(t *testing.T) {
 	submitted, err := service.SubmitPrepared(ctx, f.principal, SubmitPreparedInput{ProposalID: prepared.Proposal.ID, ConfirmationDigest: prepared.Proposal.ConfirmationDigest})
 	if err != nil || submitted.RunNodeID == "" || submitted.GraphBindWarning != "" {
 		t.Fatalf("reactivated submit = %+v, %v", submitted, err)
+	}
+}
+
+func TestPrepareRejectsFullStudyAndSubmitChecksAgain(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	ctx := context.Background()
+	researchService := mustResearchService(t, f)
+	created, err := researchService.AgentUpdate(ctx, f.principal, researchUpdate(f, "full-study", "Does prepare refuse a run the full Graph cannot bind?"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	hypothesis, err := researchService.AgentUpdate(ctx, f.principal, research.UpdateInput{
+		Node: &research.NodeInput{Kind: "hypothesis", Title: "Noise caps accuracy", FromNodeID: created.Study.Nodes[0].ID, Relation: "leads_to"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hypothesisID := hypothesis.Study.Nodes[1].ID
+	service := preparedService(t, f, 2)
+	service.SetGraphBinder(researchService)
+	early, err := service.Prepare(ctx, f.principal, prepareFrom(hypothesisID))
+	if err != nil || early.Proposal == nil || !early.Proposal.Eligible {
+		t.Fatalf("Prepare() with room on the Graph = %+v, %v", early, err)
+	}
+	fillStudy(t, f, researchService, hypothesisID)
+	// A full Study refuses at prepare, so the Owner is never shown a digest
+	// that submit could not bind.
+	if _, err := service.Prepare(ctx, f.principal, prepareFrom(hypothesisID)); !errors.Is(err, research.ErrNodeLimit) {
+		t.Fatalf("Prepare() on a full Study = %v, want %v", err, research.ErrNodeLimit)
+	}
+	if count, _ := f.client.ExperimentProposal.Query().Count(ctx); count != 1 {
+		t.Fatalf("full-Study prepare stored a proposal, count=%d", count)
+	}
+	// The Graph filled after the first proposal was prepared; submit checks
+	// again and still spends nothing.
+	_, err = service.SubmitPrepared(ctx, f.principal, SubmitPreparedInput{ProposalID: early.Proposal.ID, ConfirmationDigest: early.Proposal.ConfirmationDigest})
+	if !errors.Is(err, research.ErrNodeLimit) {
+		t.Fatalf("SubmitPrepared() after the Graph filled = %v, want %v", err, research.ErrNodeLimit)
+	}
+	if count, _ := f.client.Experiment.Query().Count(ctx); count != 0 {
+		t.Fatalf("full-Study submit still created an Experiment, count=%d", count)
+	}
+	if count, _ := f.client.BudgetEntry.Query().Count(ctx); count != 0 {
+		t.Fatalf("full-Study submit still reserved budget, count=%d", count)
+	}
+}
+
+// fillStudy adds bare observations to the Project's Study until the Graph
+// refuses another run on fromNodeID.
+func fillStudy(t *testing.T, f fixture, researchService *research.Service, fromNodeID string) {
+	t.Helper()
+	ctx := context.Background()
+	selected, err := f.client.Study.Query().Where(study.ProjectIDEQ(f.project.ID)).Only(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for added := 0; ; added++ {
+		err := researchService.ValidatePreparedBind(ctx, f.principal, fromNodeID)
+		if errors.Is(err, research.ErrNodeLimit) {
+			return
+		}
+		if err != nil || added > 1024 {
+			t.Fatalf("Study still binds runs after %d filler nodes: %v", added, err)
+		}
+		if _, err := f.client.ResearchNode.Create().
+			SetTenantID(f.principal.TenantID).SetProjectID(f.project.ID).SetStudyID(selected.ID).
+			SetKind(researchnode.KindObservation).SetTitle("filler observation").SetStatus(researchnode.StatusOpen).
+			Save(ctx); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 
