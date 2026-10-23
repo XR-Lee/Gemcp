@@ -253,6 +253,53 @@ func TestGraphUpdatesCannotRewriteExperimentEvidence(t *testing.T) {
 	}
 }
 
+func TestOnlyCloseRunMarksEvidenceAsVerdict(t *testing.T) {
+	f := newEvidenceFixture(t, "evidence-verdict-edge")
+	crashedID := f.newRun("failed", nil)
+	closed, err := f.service.AgentCloseRun(f.ctx, f.principal, CloseRunInput{ExperimentID: crashedID, Title: "crashed augmentation run"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := nodeByTitle(t, closed.Study, "result", "crashed augmentation run")
+	highlight := nodeByTitle(t, closed.Study, "observation", "crashed augmentation run")
+	// An edge-only update would skip the succeeded-with-a-metric check that
+	// close_run applies before it writes a verdict.
+	for _, from := range []string{result.ID, highlight.ID} {
+		for _, relation := range []string{"supports", "contradicts"} {
+			if _, err := f.service.AgentUpdate(f.ctx, f.principal, UpdateInput{Node: &NodeInput{
+				ID: f.hypothesisID, Kind: "hypothesis", FromNodeID: from, Relation: relation,
+			}}); err == nil || !strings.Contains(err.Error(), "only close_run") {
+				t.Fatalf("linked Experiment evidence as %s: %v", relation, err)
+			}
+		}
+	}
+	if _, err := f.service.OwnerUpdate(f.ctx, f.principal.TenantID, "owner", f.principal.ProjectPublicID, UpdateInput{Node: &NodeInput{
+		ID: f.hypothesisID, Kind: "hypothesis", FromNodeID: result.ID, Relation: "supports",
+	}}); err == nil {
+		t.Fatal("Owner Graph update marked a crashed result as support")
+	}
+	// The Agent's own reading still links, as its own observation.
+	noted, err := f.service.AgentUpdate(f.ctx, f.principal, UpdateInput{Node: &NodeInput{
+		Kind: "observation", Title: "The crash came from the data loader", FromNodeID: result.ID, Relation: "leads_to",
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	note := nodeByTitle(t, noted.Study, "observation", "The crash came from the data loader")
+	if _, err := f.service.AgentUpdate(f.ctx, f.principal, UpdateInput{Node: &NodeInput{
+		ID: f.hypothesisID, Kind: "hypothesis", FromNodeID: note.ID, Relation: "contradicts",
+	}}); err != nil {
+		t.Fatalf("linking the Agent's own observation: %v", err)
+	}
+	after, err := f.service.AgentWorkspace(f.ctx, f.principal, WorkspaceInput{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if record := runRecord(t, after.Study, crashedID); record.Verdict != "inconclusive" {
+		t.Fatalf("crashed run record = %+v", record)
+	}
+}
+
 func TestGraphUpdatesKeepOmittedFields(t *testing.T) {
 	f := newEvidenceFixture(t, "evidence-partial")
 	claimed := 0.95

@@ -115,6 +115,8 @@ type NodeInput struct {
 
 const lockedNodeMessage = "this node was written by Gemcp from Experiment evidence and cannot be edited; record a new observation or decision instead"
 
+const lockedVerdictMessage = "only close_run can mark Experiment evidence as supports or contradicts; record an observation or decision from this node and link that to the hypothesis instead"
+
 type UpdateInput struct {
 	Study *StudyInput `json:"study,omitempty" jsonschema:"create or update one Study"`
 	Plan  *PlanInput  `json:"plan,omitempty" jsonschema:"replace the active iteration plan"`
@@ -673,6 +675,14 @@ func recordNode(ctx context.Context, tx *ent.Tx, current actor, selected *ent.St
 		}
 	}
 	if strings.TrimSpace(input.FromNodeID) != "" || strings.TrimSpace(input.Relation) != "" {
+		// close_run checks that a run succeeded and carries its metric before
+		// it writes a verdict; an edge added afterwards would skip that check.
+		if relation := researchedge.Relation(strings.TrimSpace(input.Relation)); !input.systemWritten &&
+			(relation == researchedge.RelationSupports || relation == researchedge.RelationContradicts) {
+			if from, findErr := findNode(nodes, input.FromNodeID); findErr == nil && lockedNode(from) {
+				return nil, invalid(lockedVerdictMessage)
+			}
+		}
 		if err := recordEdge(ctx, tx, current, selected, nodes, record, input.FromNodeID, input.Relation, input.exemptStudyCaps); err != nil {
 			return nil, err
 		}

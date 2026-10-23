@@ -42,6 +42,7 @@ make build
 | `docs/` | Human engineering docs |
 | `deploy/` | Production Compose |
 | `examples/local-cpu/` | GPU-free fixture used by `local-cpu-loop.sh` |
+| `examples/research-bench/`, `internal/researchbench/` | Simulated research tasks and the benchmark that scores Agents and Gemcp's records on them |
 
 ## Conventions
 
@@ -54,6 +55,6 @@ make build
 
 ## Verification
 
-For a docs-only change, check links and that audience banners still point at the right files. For code, run the `make` targets that cover the package you touched. For UI, exercise the changed console path; Playwright specs live in `frontend/e2e/`.
+For a docs-only change, check links and that audience banners still point at the right files. For code, run the `make` targets that cover the package you touched. For UI, exercise the changed console path; Playwright specs live in `frontend/e2e/`. A change to `close_run`, the Graph, plan sync, or the research MCP tools must keep `go test ./internal/researchbench` green; it scores the whole record an Owner reads ([docs/research-bench.md](docs/research-bench.md)).
 
 Before a paid smoke test read [docs/diagnostics.md](docs/diagnostics.md). Testers: [docs/tester-brief.md](docs/tester-brief.md).

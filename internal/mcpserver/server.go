@@ -794,11 +794,18 @@ func (s *Server) toolError(tool string, err error) error {
 	if errors.As(err, &validation) {
 		return errors.New(validation.Message)
 	}
+	// Submitting a prepared proposal checks the Graph bind first, so a full
+	// Study or a stale origin must read as such, not as an internal failure.
+	var graphValidation *research.ValidationError
+	if errors.As(err, &graphValidation) {
+		return errors.New(graphValidation.Message)
+	}
 	for _, public := range []error{
 		experiment.ErrForbidden, experiment.ErrNotFound, experiment.ErrOptionNotFound,
 		experiment.ErrIdempotencyConflict, experiment.ErrBudgetExceeded, experiment.ErrExperimentCap,
 		experiment.ErrCommitVerification, experiment.ErrProjectPaused, experiment.ErrProposalNotFound,
 		experiment.ErrProposalExpired, experiment.ErrProposalChanged, experiment.ErrProposalBlocked,
+		research.ErrNodeLimit, research.ErrEdgeLimit,
 	} {
 		if errors.Is(err, public) {
 			return public

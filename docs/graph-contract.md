@@ -158,6 +158,8 @@ Typed grammar:
 
 Nodes Gemcp writes from Experiment evidence — the `run` bound at submission, the `result`, and the `close_run` highlight observation — are marked `system_written`. `update_research_workspace` (Agent or Owner) cannot change their title, summary, status, metric, time, or commit; it may still attach an edge to them. Record a new observation or decision to add interpretation. Any run bound to an Experiment and every result are protected the same way, including on older Graphs.
 
+Only `close_run` marks Experiment evidence as `supports` or `contradicts`, because only it checks that the run succeeded and carries its metric. A `supports` or `contradicts` edge from a result or highlight added through `update_research_workspace` is rejected. To record your own reading, write an observation from the result and link that observation to the hypothesis; it stays the Agent's claim, not Experiment evidence.
+
 Updating any other node by `id` is partial: omitted fields keep their stored values, so attaching an edge never erases a summary or resets a status.
 
 Every scalar on the Graph carries `metric_source`: `experiment` when it matches the bound Experiment's `metrics.json` (directly, through the run that produced a result, or through that result's highlight), `asserted` when it was typed into the Graph. The mark is recomputed on every read.
