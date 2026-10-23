@@ -3,6 +3,7 @@ package research
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -10,7 +11,7 @@ import (
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
 )
 
-const planSyncMetricsDisclaimer = "Metrics and scalars live on the Gemcp Graph. This markdown is a docs-only amendment for the protocol branch, not the source of truth."
+const planSyncMetricsDisclaimer = "Numbers below are copied from the Gemcp Graph when this patch was generated. Measured numbers match the Experiment's metrics.json; asserted numbers were typed into the Graph. Gemcp stays the source of truth; this markdown is a docs-only amendment for the protocol branch."
 
 type PlanSyncInput struct {
 	StudyID    string `json:"study_id,omitempty" jsonschema:"Study ID; omit when the Project has exactly one Study"`
@@ -156,7 +157,25 @@ func renderPlanSyncMarkdown(workspace Workspace, targetBranch, targetPath string
 	fmt.Fprintf(&b, "- Target: `%s` on `%s`\n", targetPath, targetBranch)
 	fmt.Fprintf(&b, "- Generated at: %s\n", generatedAt.Format(time.RFC3339))
 	fmt.Fprintf(&b, "\n%s\n", planSyncMetricsDisclaimer)
-	fmt.Fprintf(&b, "\n## Decisions\n\n")
+	fmt.Fprintf(&b, "\n## Hypotheses\n\n")
+	if len(view.Hypotheses) == 0 {
+		b.WriteString("No hypotheses are on the Graph yet.\n")
+	}
+	for _, hypothesis := range view.Hypotheses {
+		fmt.Fprintf(&b, "### %s\n\n", oneLine(hypothesis.Title))
+		if hypothesis.Summary != "" {
+			fmt.Fprintf(&b, "%s\n\n", oneLine(hypothesis.Summary))
+		}
+		if len(hypothesis.Experiments) == 0 {
+			b.WriteString("- No experiment yet.\n\n")
+			continue
+		}
+		for _, record := range hypothesis.Experiments {
+			b.WriteString("- " + planSyncRunLine(record) + "\n")
+		}
+		b.WriteString("\n")
+	}
+	fmt.Fprintf(&b, "## Decisions\n\n")
 	decisions := nodesByKind(view.Nodes, "decision")
 	if len(decisions) == 0 {
 		b.WriteString("No decision nodes are on the Graph yet.\n")
@@ -177,14 +196,14 @@ func renderPlanSyncMarkdown(workspace Workspace, targetBranch, targetPath string
 			if action.Kind == "export_plan_sync" {
 				continue
 			}
-			fmt.Fprintf(&b, "- %s (%s)", action.Title, action.Tool)
+			fmt.Fprintf(&b, "- %s", action.Title)
 			if action.Detail != "" {
 				fmt.Fprintf(&b, ": %s", oneLine(action.Detail))
 			}
 			b.WriteString("\n")
 		}
 	}
-	fmt.Fprintf(&b, "\n## Closed evidence (titles only)\n\n")
+	fmt.Fprintf(&b, "\n## Closed evidence\n\n")
 	results := nodesByKind(view.Nodes, "result")
 	if len(results) == 0 {
 		b.WriteString("No closed results on the Graph.\n")
@@ -197,7 +216,12 @@ func renderPlanSyncMarkdown(workspace Workspace, targetBranch, targetPath string
 			if node.CommitSHA != "" {
 				fmt.Fprintf(&b, " @ `%s`", node.CommitSHA)
 			}
-			b.WriteString(". Scalar values stay on the Graph.\n")
+			if value := metricText(node.MetricName, node.MetricValue, node.MetricSource); value != "" {
+				fmt.Fprintf(&b, ": %s", value)
+			} else if node.Status == "failed" {
+				b.WriteString(": run failed, no evidence")
+			}
+			b.WriteString("\n")
 		}
 	}
 	fmt.Fprintf(&b, "\n## Do not\n\n")
@@ -205,6 +229,50 @@ func renderPlanSyncMarkdown(workspace Workspace, targetBranch, targetPath string
 	b.WriteString("- Do not force-push.\n")
 	b.WriteString("- Do not treat this file as the metric ledger.\n")
 	return b.String()
+}
+
+// planSyncRunLine reads as one sentence a person can scan: which run, what
+// it measured, and what that means for the hypothesis.
+func planSyncRunLine(record HypothesisRunRecord) string {
+	line := oneLine(record.Title)
+	if record.ResultTitle == "" {
+		return line + ": " + strings.ReplaceAll(record.State, "_", " ") + ", not closed yet"
+	}
+	if record.ResultTitle != record.Title {
+		line += ": " + oneLine(record.ResultTitle)
+	}
+	if value := metricText(record.MetricName, record.MetricValue, record.MetricSource); value != "" {
+		line += ", " + value
+	}
+	if record.State != "" && record.State != "succeeded" {
+		line += ", run " + strings.ReplaceAll(record.State, "_", " ")
+	}
+	verdict := record.Verdict
+	if verdict == "" {
+		verdict = verdictInconclusive
+	}
+	return line + ". Verdict: " + verdict + "."
+}
+
+func metricText(name string, value *float64, source string) string {
+	if name == "" || value == nil {
+		return ""
+	}
+	text := name + " = " + formatMetricValue(*value)
+	if source != "" {
+		text += " (" + map[string]string{metricSourceExperiment: "measured", metricSourceAsserted: "asserted"}[source] + ")"
+	}
+	return text
+}
+
+// formatMetricValue keeps four significant digits without switching to
+// exponent notation, which reads poorly in a status document.
+func formatMetricValue(value float64) string {
+	text := strconv.FormatFloat(value, 'g', 4, 64)
+	if strings.ContainsAny(text, "eE") {
+		text = strconv.FormatFloat(value, 'f', -1, 64)
+	}
+	return text
 }
 
 func nodesByKind(nodes []NodeView, kind string) []NodeView {

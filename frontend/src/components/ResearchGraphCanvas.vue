@@ -8,7 +8,8 @@ import { MiniMap } from '@vue-flow/minimap'
 import { Clock3, Maximize2, Minimize2, Scan, X } from '@lucide/vue'
 import type { ResearchEdge, ResearchNode } from '../api'
 import { localizedState, useI18n } from '../i18n'
-import { CANVAS_MAX_HEIGHT, TICK_Y, type GraphLayout } from '../researchGraphLayout'
+import { CANVAS_MAX_HEIGHT, TICK_Y, type GraphLayout, type NodeOutcome } from '../researchGraphLayout'
+import { formatMetric } from '../researchFormat'
 import ResearchGraphNode from './ResearchGraphNode.vue'
 import ResearchGraphTick from './ResearchGraphTick.vue'
 
@@ -68,8 +69,9 @@ const graphNodes = computed<Node[]>(() => {
         'nodrag',
         placed?.active ? 'is-active-path' : '',
         placed?.unlinked ? 'is-unlinked' : '',
-        placed?.outcome === 'success' ? 'is-success' : '',
+        placed?.outcome === 'success' || placed?.outcome === 'supports' ? 'is-success' : '',
         placed?.outcome === 'failure' ? 'is-failure' : '',
+        placed?.outcome === 'contradicts' ? 'is-contradicts' : '',
       ].filter(Boolean).join(' '),
       data: {
         node,
@@ -107,6 +109,23 @@ const graphEdges = computed<Edge[]>(() => props.edges.map((edge) => {
 
 const incoming = computed(() => props.edges.filter((edge) => edge.to_id === selectedID.value))
 const outgoing = computed(() => props.edges.filter((edge) => edge.from_id === selectedID.value))
+
+function outcomeLabel(value: NodeOutcome | undefined) {
+  switch (value) {
+    case 'success': return t('Ran', '已跑完')
+    case 'failure': return t('Run failed', '运行失败')
+    case 'supports': return t('Supports', '支持')
+    case 'contradicts': return t('Contradicts', '反驳')
+    case 'inconclusive': return t('Inconclusive', '不确定')
+    default: return ''
+  }
+}
+
+function metricSourceLabel(value?: string) {
+  if (value === 'experiment') return t('measured from the Experiment', '取自 Experiment 实测')
+  if (value === 'asserted') return t('asserted, not measured by Gemcp', '声称，非 Gemcp 实测')
+  return ''
+}
 
 function relationLabel(value: string) {
   const labels: Record<string, [string, string]> = {
@@ -231,12 +250,12 @@ onUnmounted(() => {
       <aside v-if="selected" class="graph-detail" :aria-label="t('Node detail', '节点细节')">
         <header>
           <div>
-            <small>{{ kindLabel(selected.kind) }} · {{ localizedState(selected.status) }}</small>
+            <small>{{ kindLabel(selected.kind) }}<template v-if="selected.kind !== 'observation'"> · {{ localizedState(selected.status) }}</template></small>
             <span
               v-if="layoutByID.get(selected.id)?.outcome"
               class="flow-node-outcome"
               :data-outcome="layoutByID.get(selected.id)?.outcome"
-            >{{ layoutByID.get(selected.id)?.outcome === 'failure' ? t('Failure', '失败') : t('Success', '成功') }}</span>
+            >{{ outcomeLabel(layoutByID.get(selected.id)?.outcome) }}</span>
             <strong>{{ selected.title }}</strong>
           </div>
           <button class="icon-button" type="button" :title="t('Close', '关闭')" @click="selectedID = ''"><X :size="16" /></button>
@@ -246,7 +265,11 @@ onUnmounted(() => {
         <dl>
           <div v-if="selected.metric_name">
             <dt>{{ t('Metric', '指标') }}</dt>
-            <dd>{{ selected.metric_name }} {{ selected.metric_value }}</dd>
+            <dd :title="String(selected.metric_value)">{{ selected.metric_name }} {{ formatMetric(selected.metric_value) }}</dd>
+          </div>
+          <div v-if="selected.metric_source">
+            <dt>{{ t('Source', '来源') }}</dt>
+            <dd>{{ metricSourceLabel(selected.metric_source) }}</dd>
           </div>
           <div>
             <dt>{{ t('Evidence time', '证据时间') }}</dt>

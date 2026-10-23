@@ -45,10 +45,28 @@ type CloseRunInput struct {
 	Title           string   `json:"title" jsonschema:"short result title"`
 	Summary         string   `json:"summary,omitempty" jsonschema:"bounded scientific claim"`
 	Highlight       string   `json:"highlight,omitempty" jsonschema:"short highlight observation linked to the hypothesis; omit to use the result title"`
-	Status          string   `json:"status,omitempty" jsonschema:"succeeded or failed"`
+	Status          string   `json:"status,omitempty" jsonschema:"succeeded or failed: whether the run produced valid evidence, not whether the hypothesis held"`
+	Verdict         string   `json:"verdict,omitempty" jsonschema:"supports, contradicts, or inconclusive: what the recorded metric means for the hypothesis. Default inconclusive. Only a succeeded run with a recorded metric can support or contradict"`
 	MetricName      string   `json:"metric_name,omitempty" jsonschema:"optional scalar metric name; omit to copy the prepared expected_metric from the terminal Experiment"`
 	MetricValue     *float64 `json:"metric_value,omitempty" jsonschema:"optional scalar metric value; omit to copy the matching Experiment metric"`
 	ResultCommitSHA string   `json:"result_commit_sha,omitempty" jsonschema:"optional full 40- or 64-character Git commit containing the durable result manifest"`
+}
+
+const (
+	verdictSupports     = "supports"
+	verdictContradicts  = "contradicts"
+	verdictInconclusive = "inconclusive"
+)
+
+func normalizeVerdict(value string) (string, error) {
+	switch verdict := strings.ToLower(strings.TrimSpace(value)); verdict {
+	case "", verdictInconclusive:
+		return verdictInconclusive, nil
+	case verdictSupports, verdictContradicts:
+		return verdict, nil
+	default:
+		return "", invalid("verdict must be supports, contradicts, or inconclusive")
+	}
 }
 
 const (
@@ -179,8 +197,9 @@ func deriveNextActions(view *StudyView) []NextAction {
 			fromID := hypothesis.ID
 			detail := "Decide whether the evidence supports \"" + hypothesis.Title + "\" before preparing another Experiment."
 			if len(results) > 0 {
-				fromID = results[len(results)-1].ID
-				detail = "Result \"" + results[len(results)-1].Title + "\" is on hypothesis \"" + hypothesis.Title + "\". Record whether it supports or contradicts that claim."
+				latest := results[len(results)-1]
+				fromID = latest.ID
+				detail = decisionDetail(outgoing, nodesByID, latest, hypothesis)
 			} else if len(observations) > 0 {
 				fromID = observations[len(observations)-1].ID
 				detail = "Observation \"" + observations[len(observations)-1].Title + "\" is on hypothesis \"" + hypothesis.Title + "\". Record a decision before proposing the next Experiment."
@@ -228,6 +247,45 @@ func deriveNextActions(view *StudyView) []NextAction {
 		})
 	}
 	return actions
+}
+
+// decisionDetail tells the agent what the latest result already says about the
+// hypothesis, so a failed run is never presented as evidence either way.
+func decisionDetail(outgoing map[string][]EdgeView, nodes map[string]NodeView, result, hypothesis NodeView) string {
+	subject := "Result \"" + result.Title + "\""
+	claim := "\"" + hypothesis.Title + "\""
+	if result.Status == string(researchnode.StatusFailed) {
+		return subject + " did not produce valid evidence, so it neither supports nor contradicts " + claim + ". Record a decision, such as fixing the failure and preparing a rerun."
+	}
+	if verdict := resultVerdict(outgoing, nodes, result.ID, hypothesis.ID); verdict == verdictSupports || verdict == verdictContradicts {
+		return subject + " is recorded as " + verdict + " for " + claim + ". Record a decision before preparing another Experiment."
+	}
+	return subject + " is on " + claim + " without a supports or contradicts verdict. Record a decision on what the evidence means before preparing another Experiment."
+}
+
+// resultVerdict reads the verdict close_run recorded through the result's
+// highlight observation: supports, contradicts, inconclusive, or "" when the
+// result has no highlight.
+func resultVerdict(outgoing map[string][]EdgeView, nodes map[string]NodeView, resultID, hypothesisID string) string {
+	for _, edge := range outgoing[resultID] {
+		if edge.Relation != string(researchedge.RelationLeadsTo) || nodes[edge.ToID].Kind != "observation" {
+			continue
+		}
+		return observationVerdict(outgoing, edge.ToID, hypothesisID)
+	}
+	return ""
+}
+
+func observationVerdict(outgoing map[string][]EdgeView, observationID, hypothesisID string) string {
+	for _, edge := range outgoing[observationID] {
+		if edge.ToID != hypothesisID {
+			continue
+		}
+		if edge.Relation == verdictSupports || edge.Relation == verdictContradicts {
+			return edge.Relation
+		}
+	}
+	return verdictInconclusive
 }
 
 func prepareRouteDetail(view *StudyView, base string) string {
@@ -405,7 +463,7 @@ func (s *Service) BindPreparedRun(ctx context.Context, principal agentauth.Princ
 	create := tx.ResearchNode.Create().
 		SetTenantID(current.tenantID).SetProjectID(current.projectID).SetStudyID(selected.ID).
 		SetKind(researchnode.KindRun).SetTitle(runTitle).SetStatus(researchnode.StatusRunning).
-		SetExperimentID(experimentRecord.ID).
+		SetExperimentID(experimentRecord.ID).SetSystemWritten(true).
 		SetOccurredAt(experimentEvidenceTime(experimentRecord))
 	if sha := evidenceCommit(experimentRecord.CommitSha); sha != "" {
 		create.SetCommitSha(sha)
@@ -553,6 +611,20 @@ func (s *Service) closeRun(ctx context.Context, current actor, input CloseRunInp
 	if err := validateCloseRunMetric(ctx, experimentRecord, status, input.MetricName, input.MetricValue); err != nil {
 		return Workspace{}, err
 	}
+	verdict, err := normalizeVerdict(input.Verdict)
+	if err != nil {
+		return Workspace{}, err
+	}
+	// A crash, timeout, or invalid run says nothing about the claim, and a
+	// verdict without a number is an opinion, not evidence.
+	if verdict != verdictInconclusive {
+		if status != researchnode.StatusSucceeded {
+			return Workspace{}, invalid("only a succeeded run can support or contradict a hypothesis; close this run with verdict inconclusive")
+		}
+		if strings.TrimSpace(input.MetricName) == "" || input.MetricValue == nil {
+			return Workspace{}, invalid("a supports or contradicts verdict needs a recorded metric; pass metric_name from the terminal Experiment")
+		}
+	}
 	title := input.Title
 	if strings.TrimSpace(title) == "" {
 		title = run.Title + " result"
@@ -572,6 +644,7 @@ func (s *Service) closeRun(ctx context.Context, current actor, input CloseRunInp
 		FromNodeID: run.PublicID.String(), Relation: string(researchedge.RelationProduced),
 
 		exemptStudyCaps: true,
+		systemWritten:   true,
 	})
 	if err != nil {
 		return Workspace{}, err
@@ -581,7 +654,7 @@ func (s *Service) closeRun(ctx context.Context, current actor, input CloseRunInp
 		// Legacy runs bound before the hypothesis contract cannot fail forever:
 		// write the result, skip the highlight, and tell the agent why.
 		warning = legacyCloseHighlightWarning
-	} else if err := writeHighlightObservation(ctx, tx, current, selected, hypothesis, resultNode, experimentRecord, input, title, status, resultCommitSHA); err != nil {
+	} else if err := writeHighlightObservation(ctx, tx, current, selected, hypothesis, resultNode, experimentRecord, input, title, status, verdict, resultCommitSHA); err != nil {
 		return Workspace{}, err
 	}
 	if _, err := run.Update().SetStatus(status).Save(ctx); err != nil {
@@ -598,7 +671,7 @@ func (s *Service) closeRun(ctx context.Context, current actor, input CloseRunInp
 	return workspace, nil
 }
 
-func writeHighlightObservation(ctx context.Context, tx *ent.Tx, current actor, selected *ent.Study, hypothesis, resultNode *ent.ResearchNode, experimentRecord *ent.Experiment, input CloseRunInput, resultTitle string, status researchnode.Status, resultCommitSHA string) error {
+func writeHighlightObservation(ctx context.Context, tx *ent.Tx, current actor, selected *ent.Study, hypothesis, resultNode *ent.ResearchNode, experimentRecord *ent.Experiment, input CloseRunInput, resultTitle string, status researchnode.Status, verdict, resultCommitSHA string) error {
 	highlightTitle := strings.TrimSpace(input.Highlight)
 	if highlightTitle == "" {
 		highlightTitle = resultTitle
@@ -615,6 +688,7 @@ func writeHighlightObservation(ctx context.Context, tx *ent.Tx, current actor, s
 		FromNodeID: hypothesis.PublicID.String(), Relation: string(researchedge.RelationLeadsTo),
 
 		exemptStudyCaps: true,
+		systemWritten:   true,
 	})
 	if err != nil {
 		return err
@@ -630,9 +704,16 @@ func writeHighlightObservation(ctx context.Context, tx *ent.Tx, current actor, s
 			return err
 		}
 	}
-	relation := researchedge.RelationSupports
-	if status != researchnode.StatusSucceeded {
+	// The verdict is an explicit judgment of the recorded metric. Whether the
+	// Experiment merely finished is never evidence for or against the claim.
+	var relation researchedge.Relation
+	switch verdict {
+	case verdictSupports:
+		relation = researchedge.RelationSupports
+	case verdictContradicts:
 		relation = researchedge.RelationContradicts
+	default:
+		return nil
 	}
 	return recordEdge(ctx, tx, current, selected, nodes, hypothesis, observation.PublicID.String(), string(relation), true)
 }
@@ -751,6 +832,14 @@ func normalizeResultCommit(value string) (string, error) {
 }
 
 func fillCloseRunMetric(ctx context.Context, experimentRecord *ent.Experiment, input *CloseRunInput) error {
+	if name := strings.TrimSpace(input.MetricName); name != "" && input.MetricValue == nil {
+		// A named metric is copied from the Experiment, never typed by hand.
+		if observed, ok := scalarMetric(experimentRecord.Metrics[name]); ok {
+			value := observed
+			input.MetricValue = &value
+		}
+		return nil
+	}
 	if strings.TrimSpace(input.MetricName) != "" || input.MetricValue != nil {
 		return nil
 	}
@@ -780,12 +869,12 @@ func validateCloseRunMetric(ctx context.Context, experimentRecord *ent.Experimen
 		if !metricPattern.MatchString(metricName) {
 			return invalid("metric_name must use letters, numbers, dots, underscores, or hyphens")
 		}
-		if metricValue == nil || math.IsNaN(*metricValue) || math.IsInf(*metricValue, 0) {
-			return invalid("metric_value must be a finite scalar when metric_name is provided")
-		}
 		observed, ok := scalarMetric(experimentRecord.Metrics[metricName])
 		if !ok {
 			return invalid("metric_name was not reported by the terminal Experiment")
+		}
+		if metricValue == nil || math.IsNaN(*metricValue) || math.IsInf(*metricValue, 0) {
+			return invalid("metric_value must be a finite scalar when metric_name is provided")
 		}
 		if !sameMetric(observed, *metricValue) {
 			return invalid("metric_value does not match the terminal Experiment metric")

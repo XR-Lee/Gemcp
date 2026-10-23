@@ -1807,6 +1807,7 @@ var (
 		{Name: "metric_value", Type: field.TypeFloat64, Nullable: true},
 		{Name: "occurred_at", Type: field.TypeTime, Nullable: true},
 		{Name: "commit_sha", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "system_written", Type: field.TypeBool, Default: false},
 		{Name: "agent_token_id", Type: field.TypeInt, Nullable: true},
 		{Name: "experiment_id", Type: field.TypeInt, Nullable: true},
 		{Name: "project_id", Type: field.TypeInt},
@@ -1821,31 +1822,31 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "research_nodes_agent_tokens_research_nodes",
-				Columns:    []*schema.Column{ResearchNodesColumns[12]},
+				Columns:    []*schema.Column{ResearchNodesColumns[13]},
 				RefColumns: []*schema.Column{AgentTokensColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "research_nodes_experiments_research_nodes",
-				Columns:    []*schema.Column{ResearchNodesColumns[13]},
+				Columns:    []*schema.Column{ResearchNodesColumns[14]},
 				RefColumns: []*schema.Column{ExperimentsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "research_nodes_projects_research_nodes",
-				Columns:    []*schema.Column{ResearchNodesColumns[14]},
+				Columns:    []*schema.Column{ResearchNodesColumns[15]},
 				RefColumns: []*schema.Column{ProjectsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "research_nodes_studies_research_nodes",
-				Columns:    []*schema.Column{ResearchNodesColumns[15]},
+				Columns:    []*schema.Column{ResearchNodesColumns[16]},
 				RefColumns: []*schema.Column{StudiesColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "research_nodes_tenants_research_nodes",
-				Columns:    []*schema.Column{ResearchNodesColumns[16]},
+				Columns:    []*schema.Column{ResearchNodesColumns[17]},
 				RefColumns: []*schema.Column{TenantsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -1854,27 +1855,27 @@ var (
 			{
 				Name:    "researchnode_study_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{ResearchNodesColumns[15], ResearchNodesColumns[2]},
+				Columns: []*schema.Column{ResearchNodesColumns[16], ResearchNodesColumns[2]},
 			},
 			{
 				Name:    "researchnode_study_id_occurred_at",
 				Unique:  false,
-				Columns: []*schema.Column{ResearchNodesColumns[15], ResearchNodesColumns[10]},
+				Columns: []*schema.Column{ResearchNodesColumns[16], ResearchNodesColumns[10]},
 			},
 			{
 				Name:    "researchnode_study_id_kind_status",
 				Unique:  false,
-				Columns: []*schema.Column{ResearchNodesColumns[15], ResearchNodesColumns[4], ResearchNodesColumns[7]},
+				Columns: []*schema.Column{ResearchNodesColumns[16], ResearchNodesColumns[4], ResearchNodesColumns[7]},
 			},
 			{
 				Name:    "researchnode_experiment_id",
 				Unique:  true,
-				Columns: []*schema.Column{ResearchNodesColumns[13]},
+				Columns: []*schema.Column{ResearchNodesColumns[14]},
 			},
 			{
 				Name:    "researchnode_project_id_updated_at",
 				Unique:  false,
-				Columns: []*schema.Column{ResearchNodesColumns[14], ResearchNodesColumns[3]},
+				Columns: []*schema.Column{ResearchNodesColumns[15], ResearchNodesColumns[3]},
 			},
 		},
 	}

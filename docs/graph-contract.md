@@ -15,7 +15,8 @@ This is the single spec. MCP tools, Owner screens, and Agent guides use these wo
 | **Experiment** | The Lab job: argv, image, GPU, logs, reservation. Created only after a Graph origin is bound into the proposal digest. |
 | **Run** | The Graph node written when a prepared Experiment is submitted. It links the Experiment to its hypothesis or plan. |
 | **Result** | The terminal scientific write for a run. Only `close_run` may create it (`run -produced-> result`). |
-| **Highlight observation** | The claim `close_run` hangs on the originating hypothesis (`hypothesis -leads_to-> observation`, then `observation -supports\|contradicts-> hypothesis`). |
+| **Highlight observation** | The claim `close_run` hangs on the originating hypothesis (`hypothesis -leads_to-> observation`). It carries `observation -supports\|contradicts-> hypothesis` only when `close_run` records that verdict. |
+| **Verdict** | What a closed run's metric means for its hypothesis: `supports`, `contradicts`, or `inconclusive` (the default). It is a judgment of the measured number, never the Experiment's exit state. A failed run is always inconclusive. |
 | **Decision** | An Owner-visible judgment after evidence, before the next Experiment. |
 | **Orphan** | An Experiment that never entered the Graph. A Lab badge for legacy or bad data. Not a way to create new work. |
 
@@ -41,7 +42,8 @@ submit_prepared_experiment  validates the bind before spending, then writes the 
 get_experiment              poll state, assessment, attempts, log_tail, metrics
         │
         ▼
-close_run                   writes the result and a highlight observation on the hypothesis
+close_run                   writes the result, a highlight observation on the hypothesis,
+                            and the verdict on what the metric means
         │
         ▼
 export_research_plan_sync   dry-run a docs-only markdown amendment for the protocol branch
@@ -66,7 +68,7 @@ It reads the selected Study and, for each hypothesis, looks at existing runs, re
 - no hypothesis → record one from the question
 - hypothesis with no run → prepare an Experiment from that hypothesis
 - open run → wait (`get_experiment`) or `close_run` when terminal
-- closed evidence and no decision → record whether the evidence supports or contradicts the hypothesis
+- closed evidence and no decision → record a decision; the detail repeats the recorded verdict, and a failed run is described as no evidence either way
 - closed evidence with a decision → prepare the next Experiment from that hypothesis, until the decision spawns a follow-up hypothesis, which then owns its own next step
 - a result or decision is on the Graph → also offer `export_research_plan_sync` (docs-only; never a training run)
 
@@ -107,13 +109,15 @@ Example: bind `XR-Lee/DynamicPointMamba` (or any similar lab repo) without dumpi
 
 ## `close_run`
 
-`close_run` is the only writer of a result. Success also writes a highlight observation linked to the hypothesis the run hangs off (`hypothesis -leads_to-> observation`, `observation -supports|contradicts-> hypothesis`) and to its concrete result (`result -leads_to-> observation`), so the Owner view shows the right highlight when one hypothesis accumulates several runs.
+`close_run` is the only writer of a result. It also writes a highlight observation linked to the hypothesis the run hangs off (`hypothesis -leads_to-> observation`) and to its concrete result (`result -leads_to-> observation`), so the Owner view shows the right highlight when one hypothesis accumulates several runs.
+
+`verdict` records what the metric means for that hypothesis. `supports` writes `observation -supports-> hypothesis` and `contradicts` writes `observation -contradicts-> hypothesis`. `inconclusive`, the default, writes neither. Only a succeeded run that recorded a metric may support or contradict; a crash, timeout, cancellation, or a run closed as `failed` is inconclusive because it says nothing about the claim. `status` still means whether the run produced valid evidence, not whether the hypothesis held. Graphs closed before this rule carry `supports`/`contradicts` edges that were derived from the Experiment state; re-read their metrics before citing them.
 
 Because every new spend already required a hypothesis ancestor, that link exists on the happy path. A legacy run bound before this contract still closes: the result is written, the highlight is skipped, and the response carries a warning telling the agent to reconnect the origin.
 
 `close_run` terminal writes are exempt from the Study node and edge caps — a full Graph must never leave a funded run permanently uncloseable. New spending on a full Study is rejected at prepare/submit instead.
 
-Copy the scalar from `get_experiment`, or omit `metric_name` to copy the prepared `expected_metric`. Optional `highlight` sets the observation title; omit it to reuse the result title. Optional `result_commit_sha` stamps the durable Git manifest. Host-process Cloud SSH experiments (including the local CPU loop) have no Git checkout: omit `result_commit_sha` and do not invent a SHA. `close_run` treats the stored host-process placeholder as absent evidence. When `experiment_id` already identifies a bound Graph run, `study_id` may be omitted even if the Project has several Studies. `get_experiment` returns that `study_id` on a Graph-linked run.
+Copy the scalar from `get_experiment`, pass only `metric_name` to have Gemcp copy that value from the Experiment, or omit `metric_name` to copy the prepared `expected_metric`. Optional `highlight` sets the observation title; omit it to reuse the result title. Optional `result_commit_sha` stamps the durable Git manifest. Host-process Cloud SSH experiments (including the local CPU loop) have no Git checkout: omit `result_commit_sha` and do not invent a SHA. `close_run` treats the stored host-process placeholder as absent evidence. When `experiment_id` already identifies a bound Graph run, `study_id` may be omitted even if the Project has several Studies. `get_experiment` returns that `study_id` on a Graph-linked run.
 
 ## Owner view
 
@@ -122,7 +126,8 @@ The Owner hypothesis list (same objects as MCP) shows, for each hypothesis:
 - linked Experiments (the Graph runs)
 - requested git ref (`requested_ref` from the latest bound run; omitted when none was recorded — never the repository default branch as a fallback)
 - commit
-- run records: state, result title, highlight observation
+- run records: state, result title, metric (marked measured when it matches the Experiment's `metrics.json`, asserted otherwise), verdict, and the highlight observation when its title differs from the result
+- a tally of supports, contradicts, and inconclusive runs
 
 The Study heading shows the route when one is set. **Export plan sync** dry-runs the same docs-only amendment as MCP `export_research_plan_sync`.
 
@@ -130,7 +135,9 @@ The Study "Latest result" card is the newest `result` by evidence time (`occurre
 
 UUIDs, argv, GPU IDs, and reservation math stay on the Lab Evidence page. Double-click a Graph node with an Evidence link to open that same Experiment record; other nodes open the node-detail sidebar. That sidebar lists Branch only when the node has a `requested_ref`. A commit-only record still shows Commit.
 
-A terminal Graph-linked Experiment exposes **Close run** on Evidence detail (and on a `close_run` next action). That Owner path calls the same writer as MCP `close_run`: result plus highlight observation. Off-graph Experiments stay a Lab badge and cannot be closed from the console.
+A terminal Graph-linked Experiment exposes **Close run** on Evidence detail (and on a `close_run` next action). That Owner path calls the same writer as MCP `close_run`: result, highlight observation, and verdict. The verdict defaults to inconclusive and is offered only for a succeeded run with its expected metric.
+
+Graph stamps keep the two questions apart: run and result nodes show whether the Experiment ran (**Ran** / **Run failed**); observation nodes show the verdict (**Supports** / **Contradicts** / **Inconclusive**). Off-graph Experiments stay a Lab badge and cannot be closed from the console.
 
 ## Legal edges
 
@@ -146,6 +153,14 @@ Typed grammar:
 - `result | observation -supports | contradicts-> hypothesis`
 
 `produced` is legal only from `run` to `result`, and only `close_run` may write that result.
+
+## Evidence nodes are read-only
+
+Nodes Gemcp writes from Experiment evidence — the `run` bound at submission, the `result`, and the `close_run` highlight observation — are marked `system_written`. `update_research_workspace` (Agent or Owner) cannot change their title, summary, status, metric, time, or commit; it may still attach an edge to them. Record a new observation or decision to add interpretation. Any run bound to an Experiment and every result are protected the same way, including on older Graphs.
+
+Updating any other node by `id` is partial: omitted fields keep their stored values, so attaching an edge never erases a summary or resets a status.
+
+Every scalar on the Graph carries `metric_source`: `experiment` when it matches the bound Experiment's `metrics.json` (directly, through the run that produced a result, or through that result's highlight), `asserted` when it was typed into the Graph. The mark is recomputed on every read.
 
 ## What this is not
 

@@ -138,7 +138,42 @@ describe('layoutResearchGraph', () => {
     expect(byID.old.active).toBe(false)
     expect(byID.failed.active).toBe(false)
     expect(byID.old.next).toBe(true)
-    expect(byID.latest.outcome).toBe('success')
+    // An observation's execution status is not a verdict on the hypothesis.
+    expect(byID.latest.outcome).toBeNull()
     expect(byID.failed.outcome).toBe('failure')
+  })
+
+  it('stamps runs with execution and observations with the recorded verdict', () => {
+    const layout = layoutResearchGraph({
+      nodes: [
+        node('q', 'question'),
+        node('h', 'hypothesis', { status: 'succeeded' }),
+        node('run-ok', 'run', { status: 'succeeded', experiment_state: 'succeeded' }),
+        node('run-crash', 'run', { status: 'failed', experiment_state: 'failed' }),
+        node('weak', 'observation', { status: 'succeeded', system_written: true }),
+        node('strong', 'observation', { status: 'succeeded', system_written: true }),
+        node('refuted', 'observation', { status: 'succeeded', system_written: true }),
+        node('note', 'observation', { status: 'succeeded' }),
+      ],
+      edges: [
+        edge('e1', 'q', 'h'),
+        edge('e2', 'h', 'run-ok'),
+        edge('e3', 'h', 'run-crash'),
+        edge('e4', 'h', 'weak'),
+        edge('e5', 'h', 'strong'),
+        edge('e6', 'strong', 'h', 'supports'),
+        edge('e7', 'h', 'refuted'),
+        edge('e8', 'refuted', 'h', 'contradicts'),
+        edge('e9', 'h', 'note'),
+      ],
+    })
+    const byID = Object.fromEntries(layout.nodes.map((item) => [item.id, item]))
+    expect(byID['run-ok'].outcome).toBe('success')
+    expect(byID['run-crash'].outcome).toBe('failure')
+    expect(byID.weak.outcome).toBe('inconclusive')
+    expect(byID.strong.outcome).toBe('supports')
+    expect(byID.refuted.outcome).toBe('contradicts')
+    expect(byID.note.outcome).toBeNull()
+    expect(byID.h.outcome).toBeNull()
   })
 })

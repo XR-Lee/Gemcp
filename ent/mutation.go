@@ -47610,6 +47610,7 @@ type ResearchNodeMutation struct {
 	addmetric_value       *float64
 	occurred_at           *time.Time
 	commit_sha            *string
+	system_written        *bool
 	clearedFields         map[string]struct{}
 	tenant                *int
 	clearedtenant         bool
@@ -48418,6 +48419,42 @@ func (m *ResearchNodeMutation) ResetCommitSha() {
 	delete(m.clearedFields, researchnode.FieldCommitSha)
 }
 
+// SetSystemWritten sets the "system_written" field.
+func (m *ResearchNodeMutation) SetSystemWritten(b bool) {
+	m.system_written = &b
+}
+
+// SystemWritten returns the value of the "system_written" field in the mutation.
+func (m *ResearchNodeMutation) SystemWritten() (r bool, exists bool) {
+	v := m.system_written
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSystemWritten returns the old "system_written" field's value of the ResearchNode entity.
+// If the ResearchNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchNodeMutation) OldSystemWritten(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSystemWritten is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSystemWritten requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSystemWritten: %w", err)
+	}
+	return oldValue.SystemWritten, nil
+}
+
+// ResetSystemWritten resets all changes to the "system_written" field.
+func (m *ResearchNodeMutation) ResetSystemWritten() {
+	m.system_written = nil
+}
+
 // ClearTenant clears the "tenant" edge to the Tenant entity.
 func (m *ResearchNodeMutation) ClearTenant() {
 	m.clearedtenant = true
@@ -48695,7 +48732,7 @@ func (m *ResearchNodeMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ResearchNodeMutation) Fields() []string {
-	fields := make([]string, 0, 16)
+	fields := make([]string, 0, 17)
 	if m.public_id != nil {
 		fields = append(fields, researchnode.FieldPublicID)
 	}
@@ -48744,6 +48781,9 @@ func (m *ResearchNodeMutation) Fields() []string {
 	if m.commit_sha != nil {
 		fields = append(fields, researchnode.FieldCommitSha)
 	}
+	if m.system_written != nil {
+		fields = append(fields, researchnode.FieldSystemWritten)
+	}
 	return fields
 }
 
@@ -48784,6 +48824,8 @@ func (m *ResearchNodeMutation) Field(name string) (ent.Value, bool) {
 		return m.OccurredAt()
 	case researchnode.FieldCommitSha:
 		return m.CommitSha()
+	case researchnode.FieldSystemWritten:
+		return m.SystemWritten()
 	}
 	return nil, false
 }
@@ -48825,6 +48867,8 @@ func (m *ResearchNodeMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldOccurredAt(ctx)
 	case researchnode.FieldCommitSha:
 		return m.OldCommitSha(ctx)
+	case researchnode.FieldSystemWritten:
+		return m.OldSystemWritten(ctx)
 	}
 	return nil, fmt.Errorf("unknown ResearchNode field %s", name)
 }
@@ -48945,6 +48989,13 @@ func (m *ResearchNodeMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetCommitSha(v)
+		return nil
+	case researchnode.FieldSystemWritten:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSystemWritten(v)
 		return nil
 	}
 	return fmt.Errorf("unknown ResearchNode field %s", name)
@@ -49102,6 +49153,9 @@ func (m *ResearchNodeMutation) ResetField(name string) error {
 		return nil
 	case researchnode.FieldCommitSha:
 		m.ResetCommitSha()
+		return nil
+	case researchnode.FieldSystemWritten:
+		m.ResetSystemWritten()
 		return nil
 	}
 	return fmt.Errorf("unknown ResearchNode field %s", name)

@@ -148,7 +148,7 @@ func TestAgentMaintainsStudyPlanAndGraphWithoutStartingWorkloads(t *testing.T) {
 	updated, err := service.AgentCloseRun(ctx, principal, CloseRunInput{
 		ExperimentID: experimentRecord.PublicID.String(), Title: "OBJ-BG smoke accuracy",
 		Summary: "The existing smoke Experiment reached 86.4 overall accuracy.",
-		Status:  "succeeded", MetricName: "overall_accuracy", MetricValue: &metric,
+		Status:  "succeeded", MetricName: "overall_accuracy", MetricValue: &metric, Verdict: "supports",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -321,13 +321,16 @@ func TestCloseRunRequiresTerminalExperimentAndWritesProducedResult(t *testing.T)
 	closed, err := service.AgentCloseRun(ctx, principal, CloseRunInput{
 		ExperimentID: finished.PublicID.String(), Title: "OBJ-BG smoke accuracy",
 		Summary: "The smoke Experiment reached 86.4 overall accuracy.", MetricName: "overall_accuracy", MetricValue: &metric,
-		ResultCommitSHA: resultCommitSHA,
+		ResultCommitSHA: resultCommitSHA, Verdict: "supports",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if closed.Study == nil || len(closed.Study.Nodes) != 6 || len(closed.Study.Edges) != 7 {
 		t.Fatalf("closed graph = %+v", closed.Study)
+	}
+	if got := verdictEdge(closed.Study, hypothesis.Study.Nodes[1].ID, "OBJ-BG smoke accuracy"); got != "supports" {
+		t.Fatalf("explicit verdict edge = %q", got)
 	}
 	result := nodeByKind(closed.Study.Nodes, "result")
 	if result.Kind != "result" || result.CommitSHA != resultCommitSHA {
@@ -1028,13 +1031,25 @@ func hasHighlightOnHypothesis(view *StudyView, hypothesisID, title string) bool 
 		return false
 	}
 	for _, node := range view.Nodes {
-		if node.Kind == "observation" && node.Title == title &&
-			hasEdge(view.Edges, hypothesisID, node.ID, "leads_to") &&
-			(hasEdge(view.Edges, node.ID, hypothesisID, "supports") || hasEdge(view.Edges, node.ID, hypothesisID, "contradicts")) {
+		if node.Kind == "observation" && node.Title == title && hasEdge(view.Edges, hypothesisID, node.ID, "leads_to") {
 			return true
 		}
 	}
 	return false
+}
+
+func verdictEdge(view *StudyView, hypothesisID, title string) string {
+	for _, node := range view.Nodes {
+		if node.Kind != "observation" || node.Title != title {
+			continue
+		}
+		for _, relation := range []string{"supports", "contradicts"} {
+			if hasEdge(view.Edges, node.ID, hypothesisID, relation) {
+				return relation
+			}
+		}
+	}
+	return ""
 }
 
 func nodeIDByExperiment(nodes []NodeView, experimentID string) string {

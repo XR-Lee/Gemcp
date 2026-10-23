@@ -126,6 +126,11 @@ func CommitSha(v string) predicate.ResearchNode {
 	return predicate.ResearchNode(sql.FieldEQ(FieldCommitSha, v))
 }
 
+// SystemWritten applies equality check predicate on the "system_written" field. It's identical to SystemWrittenEQ.
+func SystemWritten(v bool) predicate.ResearchNode {
+	return predicate.ResearchNode(sql.FieldEQ(FieldSystemWritten, v))
+}
+
 // PublicIDEQ applies the EQ predicate on the "public_id" field.
 func PublicIDEQ(v uuid.UUID) predicate.ResearchNode {
 	return predicate.ResearchNode(sql.FieldEQ(FieldPublicID, v))
@@ -794,6 +799,16 @@ func CommitShaEqualFold(v string) predicate.ResearchNode {
 // CommitShaContainsFold applies the ContainsFold predicate on the "commit_sha" field.
 func CommitShaContainsFold(v string) predicate.ResearchNode {
 	return predicate.ResearchNode(sql.FieldContainsFold(FieldCommitSha, v))
+}
+
+// SystemWrittenEQ applies the EQ predicate on the "system_written" field.
+func SystemWrittenEQ(v bool) predicate.ResearchNode {
+	return predicate.ResearchNode(sql.FieldEQ(FieldSystemWritten, v))
+}
+
+// SystemWrittenNEQ applies the NEQ predicate on the "system_written" field.
+func SystemWrittenNEQ(v bool) predicate.ResearchNode {
+	return predicate.ResearchNode(sql.FieldNEQ(FieldSystemWritten, v))
 }
 
 // HasTenant applies the HasEdge predicate on the "tenant" edge.

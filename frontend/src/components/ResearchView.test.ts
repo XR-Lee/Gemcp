@@ -57,6 +57,33 @@ afterEach(() => {
 })
 
 describe('ResearchView', () => {
+  it('shows the measured metric, its source, and the verdict for each run', () => {
+    useI18n().setLocale('en')
+    const judged = structuredClone(workspace)
+    judged.study.hypotheses[0].experiments = [
+      {
+        run_node_id: 'node-run-1', experiment_id: 'experiment-1', title: 'OBJ-BG smoke', state: 'succeeded',
+        result_title: 'OBJ-BG smoke accuracy', highlight_title: 'OBJ-BG smoke accuracy',
+        metric_name: 'overall_accuracy', metric_value: 0.8642000001, metric_source: 'experiment', verdict: 'supports',
+      },
+      {
+        run_node_id: 'node-run-2', experiment_id: 'experiment-2', title: 'OBJ-BG rerun', state: 'failed',
+        result_title: 'OBJ-BG rerun OOM', highlight_title: 'OBJ-BG rerun OOM', verdict: 'inconclusive',
+      },
+    ] as never
+    const wrapper = mount(ResearchView, {
+      props: { workspace: judged, loading: false, selectedStudyId: 'study-1' },
+      global: { stubs: flowStubs },
+    })
+    const records = wrapper.get('[data-testid="hypothesis-records"]')
+    expect(records.text()).toContain('overall_accuracy 0.8642 · measured')
+    expect(records.text()).not.toContain('0.8642000001')
+    expect(records.findAll('.hypothesis-verdict').map((item) => item.text())).toEqual(['Supports', 'Inconclusive'])
+    expect(records.get('[data-testid="hypothesis-tally"]').text()).toBe('Supports 1 · Contradicts 0 · Inconclusive 1')
+    // A highlight that repeats the result title is not shown twice.
+    expect(records.text()).not.toContain('Highlight')
+  })
+
   it('renders the study, next action, and Graph canvas', () => {
     useI18n().setLocale('en')
     const wrapper = mount(ResearchView, {

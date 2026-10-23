@@ -55,6 +55,8 @@ type ResearchNode struct {
 	OccurredAt *time.Time `json:"occurred_at,omitempty"`
 	// optional evidence commit; Graph stays claim-based
 	CommitSha *string `json:"commit_sha,omitempty"`
+	// written by Gemcp from Experiment evidence (bound run, close_run result and highlight); Graph updates cannot edit it
+	SystemWritten bool `json:"system_written,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the ResearchNodeQuery when eager-loading is set.
 	Edges        ResearchNodeEdges `json:"edges"`
@@ -160,6 +162,8 @@ func (*ResearchNode) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case researchnode.FieldSystemWritten:
+			values[i] = new(sql.NullBool)
 		case researchnode.FieldMetricValue:
 			values[i] = new(sql.NullFloat64)
 		case researchnode.FieldID, researchnode.FieldTenantID, researchnode.FieldProjectID, researchnode.FieldStudyID, researchnode.FieldExperimentID, researchnode.FieldAgentTokenID:
@@ -293,6 +297,12 @@ func (_m *ResearchNode) assignValues(columns []string, values []any) error {
 				_m.CommitSha = new(string)
 				*_m.CommitSha = value.String
 			}
+		case researchnode.FieldSystemWritten:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field system_written", values[i])
+			} else if value.Valid {
+				_m.SystemWritten = value.Bool
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -423,6 +433,9 @@ func (_m *ResearchNode) String() string {
 		builder.WriteString("commit_sha=")
 		builder.WriteString(*v)
 	}
+	builder.WriteString(", ")
+	builder.WriteString("system_written=")
+	builder.WriteString(fmt.Sprintf("%v", _m.SystemWritten))
 	builder.WriteByte(')')
 	return builder.String()
 }

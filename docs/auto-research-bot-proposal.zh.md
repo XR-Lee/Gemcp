@@ -13,6 +13,17 @@
 
 本文引入的新词（lease、trial、objective、frontier、source 等）只是提案用语。真正落地前，要先写进 [Graph 契约](graph-contract.md)，再改代码。
 
+**进展（同一分支，研究质量与可读性修复）：** 后续审查发现 `close_run` 按实验是否跑完来写 supports/contradicts（跑完但指标很差记为"支持"，崩溃记为"反驳"），并且已验证的 run 和 highlight 可以被 `update_research_workspace` 改写。以下问题已经修复，契约见 [Graph 契约](graph-contract.md#close_run) 和 [Evidence nodes are read-only](graph-contract.md#evidence-nodes-are-read-only)：
+
+- 新增显式的 `verdict`（默认 `inconclusive`），只有成功且有指标的 run 才能给出支持或反驳；
+- 证据节点只读，按 `id` 更新时不再清空未传的字段；
+- 每个数字都标出 `metric_source`（实测或声称）；
+- 假设卡片显示指标、来源、结论和汇总；
+- Graph 印章把"是否跑完"和"结论"分开；
+- plan-sync 导出加入了假设、数字和结论。
+
+本文其余部分（审批、lease、webhook、工具面、Gemcp-Bench）仍是待办。
+
 ## 0. 一页结论
 
 1. **能接，但现在不能放心地让它"自动"跑。** 最大的问题是授权，不是功能。Agent 路径上的"人确认 digest"只写在说明里，服务端没有强制：`prepare_experiment` 把 digest 直接返回给 Agent，带 `submit` scope 的 Token 自己就能调用 `submit_prepared_experiment` 花钱（`internal/experiment/proposal_submit.go`）。在 Claude Code、Cursor 里，客户端默认的工具调用确认框事实上充当了这道人工闸门。xAI Remote MCP 则在 xAI 服务端自主执行工具调用，而且不支持 `require_approval`，所以 Grok Bot 里没有任何环节能拦住它。

@@ -624,6 +624,7 @@ async function mockConsole(page: Page, counters?: { providerQueries?: number; se
       const body = route.request().postDataJSON()
       expect(body.experiment_id).toBe(experiments[2].id)
       expect(body.title).toBeTruthy()
+      expect(body.verdict).toBe('contradicts')
       oneshotDetail = { ...oneshotDetail, closable_run: false }
       return fulfill(route, {
         ...researchWorkspace,
@@ -1096,6 +1097,9 @@ test('Owner can close a terminal Graph run from Evidence', async ({ page }) => {
   await expect(closeDialog).toBeVisible()
   await expect(closeDialog.getByText('overall_accuracy 86.4', { exact: false })).toBeVisible()
   await closeDialog.locator('input').first().fill('Owner-closed OBJ-BG smoke')
+  // The verdict defaults to inconclusive; the Owner reads the metric and decides.
+  await expect(closeDialog.getByTestId('close-run-verdict')).toHaveValue('inconclusive')
+  await closeDialog.getByTestId('close-run-verdict').selectOption('contradicts')
   await page.screenshot({ path: '/tmp/gemcp-close-run.png', fullPage: true })
   await closeDialog.getByRole('button', { name: 'Write result' }).click()
   await expect(closeDialog).not.toBeVisible()

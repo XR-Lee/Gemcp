@@ -9,7 +9,9 @@ export const ORIGIN_Y = 72
 export const TICK_Y = 10
 export const CANVAS_MAX_HEIGHT = 560
 
-export type NodeOutcome = 'success' | 'failure' | null
+// Execution outcome on run and result nodes; scientific verdict on
+// observations. The two are never mixed on one stamp.
+export type NodeOutcome = 'success' | 'failure' | 'supports' | 'contradicts' | 'inconclusive' | null
 
 export type GraphLayoutNode = {
   id: string
@@ -71,6 +73,12 @@ export function layoutResearchGraph(input: GraphLayoutInput): GraphLayout {
   const activeNodeIDs = tip ? collectActivePath(tip, allIncoming) : []
   const active = new Set(activeNodeIDs)
   const nextIDs = new Set((input.focusNodeIDs ?? []).filter((id) => byID.has(id)))
+  const verdicts = new Map<string, 'supports' | 'contradicts'>()
+  for (const edge of edges) {
+    if ((edge.relation === 'supports' || edge.relation === 'contradicts') && byID.get(edge.to_id)?.kind === 'hypothesis') {
+      verdicts.set(edge.from_id, edge.relation)
+    }
+  }
 
   return {
     nodes: nodes.map((node) => {
@@ -87,7 +95,7 @@ export function layoutResearchGraph(input: GraphLayoutInput): GraphLayout {
         active: active.has(node.id),
         next: nextIDs.has(node.id),
         unlinked: !incident.has(node.id) && node.kind !== 'question',
-        outcome: nodeOutcome(node),
+        outcome: nodeOutcome(node, verdicts.get(node.id)),
       }
     }),
     edges: edges.map((edge) => ({
@@ -237,7 +245,13 @@ function assignLanes(nodes: ResearchNode[], ranks: Map<string, number>, incoming
 
 const FAILURE_STATES = new Set(['failed', 'cancelled', 'timed_out', 'budget_stopped', 'provider_error', 'rejected'])
 
-export function nodeOutcome(node: ResearchNode): NodeOutcome {
+export function nodeOutcome(node: ResearchNode, verdict?: 'supports' | 'contradicts'): NodeOutcome {
+  if (node.kind === 'observation') {
+    if (verdict) return verdict
+    // A close_run highlight without a verdict is evidence nobody has judged yet.
+    return node.system_written ? 'inconclusive' : null
+  }
+  if (node.kind !== 'run' && node.kind !== 'result') return null
   const states = [node.status, node.experiment_state].filter((value): value is string => Boolean(value)).map((value) => value.toLowerCase())
   if (states.some((state) => FAILURE_STATES.has(state))) return 'failure'
   if (states.includes('succeeded')) return 'success'

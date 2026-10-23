@@ -92,9 +92,9 @@ type PlanInput struct {
 
 type NodeInput struct {
 	StudyID      string   `json:"study_id,omitempty" jsonschema:"Study ID; omit when the Project has exactly one Study"`
-	ID           string   `json:"id,omitempty" jsonschema:"existing Graph node ID when attaching an edge or updating that node"`
+	ID           string   `json:"id,omitempty" jsonschema:"existing Graph node ID when attaching an edge or updating that node; omitted fields keep their current values. Nodes Gemcp wrote from Experiment evidence (bound runs, close_run results and highlights) cannot be edited"`
 	Kind         string   `json:"kind" jsonschema:"question, hypothesis, plan, run, result, observation, or decision"`
-	Title        string   `json:"title" jsonschema:"short Graph node title"`
+	Title        string   `json:"title,omitempty" jsonschema:"short Graph node title; required for a new node"`
 	Summary      string   `json:"summary,omitempty" jsonschema:"bounded scientific claim or observation"`
 	Status       string   `json:"status,omitempty" jsonschema:"open, running, succeeded, failed, or superseded"`
 	MetricName   string   `json:"metric_name,omitempty" jsonschema:"optional scalar metric name"`
@@ -108,7 +108,12 @@ type NodeInput struct {
 	// exemptStudyCaps lets close_run finish a funded run on a full Graph. It
 	// is never accepted from API input.
 	exemptStudyCaps bool
+	// systemWritten marks a node Gemcp derived from Experiment evidence. It is
+	// never accepted from API input.
+	systemWritten bool
 }
+
+const lockedNodeMessage = "this node was written by Gemcp from Experiment evidence and cannot be edited; record a new observation or decision instead"
 
 type UpdateInput struct {
 	Study *StudyInput `json:"study,omitempty" jsonschema:"create or update one Study"`
@@ -143,6 +148,8 @@ type NodeView struct {
 	Status          string       `json:"status"`
 	MetricName      string       `json:"metric_name,omitempty"`
 	MetricValue     *float64     `json:"metric_value,omitempty"`
+	MetricSource    string       `json:"metric_source,omitempty"`
+	SystemWritten   bool         `json:"system_written,omitempty"`
 	ExperimentID    string       `json:"experiment_id,omitempty"`
 	ExperimentState string       `json:"experiment_state,omitempty"`
 	OccurredAt      *time.Time   `json:"occurred_at,omitempty"`
@@ -180,6 +187,10 @@ type HypothesisRunRecord struct {
 	GitIdentity    *GitIdentity `json:"git_identity,omitempty"`
 	ResultTitle    string       `json:"result_title,omitempty"`
 	HighlightTitle string       `json:"highlight_title,omitempty"`
+	MetricName     string       `json:"metric_name,omitempty"`
+	MetricValue    *float64     `json:"metric_value,omitempty"`
+	MetricSource   string       `json:"metric_source,omitempty"`
+	Verdict        string       `json:"verdict,omitempty"`
 }
 
 type HypothesisView struct {
@@ -514,16 +525,24 @@ func recordNode(ctx context.Context, tx *ent.Tx, current actor, selected *ent.St
 	if err := researchnode.KindValidator(kind); err != nil {
 		return nil, invalid("kind must be question, hypothesis, plan, run, result, observation, or decision")
 	}
-	title, err := normalizeText("title", input.Title, 2, maxTitleLength)
-	if err != nil {
-		return nil, err
+	// Updates are partial: an omitted title, summary, status, or metric keeps
+	// the stored value, so attaching an edge never erases a claim.
+	titleProvided := strings.TrimSpace(input.Title) != ""
+	title := ""
+	if titleProvided {
+		normalized, err := normalizeText("title", input.Title, 2, maxTitleLength)
+		if err != nil {
+			return nil, err
+		}
+		title = normalized
 	}
 	summary, err := normalizeOptionalText("summary", input.Summary, maxSummaryLength)
 	if err != nil {
 		return nil, err
 	}
 	status := researchnode.StatusOpen
-	if strings.TrimSpace(input.Status) != "" {
+	statusProvided := strings.TrimSpace(input.Status) != ""
+	if statusProvided {
 		if err := researchnode.StatusValidator(researchnode.Status(input.Status)); err != nil {
 			return nil, invalid("status must be open, running, succeeded, failed, or superseded")
 		}
@@ -587,12 +606,16 @@ func recordNode(ctx context.Context, tx *ent.Tx, current actor, selected *ent.St
 		}
 	}
 	if record == nil {
+		if !titleProvided {
+			return nil, invalid("title is too short")
+		}
 		if len(nodes) >= maxNodesPerStudy && !input.exemptStudyCaps {
 			return nil, ErrNodeLimit
 		}
 		create := tx.ResearchNode.Create().
 			SetTenantID(current.tenantID).SetProjectID(current.projectID).SetStudyID(selected.ID).
-			SetKind(kind).SetTitle(title).SetSummary(summary).SetStatus(status)
+			SetKind(kind).SetTitle(title).SetSummary(summary).SetStatus(status).
+			SetSystemWritten(input.systemWritten)
 		if metricName != "" {
 			create.SetMetricName(metricName)
 		}
@@ -615,17 +638,28 @@ func recordNode(ctx context.Context, tx *ent.Tx, current actor, selected *ent.St
 		if err != nil {
 			return nil, err
 		}
+	} else if lockedNode(record) {
+		// Evidence nodes only accept new edges; nothing derived from another
+		// Experiment in this call may overwrite their stored fields either.
+		if nodeEditRequested(record, input, title, summary, status, metricName, occurredAt, commitSHA) {
+			return nil, invalid(lockedNodeMessage)
+		}
 	} else {
-		update := record.Update().SetTitle(title).SetSummary(summary).SetStatus(status)
+		update := record.Update()
+		if titleProvided {
+			update.SetTitle(title)
+		}
+		if summary != "" {
+			update.SetSummary(summary)
+		}
+		if statusProvided {
+			update.SetStatus(status)
+		}
 		if metricName != "" {
 			update.SetMetricName(metricName)
-		} else {
-			update.ClearMetricName()
 		}
 		if input.MetricValue != nil {
 			update.SetMetricValue(*input.MetricValue)
-		} else {
-			update.ClearMetricValue()
 		}
 		if strings.TrimSpace(input.OccurredAt) != "" || (record.OccurredAt == nil && occurredAt != nil) {
 			update.SetOccurredAt(*occurredAt)
@@ -652,6 +686,41 @@ func recordNode(ctx context.Context, tx *ent.Tx, current actor, selected *ent.St
 		return nil, err
 	}
 	return record, nil
+}
+
+// lockedNode reports whether a node carries Experiment evidence that Graph
+// updates must not rewrite: anything Gemcp wrote itself, every result, and
+// any run bound to an Experiment.
+func lockedNode(record *ent.ResearchNode) bool {
+	return record.SystemWritten || record.Kind == researchnode.KindResult ||
+		(record.Kind == researchnode.KindRun && record.ExperimentID != nil)
+}
+
+// nodeEditRequested reports whether an update asks to change any stored field.
+// Re-sending the stored values, or sending only an edge, is not an edit.
+func nodeEditRequested(record *ent.ResearchNode, input NodeInput, title, summary string, status researchnode.Status, metricName string, occurredAt *time.Time, commitSHA string) bool {
+	if title != "" && title != record.Title {
+		return true
+	}
+	if summary != "" && summary != record.Summary {
+		return true
+	}
+	if strings.TrimSpace(input.Status) != "" && status != record.Status {
+		return true
+	}
+	if metricName != "" && (record.MetricName == nil || *record.MetricName != metricName) {
+		return true
+	}
+	if input.MetricValue != nil && (record.MetricValue == nil || !sameMetric(*record.MetricValue, *input.MetricValue)) {
+		return true
+	}
+	if strings.TrimSpace(input.OccurredAt) != "" && occurredAt != nil && (record.OccurredAt == nil || !record.OccurredAt.Equal(*occurredAt)) {
+		return true
+	}
+	if strings.TrimSpace(input.CommitSHA) != "" && (record.CommitSha == nil || *record.CommitSha != commitSHA) {
+		return true
+	}
+	return false
 }
 
 func recordEdge(ctx context.Context, tx *ent.Tx, current actor, selected *ent.Study, nodes []*ent.ResearchNode, to *ent.ResearchNode, fromID, relationValue string, exemptStudyCaps bool) error {
@@ -741,6 +810,7 @@ func (s *Service) studyView(ctx context.Context, selected *ent.Study) (StudyView
 			ID: edge.PublicID.String(), FromID: from.PublicID.String(), ToID: to.PublicID.String(), Relation: string(edge.Relation),
 		})
 	}
+	applyMetricSources(&view, nodes)
 	identities, err := experimentIdentities(ctx, s.client, nodes)
 	if err != nil {
 		return StudyView{}, err
@@ -748,6 +818,67 @@ func (s *Service) studyView(ctx context.Context, selected *ent.Study) (StudyView
 	view.Hypotheses = makeHypothesisRecords(view, identities)
 	applyNodeBranches(&view, identities)
 	return view, nil
+}
+
+const (
+	metricSourceExperiment = "experiment"
+	metricSourceAsserted   = "asserted"
+)
+
+// applyMetricSources marks every scalar on the Graph as measured (it matches the
+// metrics.json of the Experiment behind it) or asserted (typed into the Graph).
+// The check runs on every read, so a number edited after the fact loses its mark.
+func applyMetricSources(view *StudyView, nodes []*ent.ResearchNode) {
+	metricsByNode := map[string]map[string]any{}
+	for _, node := range nodes {
+		if experimentRecord, err := node.Edges.ExperimentOrErr(); err == nil && experimentRecord != nil {
+			metricsByNode[node.PublicID.String()] = experimentRecord.Metrics
+		}
+	}
+	index := map[string]int{}
+	for i := range view.Nodes {
+		index[view.Nodes[i].ID] = i
+	}
+	hasMetric := func(node NodeView) bool { return node.MetricName != "" && node.MetricValue != nil }
+	measured := func(metrics map[string]any, node NodeView) bool {
+		observed, ok := scalarMetric(metrics[node.MetricName])
+		return ok && sameMetric(observed, *node.MetricValue)
+	}
+	for i := range view.Nodes {
+		node := &view.Nodes[i]
+		if !hasMetric(*node) {
+			continue
+		}
+		node.MetricSource = metricSourceAsserted
+		if metrics, ok := metricsByNode[node.ID]; ok && measured(metrics, *node) {
+			node.MetricSource = metricSourceExperiment
+		}
+	}
+	// A result is measured through the run that produced it.
+	for _, edge := range view.Edges {
+		to, ok := index[edge.ToID]
+		if edge.Relation != "produced" || !ok || !hasMetric(view.Nodes[to]) {
+			continue
+		}
+		if metrics, ok := metricsByNode[edge.FromID]; ok && measured(metrics, view.Nodes[to]) {
+			view.Nodes[to].MetricSource = metricSourceExperiment
+		}
+	}
+	// A highlight observation is measured when it repeats a measured result.
+	for _, edge := range view.Edges {
+		from, okFrom := index[edge.FromID]
+		to, okTo := index[edge.ToID]
+		if edge.Relation != "leads_to" || !okFrom || !okTo {
+			continue
+		}
+		result, observation := view.Nodes[from], view.Nodes[to]
+		if result.Kind != "result" || observation.Kind != "observation" || !hasMetric(observation) {
+			continue
+		}
+		if result.MetricSource == metricSourceExperiment && result.MetricName == observation.MetricName && sameMetric(*result.MetricValue, *observation.MetricValue) {
+			view.Nodes[to].MetricSource = metricSourceExperiment
+		}
+	}
 }
 
 func experimentIdentities(ctx context.Context, client *ent.Client, nodes []*ent.ResearchNode) (map[string]GitIdentity, error) {
@@ -898,6 +1029,9 @@ func makeHypothesisRecords(view StudyView, identities map[string]GitIdentity) []
 				if hasEdge(view.Edges, run.ID, result.ID, "produced") {
 					producedResultID = result.ID
 					record.ResultTitle = result.Title
+					record.MetricName = result.MetricName
+					record.MetricValue = result.MetricValue
+					record.MetricSource = result.MetricSource
 					if record.CommitSHA == "" {
 						record.CommitSHA = result.CommitSHA
 					}
@@ -906,10 +1040,12 @@ func makeHypothesisRecords(view StudyView, identities map[string]GitIdentity) []
 			}
 			// close_run links the highlight observation to its result, which
 			// stays unambiguous when one hypothesis accumulates several runs.
+			highlightID := ""
 			if producedResultID != "" {
 				for _, observation := range observations {
 					if hasEdge(view.Edges, producedResultID, observation.ID, "leads_to") {
 						record.HighlightTitle = observation.Title
+						highlightID = observation.ID
 						break
 					}
 				}
@@ -919,6 +1055,7 @@ func makeHypothesisRecords(view StudyView, identities map[string]GitIdentity) []
 				for _, observation := range observations {
 					if observation.CommitSHA != "" && observation.CommitSHA == record.CommitSHA {
 						record.HighlightTitle = observation.Title
+						highlightID = observation.ID
 						break
 					}
 				}
@@ -928,9 +1065,13 @@ func makeHypothesisRecords(view StudyView, identities map[string]GitIdentity) []
 					if hasEdge(view.Edges, hypothesis.ID, observation.ID, "leads_to") &&
 						(hasEdge(view.Edges, observation.ID, hypothesis.ID, "supports") || hasEdge(view.Edges, observation.ID, hypothesis.ID, "contradicts")) {
 						record.HighlightTitle = observation.Title
+						highlightID = observation.ID
 						break
 					}
 				}
+			}
+			if highlightID != "" {
+				record.Verdict = observationVerdict(outgoing, highlightID, hypothesis.ID)
 			}
 			experiments = append(experiments, record)
 		}
@@ -1185,7 +1326,8 @@ func makePlanView(record *ent.IterationPlan) PlanView {
 func makeNodeView(record *ent.ResearchNode) NodeView {
 	view := NodeView{
 		ID: record.PublicID.String(), Kind: string(record.Kind), Title: record.Title, Summary: record.Summary,
-		Status: string(record.Status), CreatedAt: record.CreatedAt.UTC(), UpdatedAt: record.UpdatedAt.UTC(),
+		Status: string(record.Status), SystemWritten: record.SystemWritten,
+		CreatedAt: record.CreatedAt.UTC(), UpdatedAt: record.UpdatedAt.UTC(),
 	}
 	if record.MetricName != nil {
 		view.MetricName = *record.MetricName

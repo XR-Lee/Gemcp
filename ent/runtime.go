@@ -2072,6 +2072,10 @@ func init() {
 	researchnodeDescCommitSha := researchnodeFields[12].Descriptor()
 	// researchnode.CommitShaValidator is a validator for the "commit_sha" field. It is called by the builders before save.
 	researchnode.CommitShaValidator = researchnodeDescCommitSha.Validators[0].(func(string) error)
+	// researchnodeDescSystemWritten is the schema descriptor for system_written field.
+	researchnodeDescSystemWritten := researchnodeFields[13].Descriptor()
+	// researchnode.DefaultSystemWritten holds the default value on creation for the system_written field.
+	researchnode.DefaultSystemWritten = researchnodeDescSystemWritten.Default.(bool)
 	resourceprofileMixin := schema.ResourceProfile{}.Mixin()
 	resourceprofileMixinFields0 := resourceprofileMixin[0].Fields()
 	_ = resourceprofileMixinFields0
