@@ -100,7 +100,7 @@ The Graph is the execution contract. External harnesses stay outside Gemcp; MCP 
 - `update_research_workspace` (`submit`): create or update a Study, replace the active plan, or record a Graph node and optional legal edge.
 - `prepare_experiment` (`submit`): when a Study exists, `from_node_id` must be a connected hypothesis or a plan under that Study. Isolated nodes cannot prepare. The origin is bound into the confirmation digest.
 - `submit_prepared_experiment` (`submit`): creates the Experiment and writes the `run` node. Bind failure is an error, not a silent skip.
-- `close_run` (`submit`): the only way to write a `result` on that run after the Experiment is terminal. It also writes a highlight observation linked to the originating hypothesis. Monitor with `get_experiment`; do not SSH or infer metrics from logs.
+- `close_run` (`submit`): the only way to write a `result` on that run after the Experiment is terminal. It also writes a highlight observation linked to the originating hypothesis, and a `supports` or `contradicts` edge only when the caller records that verdict for a succeeded, measured run. Monitor with `get_experiment`; do not SSH or infer metrics from logs.
 - `export_research_plan_sync` (`read` dry-run, `submit` to record a receipt): export a docs-only markdown amendment for the Study protocol branch. Never a training run. Gemcp never pushes git.
 - `get_experiment_catalog` (`read`): return registered repository identity plus extracted catalog rows. Never starts a workload.
 - `record_experiment_catalog` (`submit`): persist raw experiment rows from research branches of a registered repository. Never starts a workload.

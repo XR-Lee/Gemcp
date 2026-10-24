@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -723,5 +726,21 @@ func decodeStructured(t *testing.T, value any, target any) {
 	}
 	if err := json.Unmarshal(encoded, target); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestToolErrorKeepsGraphRefusalsReadable(t *testing.T) {
+	server := &Server{logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	// submit_prepared_experiment checks the Graph bind before spending; its
+	// refusals must tell the Agent why.
+	for err, want := range map[error]string{
+		research.ErrNodeLimit:                         "research graph node limit reached",
+		fmt.Errorf("bind: %w", research.ErrEdgeLimit): "research graph edge limit reached",
+		&research.ValidationError{Message: "from_node_id must belong to an active Study"}: "from_node_id must belong to an active Study",
+		errors.New("database is locked"): "internal control-plane error",
+	} {
+		if got := server.toolError("submit_prepared_experiment", err); got == nil || got.Error() != want {
+			t.Errorf("toolError(%v) = %v, want %q", err, got, want)
+		}
 	}
 }

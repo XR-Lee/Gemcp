@@ -2,9 +2,10 @@
 import { computed, ref } from 'vue'
 import { Bot, Check, Clipboard, FileText, FlaskConical, GitBranch, Network, Plus, Sparkles } from '@lucide/vue'
 import { motion } from 'motion-v'
-import type { AgentReadiness, Experiment, ExperimentCatalog, Project, Repository, RepositoryReadiness, ResearchWorkspace, RuntimeStatus } from '../api'
+import type { AgentReadiness, Experiment, ExperimentCatalog, Project, Repository, RepositoryReadiness, ResearchHypothesis, ResearchWorkspace, RuntimeStatus } from '../api'
 import { localizedState, useI18n } from '../i18n'
 import { buildResearchAttachPrompt } from '../researchAttachPrompt'
+import { formatMetric, normalizeVerdict } from '../researchFormat'
 import { selectLatestResult } from '../researchLatestResult'
 import { layoutResearchGraph } from '../researchGraphLayout'
 import AgentReadinessPanel from './AgentReadinessPanel.vue'
@@ -62,6 +63,37 @@ const studies = computed(() => props.workspace?.studies ?? [])
 const nodes = computed(() => study.value?.nodes ?? [])
 const edges = computed(() => study.value?.edges ?? [])
 const latestResult = computed(() => selectLatestResult(nodes.value))
+
+function verdictLabel(value?: string) {
+  switch (normalizeVerdict(value)) {
+    case 'supports': return t('Supports', '支持')
+    case 'contradicts': return t('Contradicts', '反驳')
+    case 'inconclusive': return t('Inconclusive', '不确定')
+    default: return ''
+  }
+}
+
+function metricSourceLabel(value?: string) {
+  if (value === 'experiment') return t('measured', '实测')
+  if (value === 'asserted') return t('asserted', '声称')
+  return ''
+}
+
+// One line per hypothesis: how the closed evidence is split, so a reader sees
+// the state of the claim without opening each run.
+function verdictTally(hypothesis: ResearchHypothesis) {
+  const counts = { supports: 0, contradicts: 0, inconclusive: 0 }
+  for (const record of hypothesis.experiments) {
+    const verdict = normalizeVerdict(record.verdict)
+    if (verdict) counts[verdict] += 1
+  }
+  if (counts.supports + counts.contradicts + counts.inconclusive === 0) return ''
+  return [
+    `${t('Supports', '支持')} ${counts.supports}`,
+    `${t('Contradicts', '反驳')} ${counts.contradicts}`,
+    `${t('Inconclusive', '不确定')} ${counts.inconclusive}`,
+  ].join(' · ')
+}
 const selectedStudyModel = computed({
   get: () => props.selectedStudyId || study.value?.id || '',
   set: (value: string) => emit('selectStudy', value),
@@ -272,7 +304,7 @@ function dateTime(value?: string) {
         <motion.article class="research-card" :initial="{ y: 8 }" :animate="{ y: 0 }" :transition="{ duration: 0.22 }">
           <span class="research-kicker">{{ t('Latest result', '最新结果') }}</span>
           <strong>{{ latestResult?.title ?? t('No result recorded', '尚未记录结果') }}</strong>
-          <p v-if="latestResult?.metric_name">{{ latestResult.metric_name }} {{ latestResult.metric_value }}</p>
+          <p v-if="latestResult?.metric_name" :title="String(latestResult.metric_value)">{{ latestResult.metric_name }} {{ formatMetric(latestResult.metric_value) }}<template v-if="metricSourceLabel(latestResult.metric_source)"> · {{ metricSourceLabel(latestResult.metric_source) }}</template></p>
           <p v-else>{{ latestResult?.summary || t('A finished Experiment can be attached here without exposing argv or GPU IDs.', '完成的 Experiment 可以挂到这里，不必暴露 argv 或 GPU ID。') }}</p>
           <button v-if="latestResult?.experiment_id" class="text-button" type="button" @click="emit('openExperiment', latestResult.experiment_id)">{{ t('Open evidence', '打开证据') }}</button>
         </motion.article>
@@ -282,7 +314,7 @@ function dateTime(value?: string) {
         <div class="section-heading">
           <div>
             <h2>{{ t('Hypotheses', '假设') }}</h2>
-            <p>{{ t('Each hypothesis lists its Graph experiments, requested git ref, commit, and run records. The repository default branch is informational only and is never invented as a live experiment ref.', '每条假设列出入图实验、请求的 git ref、commit 和 run 记录。仓库默认分支只作说明，不会被填成活实验 ref。') }}</p>
+            <p>{{ t('Each hypothesis lists its experiments with the recorded metric and verdict. Measured numbers come from the Experiment; asserted numbers were typed into the Graph. A failed run is never evidence for or against a claim.', '每条假设列出它的实验、记录的指标和结论。“实测”数字来自 Experiment，“声称”数字是写进 Graph 的。失败的运行既不支持也不反驳假设。') }}</p>
           </div>
           <span class="live-label">{{ study.hypotheses.length }} {{ t('hypotheses', '条假设') }}</span>
         </div>
@@ -292,6 +324,7 @@ function dateTime(value?: string) {
             <strong>{{ hypothesis.title }}</strong>
             <p v-if="hypothesis.summary">{{ hypothesis.summary }}</p>
             <p v-if="hypothesis.branch" class="hypothesis-branch"><GitBranch :size="13" />{{ hypothesis.branch }}</p>
+            <p v-if="verdictTally(hypothesis)" class="hypothesis-tally" data-testid="hypothesis-tally">{{ verdictTally(hypothesis) }}</p>
           </header>
           <div v-if="hypothesis.experiments.length" class="hypothesis-runs">
             <article v-for="record in hypothesis.experiments" :key="record.run_node_id" class="hypothesis-run">
@@ -313,7 +346,15 @@ function dateTime(value?: string) {
                   <dt>{{ t('Result', '结果') }}</dt>
                   <dd>{{ record.result_title }}</dd>
                 </div>
-                <div v-if="record.highlight_title">
+                <div v-if="record.metric_name">
+                  <dt>{{ t('Metric', '指标') }}</dt>
+                  <dd :title="String(record.metric_value)">{{ record.metric_name }} {{ formatMetric(record.metric_value) }}<span v-if="metricSourceLabel(record.metric_source)" class="hypothesis-metric-source" :data-source="record.metric_source"> · {{ metricSourceLabel(record.metric_source) }}</span></dd>
+                </div>
+                <div v-if="verdictLabel(record.verdict)">
+                  <dt>{{ t('Verdict', '结论') }}</dt>
+                  <dd><span class="hypothesis-verdict" :data-verdict="record.verdict">{{ verdictLabel(record.verdict) }}</span></dd>
+                </div>
+                <div v-if="record.highlight_title && record.highlight_title !== record.result_title">
                   <dt>{{ t('Highlight', '亮点观察') }}</dt>
                   <dd>{{ record.highlight_title }}</dd>
                 </div>

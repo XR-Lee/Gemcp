@@ -660,6 +660,8 @@ export type ResearchNode = {
   status: string
   metric_name?: string
   metric_value?: number
+  metric_source?: 'experiment' | 'asserted'
+  system_written?: boolean
   experiment_id?: string
   experiment_state?: string
   occurred_at?: string
@@ -689,6 +691,10 @@ export type ResearchHypothesisExperiment = {
   git_identity?: ResearchGitIdentity
   result_title?: string
   highlight_title?: string
+  metric_name?: string
+  metric_value?: number
+  metric_source?: 'experiment' | 'asserted'
+  verdict?: 'supports' | 'contradicts' | 'inconclusive'
 }
 export type ResearchHypothesis = {
   id: string
@@ -1563,6 +1569,7 @@ export const api = {
     summary?: string
     highlight?: string
     status?: string
+    verdict?: 'supports' | 'contradicts' | 'inconclusive'
     metric_name?: string
     metric_value?: number
     result_commit_sha?: string

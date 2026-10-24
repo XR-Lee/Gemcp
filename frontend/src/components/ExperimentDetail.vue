@@ -24,6 +24,7 @@ const closeOpen = ref(false)
 const closeTitle = ref('')
 const closeSummary = ref('')
 const closeHighlight = ref('')
+const closeVerdict = ref<'supports' | 'contradicts' | 'inconclusive'>('inconclusive')
 const closeError = ref('')
 const closeBusy = ref(false)
 let previewGeneration = 0
@@ -189,10 +190,17 @@ function metricPreview() {
   const value = props.experiment.metrics?.[name]
   return value === undefined ? name : `${name} ${value}`
 }
+// Only a succeeded run with its expected metric can support or contradict the
+// hypothesis; the server enforces the same rule.
+function verdictAllowed() {
+  const name = props.experiment.execution_context?.expected_metric
+  return props.experiment.state === 'succeeded' && Boolean(name) && props.experiment.metrics?.[name as string] !== undefined
+}
 function openCloseDialog() {
   closeTitle.value = defaultCloseTitle()
   closeSummary.value = ''
   closeHighlight.value = ''
+  closeVerdict.value = 'inconclusive'
   closeError.value = ''
   closeOpen.value = true
 }
@@ -207,6 +215,7 @@ async function submitCloseRun() {
       title,
       summary: closeSummary.value.trim() || undefined,
       highlight: closeHighlight.value.trim() || undefined,
+      verdict: verdictAllowed() ? closeVerdict.value : 'inconclusive',
     })
     emit('closed')
     closeOpen.value = false
@@ -368,13 +377,15 @@ watch(() => props.autoCloseRun, (requested) => {
       <div v-if="readError" class="form-error" role="alert">{{ readError }}</div>
     </div>
   </WorkbenchDialog>
-  <WorkbenchDialog v-model:open="closeOpen" :title="t('Close run', '结束 run')" :label="t('Close run', '结束 run')" :description="t('Write the Graph result and a highlight observation on the originating hypothesis. close_run is the only writer. Off-graph Experiments cannot be closed here.', '写入 Graph result，并在来源假设上挂一条 highlight observation。只有 close_run 能写 result。未入图的 Experiment 不能在这里结束。')">
+  <WorkbenchDialog v-model:open="closeOpen" :title="t('Close run', '结束 run')" :label="t('Close run', '结束 run')" :description="t('Write the Graph result and a highlight observation on the originating hypothesis. The verdict is your reading of the metric, not whether the run finished. Off-graph Experiments cannot be closed here.', '写入 Graph result，并在来源假设上挂一条 highlight observation。结论是你对指标的判断，而不是运行有没有跑完。未入图的 Experiment 不能在这里结束。')">
     <form class="dialog-form" @submit.prevent="submitCloseRun">
       <label>{{ t('Result title', '结果标题') }}<input v-model="closeTitle" required maxlength="160" spellcheck="false" /></label>
       <label>{{ t('Summary', '摘要') }}<textarea v-model="closeSummary" rows="3" maxlength="2000" :placeholder="t('Optional scientific claim', '可选科学主张')"></textarea></label>
       <label>{{ t('Highlight', '亮点观察') }}<input v-model="closeHighlight" maxlength="160" :placeholder="t('Omit to reuse the result title', '留空则沿用结果标题')" /></label>
       <p v-if="metricPreview()" class="save-workload-note">{{ t('Metric copied from the terminal Experiment', '指标从终态 Experiment 复制') }}: <code>{{ metricPreview() }}</code></p>
       <p v-else class="save-workload-note">{{ t('No expected_metric was prepared. The server will not invent a scalar.', '准备时没有 expected_metric。服务端不会编造标量。') }}</p>
+      <label v-if="verdictAllowed()">{{ t('Verdict on the hypothesis', '对假设的结论') }}<select v-model="closeVerdict" data-testid="close-run-verdict"><option value="inconclusive">{{ t('Inconclusive', '不确定') }}</option><option value="supports">{{ t('Supports', '支持') }}</option><option value="contradicts">{{ t('Contradicts', '反驳') }}</option></select></label>
+      <p v-else class="save-workload-note">{{ t('This run has no measured metric to judge, so it is recorded as inconclusive.', '这次运行没有可判断的实测指标，会记为“不确定”。') }}</p>
       <div v-if="closeError" class="form-error" role="alert">{{ closeError }}</div>
       <div class="save-workload-actions">
         <button class="primary-button" type="submit" :disabled="closeBusy || !closeTitle.trim()"><LoaderCircle v-if="closeBusy" :size="16" class="spinning" /><Flag v-else :size="16" />{{ t('Write result', '写入结果') }}</button>

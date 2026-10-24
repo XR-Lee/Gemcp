@@ -211,6 +211,20 @@ func (_c *ResearchNodeCreate) SetNillableCommitSha(v *string) *ResearchNodeCreat
 	return _c
 }
 
+// SetSystemWritten sets the "system_written" field.
+func (_c *ResearchNodeCreate) SetSystemWritten(v bool) *ResearchNodeCreate {
+	_c.mutation.SetSystemWritten(v)
+	return _c
+}
+
+// SetNillableSystemWritten sets the "system_written" field if the given value is not nil.
+func (_c *ResearchNodeCreate) SetNillableSystemWritten(v *bool) *ResearchNodeCreate {
+	if v != nil {
+		_c.SetSystemWritten(*v)
+	}
+	return _c
+}
+
 // SetTenant sets the "tenant" edge to the Tenant entity.
 func (_c *ResearchNodeCreate) SetTenant(v *Tenant) *ResearchNodeCreate {
 	return _c.SetTenantID(v.ID)
@@ -317,6 +331,10 @@ func (_c *ResearchNodeCreate) defaults() {
 		v := researchnode.DefaultStatus
 		_c.mutation.SetStatus(v)
 	}
+	if _, ok := _c.mutation.SystemWritten(); !ok {
+		v := researchnode.DefaultSystemWritten
+		_c.mutation.SetSystemWritten(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -372,6 +390,9 @@ func (_c *ResearchNodeCreate) check() error {
 		if err := researchnode.CommitShaValidator(v); err != nil {
 			return &ValidationError{Name: "commit_sha", err: fmt.Errorf(`ent: validator failed for field "ResearchNode.commit_sha": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.SystemWritten(); !ok {
+		return &ValidationError{Name: "system_written", err: errors.New(`ent: missing required field "ResearchNode.system_written"`)}
 	}
 	if len(_c.mutation.TenantIDs()) == 0 {
 		return &ValidationError{Name: "tenant", err: errors.New(`ent: missing required edge "ResearchNode.tenant"`)}
@@ -451,6 +472,10 @@ func (_c *ResearchNodeCreate) createSpec() (*ResearchNode, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.CommitSha(); ok {
 		_spec.SetField(researchnode.FieldCommitSha, field.TypeString, value)
 		_node.CommitSha = &value
+	}
+	if value, ok := _c.mutation.SystemWritten(); ok {
+		_spec.SetField(researchnode.FieldSystemWritten, field.TypeBool, value)
+		_node.SystemWritten = value
 	}
 	if nodes := _c.mutation.TenantIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

@@ -48,6 +48,8 @@ const (
 	FieldOccurredAt = "occurred_at"
 	// FieldCommitSha holds the string denoting the commit_sha field in the database.
 	FieldCommitSha = "commit_sha"
+	// FieldSystemWritten holds the string denoting the system_written field in the database.
+	FieldSystemWritten = "system_written"
 	// EdgeTenant holds the string denoting the tenant edge name in mutations.
 	EdgeTenant = "tenant"
 	// EdgeProject holds the string denoting the project edge name in mutations.
@@ -134,6 +136,7 @@ var Columns = []string{
 	FieldMetricValue,
 	FieldOccurredAt,
 	FieldCommitSha,
+	FieldSystemWritten,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -161,6 +164,8 @@ var (
 	MetricNameValidator func(string) error
 	// CommitShaValidator is a validator for the "commit_sha" field. It is called by the builders before save.
 	CommitShaValidator func(string) error
+	// DefaultSystemWritten holds the default value on creation for the "system_written" field.
+	DefaultSystemWritten bool
 )
 
 // Kind defines the type for the "kind" enum field.
@@ -306,6 +311,11 @@ func ByOccurredAt(opts ...sql.OrderTermOption) OrderOption {
 // ByCommitSha orders the results by the commit_sha field.
 func ByCommitSha(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCommitSha, opts...).ToFunc()
+}
+
+// BySystemWritten orders the results by the system_written field.
+func BySystemWritten(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSystemWritten, opts...).ToFunc()
 }
 
 // ByTenantField orders the results by tenant field.

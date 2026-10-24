@@ -1,0 +1,92 @@
+version: 1
+
+# Simulated research tasks for the Gemcp research benchmark
+# (docs/research-bench.md). Each workload runs bench_task.py, which writes
+# ${GEMCP_OUTPUT_DIR}/metrics.json like a training script and exits 137 when
+# the simulated job runs out of memory. Parameter bounds are the constraints
+# the Agent works within.
+workloads:
+  lr-sweep:
+    entrypoint: [python3, bench_task.py, --task, lr-sweep]
+    arguments:
+      - flag: --log-lr
+        parameter: log_lr
+      - flag: --seed
+        parameter: seed
+    runtime_preset: smoke
+    parameters:
+      log_lr:
+        type: integer
+        minimum: -50
+        maximum: -5
+        default: -40
+      seed:
+        type: integer
+        minimum: 1
+        maximum: 5
+        default: 1
+    outputs:
+      metrics: metrics.json
+  augment-noise:
+    entrypoint: [python3, bench_task.py, --task, augment-noise]
+    arguments:
+      - flag: --augment
+        parameter: augment
+      - flag: --seed
+        parameter: seed
+    runtime_preset: smoke
+    parameters:
+      augment:
+        type: integer
+        minimum: 0
+        maximum: 1
+        default: 0
+      seed:
+        type: integer
+        minimum: 1
+        maximum: 5
+        default: 1
+    outputs:
+      metrics: metrics.json
+  depth-false:
+    entrypoint: [python3, bench_task.py, --task, depth-false]
+    arguments:
+      - flag: --depth
+        parameter: depth
+      - flag: --seed
+        parameter: seed
+    runtime_preset: smoke
+    parameters:
+      depth:
+        type: integer
+        minimum: 1
+        maximum: 8
+        default: 2
+      seed:
+        type: integer
+        minimum: 1
+        maximum: 5
+        default: 1
+    outputs:
+      metrics: metrics.json
+  batch-crash:
+    entrypoint: [python3, bench_task.py, --task, batch-crash]
+    arguments:
+      - flag: --batch-log2
+        parameter: batch_log2
+      - flag: --seed
+        parameter: seed
+    runtime_preset: smoke
+    parameters:
+      batch_log2:
+        type: integer
+        minimum: 4
+        maximum: 9
+        default: 5
+      seed:
+        type: integer
+        minimum: 1
+        maximum: 5
+        default: 1
+    outputs:
+      metrics: metrics.json

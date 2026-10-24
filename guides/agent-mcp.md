@@ -18,7 +18,7 @@ Gemcp schedules bounded AutoDL, authorized Self-hosted, and experimental Cloud S
 7. Wait for explicit human approval of the exact confirmation digest before calling `submit_prepared_experiment`.
 8. Submit a prepared proposal using only its proposal ID and exact digest. Never alter fields between preparation and submission.
 9. A proposal retry uses the same proposal ID and digest and returns the same Experiment. A failed paid Experiment is never automatically resubmitted.
-10. After submission, Gemcp writes the Graph `run` node. Monitor with `get_experiment` (`state`, `assessment`, `attempts`, `log_tail`, `metrics`, registered artifacts, and settlement). Then call `close_run`; omit `metric_name` to copy the prepared `expected_metric` from that view. `close_run` also writes a highlight observation on the originating hypothesis. Do not invent a result while the Experiment is still running. Do not SSH, fetch remote files, or infer metrics from logs. Do not infer success from Provider or Node startup alone.
+10. After submission, Gemcp writes the Graph `run` node. Monitor with `get_experiment` (`state`, `assessment`, `attempts`, `log_tail`, `metrics`, registered artifacts, and settlement). Then call `close_run`; omit `metric_name` to copy the prepared `expected_metric` from that view. `close_run` also writes a highlight observation on the originating hypothesis. Pass `verdict` (`supports`, `contradicts`, or the default `inconclusive`) only after reading that metric against the hypothesis: a run that merely finished is not support, and a failed run is never evidence either way. Do not invent a result while the Experiment is still running. Do not SSH, fetch remote files, or infer metrics from logs. Do not infer success from Provider or Node startup alone.
 11. Use `cancel_experiment` when the human cancels work or when the submitted Experiment should no longer run.
 12. Use `submit_experiment` only when the human explicitly requests the Advanced shell-command compatibility path and the Project has no active Study. An active Study requires `prepare_experiment` with `from_node_id`.
 
@@ -84,7 +84,7 @@ Cloud SSH injects `GEMCP_DATASET_*` for already-present host paths. It does not 
 
 ## Research workspace
 
-The Owner console starts from a Study, an iteration plan, and a research Graph. Infrastructure remains in a separate Lab layer. Call `get_next_actions` and `get_research_workspace` before preparing work. After a terminal Experiment, call `close_run` instead of free-form result nodes.
+The Owner console starts from a Study, an iteration plan, and a research Graph. Infrastructure remains in a separate Lab layer. Call `get_next_actions` and `get_research_workspace` before preparing work. After a terminal Experiment, call `close_run` instead of free-form result nodes. Runs, results, and `close_run` highlights are Experiment evidence and cannot be edited afterwards; record a new observation or decision instead. Only `close_run` can mark that evidence `supports` or `contradicts`; link your own observation if you read a run differently. Updating another node by `id` keeps every field you omit. Numbers you type into observations are shown to the Owner as asserted, not measured.
 
 Registered GitHub repositories also have a bounded **experiment catalog**, separate from the 128-node Graph. Walk research branches (`autoresearch/*`, documented tags, result writeups, `EXPERIMENTS.md`, `experiment_graph.yaml`) and persist one row per distinct Setting with `record_experiment_catalog`. Copy numbers from the checkout; do not invent metrics. Each row must include Setting, Method (`method`), Implementation (`implementation`), metric, Result (`result`), link, and hash. `get_experiment_catalog` returns the same rows plus the repository registration (`ssh_url`, default branch, status, last verified) for the Owner panel. Catalog writes never start a workload and never create an Experiment, Proposal, or budget reservation.
 
@@ -299,7 +299,7 @@ The optional context is limited to repository remote, ref, and Experiment ID. `m
 | `update_research_workspace` | Create or update a Study, plan, or Graph node without starting a workload | `submit` |
 | `get_next_actions` | Propose the next decision or Experiment from the hypothesis and its evidence | `read` |
 | `export_research_plan_sync` | Dry-run (default) or record a docs-only research-plan markdown amendment; never a training run and never a git push | `read` / `submit` |
-| `close_run` | Write a result and a highlight observation on a terminal Experiment that already has a run | `submit` |
+| `close_run` | Write a result, a highlight observation, and an explicit verdict on a terminal Experiment that already has a run | `submit` |
 | `get_experiment_catalog` | Return registered repository identity and extracted experiment catalog rows | `read` |
 | `record_experiment_catalog` | Persist research-branch experiment rows (Setting, Method, Implementation, metric, Result, link, hash) without starting a workload | `submit` |
 | `report_agent_activity` | Report a controlled workflow phase without prompts or reasoning | `submit` |

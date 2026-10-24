@@ -16,6 +16,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent"
 	"github.com/XR-Lee/Gemcp/ent/experimentproposal"
 	"github.com/XR-Lee/Gemcp/ent/nodeprojectaccess"
+	"github.com/XR-Lee/Gemcp/ent/researchnode"
 	"github.com/XR-Lee/Gemcp/internal/execution"
 	"github.com/XR-Lee/Gemcp/internal/provider"
 	gitrepository "github.com/XR-Lee/Gemcp/internal/repository"
@@ -517,6 +518,53 @@ func TestPrepareRequiresFromNodeWhenStudyExistsAndSubmitBindsRun(t *testing.T) {
 	views, err := service.List(ctx, f.principal, ListInput{Limit: 10})
 	if err != nil || len(views.Experiments) != 1 || !views.Experiments[0].GraphLinked || views.Experiments[0].Orphaned {
 		t.Fatalf("List() after bind = %+v, %v", views, err)
+	}
+}
+
+func TestOwnerConfirmOnFullStudyReturnsTheNodeLimit(t *testing.T) {
+	f := newFixture(t, 100000, 20000)
+	ctx := context.Background()
+	researchService := mustResearchService(t, f)
+	created, err := researchService.AgentUpdate(ctx, f.principal, researchUpdate(f, "full-study", "Does a full Study take one more run?"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	hypothesis, err := researchService.AgentUpdate(ctx, f.principal, research.UpdateInput{
+		Node: &research.NodeInput{Kind: "hypothesis", Title: "One more run fits", FromNodeID: created.Study.Nodes[0].ID, Relation: "leads_to"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hypothesisID := hypothesis.Study.Nodes[1].ID
+	service := preparedService(t, f, 2)
+	service.SetGraphBinder(researchService)
+	prepared, err := service.Prepare(ctx, f.principal, prepareFrom(hypothesisID))
+	if err != nil || prepared.Proposal == nil {
+		t.Fatalf("Prepare() = %+v, %v", prepared, err)
+	}
+	// The Study fills up between prepare and the Owner's confirmation.
+	studyRecord, err := f.client.Study.Query().Only(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for filled := 0; !errors.Is(researchService.ValidatePreparedBind(ctx, f.principal, hypothesisID), research.ErrNodeLimit); filled++ {
+		if filled > 256 {
+			t.Fatal("the Study never reached its node limit")
+		}
+		if _, err := f.client.ResearchNode.Create().
+			SetTenantID(f.principal.TenantID).SetProjectID(f.project.ID).SetStudyID(studyRecord.ID).
+			SetKind(researchnode.KindObservation).SetTitle("filler observation").SetStatus(researchnode.StatusOpen).
+			Save(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := service.OwnerSubmitPrepared(ctx, f.principal.TenantID, "owner-1", f.project.PublicID.String(), prepared.Proposal.ID, OwnerSubmitPreparedInput{
+		ConfirmationDigest: prepared.Proposal.ConfirmationDigest, Confirmed: true,
+	}); !errors.Is(err, research.ErrNodeLimit) {
+		t.Fatalf("Owner confirmation on a full Study error = %v, want the node limit", err)
+	}
+	if count, err := f.client.Experiment.Query().Count(ctx); err != nil || count != 0 {
+		t.Fatalf("refused confirmation left %d Experiments, %v", count, err)
 	}
 }
 

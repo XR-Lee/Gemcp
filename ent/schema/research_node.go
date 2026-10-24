@@ -27,6 +27,7 @@ func (ResearchNode) Fields() []ent.Field {
 		field.Float("metric_value").Optional().Nillable(),
 		field.Time("occurred_at").Optional().Nillable().Comment("scientific time: git committer date or Experiment time, not MCP write time"),
 		field.String("commit_sha").Optional().Nillable().MaxLen(64).Comment("optional evidence commit; Graph stays claim-based"),
+		field.Bool("system_written").Default(false).Immutable().Comment("written by Gemcp from Experiment evidence (bound run, close_run result and highlight); Graph updates cannot edit it"),
 	}
 }
 

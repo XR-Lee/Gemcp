@@ -54,7 +54,7 @@ The normal harness Token should use `read` and `submit`. Add `cancel` only when 
 5. Call `submit_prepared_experiment`, then poll `get_experiment` until terminal. That view already has `state`, `assessment`, `attempts`, `log_tail`, `metrics`, registered artifact names, and settlement. Do not SSH through Gemcp, do not fetch remote files, and do not analyze Docker logs to invent a scalar.
 6. Build one result manifest from the terminal Experiment view. Copy metrics; do not infer or rewrite them silently. `close_run` may omit `metric_name` and copy the prepared `expected_metric` from that view.
 7. Commit only that manifest from a clean publisher clone and push it to a dedicated result branch or pull request.
-8. Call `close_run` with the result summary, approved scalar metric, and the full result commit as `result_commit_sha`.
+8. Call `close_run` with the result summary, approved scalar metric, the verdict that metric implies for the hypothesis, and the full result commit as `result_commit_sha`.
 9. Record the decision and replace the active iteration plan through `update_research_workspace`.
 
 Example close:
@@ -67,13 +67,14 @@ Example close:
   "status": "succeeded",
   "metric_name": "validation_accuracy",
   "metric_value": 0.9142,
+  "verdict": "supports",
   "result_commit_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 }
 ```
 
 `result_commit_sha` must be a full 40- or 64-character hexadecimal SHA. Gemcp stores it on the result node. If it is omitted, the result node has no separate Git result reference; the source commit remains on the run node. The current MVP treats this value as an authenticated Agent assertion. Independent reachability and manifest verification belong in the Git-sync increment below.
 
-`close_run` rejects a reported scalar that is absent from or differs from the terminal Experiment metrics. A succeeded result must use the prepared proposal's `expected_metric` when one was declared, and a non-succeeded Experiment cannot be relabeled as succeeded. General `update_research_workspace` calls cannot create or modify result nodes.
+`close_run` rejects a reported scalar that is absent from or differs from the terminal Experiment metrics. A succeeded result must use the prepared proposal's `expected_metric` when one was declared, and a non-succeeded Experiment cannot be relabeled as succeeded. `verdict` may be `supports` or `contradicts` only for a succeeded run with a recorded metric; everything else is `inconclusive`. General `update_research_workspace` calls cannot create or modify result nodes, bound runs, or the `close_run` highlight.
 
 ## Result manifest
 

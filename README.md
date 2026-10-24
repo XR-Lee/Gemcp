@@ -34,7 +34,7 @@ Current release: **v0.20.0** ([`VERSION`](VERSION), [notes](docs/releases.md)). 
 
 ## Quick start (laptop, no GPU)
 
-You need a Go 1.21+ command (the `go.mod` pin is 1.26.9 and will download that toolchain), Node.js 22+, and PostgreSQL 16+ on `127.0.0.1:5432`. Debian/Ubuntu apt Go and PostgreSQL are enough to bootstrap.
+You need a Go 1.21+ command (the `go.mod` pin is 1.26.10 and will download that toolchain), Node.js 22+, and PostgreSQL 16+ on `127.0.0.1:5432`. Debian/Ubuntu apt Go and PostgreSQL are enough to bootstrap.
 
 ```bash
 ./scripts/bootstrap-local.sh
@@ -137,6 +137,7 @@ The Vue console is embedded in the Go binary. Redis, Kubernetes, and a separate 
 | Walk through the console | [docs/web-console.md](docs/web-console.md) · [docs/research-workbench.md](docs/research-workbench.md) |
 | See the role diagram | [docs/framework-map.md](docs/framework-map.md) |
 | Test a checkout | [docs/tester-brief.md](docs/tester-brief.md) |
+| Measure how well an Agent researches through Gemcp | [docs/research-bench.md](docs/research-bench.md) |
 | Deploy with Compose | [deploy/README.md](deploy/README.md) |
 | See what shipped | [docs/releases.md](docs/releases.md) · [docs/roadmap.md](docs/roadmap.md) |
 | Offer an idea or a pull request | [Contributing](#contributing) · [Issues](https://github.com/XR-Lee/Gemcp/issues) |

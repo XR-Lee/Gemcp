@@ -31,13 +31,13 @@
     "jsdom": "29.1.1",
     "tailwindcss": "4.3.3",
     "typescript": "5.9.3",
-    "vite": "8.1.5",
-    "vitest": "4.1.11",
+    "vite": "8.1.6",
+    "vitest": "4.1.12",
     "vue-tsc": "3.3.7"
   },
   "overrides": {
     "brace-expansion": "5.0.12",
     "source-map-js": "1.2.2",
-    "undici": "7.30.0"
+    "undici": "7.30.1"
   }
 }
