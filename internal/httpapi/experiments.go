@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/XR-Lee/Gemcp/internal/experiment"
+	"github.com/XR-Lee/Gemcp/internal/research"
 	"github.com/gin-gonic/gin"
 )
 
@@ -260,9 +261,18 @@ func (h *ExperimentHandlers) Operations(c *gin.Context) {
 
 func (h *ExperimentHandlers) writeError(c *gin.Context, err error) {
 	var validation *experiment.ValidationError
+	var graphValidation *research.ValidationError
 	switch {
 	case errors.As(err, &validation):
 		writeError(c, http.StatusBadRequest, "INVALID_EXPERIMENT_QUERY", validation.Error())
+	// Owner confirmation checks the Graph bind before spending, so its
+	// refusals keep the codes the research API uses for the same condition.
+	case errors.As(err, &graphValidation):
+		writeError(c, http.StatusBadRequest, "INVALID_RESEARCH", graphValidation.Error())
+	case errors.Is(err, research.ErrNodeLimit):
+		writeError(c, http.StatusConflict, "RESEARCH_NODE_LIMIT", "research graph node limit reached")
+	case errors.Is(err, research.ErrEdgeLimit):
+		writeError(c, http.StatusConflict, "RESEARCH_EDGE_LIMIT", "research graph edge limit reached")
 	case errors.Is(err, experiment.ErrNotFound):
 		writeError(c, http.StatusNotFound, "EXPERIMENT_NOT_FOUND", "experiment or project not found")
 	case errors.Is(err, experiment.ErrForbidden):
