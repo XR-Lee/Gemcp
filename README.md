@@ -10,6 +10,7 @@ A private research workbench. Coding agents propose the next experiment over MCP
 [![Version](https://img.shields.io/badge/version-v0.20.0-informational)](docs/releases.md)
 [![Status: early alpha](https://img.shields.io/badge/status-early%20alpha-orange)](#roadmap)
 [![Go](https://img.shields.io/github/go-mod/go-version/XR-Lee/Gemcp)](go.mod)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![MCP: Streamable HTTP](https://img.shields.io/badge/MCP-Streamable%20HTTP-6f42c1)](docs/mcp.md)
 [![Research bench: 49/49 verdicts recorded correctly](https://img.shields.io/badge/research%20bench-49%2F49%20verdicts%20correct-brightgreen)](#benchmark)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](#contributing)
@@ -291,6 +292,8 @@ Ideas, feedback, issues, and pull requests are very welcome. Gemcp is early, and
 
 **Send a pull request.** Branch from `main` and open a pull request against `main`. Keep the change focused. Note what you changed and how you checked it. Usual commands are in [Develop](#develop). A change to `close_run`, the Graph, plan sync, or the research MCP tools must keep `go test ./internal/researchbench` green. Coding agents working in this tree should read [AGENTS.md](AGENTS.md) first.
 
-Leave real credentials out of the issue and the diff. See [Security](#security).
+Leave real credentials out of the issue and the diff. See [Security](#security). Contributions are accepted under the [MIT License](LICENSE).
 
-If Gemcp is useful to you, a ⭐ helps other researchers find it.
+## License
+
+[MIT](LICENSE). If Gemcp is useful to you, a ⭐ helps other researchers find it.

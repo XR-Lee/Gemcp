@@ -10,6 +10,7 @@
 [![Version](https://img.shields.io/badge/version-v0.20.0-informational)](docs/releases.md)
 [![Status: early alpha](https://img.shields.io/badge/status-early%20alpha-orange)](#路线图)
 [![Go](https://img.shields.io/github/go-mod/go-version/XR-Lee/Gemcp)](go.mod)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![MCP: Streamable HTTP](https://img.shields.io/badge/MCP-Streamable%20HTTP-6f42c1)](docs/mcp.md)
 [![Research bench: 49/49 verdicts recorded correctly](https://img.shields.io/badge/research%20bench-49%2F49%20verdicts%20correct-brightgreen)](#benchmark-实测数据)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](#参与贡献)
@@ -291,6 +292,8 @@ make frontend-e2e
 
 **发 pull request。** 从 `main` 拉分支，对 `main` 提 pull request。改动保持聚焦，写清楚改了什么、怎么验证的。常用命令见 [开发](#开发)。改到 `close_run`、Graph、plan sync 或研究相关 MCP 工具时，要保持 `go test ./internal/researchbench` 通过。在本仓库里干活的编码 Agent 先读 [AGENTS.md](AGENTS.md)。
 
-issue 和 diff 里都不要放真实凭据。见 [安全](#安全)。
+issue 和 diff 里都不要放真实凭据。见 [安全](#安全)。提交的贡献按 [MIT 许可证](LICENSE) 授权。
 
-如果 Gemcp 对你有用，点个 ⭐ 能帮更多研究者找到它。
+## 许可证
+
+[MIT](LICENSE)。如果 Gemcp 对你有用，点个 ⭐ 能帮更多研究者找到它。
