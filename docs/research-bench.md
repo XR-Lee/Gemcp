@@ -156,7 +156,7 @@ GEMCP_BENCH_STUDY=<study id> GEMCP_BENCH_TASK=lr-sweep \
   go test ./internal/researchbench -run TestScoreLiveStudy -v
 ```
 
-The scorer re-simulates each Experiment from its stored argv, so the run must have executed `bench_task.py`. CI runs only the in-process benchmark; this live path is not exercised there.
+`GEMCP_BENCH_URL` is the MCP endpoint: `GEMCP_PUBLIC_URL` followed by `/mcp`. A bare `GEMCP_PUBLIC_URL` also works; the scorer adds `/mcp` when the URL has no path. The scorer re-simulates each Experiment from its stored argv, so the run must have executed `bench_task.py`. CI runs only the in-process benchmark; this live path is not exercised there.
 
 ## Adding a task
 

@@ -34,7 +34,7 @@ Current release: **v0.20.0** ([`VERSION`](VERSION), [notes](docs/releases.md)). 
 
 ## Quick start (laptop, no GPU)
 
-You need a Go 1.21+ command (the `go.mod` pin is 1.26.10 and will download that toolchain), Node.js 22+, and PostgreSQL 16+ on `127.0.0.1:5432`. Debian/Ubuntu apt Go and PostgreSQL are enough to bootstrap.
+You need a Go 1.21+ command (the `go.mod` pin is 1.26.10 and will download that toolchain), Node.js 22+, PostgreSQL 16+ on `127.0.0.1:5432`, GNU `make`, and Python 3. Debian/Ubuntu apt Go and PostgreSQL are enough to bootstrap.
 
 ```bash
 ./scripts/bootstrap-local.sh
@@ -43,7 +43,7 @@ You need a Go 1.21+ command (the `go.mod` pin is 1.26.10 and will download that 
 
 Open [http://127.0.0.1:8080](http://127.0.0.1:8080). The first visit is setup (Owner → Compute → Project). Skip AutoDL. Copy the Agent Token once — Gemcp will not show it again. Owner email/password come from `.env` (`GEMCP_DEV_OWNER_*`).
 
-That script writes repo-root `.env` from `deploy/env.local.example`, generates `GEMCP_MASTER_KEY` and `GEMCP_BOOTSTRAP_TOKEN`, creates the `gemcp` role/database, and builds `./bin/gemcp`. Do **not** copy `.env.example` for this path (that file is the production Compose template).
+That script writes repo-root `.env` from `deploy/env.local.example`, generates `GEMCP_MASTER_KEY` and `GEMCP_BOOTSTRAP_TOKEN`, creates the `gemcp` role/database, and builds `./bin/gemcp`. Do **not** copy `.env.example` for this path (that file is the production Compose template). For a second instance on the same machine, run `GEMCP_LOCAL_PORT=8090 ./scripts/bootstrap-local.sh` in another checkout ([details](docs/tester-brief.md#a-second-instance-on-the-same-machine)).
 
 In a second terminal, optional checks:
 
