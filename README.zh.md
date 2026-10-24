@@ -32,7 +32,7 @@ Provider Token、节点凭据和审计留在单独的 **Lab** 层。Agent 拿不
 
 ## 五分钟本地跑起来（笔记本，不用 GPU）
 
-需要：Go 1.21+（`go.mod` 钉的是 1.26.10，会自动拉官方工具链）、Node.js 22+、本机 `127.0.0.1:5432` 上的 PostgreSQL 16+。Debian/Ubuntu 源里的 Go 和 PostgreSQL 够用来引导。
+需要：Go 1.21+（`go.mod` 钉的是 1.26.10，会自动拉官方工具链）、Node.js 22+、本机 `127.0.0.1:5432` 上的 PostgreSQL 16+、GNU `make` 和 Python 3。Debian/Ubuntu 源里的 Go 和 PostgreSQL 够用来引导。
 
 ```bash
 ./scripts/bootstrap-local.sh
@@ -41,7 +41,7 @@ Provider Token、节点凭据和审计留在单独的 **Lab** 层。Agent 拿不
 
 打开 [http://127.0.0.1:8080](http://127.0.0.1:8080)。第一次访问是初始化（Owner → Compute → Project）。AutoDL 选跳过。把一次性 Agent Token 复制下来，之后不会再显示。Owner 邮箱/密码在 `.env` 的 `GEMCP_DEV_OWNER_*`。
 
-脚本会从 `deploy/env.local.example` 写出仓库根目录的 `.env`，生成 `GEMCP_MASTER_KEY` 和 `GEMCP_BOOTSTRAP_TOKEN`，创建 `gemcp` 角色和数据库，并编译 `./bin/gemcp`。这条路径 **不要** 去抄 `.env.example`（那是生产 Compose 模板）。
+脚本会从 `deploy/env.local.example` 写出仓库根目录的 `.env`，生成 `GEMCP_MASTER_KEY` 和 `GEMCP_BOOTSTRAP_TOKEN`，创建 `gemcp` 角色和数据库，并编译 `./bin/gemcp`。这条路径 **不要** 去抄 `.env.example`（那是生产 Compose 模板）。同一台机器上要再跑一个实例，在另一个 checkout 里运行 `GEMCP_LOCAL_PORT=8090 ./scripts/bootstrap-local.sh`（[说明](docs/tester-brief.zh.md#同一台机器上的第二个实例)）。
 
 第二个终端可以跑自检：
 

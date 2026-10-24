@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -371,7 +372,8 @@ func boolCount(value bool) int {
 }
 
 // TestScoreLiveStudy grades a Study that any Agent ran against a live Gemcp
-// with the examples/research-bench workloads:
+// with the examples/research-bench workloads. GEMCP_BENCH_URL is the MCP
+// endpoint; a URL without a path, such as GEMCP_PUBLIC_URL, gets /mcp:
 //
 //	GEMCP_BENCH_URL=http://127.0.0.1:8080/mcp GEMCP_BENCH_TOKEN=<agent token> \
 //	GEMCP_BENCH_STUDY=<study id> GEMCP_BENCH_TASK=lr-sweep \
@@ -380,6 +382,10 @@ func TestScoreLiveStudy(t *testing.T) {
 	endpoint := os.Getenv("GEMCP_BENCH_URL")
 	if endpoint == "" {
 		t.Skip("set GEMCP_BENCH_URL, GEMCP_BENCH_TOKEN, GEMCP_BENCH_STUDY, and GEMCP_BENCH_TASK to grade a live Study")
+	}
+	if parsed, err := url.Parse(endpoint); err == nil && strings.Trim(parsed.Path, "/") == "" {
+		parsed.Path = "/mcp"
+		endpoint = parsed.String()
 	}
 	task, ok := TaskByID(os.Getenv("GEMCP_BENCH_TASK"))
 	if !ok {

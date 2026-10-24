@@ -32,7 +32,8 @@ Prerequisites the bootstrap script will check or install:
 
 - A Go 1.21+ command so the `go.mod` pin (`1.26.10`) can download the official toolchain. Debian 13 / Ubuntu apt Go is enough as a bootstrap compiler; it is not the required compile version.
 - Node.js 22+
-- PostgreSQL 16+ on `127.0.0.1:5432` (Debian 13 apt 17 and Ubuntu 24.04 apt 16 both work). Production Compose still uses PostgreSQL 18. No GPU and no NVIDIA Container Toolkit.
+- PostgreSQL 16+ on `127.0.0.1:5432` (Debian 13 apt 17 and Ubuntu 24.04 apt 16 both work). Production Compose still uses PostgreSQL 18. No GPU and no NVIDIA Container Toolkit. Without systemd (containers, some VMs) the script starts the cluster with `pg_ctlcluster`, or with `pg_ctl` when `PGDATA` is set.
+- GNU `make` and Python 3. The script checks both before anything slow.
 
 ```bash
 ./scripts/bootstrap-local.sh
@@ -53,6 +54,16 @@ In a second terminal:
 `local-http-smoke.sh` checks `/healthz`, `/readyz`, `/api/v1/version`, `/api/v1/setup/status`, runs first-run setup with `skip_provider` when needed, and `POST /mcp` initialize. `local-cpu-loop.sh` then hits the five no-NVIDIA flows: register compute / environment / dataset (Cloud SSH loopback + `modelnet40-mini`), schedule through Gemcp, record the assumption vs sub-assumption graph, wait until `get_experiment` shows a scraped heartbeat, and pull the result back onto the graph with a `CLI_DECISION`. FLOW5 `close_run` must succeed without inventing a Git SHA. Open `http://127.0.0.1:8080` and use the Owner email/password from `.env` (`GEMCP_DEV_OWNER_*`).
 
 Compose (`deploy/`) is for a tunneled HTTPS host. Do not expose port 8080 to the public Internet. Do not require a GPU to finish this HTTP + MCP check.
+
+### A second instance on the same machine
+
+Each instance needs its own checkout, port, and database. In the second checkout, before its first bootstrap:
+
+```bash
+GEMCP_LOCAL_PORT=8090 ./scripts/bootstrap-local.sh
+```
+
+That writes `.env` with `GEMCP_ADDRESS=:8090`, `GEMCP_PUBLIC_URL=http://127.0.0.1:8090`, and the database `gemcp_8090` in `POSTGRES_DB` and `GEMCP_DATABASE_URL`. The smoke and CPU-loop scripts follow `GEMCP_PUBLIC_URL`. With an existing `.env`, edit those keys yourself. The instances share the `gemcp` role. Bootstrap does not reset that role's password while it owns another instance's database; if the passwords differ, it stops and asks you to match `POSTGRES_PASSWORD` or to give the instance its own `POSTGRES_USER`. Browsers share cookies between ports on one host, so sign in to the second console from another browser profile.
 
 ## First-run and console
 
