@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/XR-Lee/Gemcp/internal/experiment"
 	"github.com/XR-Lee/Gemcp/internal/research"
 	"github.com/gin-gonic/gin"
 )
@@ -29,6 +30,12 @@ func TestExperimentErrorsKeepGraphRefusals(t *testing.T) {
 		{name: "wrapped edge limit", err: fmt.Errorf("bind: %w", research.ErrEdgeLimit), status: http.StatusConflict, code: "RESEARCH_EDGE_LIMIT", message: "research graph edge limit reached"},
 		{name: "stale origin", err: &research.ValidationError{Message: "from_node_id must belong to an active Study"}, status: http.StatusBadRequest, code: "INVALID_RESEARCH", message: "from_node_id must belong to an active Study"},
 		{name: "internal", err: errors.New("database is locked"), status: http.StatusInternalServerError, code: "EXPERIMENT_API_FAILED", message: "experiment operation failed"},
+		{
+			name: "mistyped digest", err: &experiment.DigestMismatchError{ProposalID: "proposal-1"},
+			status: http.StatusBadRequest, code: "EXPERIMENT_DIGEST_MISMATCH",
+			message: "confirmation_digest does not match proposal proposal-1; resend the digest returned by prepare_experiment",
+		},
+		{name: "proposal drift", err: experiment.ErrProposalChanged, status: http.StatusConflict, code: "EXPERIMENT_PROPOSAL_CHANGED", message: "experiment proposal changed; prepare again and review the new digest"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

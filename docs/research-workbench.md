@@ -121,7 +121,8 @@ The research home shows:
 - each hypothesis with linked Experiments, requested git ref, commit, and run records
 - the Graph, whose node-detail sidebar repeats that requested ref next to commit when one exists
 - Export plan sync: a dry-run markdown amendment for the protocol branch
-- the latest linked result by evidence time (`occurred_at`), not Graph write time
+- the latest linked result by evidence time (`occurred_at`), not Graph write time. When the Study has historical observations and no Gemcp result, that card is **Latest evidence** and each hypothesis lists those observations. `close_run` highlights stay with the Experiment record
+- the panel address `/?project=<id>&study=<id>&view=research`, which survives refresh and Owner login. See [Owner Web console](web-console.md)
 
 UUIDs, digests, backend IDs, and reservation math remain in Experiment detail and the Lab layer.
 

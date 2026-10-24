@@ -48,7 +48,7 @@ func (s *Service) SubmitPrepared(ctx context.Context, principal agentauth.Princi
 		return SubmitPreparedResult{}, err
 	}
 	if !hmac.Equal([]byte(digest), []byte(record.ConfirmationDigest)) {
-		return SubmitPreparedResult{}, ErrProposalChanged
+		return SubmitPreparedResult{}, &DigestMismatchError{ProposalID: proposalID.String()}
 	}
 	if record.Status == experimentproposal.StatusSubmitted {
 		experimentRecord, err := record.Edges.ExperimentOrErr()
@@ -192,7 +192,7 @@ func (s *Service) createPreparedExperiment(ctx context.Context, principal agenta
 		return result, err
 	}
 	if !hmac.Equal([]byte(digest), []byte(proposalRecord.ConfirmationDigest)) {
-		return result, ErrProposalChanged
+		return result, &DigestMismatchError{ProposalID: proposalRecord.PublicID.String()}
 	}
 	if proposalRecord.Status == experimentproposal.StatusSubmitted {
 		experimentRecord, err := proposalRecord.Edges.ExperimentOrErr()

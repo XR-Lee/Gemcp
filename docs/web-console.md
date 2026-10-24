@@ -8,6 +8,8 @@ The embedded Web application uses the same origin as the Go API and has three st
 
 The setup flow collects the bootstrap credential, Owner account, and initial project policy. Its Compute step can either configure an encrypted AutoDL credential, approved image, and default resource profile or explicitly skip AutoDL and finish setup without Provider credentials. When configured, the step selects Public Elastic or Private Cloud so the Token is sent only to the matching official API host and the Environment and Resource Profile receive the matching execution backend. Private Cloud remains the default; Public Elastic requires an enterprise-verified AutoDL account. A skipped Provider can be added later in Lab → Provider. The final response displays the first Agent Token once.
 
+The console keeps the selected Project, Study, and view in the address bar: `/?project=<id>&study=<id>&view=research`. Other query parameters are left in place. Browser back and forward restore that selection, including after Owner login. An unknown `view` is ignored. An unknown `study` id is the research API's not-found response; a refresh then loads the Project without that id. Choosing a Study in the panel still reports that error.
+
 The operations console provides:
 
 - Scheduler, Watchdog, and notification-worker heartbeat visibility.

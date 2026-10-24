@@ -3,6 +3,7 @@ package research
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"math"
 	"strings"
 	"time"
@@ -106,6 +107,10 @@ func legalEdge(fromKind, toKind researchnode.Kind, relation researchedge.Relatio
 }
 
 func deriveNextActions(view *StudyView) []NextAction {
+	return gateInactiveStudy(view, deriveActiveNextActions(view))
+}
+
+func deriveActiveNextActions(view *StudyView) []NextAction {
 	if view == nil {
 		return []NextAction{{
 			Kind: "create_study", Tool: "update_research_workspace",
@@ -179,6 +184,7 @@ func deriveNextActions(view *StudyView) []NextAction {
 				decisions = append(decisions, node)
 			}
 		}
+		observations = appendIncomingClaims(observations, view.Edges, nodesByID, hypothesis.ID)
 		for _, node := range terminalUnclosed {
 			add(NextAction{
 				Kind: "close_run", Tool: "close_run", FromNodeID: node.ID, ExperimentID: node.ExperimentID,
@@ -193,16 +199,18 @@ func deriveNextActions(view *StudyView) []NextAction {
 				Detail: "Poll get_experiment for state, log_tail, and metrics on hypothesis \"" + hypothesis.Title + "\". Do not SSH or infer metrics from logs.",
 			})
 		}
-		if len(decisions) == 0 && (len(results) > 0 || len(observations) > 0) && len(terminalUnclosed) == 0 && len(openRuns) == 0 {
+		evidence := experimentEvidenceObservations(observations)
+		if len(decisions) == 0 && (len(results) > 0 || len(evidence) > 0) && len(terminalUnclosed) == 0 && len(openRuns) == 0 {
 			fromID := hypothesis.ID
 			detail := "Decide whether the evidence supports \"" + hypothesis.Title + "\" before preparing another Experiment."
 			if len(results) > 0 {
 				latest := results[len(results)-1]
 				fromID = latest.ID
 				detail = decisionDetail(outgoing, nodesByID, latest, hypothesis)
-			} else if len(observations) > 0 {
-				fromID = observations[len(observations)-1].ID
-				detail = "Observation \"" + observations[len(observations)-1].Title + "\" is on hypothesis \"" + hypothesis.Title + "\". Record a decision before proposing the next Experiment."
+			} else if len(evidence) > 0 {
+				latest := evidence[len(evidence)-1]
+				fromID = latest.ID
+				detail = "Observation \"" + latest.Title + "\" is on hypothesis \"" + hypothesis.Title + "\". Record a decision before proposing the next Experiment."
 			}
 			add(NextAction{
 				Kind: "record_decision", Tool: "update_research_workspace", FromNodeID: fromID,
@@ -221,10 +229,18 @@ func deriveNextActions(view *StudyView) []NextAction {
 			continue
 		}
 		if !hasRun {
+			detail := prepareRouteDetail(view, "from_node_id must be this hypothesis or a plan under it. The confirmation digest binds that origin; submit_prepared_experiment writes the run.")
+			if claims := outsideClaimCount(observations); claims > 0 {
+				noun := "outside claims"
+				if claims == 1 {
+					noun = "outside claim"
+				}
+				detail = fmt.Sprintf("%d %s recorded; test them. ", claims, noun) + detail
+			}
 			add(NextAction{
 				Kind: "prepare_experiment", Tool: "prepare_experiment", FromNodeID: hypothesis.ID,
 				Title:  "Prepare an Experiment for " + hypothesis.Title,
-				Detail: prepareRouteDetail(view, "from_node_id must be this hypothesis or a plan under it. The confirmation digest binds that origin; submit_prepared_experiment writes the run."),
+				Detail: detail,
 			})
 			addedPrepare = true
 		}
@@ -286,6 +302,110 @@ func observationVerdict(outgoing map[string][]EdgeView, observationID, hypothesi
 		}
 	}
 	return verdictInconclusive
+}
+
+// gateInactiveStudy keeps in-flight close/wait guidance and replaces spend
+// suggestions. A paused or archived Study is not a place to prepare a run.
+func gateInactiveStudy(view *StudyView, active []NextAction) []NextAction {
+	if view == nil || (view.Status != string(study.StatusPaused) && view.Status != string(study.StatusArchived)) {
+		return active
+	}
+	actions := make([]NextAction, 0, 8)
+	for _, action := range active {
+		if len(actions) >= 8 {
+			break
+		}
+		if action.Kind == "close_run" || action.Kind == "wait_run" {
+			actions = append(actions, action)
+		}
+	}
+	add := func(action NextAction) {
+		if len(actions) >= 8 {
+			return
+		}
+		action.StudyID = view.ID
+		actions = append(actions, action)
+	}
+	hasRuns := false
+	for _, node := range view.Nodes {
+		if node.Kind == "run" {
+			hasRuns = true
+			break
+		}
+	}
+	name := view.Name
+	if name == "" {
+		name = "this Study"
+	}
+	review := "This " + view.Status + " Study is retrospective and evidence-only. Read the recorded observations. Do not call prepare_experiment."
+	if hasRuns && view.Status == string(study.StatusPaused) {
+		review = "This Study is paused. Review the Graph. Do not call prepare_experiment until a human sets status back to active."
+	} else if hasRuns {
+		review = "This Study is archived. Review the Graph. Do not call prepare_experiment."
+	}
+	add(NextAction{
+		Kind: "review_study", Tool: "get_research_workspace",
+		Title:  "Review " + name,
+		Detail: review,
+	})
+	add(NextAction{
+		Kind: "export_plan_sync", Tool: "export_research_plan_sync",
+		Title:  "Export a research-plan docs patch",
+		Detail: "Dry-run a markdown amendment for the protocol branch. This is not a training run. Do not force-push or write frozen recipe files.",
+	})
+	if view.Status == string(study.StatusPaused) {
+		add(NextAction{
+			Kind: "resume_study", Tool: "update_research_workspace",
+			Title:  "Resume " + name,
+			Detail: "A human sets status back to active before any prepare_experiment. Do not prepare from a paused Study.",
+		})
+	}
+	return actions
+}
+
+// experimentEvidenceObservations are Gemcp-written observations that are not
+// typed claims. Asserted observations do not justify record_decision.
+func experimentEvidenceObservations(observations []NodeView) []NodeView {
+	out := make([]NodeView, 0)
+	for _, node := range observations {
+		if node.SystemWritten && node.MetricSource != metricSourceAsserted {
+			out = append(out, node)
+		}
+	}
+	return out
+}
+
+func appendIncomingClaims(observations []NodeView, edges []EdgeView, nodes map[string]NodeView, hypothesisID string) []NodeView {
+	seen := map[string]bool{}
+	for _, node := range observations {
+		seen[node.ID] = true
+	}
+	for _, edge := range edges {
+		if edge.ToID != hypothesisID || (edge.Relation != string(researchedge.RelationSupports) && edge.Relation != string(researchedge.RelationContradicts)) {
+			continue
+		}
+		node, ok := nodes[edge.FromID]
+		if !ok || node.Kind != "observation" || seen[node.ID] {
+			continue
+		}
+		seen[node.ID] = true
+		observations = append(observations, node)
+	}
+	return observations
+}
+
+func outsideClaimCount(observations []NodeView) int {
+	evidence := map[string]bool{}
+	for _, node := range experimentEvidenceObservations(observations) {
+		evidence[node.ID] = true
+	}
+	count := 0
+	for _, node := range observations {
+		if !evidence[node.ID] {
+			count++
+		}
+	}
+	return count
 }
 
 func prepareRouteDetail(view *StudyView, base string) string {

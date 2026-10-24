@@ -216,7 +216,9 @@ func TestPreparedExperimentIsZeroCostUntilConfirmedAndServerIdempotent(t *testin
 	}
 	wrongDigest := input
 	wrongDigest.ConfirmationDigest = "sha256:" + strings.Repeat("0", 64)
-	if _, err := service.SubmitPrepared(ctx, f.principal, wrongDigest); !errors.Is(err, ErrProposalChanged) {
+	_, err = service.SubmitPrepared(ctx, f.principal, wrongDigest)
+	var mismatch *DigestMismatchError
+	if !errors.As(err, &mismatch) || errors.Is(err, ErrProposalChanged) || mismatch.ProposalID != prepared.Proposal.ID || !strings.Contains(err.Error(), "resend the digest returned by prepare_experiment") {
 		t.Fatalf("wrong-digest submit error = %v", err)
 	}
 	first, err := service.SubmitPrepared(ctx, f.principal, input)

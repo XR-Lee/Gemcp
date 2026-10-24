@@ -6,7 +6,7 @@ import type { AgentReadiness, Experiment, ExperimentCatalog, Project, Repository
 import { localizedState, useI18n } from '../i18n'
 import { buildResearchAttachPrompt } from '../researchAttachPrompt'
 import { formatMetric, normalizeVerdict } from '../researchFormat'
-import { selectLatestResult } from '../researchLatestResult'
+import { historicalObservationsForHypothesis, selectLatestEvidence, selectLatestResult } from '../researchLatestResult'
 import { layoutResearchGraph } from '../researchGraphLayout'
 import AgentReadinessPanel from './AgentReadinessPanel.vue'
 import RepositoryReadinessPanel from './RepositoryReadinessPanel.vue'
@@ -63,6 +63,7 @@ const studies = computed(() => props.workspace?.studies ?? [])
 const nodes = computed(() => study.value?.nodes ?? [])
 const edges = computed(() => study.value?.edges ?? [])
 const latestResult = computed(() => selectLatestResult(nodes.value))
+const latestEvidence = computed(() => (latestResult.value ? null : selectLatestEvidence(nodes.value)))
 
 function verdictLabel(value?: string) {
   switch (normalizeVerdict(value)) {
@@ -71,6 +72,19 @@ function verdictLabel(value?: string) {
     case 'inconclusive': return t('Inconclusive', '不确定')
     default: return ''
   }
+}
+
+function relationLabel(value?: string) {
+  switch (value) {
+    case 'supports': return t('Supports', '支持')
+    case 'contradicts': return t('Contradicts', '反驳')
+    case 'leads_to': return t('Leads to', '引出')
+    default: return ''
+  }
+}
+
+function historicalObservations(hypothesisID: string) {
+  return historicalObservationsForHypothesis(hypothesisID, nodes.value, edges.value)
 }
 
 function metricSourceLabel(value?: string) {
@@ -301,12 +315,26 @@ function dateTime(value?: string) {
           <strong>{{ study.plan?.goal ?? t('Waiting for the first plan', '等待首个计划') }}</strong>
           <p>{{ study.plan?.rationale || study.summary || t('Plans are superseded, not edited in place.', '计划会被新版本替代，而不是原地修改。') }}</p>
         </motion.article>
-        <motion.article class="research-card" :initial="{ y: 8 }" :animate="{ y: 0 }" :transition="{ duration: 0.22 }">
-          <span class="research-kicker">{{ t('Latest result', '最新结果') }}</span>
-          <strong>{{ latestResult?.title ?? t('No result recorded', '尚未记录结果') }}</strong>
-          <p v-if="latestResult?.metric_name" :title="String(latestResult.metric_value)">{{ latestResult.metric_name }} {{ formatMetric(latestResult.metric_value) }}<template v-if="metricSourceLabel(latestResult.metric_source)"> · {{ metricSourceLabel(latestResult.metric_source) }}</template></p>
-          <p v-else>{{ latestResult?.summary || t('A finished Experiment can be attached here without exposing argv or GPU IDs.', '完成的 Experiment 可以挂到这里，不必暴露 argv 或 GPU ID。') }}</p>
-          <button v-if="latestResult?.experiment_id" class="text-button" type="button" @click="emit('openExperiment', latestResult.experiment_id)">{{ t('Open evidence', '打开证据') }}</button>
+        <motion.article class="research-card" data-testid="latest-result-card" :initial="{ y: 8 }" :animate="{ y: 0 }" :transition="{ duration: 0.22 }">
+          <template v-if="latestResult">
+            <span class="research-kicker">{{ t('Latest result', '最新结果') }}</span>
+            <strong>{{ latestResult.title }}</strong>
+            <p v-if="latestResult.metric_name" :title="String(latestResult.metric_value)">{{ latestResult.metric_name }} {{ formatMetric(latestResult.metric_value) }}<template v-if="metricSourceLabel(latestResult.metric_source)"> · {{ metricSourceLabel(latestResult.metric_source) }}</template></p>
+            <p v-else>{{ latestResult.summary || t('A finished Experiment can be attached here without exposing argv or GPU IDs.', '完成的 Experiment 可以挂到这里，不必暴露 argv 或 GPU ID。') }}</p>
+            <button v-if="latestResult.experiment_id" class="text-button" type="button" @click="emit('openExperiment', latestResult.experiment_id)">{{ t('Open evidence', '打开证据') }}</button>
+          </template>
+          <template v-else-if="latestEvidence">
+            <span class="research-kicker" data-testid="latest-evidence">{{ t('Latest evidence', '最新证据') }}</span>
+            <strong>{{ latestEvidence.title }}</strong>
+            <p v-if="latestEvidence.metric_name" :title="String(latestEvidence.metric_value)">{{ latestEvidence.metric_name }} {{ formatMetric(latestEvidence.metric_value) }}<template v-if="metricSourceLabel(latestEvidence.metric_source)"> · {{ metricSourceLabel(latestEvidence.metric_source) }}</template></p>
+            <p v-if="latestEvidence.summary">{{ latestEvidence.summary }}</p>
+            <p>{{ t('Historical observation, not a Gemcp Experiment result.', '历史观察，不是 Gemcp Experiment 的结果。') }}</p>
+          </template>
+          <template v-else>
+            <span class="research-kicker">{{ t('Latest result', '最新结果') }}</span>
+            <strong>{{ t('No result recorded', '尚未记录结果') }}</strong>
+            <p>{{ t('A finished Experiment can be attached here without exposing argv or GPU IDs.', '完成的 Experiment 可以挂到这里，不必暴露 argv 或 GPU ID。') }}</p>
+          </template>
         </motion.article>
       </div>
 
@@ -373,7 +401,27 @@ function dateTime(value?: string) {
               >{{ t('Close run', '结束 run') }}</button>
             </article>
           </div>
-          <p v-else class="hypothesis-empty">{{ t('No Graph experiment is bound to this hypothesis yet.', '这条假设还没有入图实验。') }}</p>
+          <p v-if="!hypothesis.experiments.length" class="hypothesis-empty">{{ t('No Graph experiment is bound to this hypothesis yet.', '这条假设还没有入图实验。') }}</p>
+          <div v-if="historicalObservations(hypothesis.id).length" class="hypothesis-observations" data-testid="hypothesis-observations">
+            <p class="hypothesis-observations-label">{{ t('Historical evidence', '历史证据') }}</p>
+            <article v-for="item in historicalObservations(hypothesis.id)" :key="item.node.id" class="hypothesis-run">
+              <strong>{{ item.node.title }}</strong>
+              <dl>
+                <div>
+                  <dt>{{ t('Relation', '关系') }}</dt>
+                  <dd>{{ relationLabel(item.relation) }}</dd>
+                </div>
+                <div v-if="item.node.metric_name">
+                  <dt>{{ t('Metric', '指标') }}</dt>
+                  <dd :title="String(item.node.metric_value)">{{ item.node.metric_name }} {{ formatMetric(item.node.metric_value) }}<span v-if="metricSourceLabel(item.node.metric_source)" class="hypothesis-metric-source" :data-source="item.node.metric_source"> · {{ metricSourceLabel(item.node.metric_source) }}</span></dd>
+                </div>
+                <div v-if="item.node.summary">
+                  <dt>{{ t('Summary', '摘要') }}</dt>
+                  <dd>{{ item.node.summary }}</dd>
+                </div>
+              </dl>
+            </article>
+          </div>
         </article>
       </div>
 

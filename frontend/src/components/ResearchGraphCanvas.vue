@@ -32,9 +32,15 @@ const flow = ref<VueFlowStore | null>(null)
 const fullscreen = ref(false)
 const fittedOnce = ref(false)
 const selectedID = ref('')
+const sourceCopied = ref(false)
 const viewport = ref<ViewportTransform>({ x: 0, y: 0, zoom: 1 })
 provide('researchGraphSelectedID', selectedID)
 const selected = computed(() => props.nodes.find((node) => node.id === selectedID.value) ?? null)
+const detailSource = computed(() => {
+  const node = selected.value
+  if (!node) return ''
+  return node.summary?.trim() || node.metric_name?.trim() || node.branch?.trim() || ''
+})
 const layoutByID = computed(() => new Map(props.layout.nodes.map((item) => [item.id, item])))
 const nodeByID = computed(() => new Map(props.nodes.map((node) => [node.id, node])))
 const missingEvidenceTime = computed(() => {
@@ -109,6 +115,13 @@ const graphEdges = computed<Edge[]>(() => props.edges.map((edge) => {
 
 const incoming = computed(() => props.edges.filter((edge) => edge.to_id === selectedID.value))
 const outgoing = computed(() => props.edges.filter((edge) => edge.from_id === selectedID.value))
+
+async function copyDetailSource() {
+  if (!detailSource.value) return
+  await navigator.clipboard.writeText(detailSource.value)
+  sourceCopied.value = true
+  window.setTimeout(() => { sourceCopied.value = false }, 1600)
+}
 
 function outcomeLabel(value: NodeOutcome | undefined) {
   switch (value) {
@@ -260,12 +273,13 @@ onUnmounted(() => {
           </div>
           <button class="icon-button" type="button" :title="t('Close', '关闭')" @click="selectedID = ''"><X :size="16" /></button>
         </header>
-        <p v-if="selected.summary">{{ selected.summary }}</p>
+        <p v-if="selected.summary" class="graph-detail-text">{{ selected.summary }}</p>
         <p v-else class="graph-detail-empty">{{ t('No summary on this node.', '这个节点还没有摘要。') }}</p>
+        <button v-if="detailSource" class="text-button" type="button" @click="copyDetailSource">{{ sourceCopied ? t('Copied', '已复制') : t('Copy source', '复制来源') }}</button>
         <dl>
           <div v-if="selected.metric_name">
             <dt>{{ t('Metric', '指标') }}</dt>
-            <dd :title="String(selected.metric_value)">{{ selected.metric_name }} {{ formatMetric(selected.metric_value) }}</dd>
+            <dd class="graph-detail-text" :title="String(selected.metric_value)">{{ selected.metric_name }} {{ formatMetric(selected.metric_value) }}</dd>
           </div>
           <div v-if="selected.metric_source">
             <dt>{{ t('Source', '来源') }}</dt>
@@ -277,11 +291,11 @@ onUnmounted(() => {
           </div>
           <div v-if="selected.branch">
             <dt>{{ t('Branch', '分支') }}</dt>
-            <dd><code>{{ selected.branch }}</code></dd>
+            <dd class="graph-detail-text"><code>{{ selected.branch }}</code></dd>
           </div>
           <div v-if="selected.commit_sha">
             <dt>{{ t('Commit', 'Commit') }}</dt>
-            <dd><code>{{ selected.commit_sha.slice(0, 12) }}</code></dd>
+            <dd class="graph-detail-text"><code>{{ selected.commit_sha.slice(0, 12) }}</code></dd>
           </div>
           <div>
             <dt>{{ t('Recorded on Graph', '写入 Graph') }}</dt>
@@ -294,8 +308,8 @@ onUnmounted(() => {
         </dl>
         <div v-if="incoming.length || outgoing.length" class="graph-detail-edges">
           <h4>{{ t('On the Graph', '在 Graph 上') }}</h4>
-          <p v-for="edge in incoming" :key="edge.id">{{ neighborTitle(edge.from_id) }} → {{ relationLabel(edge.relation) }}</p>
-          <p v-for="edge in outgoing" :key="edge.id">{{ relationLabel(edge.relation) }} → {{ neighborTitle(edge.to_id) }}</p>
+          <p v-for="edge in incoming" :key="edge.id" class="graph-detail-text">{{ neighborTitle(edge.from_id) }} → {{ relationLabel(edge.relation) }}</p>
+          <p v-for="edge in outgoing" :key="edge.id" class="graph-detail-text">{{ relationLabel(edge.relation) }} → {{ neighborTitle(edge.to_id) }}</p>
         </div>
         <button
           v-if="selected.experiment_id"

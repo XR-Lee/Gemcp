@@ -396,4 +396,44 @@ describe('ResearchView', () => {
     await wrapper.get('[data-testid="export-plan-sync"]').trigger('click')
     expect(wrapper.emitted('exportPlanSync')).toEqual([[]])
   })
+
+  it('shows historical observations when the Study has no Gemcp result', () => {
+    useI18n().setLocale('en')
+    const observed = structuredClone(workspace)
+    observed.study.nodes = [
+      { id: 'node-question-1', kind: 'question', title: 'Question', status: 'open', created_at: '2026-07-28T18:00:00Z', updated_at: '2026-07-28T18:00:00Z' },
+      { id: 'node-hypothesis-1', kind: 'hypothesis', title: 'Background noise caps accuracy', status: 'open', created_at: '2026-07-28T18:01:00Z', updated_at: '2026-07-28T18:01:00Z' },
+      {
+        id: 'node-observation-1', kind: 'observation', title: 'Paper X reports 0.93', summary: 'Table 2, no Gemcp run',
+        status: 'recorded', metric_name: 'accuracy', metric_value: 0.93, metric_source: 'asserted',
+        created_at: '2026-07-28T18:02:00Z', updated_at: '2026-07-28T18:02:00Z',
+      },
+      {
+        id: 'node-highlight-1', kind: 'observation', title: 'close_run highlight', system_written: true,
+        status: 'succeeded', created_at: '2026-07-28T18:03:00Z', updated_at: '2026-07-28T18:03:00Z',
+      },
+    ] as never
+    observed.study.edges = [
+      { id: 'edge-0', from_id: 'node-question-1', to_id: 'node-hypothesis-1', relation: 'leads_to' },
+      { id: 'edge-1', from_id: 'node-observation-1', to_id: 'node-hypothesis-1', relation: 'supports' },
+      { id: 'edge-2', from_id: 'node-hypothesis-1', to_id: 'node-highlight-1', relation: 'leads_to' },
+    ] as never
+    observed.study.hypotheses = [{
+      id: 'node-hypothesis-1', title: 'Background noise caps accuracy', status: 'open', branch: '', experiments: [],
+    }] as never
+    const wrapper = mount(ResearchView, {
+      props: { workspace: observed, loading: false, selectedStudyId: 'study-1' },
+      global: { stubs: flowStubs },
+    })
+    expect(wrapper.get('[data-testid="latest-evidence"]').text()).toContain('Latest evidence')
+    expect(wrapper.get('[data-testid="latest-result-card"]').text()).toContain('Paper X reports 0.93')
+    expect(wrapper.get('[data-testid="latest-result-card"]').text()).toContain('Historical observation, not a Gemcp Experiment result.')
+    expect(wrapper.text()).not.toContain('No result recorded')
+    const records = wrapper.get('[data-testid="hypothesis-observations"]')
+    expect(records.text()).toContain('Paper X reports 0.93')
+    expect(records.text()).toContain('Supports')
+    expect(records.text()).toContain('asserted')
+    expect(records.text()).not.toContain('close_run highlight')
+    expect(wrapper.get('[data-testid="hypothesis-records"]').text()).toContain('No Graph experiment is bound to this hypothesis yet.')
+  })
 })

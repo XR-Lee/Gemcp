@@ -1,5 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useI18n } from '../i18n'
 import { layoutResearchGraph } from '../researchGraphLayout'
 import ResearchGraphCanvas from './ResearchGraphCanvas.vue'
@@ -60,6 +60,7 @@ const flowStubs = {
 }
 
 afterEach(() => {
+  vi.unstubAllGlobals()
   useI18n().setLocale('en')
   document.body.style.overflow = ''
 })
@@ -114,7 +115,46 @@ describe('ResearchGraphCanvas', () => {
     expect(wrapper.find('.graph-detail').text()).toContain('Background noise caps accuracy')
     expect(wrapper.find('.graph-detail').text()).toContain('autoresearch/objbg-baseline')
     expect(wrapper.find('.graph-detail').text()).toMatch(/Branch|分支/)
+    expect(wrapper.find('.graph-detail-text').exists()).toBe(true)
     wrapper.unmount()
+  })
+
+  it('wraps a long provenance path and copies it', async () => {
+    useI18n().setLocale('en')
+    const source = `provenance/${'segment/'.repeat(24)}metrics.json`
+    const longNodes = [
+      ...nodes,
+      {
+        id: 'node-observation-1', kind: 'observation', title: 'Paper path',
+        summary: source, status: 'recorded', metric_name: `accuracy_${'x'.repeat(80)}`, metric_value: 0.93,
+        metric_source: 'asserted' as const,
+        created_at: '2026-07-28T18:06:00Z', updated_at: '2026-07-28T18:06:00Z',
+      },
+    ]
+    const writeText = vi.fn(async () => undefined)
+    vi.stubGlobal('navigator', { clipboard: { writeText } })
+    const wrapper = mount(ResearchGraphCanvas, {
+      props: {
+        nodes: longNodes,
+        edges: [...edges, { id: 'edge-2', from_id: 'node-hypothesis-1', to_id: 'node-observation-1', relation: 'supports' }],
+        layout: layoutResearchGraph({
+          nodes: longNodes,
+          edges: [...edges, { id: 'edge-2', from_id: 'node-hypothesis-1', to_id: 'node-observation-1', relation: 'supports' }],
+        }),
+      },
+      attachTo: document.body,
+      global: { stubs: flowStubs },
+    })
+    await wrapper.get('[data-kind="observation"]').trigger('dblclick')
+    await flushPromises()
+    const detail = wrapper.get('.graph-detail')
+    expect(detail.text()).toContain(source)
+    expect(detail.classes()).toContain('graph-detail')
+    expect(detail.get('p.graph-detail-text').text()).toBe(source)
+    await detail.get('button.text-button').trigger('click')
+    expect(writeText).toHaveBeenCalledWith(source)
+    wrapper.unmount()
+    vi.unstubAllGlobals()
   })
 
   it('opens the experiment record exactly once for a physical double-click', async () => {

@@ -145,6 +145,17 @@ func TestStreamableHTTPToolsWithAgentToken(t *testing.T) {
 	toolNames := map[string]bool{}
 	for _, tool := range tools.Tools {
 		toolNames[tool.Name] = true
+		if tool.Name != "update_research_workspace" {
+			continue
+		}
+		raw, err := json.Marshal(tool.InputSchema)
+		if err != nil {
+			t.Fatal(err)
+		}
+		schema := string(raw)
+		if !strings.Contains(schema, research.StudyNamePattern) || !strings.Contains(schema, `"maxLength":80`) || !strings.Contains(schema, `"minLength":1`) || !strings.Contains(schema, "letters, numbers, spaces, dots, underscores, or hyphens") {
+			t.Fatalf("study name schema = %s", schema)
+		}
 	}
 	if !toolNames["get_research_workspace"] || !toolNames["update_research_workspace"] || !toolNames["get_next_actions"] || !toolNames["export_research_plan_sync"] || !toolNames["close_run"] ||
 		!toolNames["get_experiment_catalog"] || !toolNames["record_experiment_catalog"] ||
@@ -742,5 +753,13 @@ func TestToolErrorKeepsGraphRefusalsReadable(t *testing.T) {
 		if got := server.toolError("submit_prepared_experiment", err); got == nil || got.Error() != want {
 			t.Errorf("toolError(%v) = %v, want %q", err, got, want)
 		}
+	}
+	mismatch := server.toolError("submit_prepared_experiment", &experiment.DigestMismatchError{ProposalID: "proposal-1"})
+	var typed *experiment.DigestMismatchError
+	if !errors.As(mismatch, &typed) || typed.ProposalID != "proposal-1" || errors.Is(mismatch, experiment.ErrProposalChanged) || strings.Contains(mismatch.Error(), "internal control-plane") {
+		t.Fatalf("digest mismatch tool error = %v", mismatch)
+	}
+	if drift := server.toolError("submit_prepared_experiment", experiment.ErrProposalChanged); !errors.Is(drift, experiment.ErrProposalChanged) {
+		t.Fatalf("drift tool error = %v", drift)
 	}
 }
