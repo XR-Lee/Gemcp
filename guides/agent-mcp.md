@@ -204,7 +204,7 @@ Call:
 }
 ```
 
-Gemcp reruns drift-sensitive preflight checks and rechecks configuration and budget in the creation transaction. Configuration drift returns `experiment proposal changed after confirmation` and creates no Experiment. Prepare a replacement and obtain approval again.
+Gemcp reruns drift-sensitive preflight checks and rechecks configuration and budget in the creation transaction. A mistyped confirmation digest returns `confirmation_digest does not match proposal <id>; resend the digest returned by prepare_experiment`. Resend that digest; the proposal did not change. Configuration drift returns `experiment proposal changed after confirmation` and creates no Experiment. Prepare a replacement and obtain approval again.
 
 A repeated identical call returns the original Experiment. Never create a replacement proposal merely because the submission response was delayed or lost.
 
@@ -338,6 +338,7 @@ The reservation is released at terminal settlement and replaced by an estimated 
 - commit or ref verification failure: push the intended source or correct repository access, then prepare again.
 - proposal blocked: report failed checks; create no paid Experiment.
 - proposal expired: prepare a replacement and obtain approval for its new digest.
+- confirmation digest mismatch: resend the digest returned by prepare_experiment. The proposal did not change.
 - proposal changed: execution-relevant configuration drifted; prepare and confirm again.
 - budget or Experiment-cap failure: reduce runtime or resources only with human approval, or ask the Owner to change policy.
 - queued for an extended period: query rather than resubmit.

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/XR-Lee/Gemcp/ent/auditevent"
+	"github.com/XR-Lee/Gemcp/ent/researchedge"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
 )
 
@@ -167,11 +168,14 @@ func renderPlanSyncMarkdown(workspace Workspace, targetBranch, targetPath string
 			fmt.Fprintf(&b, "%s\n\n", oneLine(hypothesis.Summary))
 		}
 		if len(hypothesis.Experiments) == 0 {
-			b.WriteString("- No experiment yet.\n\n")
-			continue
+			b.WriteString("- No experiment yet.\n")
+		} else {
+			for _, record := range hypothesis.Experiments {
+				b.WriteString("- " + planSyncRunLine(record) + "\n")
+			}
 		}
-		for _, record := range hypothesis.Experiments {
-			b.WriteString("- " + planSyncRunLine(record) + "\n")
+		for _, line := range planSyncObservationLines(view, hypothesis) {
+			b.WriteString(line + "\n")
 		}
 		b.WriteString("\n")
 	}
@@ -252,6 +256,110 @@ func planSyncRunLine(record HypothesisRunRecord) string {
 		verdict = verdictInconclusive
 	}
 	return line + ". Verdict: " + verdict + "."
+}
+
+// planSyncObservationLines lists observations that belong to this hypothesis:
+// descendants stop at the next hypothesis, and a supports or contradicts
+// edge into this hypothesis is included even when the observation is not a
+// descendant. supports and contradicts outrank leads_to.
+func planSyncObservationLines(view *StudyView, hypothesis HypothesisView) []string {
+	if view == nil {
+		return nil
+	}
+	outgoing := map[string][]EdgeView{}
+	nodesByID := map[string]NodeView{}
+	for _, edge := range view.Edges {
+		outgoing[edge.FromID] = append(outgoing[edge.FromID], edge)
+	}
+	for _, node := range view.Nodes {
+		nodesByID[node.ID] = node
+	}
+	chosen := map[string]string{}
+	order := make([]string, 0)
+	consider := func(node NodeView, relation string) {
+		if node.Kind != "observation" || observationRelationRank(relation) > 2 {
+			return
+		}
+		previous, ok := chosen[node.ID]
+		if !ok {
+			order = append(order, node.ID)
+			chosen[node.ID] = relation
+			return
+		}
+		if observationRelationRank(relation) < observationRelationRank(previous) {
+			chosen[node.ID] = relation
+		}
+	}
+	for _, node := range descendantsOf(outgoing, nodesByID, hypothesis.ID) {
+		consider(node, observationPlanRelation(outgoing, hypothesis.ID, node.ID))
+	}
+	for _, edge := range view.Edges {
+		if edge.ToID != hypothesis.ID || (edge.Relation != string(researchedge.RelationSupports) && edge.Relation != string(researchedge.RelationContradicts)) {
+			continue
+		}
+		node, ok := nodesByID[edge.FromID]
+		if !ok {
+			continue
+		}
+		consider(node, edge.Relation)
+	}
+	lines := make([]string, 0, len(order))
+	for _, id := range order {
+		lines = append(lines, formatPlanSyncObservation(nodesByID[id], chosen[id]))
+	}
+	return lines
+}
+
+func observationPlanRelation(outgoing map[string][]EdgeView, hypothesisID, observationID string) string {
+	best := ""
+	for _, edge := range outgoing[hypothesisID] {
+		if edge.ToID == observationID {
+			best = preferObservationRelation(best, edge.Relation)
+		}
+	}
+	for _, edge := range outgoing[observationID] {
+		if edge.ToID == hypothesisID {
+			best = preferObservationRelation(best, edge.Relation)
+		}
+	}
+	if best == "" {
+		return string(researchedge.RelationLeadsTo)
+	}
+	return best
+}
+
+func preferObservationRelation(current, next string) string {
+	if observationRelationRank(next) > 2 {
+		return current
+	}
+	if current == "" || observationRelationRank(next) < observationRelationRank(current) {
+		return next
+	}
+	return current
+}
+
+func observationRelationRank(relation string) int {
+	switch relation {
+	case string(researchedge.RelationSupports):
+		return 0
+	case string(researchedge.RelationContradicts):
+		return 1
+	case string(researchedge.RelationLeadsTo):
+		return 2
+	default:
+		return 3
+	}
+}
+
+func formatPlanSyncObservation(node NodeView, relation string) string {
+	line := "- Observation (" + relation + "): " + oneLine(node.Title)
+	if summary := oneLine(node.Summary); summary != "" {
+		line += ". " + summary
+	}
+	if value := metricText(node.MetricName, node.MetricValue, node.MetricSource); value != "" {
+		line += ". " + value
+	}
+	return line
 }
 
 func metricText(name string, value *float64, source string) string {

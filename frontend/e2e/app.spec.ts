@@ -171,6 +171,7 @@ const attemptHistory = [{
   estimated_cost_milli: 0, log_tail: 'epoch 3 loss=0.42\n', metrics: { loss: 0.42 },
   started_at: '2026-07-17T01:56:00Z', created_at: '2026-07-17T01:55:00Z', updated_at: '2026-07-17T02:00:00Z',
 }]
+const longProvenance = `provenance/${'unbrokenpathsegment'.repeat(8)}/metrics.json`
 const researchWorkspace = {
   project_id: project.id,
   studies: [{
@@ -194,10 +195,12 @@ const researchWorkspace = {
       { id: 'node-hypothesis-1', kind: 'hypothesis', title: 'Background noise caps accuracy', status: 'open', branch: 'autoresearch/objbg-baseline', created_at: '2026-07-28T18:02:00Z', updated_at: '2026-07-28T18:02:00Z' },
       { id: 'node-result-1', kind: 'result', title: 'OBJ-BG smoke accuracy', summary: 'The existing smoke Experiment reached 86.4 overall accuracy.', status: 'succeeded', metric_name: 'overall_accuracy', metric_value: 86.4, experiment_id: experiments[0].id, experiment_state: experiments[0].state, occurred_at: '2026-07-28T18:05:00Z', branch: 'autoresearch/objbg-baseline', created_at: '2026-07-28T18:05:00Z', updated_at: '2026-07-28T18:05:00Z' },
       { id: 'node-result-old', kind: 'result', title: 'Imported 2024 table', summary: 'A later Graph write of older evidence must not replace Latest result.', status: 'succeeded', occurred_at: '2024-03-12T00:00:00Z', created_at: '2026-07-28T18:06:00Z', updated_at: '2026-07-28T18:06:00Z' },
+      { id: 'node-observation-long', kind: 'observation', title: `PaperProvenance${'Title'.repeat(12)}`, summary: longProvenance, status: 'recorded', metric_name: `overall_accuracy_${'identifier'.repeat(8)}`, metric_value: 0.93, metric_source: 'asserted', created_at: '2026-07-28T18:07:00Z', updated_at: '2026-07-28T18:07:00Z' },
     ],
     edges: [
       { id: 'edge-0', from_id: 'node-question-1', to_id: 'node-hypothesis-1', relation: 'leads_to' },
       { id: 'edge-1', from_id: 'node-hypothesis-1', to_id: 'node-result-1', relation: 'produced' },
+      { id: 'edge-2', from_id: 'node-hypothesis-1', to_id: 'node-observation-long', relation: 'supports' },
     ],
     hypotheses: [{
       id: 'node-hypothesis-1', title: 'Background noise caps accuracy', status: 'open', branch: 'autoresearch/objbg-baseline',
@@ -884,6 +887,15 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Research', exact: true }).first()).toBeVisible()
+  await expect(page).toHaveURL(new RegExp(`project=${project.id}`))
+  await expect(page).toHaveURL(/study=study-objbg-1/)
+  await expect(page).toHaveURL(/view=research/)
+  await page.getByRole('button', { name: 'Evidence', exact: true }).click()
+  await expect(page).toHaveURL(/view=experiments/)
+  await expect(page).toHaveURL(/study=study-objbg-1/)
+  await page.goBack()
+  await expect(page.getByRole('heading', { name: 'Research', exact: true }).first()).toBeVisible()
+  await expect(page).toHaveURL(/view=research/)
   await expect(page.getByRole('heading', { name: 'objbg-scan' })).toBeVisible()
   await expect(page.getByTestId('study-route')).toContainText('research-plan')
   await expect(page.getByTestId('study-route')).toContainText('autoresearch/*')
@@ -943,6 +955,15 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await expect(page.getByLabel('Node detail')).toBeVisible()
   await expect(page.getByLabel('Node detail')).toContainText('autoresearch/objbg-baseline')
   await page.getByLabel('Node detail').screenshot({ path: process.env.GRAPH_DETAIL_SCREENSHOT || '/tmp/gemcp-graph-node-branch.png' })
+  await page.keyboard.press('Escape')
+  await page.locator('.flow-node[data-kind="observation"]').dispatchEvent('dblclick')
+  const provenanceDetail = page.getByLabel('Node detail')
+  await expect(provenanceDetail).toContainText(longProvenance)
+  await expect(provenanceDetail.getByRole('button', { name: 'Copy source' })).toBeVisible()
+  const detailFit = await provenanceDetail.evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth }))
+  expect(detailFit.scroll).toBeLessThanOrEqual(detailFit.client + 1)
+  const pathFit = await provenanceDetail.locator('p.graph-detail-text').first().evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth }))
+  expect(pathFit.scroll).toBeLessThanOrEqual(pathFit.client + 1)
   await page.keyboard.press('Escape')
   await expect(page.getByLabel('Node detail')).toHaveCount(0)
   await page.locator('.flow-node.is-success').filter({ hasText: 'OBJ-BG smoke accuracy' }).dblclick()

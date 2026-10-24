@@ -66,11 +66,14 @@ This tool is the next scientific step, not a cap-8 list of every legal edge.
 It reads the selected Study and, for each hypothesis, looks at existing runs, results, and observations. Evidence attribution stops at hypothesis boundaries: a run under a follow-up hypothesis belongs to that hypothesis only, never to its ancestors.
 
 - no hypothesis → record one from the question
-- hypothesis with no run → prepare an Experiment from that hypothesis
+- hypothesis with no run → prepare an Experiment from that hypothesis. Asserted observations (typed into the Graph, not Experiment evidence) do not rank `record_decision` first; the prepare detail counts those outside claims so they can be tested
 - open run → wait (`get_experiment`) or `close_run` when terminal
-- closed evidence and no decision → record a decision; the detail repeats the recorded verdict, and a failed run is described as no evidence either way
+- closed Experiment evidence (a result, or a Gemcp-written non-asserted observation) and no decision → record a decision; the detail repeats the recorded verdict, and a failed run is described as no evidence either way
 - closed evidence with a decision → prepare the next Experiment from that hypothesis, until the decision spawns a follow-up hypothesis, which then owns its own next step
 - a result or decision is on the Graph → also offer `export_research_plan_sync` (docs-only; never a training run)
+- a paused or archived Study does not suggest `prepare_experiment`. It offers `review_study` (`get_research_workspace`) and `export_research_plan_sync`. A paused Study also offers `resume_study`, which a human performs by setting status back to `active` through `update_research_workspace`. In-flight runs still suggest `wait_run` or `close_run`. A paused or archived Study with no runs says the record is retrospective and evidence-only
+
+`export_research_plan_sync` lists each hypothesis's observations, including descendants up to the next hypothesis and observations that `supports` or `contradicts` that hypothesis. Each line names the relation (`supports`, `contradicts`, or `leads_to`; supports and contradicts outrank `leads_to`) and labels numbers `(measured)` or `(asserted)`.
 
 When the Study has a route, prepare actions include `allowed_ref_pattern`, `protocol_branch`, and `protocol_doc_path`. Pass a matching live code `ref`. With `code_ref_pattern` set, omitting `ref` is refused (it would otherwise bind the repository default branch).
 

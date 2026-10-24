@@ -27,6 +27,20 @@ var (
 	ErrConfirmationRequired = errors.New("review and explicitly confirm the immutable experiment proposal")
 )
 
+// DigestMismatchError means the caller sent a digest that is not the one
+// prepare_experiment stored. The proposal itself did not drift.
+type DigestMismatchError struct {
+	ProposalID string
+}
+
+func (e *DigestMismatchError) Error() string {
+	id := ""
+	if e != nil {
+		id = e.ProposalID
+	}
+	return "confirmation_digest does not match proposal " + id + "; resend the digest returned by prepare_experiment"
+}
+
 type ProposalRefResolver interface {
 	ResolveRef(context.Context, int, string) (string, error)
 }

@@ -262,6 +262,7 @@ func (h *ExperimentHandlers) Operations(c *gin.Context) {
 func (h *ExperimentHandlers) writeError(c *gin.Context, err error) {
 	var validation *experiment.ValidationError
 	var graphValidation *research.ValidationError
+	var digestMismatch *experiment.DigestMismatchError
 	switch {
 	case errors.As(err, &validation):
 		writeError(c, http.StatusBadRequest, "INVALID_EXPERIMENT_QUERY", validation.Error())
@@ -283,6 +284,8 @@ func (h *ExperimentHandlers) writeError(c *gin.Context, err error) {
 		writeError(c, http.StatusNotFound, "EXPERIMENT_PROPOSAL_NOT_FOUND", "experiment proposal not found")
 	case errors.Is(err, experiment.ErrProposalExpired):
 		writeError(c, http.StatusConflict, "EXPERIMENT_PROPOSAL_EXPIRED", "experiment proposal expired; prepare again")
+	case errors.As(err, &digestMismatch):
+		writeError(c, http.StatusBadRequest, "EXPERIMENT_DIGEST_MISMATCH", digestMismatch.Error())
 	case errors.Is(err, experiment.ErrProposalChanged):
 		writeError(c, http.StatusConflict, "EXPERIMENT_PROPOSAL_CHANGED", "experiment proposal changed; prepare again and review the new digest")
 	case errors.Is(err, experiment.ErrProposalBlocked):

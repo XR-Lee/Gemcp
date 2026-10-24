@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useIntervalFn } from '@vueuse/core'
 import {
   Bell,
@@ -27,6 +27,7 @@ import {
 } from '@lucide/vue'
 import { APIError, api, githubDeployKeySettingsURL, githubFineGrainedTokenSettingsURL, type AgentReadiness, type Attempt, type BuildInfo, type DatasetBinding, type DatasetCatalogEntry, type Experiment, type ExperimentCatalog, type OperationsFeed, type PreparedProposal, type Project, type ProjectEnvironment, type ProjectWorkload, type ProposalActivity, type Repository, type RepositoryReadiness, type ResearchPlanSyncExport, type ResearchWorkspace, type RuntimeStatus, type User } from '../api'
 import { localizedState, useI18n } from '../i18n'
+import { panelPath, readPanelSelection } from '../panelLocation'
 import { pickDefaultProjectID } from '../projectSelect'
 import { draftStudyFromRepository, repositoryNameFromSSHURL } from '../studyImport'
 import BrandMark from './BrandMark.vue'
@@ -178,6 +179,98 @@ function handleError(caught: unknown, fallback: string) {
   error.value = caught instanceof APIError ? caught.message : fallback
 }
 
+const panelURLReady = ref(false)
+let syncingPanelURL = false
+let panelHistory: 'push' | 'replace' = 'push'
+
+function locationPath() {
+  return window.location.pathname + window.location.search + window.location.hash
+}
+
+function currentPanelPath() {
+  return panelPath(locationPath(), {
+    projectID: selectedProjectID.value,
+    studyID: selectedStudyID.value,
+    view: activeView.value,
+  })
+}
+
+function replacePanelURL() {
+  const next = currentPanelPath()
+  if (next !== locationPath()) window.history.replaceState(null, '', next)
+}
+
+function applyPanelSelectionFromLocation() {
+  const selection = readPanelSelection(window.location.search)
+  if (selection.view) activeView.value = selection.view
+  if (selection.projectID) selectedProjectID.value = selection.projectID
+  if (selection.studyID) selectedStudyID.value = selection.studyID
+}
+
+function rememberLoadedStudy(workspace: ResearchWorkspace, pickFirst: boolean) {
+  let id = ''
+  if (workspace.study) id = workspace.study.id
+  else if (pickFirst && workspace.studies.length) id = workspace.studies[0].id
+  else return
+  if (id === selectedStudyID.value) {
+    if (panelURLReady.value) replacePanelURL()
+    return
+  }
+  panelHistory = 'replace'
+  selectedStudyID.value = id
+}
+
+async function fetchResearch(projectID: string, studyID: string, fallbackUnknownStudy: boolean) {
+  try {
+    return await api.research(projectID, studyID)
+  } catch (caught) {
+    if (fallbackUnknownStudy && studyID && caught instanceof APIError && caught.status === 404 && caught.code === 'RESEARCH_NOT_FOUND') {
+      panelHistory = 'replace'
+      selectedStudyID.value = ''
+      return await api.research(projectID, '')
+    }
+    throw caught
+  }
+}
+
+function onPopState() {
+  const selection = readPanelSelection(window.location.search)
+  syncingPanelURL = true
+  const projectChanged = selection.projectID !== '' && selection.projectID !== selectedProjectID.value
+  const studyChanged = selection.studyID !== selectedStudyID.value
+  if (selection.view) activeView.value = selection.view
+  if (selection.projectID) selectedProjectID.value = selection.projectID
+  selectedStudyID.value = selection.studyID
+  void nextTick(() => {
+    syncingPanelURL = false
+    if (!selectedProjectID.value) return
+    if (projectChanged) {
+      void refreshProject(false)
+      return
+    }
+    if (!studyChanged) return
+    void (async () => {
+      try {
+        const loaded = await fetchResearch(selectedProjectID.value, selectedStudyID.value, true)
+        researchWorkspace.value = loaded
+        rememberLoadedStudy(loaded, true)
+      } catch (caught) {
+        handleError(caught, t('Could not load this Study.', '无法加载此 Study。'))
+      }
+    })()
+  })
+}
+
+watch([activeView, selectedProjectID, selectedStudyID], () => {
+  const mode = panelHistory
+  panelHistory = 'push'
+  if (!panelURLReady.value || syncingPanelURL) return
+  const next = currentPanelPath()
+  if (next === locationPath()) return
+  if (mode === 'replace') window.history.replaceState(null, '', next)
+  else window.history.pushState(null, '', next)
+})
+
 async function refreshAll() {
   loading.value = true
   error.value = ''
@@ -224,7 +317,7 @@ async function refreshProject(showSpinner = true) {
       api.repositories(projectID),
       api.experiments(projectID),
       api.operations(projectID),
-      api.research(projectID, selectedStudyID.value),
+      fetchResearch(projectID, selectedStudyID.value, true),
       api.experimentCatalog(projectID).catch((caught) => {
         if (caught instanceof APIError && caught.status === 401) throw caught
         return { project_id: projectID, repositories: [], generated_at: new Date().toISOString() }
@@ -252,8 +345,7 @@ async function refreshProject(showSpinner = true) {
     environments.value = loadedEnvironments
     projectWorkloads.value = loadedWorkloads
     await loadRepositoryReadiness(loadedRepositories[0], projectID, generation)
-    if (loadedResearch.study) selectedStudyID.value = loadedResearch.study.id
-    else if (loadedResearch.studies.length) selectedStudyID.value = loadedResearch.studies[0].id
+    rememberLoadedStudy(loadedResearch, true)
     if (showSpinner) await verifyPendingGitHubRepositories(generation, projectID)
   } catch (caught) {
     if (generation !== projectRefreshGeneration) return
@@ -273,7 +365,7 @@ async function refreshLive() {
     const [loadedExperiments, loadedOperations, loadedResearch, loadedCatalog, detail, history] = await Promise.all([
       api.experiments(projectID),
       api.operations(projectID),
-      api.research(projectID, selectedStudyID.value),
+      fetchResearch(projectID, selectedStudyID.value, true),
       api.experimentCatalog(projectID).catch((caught) => {
         if (caught instanceof APIError && caught.status === 401) throw caught
         return experimentCatalog.value ?? { project_id: projectID, repositories: [], generated_at: new Date().toISOString() }
@@ -286,7 +378,7 @@ async function refreshLive() {
     operationsFeed.value = loadedOperations
     researchWorkspace.value = loadedResearch
     experimentCatalog.value = loadedCatalog
-    if (loadedResearch.study) selectedStudyID.value = loadedResearch.study.id
+    rememberLoadedStudy(loadedResearch, false)
     if (detail && selectedExperiment.value?.id === detail.id) {
       selectedExperiment.value = detail
       attempts.value = Array.isArray(detail.attempts) ? detail.attempts : history
@@ -610,7 +702,9 @@ async function selectStudy(studyID: string) {
   selectedStudyID.value = studyID
   if (!selectedProjectID.value) return
   try {
-    researchWorkspace.value = await api.research(selectedProjectID.value, studyID)
+    const loaded = await api.research(selectedProjectID.value, studyID)
+    researchWorkspace.value = loaded
+    rememberLoadedStudy(loaded, false)
   } catch (caught) {
     handleError(caught, t('Could not load this Study.', '无法加载此 Study。'))
   }
@@ -939,8 +1033,16 @@ function stateLabel(value: string) {
 const { resume: resumeLive } = useIntervalFn(() => { void refreshLive() }, 5_000, { immediate: false })
 
 onMounted(async () => {
+  applyPanelSelectionFromLocation()
   await refreshAll()
+  replacePanelURL()
+  panelURLReady.value = true
+  window.addEventListener('popstate', onPopState)
   resumeLive()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('popstate', onPopState)
 })
 </script>
 

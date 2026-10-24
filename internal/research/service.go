@@ -33,11 +33,16 @@ const (
 	maxEdgesPerStudy     = 256
 	maxPlanSteps         = 16
 	maxNameLength        = 80
-	maxQuestionLength    = 400
-	maxSummaryLength     = 800
-	maxTitleLength       = 160
-	maxStepDetailLength  = 280
-	maxMetricNameLength  = 80
+	// StudyNamePattern is the Study name accepted by normalizeName: 1–80
+	// characters, starting with a letter or number, then letters, numbers,
+	// spaces, dots, underscores, or hyphens.
+	StudyNamePattern    = `^[A-Za-z0-9][A-Za-z0-9 ._-]{0,79}$`
+	StudyNameMaxLength  = 80
+	maxQuestionLength   = 400
+	maxSummaryLength    = 800
+	maxTitleLength      = 160
+	maxStepDetailLength = 280
+	maxMetricNameLength = 80
 )
 
 var (
@@ -49,7 +54,7 @@ var (
 	ErrStudyConflict      = errors.New("study name is already used in this Project")
 	ErrChoice             = errors.New("study selector is required")
 	ErrCatalogLimit       = errors.New("experiment catalog row limit reached")
-	namePattern           = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9 ._-]{0,79}$`)
+	namePattern           = regexp.MustCompile(StudyNamePattern)
 	metricPattern         = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9._-]{0,79}$`)
 	evidenceCommitPattern = regexp.MustCompile(`(?i)^[0-9a-f]{7,64}$`)
 	secretPattern         = regexp.MustCompile(`(?i)(authorization\s*:|bearer\s+[A-Za-z0-9._\-]+|api[_-]?key\s*=|private[_-]?key|BEGIN [A-Z ]+PRIVATE KEY|gmc_[A-Za-z0-9]+_|gne_[A-Za-z0-9]+_|password\s*=)`)
@@ -67,7 +72,7 @@ type WorkspaceInput struct {
 
 type StudyInput struct {
 	ID              string `json:"id,omitempty" jsonschema:"existing Study ID when updating"`
-	Name            string `json:"name" jsonschema:"stable Study name"`
+	Name            string `json:"name" jsonschema:"stable Study name using 1 to 80 letters, numbers, spaces, dots, underscores, or hyphens, and starting with a letter or number"`
 	Question        string `json:"question" jsonschema:"research question shown to the Owner"`
 	Summary         string `json:"summary,omitempty" jsonschema:"short scientific summary without prompts or credentials"`
 	Status          string `json:"status,omitempty" jsonschema:"active, paused, or archived"`

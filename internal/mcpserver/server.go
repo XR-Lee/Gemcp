@@ -151,6 +151,7 @@ func New(agentAuth *agentauth.Service, experiments *experiment.Service, version 
 	}, server.getResearchWorkspace)
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "update_research_workspace", Description: "Create or update a Study, replace the active iteration plan, or record a Graph node. Updating a node by id keeps omitted fields. Bound runs, results, and close_run highlights are Experiment evidence and cannot be edited. This never starts a workload. Requires submit scope.",
+		InputSchema: updateResearchWorkspaceInputSchema(),
 	}, server.updateResearchWorkspace)
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "get_next_actions", Description: "Return the next scientific step for the selected Study from its hypotheses, runs, and observations. Call this before prepare_experiment or close_run.",
@@ -799,6 +800,10 @@ func (s *Server) toolError(tool string, err error) error {
 	var graphValidation *research.ValidationError
 	if errors.As(err, &graphValidation) {
 		return errors.New(graphValidation.Message)
+	}
+	var digestMismatch *experiment.DigestMismatchError
+	if errors.As(err, &digestMismatch) {
+		return digestMismatch
 	}
 	for _, public := range []error{
 		experiment.ErrForbidden, experiment.ErrNotFound, experiment.ErrOptionNotFound,

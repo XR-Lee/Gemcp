@@ -18,6 +18,7 @@ afterEach(() => {
   useI18n().setLocale('en')
   window.localStorage.removeItem('gemcp.locale')
   document.cookie = 'gemcp_csrf=; Max-Age=0; path=/'
+  window.history.replaceState(null, '', '/')
 })
 
 describe('App', () => {
@@ -177,5 +178,132 @@ describe('App', () => {
     expect(wrapper.text()).toContain('Image bake')
     expect(wrapper.text()).toContain('torch-mamba')
     expect(fetchMock.mock.calls.some((call) => String(call[0]).includes('/confirm'))).toBe(false)
+  })
+
+  it('restores a study deep link after login and keeps unrelated query parameters', async () => {
+    window.history.replaceState(null, '', '/?project=project-id&study=study-1&view=research&lang=en')
+    const project = {
+      id: 'project-id', name: 'Research', slug: 'research', status: 'active', monthly_budget_milli: 100000,
+      max_experiment_milli: 20000, max_concurrency: 1, max_runtime_seconds: 3600,
+      timeout_extension_seconds: 3600, termination_grace_seconds: 60, timezone: 'Asia/Shanghai',
+    }
+    const user = { user_id: 'user-id', tenant_id: 'tenant-id', email: 'owner@example.com', role: 'owner' }
+    const study = {
+      id: 'study-1', name: 'Lineage', question: 'Does the imported table hold?', status: 'active',
+      updated_at: '2026-07-28T18:05:00Z', nodes: [], edges: [], hypotheses: [],
+    }
+    let signedIn = false
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const path = String(input)
+      if (path.endsWith('/api/v1/version')) return response({ data: build })
+      if (path.endsWith('/api/v1/setup/status')) return response({ data: { initialized: true } })
+      if (path.endsWith('/api/v1/auth/me')) {
+        if (!signedIn) return response({ error: { code: 'UNAUTHENTICATED', message: 'authentication required' } }, 401)
+        return response({ data: user })
+      }
+      if (path.endsWith('/api/v1/auth/login')) {
+        signedIn = true
+        return response({ data: { user, csrf_token: 'csrf-test', expires_at: '2030-01-01T00:00:00Z' } })
+      }
+      if (path.endsWith('/api/v1/projects')) return response({ data: [project] })
+      if (path.endsWith('/api/v1/runtime/status')) return response({ data: {
+        scheduler_enabled: false, self_hosted_enabled: false, ssh_cloud_enabled: false, global_concurrency: 1, public_url_configured: false, public_url_https: false,
+        scheduler_healthy: true, watchdog_healthy: false, notification_worker_healthy: false, generated_at: '2026-07-17T00:00:00Z',
+      } })
+      if (path.includes('/api/v1/repositories?')) return response({ data: [] })
+      if (path.includes('/api/v1/experiments?')) return response({ data: [] })
+      if (path.includes('/api/v1/projects/project-id/operations?')) return response({ data: { activities: [], proposals: [], generated_at: '2026-07-17T00:00:00Z' } })
+      if (path.includes('/api/v1/projects/project-id/research')) {
+        if (path.includes('study_id=missing')) return response({ error: { code: 'RESEARCH_NOT_FOUND', message: 'research workspace was not found' } }, 404)
+        return response({ data: { project_id: project.id, studies: [{ id: study.id, name: study.name, question: study.question, status: 'active', updated_at: study.updated_at }], study, generated_at: study.updated_at } })
+      }
+      if (path.endsWith('/api/v1/projects/project-id/experiment-catalog')) return response({ data: { project_id: project.id, repositories: [], generated_at: '2026-07-17T00:00:00Z' } })
+      if (path.endsWith('/api/v1/projects/project-id/agent-tokens')) return response({ data: { tokens: [], enrollments: [], config_file_name: 'mcp.json' } })
+      if (path.endsWith('/api/v1/projects/project-id/dataset-bindings')) return response({ data: [] })
+      if (path.endsWith('/api/v1/projects/project-id/dataset-sources')) return response({ data: [] })
+      if (path.endsWith('/api/v1/projects/project-id/environments')) return response({ data: [] })
+      if (path.endsWith('/api/v1/projects/project-id/workloads')) return response({ data: [] })
+      if (path.endsWith('/api/v1/projects/project-id/agent-readiness')) return response({ error: { code: 'READINESS_UNAVAILABLE', message: 'unavailable' } }, 503)
+      throw new Error(`unexpected request ${path}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const wrapper = mount(App)
+    await flushPromises()
+    expect(window.location.search).toContain('lang=en')
+    expect(wrapper.text()).toContain('Sign in')
+    await wrapper.get('input[type="email"]').setValue('owner@example.com')
+    await wrapper.get('input[type="password"]').setValue('correct horse battery staple')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Lineage')
+    expect(fetchMock.mock.calls.some((call) => String(call[0]).includes('study_id=study-1'))).toBe(true)
+    expect(window.location.search).toContain('project=project-id')
+    expect(window.location.search).toContain('study=study-1')
+    expect(window.location.search).toContain('view=research')
+    expect(window.location.search).toContain('lang=en')
+
+    await wrapper.get('button[aria-label="Evidence"]').trigger('click')
+    await flushPromises()
+    expect(window.location.search).toContain('view=experiments')
+    expect(window.location.search).toContain('study=study-1')
+    expect(window.location.search).toContain('lang=en')
+
+    window.history.pushState(null, '', '/?project=project-id&study=study-1&view=research&lang=en')
+    window.dispatchEvent(new PopStateEvent('popstate'))
+    await flushPromises()
+    expect(wrapper.get('button[aria-label="Research"]').classes()).toContain('active')
+    expect(window.location.search).toContain('view=research')
+  })
+
+  it('drops an unknown study id from the panel URL and reloads the Project', async () => {
+    window.history.replaceState(null, '', '/?project=project-id&study=missing&view=nope&lang=en')
+    const project = {
+      id: 'project-id', name: 'Research', slug: 'research', status: 'active', monthly_budget_milli: 100000,
+      max_experiment_milli: 20000, max_concurrency: 1, max_runtime_seconds: 3600,
+      timeout_extension_seconds: 3600, termination_grace_seconds: 60, timezone: 'Asia/Shanghai',
+    }
+    const study = {
+      id: 'study-real', name: 'Recovered lineage', question: 'Which table was imported?', status: 'active',
+      updated_at: '2026-07-28T18:05:00Z', nodes: [], edges: [], hypotheses: [],
+    }
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const path = String(input)
+      if (path.endsWith('/api/v1/version')) return response({ data: build })
+      if (path.endsWith('/api/v1/setup/status')) return response({ data: { initialized: true } })
+      if (path.endsWith('/api/v1/auth/me')) return response({ data: { user_id: 'user-id', tenant_id: 'tenant-id', email: 'owner@example.com', role: 'owner' } })
+      if (path.endsWith('/api/v1/projects')) return response({ data: [project] })
+      if (path.endsWith('/api/v1/runtime/status')) return response({ data: {
+        scheduler_enabled: false, self_hosted_enabled: false, ssh_cloud_enabled: false, global_concurrency: 1, public_url_configured: false, public_url_https: false,
+        scheduler_healthy: true, watchdog_healthy: false, notification_worker_healthy: false, generated_at: '2026-07-17T00:00:00Z',
+      } })
+      if (path.includes('/api/v1/repositories?')) return response({ data: [] })
+      if (path.includes('/api/v1/experiments?')) return response({ data: [] })
+      if (path.includes('/api/v1/projects/project-id/operations?')) return response({ data: { activities: [], proposals: [], generated_at: '2026-07-17T00:00:00Z' } })
+      if (path.includes('study_id=missing')) return response({ error: { code: 'RESEARCH_NOT_FOUND', message: 'research workspace was not found' } }, 404)
+      if (path.includes('/api/v1/projects/project-id/research')) return response({ data: {
+        project_id: project.id,
+        studies: [{ id: study.id, name: study.name, question: study.question, status: 'active', updated_at: study.updated_at }],
+        study, generated_at: study.updated_at,
+      } })
+      if (path.endsWith('/api/v1/projects/project-id/experiment-catalog')) return response({ data: { project_id: project.id, repositories: [], generated_at: '2026-07-17T00:00:00Z' } })
+      if (path.endsWith('/api/v1/projects/project-id/agent-tokens')) return response({ data: { tokens: [], enrollments: [], config_file_name: 'mcp.json' } })
+      if (path.endsWith('/api/v1/projects/project-id/dataset-bindings')) return response({ data: [] })
+      if (path.endsWith('/api/v1/projects/project-id/dataset-sources')) return response({ data: [] })
+      if (path.endsWith('/api/v1/projects/project-id/environments')) return response({ data: [] })
+      if (path.endsWith('/api/v1/projects/project-id/workloads')) return response({ data: [] })
+      if (path.endsWith('/api/v1/projects/project-id/agent-readiness')) return response({ error: { code: 'READINESS_UNAVAILABLE', message: 'unavailable' } }, 503)
+      throw new Error(`unexpected request ${path}`)
+    }))
+
+    const wrapper = mount(App)
+    await flushPromises()
+    expect(wrapper.text()).toContain('Recovered lineage')
+    expect(wrapper.text()).not.toContain('research workspace was not found')
+    expect(window.location.search).not.toContain('study=missing')
+    expect(window.location.search).toContain('study=study-real')
+    expect(window.location.search).toContain('view=research')
+    expect(window.location.search).toContain('lang=en')
   })
 })

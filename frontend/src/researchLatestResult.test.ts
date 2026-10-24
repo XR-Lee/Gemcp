@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ResearchNode } from './api'
-import { selectLatestResult } from './researchLatestResult'
+import { historicalObservationsForHypothesis, selectLatestEvidence, selectLatestResult } from './researchLatestResult'
 
 function node(partial: Partial<ResearchNode> & Pick<ResearchNode, 'id' | 'kind' | 'title' | 'created_at'>): ResearchNode {
   return { status: 'succeeded', updated_at: partial.created_at, ...partial }
@@ -30,5 +30,40 @@ describe('selectLatestResult', () => {
     expect(selectLatestResult([
       node({ id: 'q', kind: 'question', title: 'Q', created_at: '2026-08-17T18:10:00Z' }),
     ])).toBeNull()
+  })
+})
+
+describe('historical observations', () => {
+  const nodes = [
+    node({ id: 'h', kind: 'hypothesis', title: 'Augmentation helps', created_at: '2026-08-17T18:00:00Z' }),
+    node({ id: 'follow', kind: 'hypothesis', title: 'Follow-up', created_at: '2026-08-17T18:01:00Z' }),
+    node({
+      id: 'paper', kind: 'observation', title: 'Paper X', summary: 'Table 2',
+      metric_name: 'accuracy', metric_value: 0.93, metric_source: 'asserted',
+      occurred_at: '2024-01-02T00:00:00Z', created_at: '2026-08-17T18:02:00Z',
+    }),
+    node({
+      id: 'highlight', kind: 'observation', title: 'close_run highlight', system_written: true,
+      metric_source: 'experiment', created_at: '2026-08-17T18:03:00Z',
+    }),
+    node({ id: 'child', kind: 'observation', title: 'Follow-up note', created_at: '2026-08-17T18:04:00Z' }),
+  ]
+  const edges = [
+    { id: 'e1', from_id: 'h', to_id: 'paper', relation: 'leads_to' },
+    { id: 'e2', from_id: 'paper', to_id: 'h', relation: 'supports' },
+    { id: 'e3', from_id: 'h', to_id: 'highlight', relation: 'leads_to' },
+    { id: 'e4', from_id: 'h', to_id: 'follow', relation: 'leads_to' },
+    { id: 'e5', from_id: 'follow', to_id: 'child', relation: 'leads_to' },
+  ]
+
+  it('uses the newest historical observation when no result exists', () => {
+    expect(selectLatestEvidence(nodes)?.title).toBe('Follow-up note')
+    expect(selectLatestResult(nodes)).toBeNull()
+  })
+
+  it('keeps supports ahead of leads_to and hides close_run highlights', () => {
+    const observations = historicalObservationsForHypothesis('h', nodes, edges)
+    expect(observations.map((item) => [item.node.title, item.relation])).toEqual([['Paper X', 'supports']])
+    expect(historicalObservationsForHypothesis('follow', nodes, edges).map((item) => item.node.title)).toEqual(['Follow-up note'])
   })
 })
