@@ -121,6 +121,9 @@ type UpdateInput struct {
 	Study *StudyInput `json:"study,omitempty" jsonschema:"create or update one Study"`
 	Plan  *PlanInput  `json:"plan,omitempty" jsonschema:"replace the active iteration plan"`
 	Node  *NodeInput  `json:"node,omitempty" jsonschema:"record one Graph node and optional edge"`
+	// View shapes the MCP response only; the Owner console always reads the
+	// whole workspace.
+	View string `json:"view,omitempty" jsonschema:"compact (default) returns the nodes and edges this call recorded, the hypothesis record it touched, and next_actions; full also returns the whole workspace, as get_research_workspace does"`
 }
 
 type StudySummary struct {
@@ -252,15 +255,23 @@ func (s *Service) AgentWorkspace(ctx context.Context, principal agentauth.Princi
 	}, input.StudyID)
 }
 
+// AgentUpdate applies an Agent's update and returns the whole workspace after
+// it. The MCP tool returns AgentUpdateView instead.
 func (s *Service) AgentUpdate(ctx context.Context, principal agentauth.Principal, input UpdateInput) (Workspace, error) {
 	if !principal.HasScope("submit") {
 		return Workspace{}, ErrForbidden
 	}
+	workspace, _, err := s.update(ctx, agentWriter(principal), input)
+	return workspace, err
+}
+
+// agentWriter is the actor for a write made with an Agent Token.
+func agentWriter(principal agentauth.Principal) actor {
 	tokenID := principal.TokenID
-	return s.update(ctx, actor{
+	return actor{
 		tenantID: principal.TenantID, projectID: principal.ProjectID, projectPublic: principal.ProjectPublicID,
 		tokenID: &tokenID, actorType: auditevent.ActorTypeAgentToken, actorID: principal.TokenPublicID,
-	}, input)
+	}
 }
 
 func (s *Service) OwnerWorkspace(ctx context.Context, tenantID int, projectPublicID, studyID string) (Workspace, error) {
@@ -279,10 +290,11 @@ func (s *Service) OwnerUpdate(ctx context.Context, tenantID int, actorID, projec
 	if err != nil {
 		return Workspace{}, err
 	}
-	return s.update(ctx, actor{
+	workspace, _, err := s.update(ctx, actor{
 		tenantID: tenantID, projectID: projectRecord.ID, projectPublic: projectRecord.PublicID.String(),
 		actorType: auditevent.ActorTypeUser, actorID: strings.TrimSpace(actorID),
 	}, input)
+	return workspace, err
 }
 
 func (s *Service) workspace(ctx context.Context, current actor, studyID string) (Workspace, error) {
@@ -310,109 +322,130 @@ func (s *Service) workspace(ctx context.Context, current actor, studyID string) 
 	return result, nil
 }
 
-func (s *Service) update(ctx context.Context, current actor, input UpdateInput) (Workspace, error) {
+func (s *Service) update(ctx context.Context, current actor, input UpdateInput) (Workspace, written, error) {
 	if input.Study == nil && input.Plan == nil && input.Node == nil {
-		return Workspace{}, invalid("provide a study, plan, or graph node")
+		return Workspace{}, written{}, invalid("provide a study, plan, or graph node")
 	}
 	tx, err := s.client.Tx(ctx)
 	if err != nil {
-		return Workspace{}, err
+		return Workspace{}, written{}, err
 	}
 	defer func() { _ = tx.Rollback() }()
-	selected, err := s.applyUpdate(ctx, tx, current, input)
+	record, err := s.applyUpdate(ctx, tx, current, input)
 	if err != nil {
-		return Workspace{}, err
+		return Workspace{}, written{}, err
 	}
 	if err := tx.Commit(); err != nil {
-		return Workspace{}, err
+		return Workspace{}, written{}, err
 	}
-	return s.workspace(ctx, current, selected)
+	workspace, err := s.workspace(ctx, current, record.studyID)
+	if err != nil {
+		return Workspace{}, written{}, err
+	}
+	record.findHypothesis(workspace.Study)
+	return workspace, record, nil
 }
 
-func (s *Service) applyUpdate(ctx context.Context, tx *ent.Tx, current actor, input UpdateInput) (string, error) {
+func (s *Service) applyUpdate(ctx context.Context, tx *ent.Tx, current actor, input UpdateInput) (written, error) {
 	studies, err := tx.Study.Query().Where(study.ProjectIDEQ(current.projectID)).Order(ent.Desc(study.FieldUpdatedAt)).All(ctx)
 	if err != nil {
-		return "", err
+		return written{}, err
 	}
 	selectedID := studySelector(input)
 	var selected *ent.Study
+	var record written
 	if input.Study != nil {
-		selected, err = upsertStudy(ctx, tx, current, studies, *input.Study)
+		var question *ent.ResearchNode
+		selected, question, err = upsertStudy(ctx, tx, current, studies, *input.Study)
 		if err != nil {
-			return "", err
+			return written{}, err
+		}
+		if question != nil {
+			record.nodeIDs = append(record.nodeIDs, question.PublicID.String())
 		}
 		selectedID = selected.PublicID.String()
 		studies, err = tx.Study.Query().Where(study.ProjectIDEQ(current.projectID)).Order(ent.Desc(study.FieldUpdatedAt)).All(ctx)
 		if err != nil {
-			return "", err
+			return written{}, err
 		}
 	}
 	if selected == nil {
 		selected, err = selectStudy(studies, selectedID)
 		if err != nil {
-			return "", err
+			return written{}, err
 		}
 	}
 	if selected == nil && (input.Plan != nil || input.Node != nil) {
 		if len(studies) > 1 {
-			return "", ErrChoice
+			return written{}, ErrChoice
 		}
-		return "", invalid("create a Study before recording a plan or Graph node")
+		return written{}, invalid("create a Study before recording a plan or Graph node")
 	}
 	if input.Plan != nil {
 		if _, err := replacePlan(ctx, tx, current, selected, *input.Plan); err != nil {
-			return "", err
+			return written{}, err
 		}
+		record.plan = true
 	}
 	if input.Node != nil {
 		if strings.TrimSpace(input.Node.Kind) == string(researchnode.KindResult) {
-			return "", invalid("result nodes can only be written with close_run after the Experiment is terminal")
+			return written{}, invalid("result nodes can only be written with close_run after the Experiment is terminal")
 		}
-		if _, err := recordNode(ctx, tx, current, selected, *input.Node); err != nil {
-			return "", err
+		node, err := recordNode(ctx, tx, current, selected, *input.Node)
+		if err != nil {
+			return written{}, err
+		}
+		record.nodeIDs = append(record.nodeIDs, node.PublicID.String())
+		// recordNode wrote this edge, or found it already on the Graph.
+		if from, parseErr := uuid.Parse(strings.TrimSpace(input.Node.FromNodeID)); parseErr == nil {
+			record.edges = append(record.edges, edgeKey{
+				from: from.String(), to: node.PublicID.String(), relation: strings.TrimSpace(input.Node.Relation),
+			})
 		}
 	}
 	if selected != nil {
-		return selected.PublicID.String(), nil
+		record.studyID = selected.PublicID.String()
 	}
-	return "", nil
+	return record, nil
 }
 
-func upsertStudy(ctx context.Context, tx *ent.Tx, current actor, studies []*ent.Study, input StudyInput) (*ent.Study, error) {
+// upsertStudy creates or updates a Study. A new Study also gets its question
+// node, which is returned; an update returns no node.
+func upsertStudy(ctx context.Context, tx *ent.Tx, current actor, studies []*ent.Study, input StudyInput) (*ent.Study, *ent.ResearchNode, error) {
 	name, err := normalizeName(input.Name)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	question, err := normalizeText("question", input.Question, 8, maxQuestionLength)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	summary, err := normalizeOptionalText("summary", input.Summary, maxSummaryLength)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	status, err := parseStudyStatus(input.Status, study.StatusActive)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	route, err := normalizeRouteBinding(input.ProtocolBranch, input.ProtocolDocPath, input.CodeRefPattern)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var bound *ent.Repository
 	if strings.TrimSpace(input.RepositoryID) != "" {
 		bound, err = findProjectRepository(ctx, tx, current.projectID, input.RepositoryID)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 	existing, err := findStudy(studies, input.ID, name)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if existing == nil {
 		if len(studies) >= maxStudiesPerProject {
-			return nil, ErrStudyLimit
+			return nil, nil, ErrStudyLimit
 		}
 		create := tx.Study.Create().
 			SetTenantID(current.tenantID).SetProjectID(current.projectID).
@@ -428,9 +461,9 @@ func upsertStudy(ctx context.Context, tx *ent.Tx, current actor, studies []*ent.
 		record, err := create.Save(ctx)
 		if err != nil {
 			if ent.IsConstraintError(err) {
-				return nil, ErrStudyConflict
+				return nil, nil, ErrStudyConflict
 			}
-			return nil, err
+			return nil, nil, err
 		}
 		nodeCreate := tx.ResearchNode.Create().
 			SetTenantID(current.tenantID).SetProjectID(current.projectID).SetStudyID(record.ID).
@@ -438,18 +471,19 @@ func upsertStudy(ctx context.Context, tx *ent.Tx, current actor, studies []*ent.
 		if current.tokenID != nil {
 			nodeCreate.SetAgentTokenID(*current.tokenID)
 		}
-		if _, err := nodeCreate.Save(ctx); err != nil {
-			return nil, err
+		questionNode, err := nodeCreate.Save(ctx)
+		if err != nil {
+			return nil, nil, err
 		}
 		if err := writeAudit(ctx, tx, current, "research.study_created", "study", record.PublicID.String(), studyAudit(name, status, bound)); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		return record, nil
+		return record, questionNode, nil
 	}
 	if existing.Name != name {
 		conflict, _ := findStudy(studies, "", name)
 		if conflict != nil && conflict.ID != existing.ID {
-			return nil, ErrStudyConflict
+			return nil, nil, ErrStudyConflict
 		}
 	}
 	if strings.TrimSpace(input.Status) == "" {
@@ -465,14 +499,14 @@ func upsertStudy(ctx context.Context, tx *ent.Tx, current actor, studies []*ent.
 	updated, err := update.Save(ctx)
 	if err != nil {
 		if ent.IsConstraintError(err) {
-			return nil, ErrStudyConflict
+			return nil, nil, ErrStudyConflict
 		}
-		return nil, err
+		return nil, nil, err
 	}
 	if err := writeAudit(ctx, tx, current, "research.study_updated", "study", updated.PublicID.String(), studyAudit(name, status, bound)); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return updated, nil
+	return updated, nil, nil
 }
 
 func replacePlan(ctx context.Context, tx *ent.Tx, current actor, selected *ent.Study, input PlanInput) (*ent.IterationPlan, error) {

@@ -210,7 +210,7 @@ func openStudy(ctx context.Context, tools Tools, task Task, name string, episode
 	if err != nil {
 		return fmt.Errorf("create study: %w", err)
 	}
-	episode.StudyID = text(created, "study", "id")
+	episode.StudyID = studyOf(created)
 	hypothesis, err := tools.Call(ctx, "update_research_workspace", graphNode(episode.StudyID, map[string]any{
 		"kind": "hypothesis", "title": task.Hypothesis, "summary": task.Criterion,
 		"from_node_id": nodeID(created, "question", ""), "relation": "leads_to",

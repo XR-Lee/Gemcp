@@ -51,7 +51,7 @@ type UsageGuide struct {
 	Markdown    string   `json:"markdown"`
 }
 
-const serverInstructions = "Treat the research Graph as the execution contract. Call get_next_actions before spending; it proposes the next decision or Experiment from the hypothesis, its runs, and its observations. Keep the Owner-facing Study current with get_research_workspace. For a registered GitHub repository, extract raw experiment rows from distinct research branches into record_experiment_catalog (Setting, Method, Implementation, metric, Result, link, hash). That catalog is the table-ready evidence store and is not the Graph; it never starts a workload. Confirm with get_experiment_catalog. Never include prompts, private reasoning, credentials, or environment dumps in research text. prepare_experiment requires a connected hypothesis or plan from_node_id when a Study exists; isolated nodes cannot prepare; that origin is bound into the confirmation digest. When a Study has a code_ref_pattern, pass a matching live code ref; omitting ref would bind the repository default branch. After decisions, export_research_plan_sync dry-runs a docs-only research-plan amendment; Gemcp never pushes git. Project budget and submit scope are limits and technical capabilities, not financial approval. Show the immutable proposal and exact confirmation digest to the Owner, and never call submit_prepared_experiment until the Owner explicitly confirms that digest. submit_prepared_experiment writes the run node; bind failure is an error. Poll get_experiment for state, log_tail, and metrics; never SSH, fetch remote files, or infer metrics from logs. close_run is the only way to record a result after a terminal Experiment and also writes a highlight observation on the originating hypothesis; omit metric_name to copy the prepared expected_metric from the Experiment; pass verdict supports or contradicts only after reading that metric, because a finished run is not evidence by itself and a failed run is always inconclusive; result_commit_sha may attach the full Git commit containing its durable result manifest. Linking a Graph node never starts a workload. submit_experiment is rejected when an active Study exists."
+const serverInstructions = "Treat the research Graph as the execution contract. Call get_next_actions before spending; it proposes the next decision or Experiment from the hypothesis, its runs, and its observations. Keep the Owner-facing Study current with get_research_workspace, the full read; update_research_workspace and close_run return only what they recorded, the hypothesis record they touched, and next_actions unless view is full. For a registered GitHub repository, extract raw experiment rows from distinct research branches into record_experiment_catalog (Setting, Method, Implementation, metric, Result, link, hash). That catalog is the table-ready evidence store and is not the Graph; it never starts a workload. Confirm with get_experiment_catalog. Never include prompts, private reasoning, credentials, or environment dumps in research text. prepare_experiment requires a connected hypothesis or plan from_node_id when a Study exists; isolated nodes cannot prepare; that origin is bound into the confirmation digest. When a Study has a code_ref_pattern, pass a matching live code ref; omitting ref would bind the repository default branch. After decisions, export_research_plan_sync dry-runs a docs-only research-plan amendment; Gemcp never pushes git. Project budget and submit scope are limits and technical capabilities, not financial approval. Show the immutable proposal and exact confirmation digest to the Owner, and never call submit_prepared_experiment until the Owner explicitly confirms that digest. submit_prepared_experiment writes the run node; bind failure is an error. Poll get_experiment for state, log_tail, and metrics; never SSH, fetch remote files, or infer metrics from logs. close_run is the only way to record a result after a terminal Experiment and also writes a highlight observation on the originating hypothesis; omit metric_name to copy the prepared expected_metric from the Experiment; pass verdict supports or contradicts only after reading that metric, because a finished run is not evidence by itself and a failed run is always inconclusive; result_commit_sha may attach the full Git commit containing its durable result manifest. Linking a Graph node never starts a workload. submit_experiment is rejected when an active Study exists."
 
 type Option func(*Server)
 
@@ -147,10 +147,10 @@ func New(agentAuth *agentauth.Service, experiments *experiment.Service, version 
 		Name: "list_image_bakes", Description: "List recent Project image bakes. This never starts Pro.",
 	}, server.listImageBakes)
 	mcp.AddTool(mcpServer, &mcp.Tool{
-		Name: "get_research_workspace", Description: "Return Studies, the selected iteration plan, and the research Graph for the authenticated Project. This never starts a workload.",
+		Name: "get_research_workspace", Description: "Return Studies, the selected iteration plan, and the research Graph for the authenticated Project. This is the full read; Graph writes return only what they recorded. This never starts a workload.",
 	}, server.getResearchWorkspace)
 	mcp.AddTool(mcpServer, &mcp.Tool{
-		Name: "update_research_workspace", Description: "Create or update a Study, replace the active iteration plan, or record a Graph node. Updating a node by id keeps omitted fields. Bound runs, results, and close_run highlights are Experiment evidence and cannot be edited. This never starts a workload. Requires submit scope.",
+		Name: "update_research_workspace", Description: "Create or update a Study, replace the active iteration plan, or record a Graph node. Returns study_id, the nodes and edges this call recorded, the hypothesis record it touched with a tally of its runs, and next_actions; view=full also returns the whole workspace. Updating a node by id keeps omitted fields. Bound runs, results, and close_run highlights are Experiment evidence and cannot be edited. This never starts a workload. Requires submit scope.",
 	}, server.updateResearchWorkspace)
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "get_next_actions", Description: "Return the next scientific step for the selected Study from its hypotheses, runs, and observations. Call this before prepare_experiment or close_run.",
@@ -159,7 +159,7 @@ func New(agentAuth *agentauth.Service, experiments *experiment.Service, version 
 		Name: "export_research_plan_sync", Description: "Export a docs-only markdown amendment for the Study protocol branch (default research-plan). Dry-run is the default. This never starts a training run, never pushes git, and never writes frozen recipe files. Requires read for dry-run and submit to record an audit receipt.",
 	}, server.exportResearchPlanSync)
 	mcp.AddTool(mcpServer, &mcp.Tool{
-		Name: "close_run", Description: "Record a result and a highlight observation on a terminal Experiment that already has a Graph run. The observation is linked to the originating hypothesis. Copy the metric from get_experiment or omit it to use the prepared expected_metric. verdict (supports, contradicts, or inconclusive; default inconclusive) is your judgment of what that metric means for the hypothesis; only a succeeded run with a recorded metric can support or contradict. Optional highlight sets the observation title. Do not infer metrics from logs. An optional full result_commit_sha can attach its durable Git manifest commit. Requires submit scope.",
+		Name: "close_run", Description: "Record a result and a highlight observation on a terminal Experiment that already has a Graph run. The observation is linked to the originating hypothesis. Copy the metric from get_experiment or omit it to use the prepared expected_metric. verdict (supports, contradicts, or inconclusive; default inconclusive) is your judgment of what that metric means for the hypothesis; only a succeeded run with a recorded metric can support or contradict. Optional highlight sets the observation title. Do not infer metrics from logs. An optional full result_commit_sha can attach its durable Git manifest commit. Returns the result and highlight it recorded, their edges, the hypothesis record with this run and a tally of all its runs, and next_actions; view=full also returns the whole workspace. Requires submit scope.",
 	}, server.closeRun)
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name: "get_experiment_catalog", Description: "Return registered repository identity plus extracted experiment catalog rows (Setting, method, implementation, metric, result, link, hash, branch). This never starts a workload.",
@@ -568,15 +568,15 @@ func (s *Server) getResearchWorkspace(ctx context.Context, request *mcp.CallTool
 	return nil, output, s.researchToolError("get_research_workspace", err)
 }
 
-func (s *Server) updateResearchWorkspace(ctx context.Context, request *mcp.CallToolRequest, input research.UpdateInput) (*mcp.CallToolResult, research.Workspace, error) {
+func (s *Server) updateResearchWorkspace(ctx context.Context, request *mcp.CallToolRequest, input research.UpdateInput) (*mcp.CallToolResult, research.GraphWrite, error) {
 	principal, err := principalFrom(request)
 	if err != nil {
-		return nil, research.Workspace{}, err
+		return nil, research.GraphWrite{}, err
 	}
 	if s.research == nil {
-		return nil, research.Workspace{}, errors.New("research workspace service is unavailable")
+		return nil, research.GraphWrite{}, errors.New("research workspace service is unavailable")
 	}
-	output, err := s.research.AgentUpdate(ctx, principal, input)
+	output, err := s.research.AgentUpdateView(ctx, principal, input)
 	return nil, output, s.researchToolError("update_research_workspace", err)
 }
 
@@ -604,15 +604,15 @@ func (s *Server) exportResearchPlanSync(ctx context.Context, request *mcp.CallTo
 	return nil, output, s.researchToolError("export_research_plan_sync", err)
 }
 
-func (s *Server) closeRun(ctx context.Context, request *mcp.CallToolRequest, input research.CloseRunInput) (*mcp.CallToolResult, research.Workspace, error) {
+func (s *Server) closeRun(ctx context.Context, request *mcp.CallToolRequest, input research.CloseRunInput) (*mcp.CallToolResult, research.GraphWrite, error) {
 	principal, err := principalFrom(request)
 	if err != nil {
-		return nil, research.Workspace{}, err
+		return nil, research.GraphWrite{}, err
 	}
 	if s.research == nil {
-		return nil, research.Workspace{}, errors.New("research workspace service is unavailable")
+		return nil, research.GraphWrite{}, errors.New("research workspace service is unavailable")
 	}
-	output, err := s.research.AgentCloseRun(ctx, principal, input)
+	output, err := s.research.AgentCloseRunView(ctx, principal, input)
 	return nil, output, s.researchToolError("close_run", err)
 }
 

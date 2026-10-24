@@ -294,23 +294,42 @@ func graphNode(studyID string, node map[string]any) map[string]any {
 	return map[string]any{"node": node}
 }
 
-func nodeID(workspace map[string]any, kind, title string) string {
-	for _, node := range objects(workspace, "study", "nodes") {
-		if text(node, "kind") == kind && (title == "" || text(node, "title") == title) {
-			return text(node, "id")
+// Graph writes answer with the nodes and edges they recorded. Builds from
+// before that return the whole workspace instead, so the readers below fall
+// back to it and the benchmark still measures them.
+
+func studyOf(write map[string]any) string {
+	if id := text(write, "study_id"); id != "" {
+		return id
+	}
+	return text(write, "study", "id")
+}
+
+func nodeID(write map[string]any, kind, title string) string {
+	for _, nodes := range [][]map[string]any{objects(write, "nodes"), objects(write, "study", "nodes")} {
+		for _, node := range nodes {
+			if text(node, "kind") == kind && (title == "" || text(node, "title") == title) {
+				return text(node, "id")
+			}
 		}
 	}
 	return ""
 }
 
-func resultOf(workspace map[string]any, experimentID string) string {
+func resultOf(closed map[string]any, experimentID string) string {
+	// A result carries the Experiment of the run that produced it.
+	for _, node := range objects(closed, "nodes") {
+		if text(node, "kind") == "result" && text(node, "experiment_id") == experimentID {
+			return text(node, "id")
+		}
+	}
 	runID := ""
-	for _, node := range objects(workspace, "study", "nodes") {
+	for _, node := range objects(closed, "study", "nodes") {
 		if text(node, "kind") == "run" && text(node, "experiment_id") == experimentID {
 			runID = text(node, "id")
 		}
 	}
-	for _, edge := range objects(workspace, "study", "edges") {
+	for _, edge := range objects(closed, "study", "edges") {
 		if runID != "" && text(edge, "from_id") == runID && text(edge, "relation") == "produced" {
 			return text(edge, "to_id")
 		}

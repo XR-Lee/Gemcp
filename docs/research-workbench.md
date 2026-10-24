@@ -95,9 +95,9 @@ Constraints:
 
 The Graph is the execution contract. External harnesses stay outside Gemcp; MCP tools constrain what they may record and spend. The recommended singleton companion deployment, Git result manifest, and autonomy boundary are defined in [Lightweight experiment harness](node-experiment-harness.md). Tool names and object words are defined once in [Hypothesis–experiment Graph contract](graph-contract.md).
 
-- `get_research_workspace` (`read`): return Studies, the selected plan, Graph, hypothesis records, and next actions.
+- `get_research_workspace` (`read`): return Studies, the selected plan, Graph, hypothesis records, and next actions. This is the full read.
 - `get_next_actions` (`read`): suggest the next decision or Experiment from the hypothesis, its runs, and its observations.
-- `update_research_workspace` (`submit`): create or update a Study, replace the active plan, or record a Graph node and optional legal edge.
+- `update_research_workspace` (`submit`): create or update a Study, replace the active plan, or record a Graph node and optional legal edge. Like `close_run`, it returns only what it recorded, the hypothesis record it touched, and next actions ([what a Graph write returns](graph-contract.md#what-a-graph-write-returns)).
 - `prepare_experiment` (`submit`): when a Study exists, `from_node_id` must be a connected hypothesis or a plan under that Study. Isolated nodes cannot prepare. The origin is bound into the confirmation digest.
 - `submit_prepared_experiment` (`submit`): creates the Experiment and writes the `run` node. Bind failure is an error, not a silent skip.
 - `close_run` (`submit`): the only way to write a `result` on that run after the Experiment is terminal. It also writes a highlight observation linked to the originating hypothesis, and a `supports` or `contradicts` edge only when the caller records that verdict for a succeeded, measured run. Monitor with `get_experiment`; do not SSH or infer metrics from logs.

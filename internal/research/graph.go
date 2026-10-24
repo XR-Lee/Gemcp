@@ -50,6 +50,9 @@ type CloseRunInput struct {
 	MetricName      string   `json:"metric_name,omitempty" jsonschema:"optional scalar metric name; omit to copy the prepared expected_metric from the terminal Experiment"`
 	MetricValue     *float64 `json:"metric_value,omitempty" jsonschema:"optional scalar metric value; omit to copy the matching Experiment metric"`
 	ResultCommitSHA string   `json:"result_commit_sha,omitempty" jsonschema:"optional full 40- or 64-character Git commit containing the durable result manifest"`
+	// View shapes the MCP response only; the Owner console always reads the
+	// whole workspace.
+	View string `json:"view,omitempty" jsonschema:"compact (default) returns the result and highlight this call recorded, their edges, the hypothesis record with this run and a tally of all its runs, and next_actions; full also returns the whole workspace, as get_research_workspace does"`
 }
 
 const (
@@ -508,15 +511,14 @@ func (s *Service) BindPreparedRun(ctx context.Context, principal agentauth.Princ
 	return record.PublicID.String(), nil
 }
 
+// AgentCloseRun closes a run for an Agent and returns the whole workspace
+// after it. The MCP tool returns AgentCloseRunView instead.
 func (s *Service) AgentCloseRun(ctx context.Context, principal agentauth.Principal, input CloseRunInput) (Workspace, error) {
 	if !principal.HasScope("submit") {
 		return Workspace{}, ErrForbidden
 	}
-	tokenID := principal.TokenID
-	return s.closeRun(ctx, actor{
-		tenantID: principal.TenantID, projectID: principal.ProjectID, projectPublic: principal.ProjectPublicID,
-		tokenID: &tokenID, actorType: auditevent.ActorTypeAgentToken, actorID: principal.TokenPublicID,
-	}, input)
+	workspace, _, err := s.closeRun(ctx, agentWriter(principal), input)
+	return workspace, err
 }
 
 func (s *Service) OwnerCloseRun(ctx context.Context, tenantID int, actorID, projectPublicID string, input CloseRunInput) (Workspace, error) {
@@ -524,114 +526,115 @@ func (s *Service) OwnerCloseRun(ctx context.Context, tenantID int, actorID, proj
 	if err != nil {
 		return Workspace{}, err
 	}
-	return s.closeRun(ctx, actor{
+	workspace, _, err := s.closeRun(ctx, actor{
 		tenantID: tenantID, projectID: projectRecord.ID, projectPublic: projectRecord.PublicID.String(),
 		actorType: auditevent.ActorTypeUser, actorID: strings.TrimSpace(actorID),
 	}, input)
+	return workspace, err
 }
 
-func (s *Service) closeRun(ctx context.Context, current actor, input CloseRunInput) (Workspace, error) {
+func (s *Service) closeRun(ctx context.Context, current actor, input CloseRunInput) (Workspace, written, error) {
 	resultCommitSHA, err := normalizeResultCommit(input.ResultCommitSHA)
 	if err != nil {
-		return Workspace{}, err
+		return Workspace{}, written{}, err
 	}
 	tx, err := s.client.Tx(ctx)
 	if err != nil {
-		return Workspace{}, err
+		return Workspace{}, written{}, err
 	}
 	defer func() { _ = tx.Rollback() }()
 	studies, err := tx.Study.Query().Where(study.ProjectIDEQ(current.projectID)).Order(ent.Desc(study.FieldUpdatedAt)).All(ctx)
 	if err != nil {
-		return Workspace{}, err
+		return Workspace{}, written{}, err
 	}
 	selected, err := selectStudy(studies, input.StudyID)
 	if err != nil {
-		return Workspace{}, err
+		return Workspace{}, written{}, err
 	}
 	if selected == nil && strings.TrimSpace(input.StudyID) == "" {
 		bound, bindErr := findBoundRunStudy(ctx, tx, current.projectID, input.RunNodeID, input.ExperimentID)
 		if bindErr != nil {
-			return Workspace{}, bindErr
+			return Workspace{}, written{}, bindErr
 		}
 		selected = bound
 	}
 	if selected == nil {
 		if strings.TrimSpace(input.ExperimentID) != "" {
 			if _, expErr := findProjectExperiment(ctx, tx, current.projectID, input.ExperimentID); expErr != nil {
-				return Workspace{}, expErr
+				return Workspace{}, written{}, expErr
 			}
-			return Workspace{}, invalid("no Graph run is bound to this Experiment")
+			return Workspace{}, written{}, invalid("no Graph run is bound to this Experiment")
 		}
 		if strings.TrimSpace(input.RunNodeID) != "" {
-			return Workspace{}, invalid("run_node_id was not found in this Study")
+			return Workspace{}, written{}, invalid("run_node_id was not found in this Study")
 		}
 		if len(studies) > 1 {
-			return Workspace{}, ErrChoice
+			return Workspace{}, written{}, ErrChoice
 		}
-		return Workspace{}, invalid("create a Study before closing a run")
+		return Workspace{}, written{}, invalid("create a Study before closing a run")
 	}
 	run, err := findCloseRunNode(ctx, tx, current.projectID, selected.ID, input.RunNodeID, input.ExperimentID)
 	if err != nil {
-		return Workspace{}, err
+		return Workspace{}, written{}, err
+	}
+	hypothesis, err := hypothesisAncestor(ctx, tx.ResearchEdge, selected.ID, run.ID)
+	if err != nil {
+		return Workspace{}, written{}, err
 	}
 	produced, err := tx.ResearchEdge.Query().Where(
 		researchedge.StudyIDEQ(selected.ID), researchedge.FromNodeIDEQ(run.ID), researchedge.RelationEQ(researchedge.RelationProduced),
 	).Exist(ctx)
 	if err != nil {
-		return Workspace{}, err
+		return Workspace{}, written{}, err
 	}
 	if produced {
 		if err := tx.Commit(); err != nil {
-			return Workspace{}, err
+			return Workspace{}, written{}, err
 		}
-		return s.workspace(ctx, current, selected.PublicID.String())
+		return s.closedRun(ctx, current, selected, run, hypothesis, "")
 	}
 	experimentRecord, err := run.Edges.ExperimentOrErr()
 	if err != nil || experimentRecord == nil {
-		return Workspace{}, invalid("close_run requires a Graph run that already links a Project Experiment")
+		return Workspace{}, written{}, invalid("close_run requires a Graph run that already links a Project Experiment")
 	}
 	if _, terminal := terminalExperimentStates[experimentRecord.State]; !terminal {
-		return Workspace{}, invalid("close_run requires a terminal Experiment; wait or cancel first")
+		return Workspace{}, written{}, invalid("close_run requires a terminal Experiment; wait or cancel first")
 	}
 	status := researchnode.StatusSucceeded
 	if strings.TrimSpace(input.Status) != "" {
 		if input.Status != string(researchnode.StatusSucceeded) && input.Status != string(researchnode.StatusFailed) {
-			return Workspace{}, invalid("status must be succeeded or failed")
+			return Workspace{}, written{}, invalid("status must be succeeded or failed")
 		}
 		status = researchnode.Status(input.Status)
 	} else if experimentRecord.State != "succeeded" {
 		status = researchnode.StatusFailed
 	}
 	if status == researchnode.StatusSucceeded && experimentRecord.State != "succeeded" {
-		return Workspace{}, invalid("a non-succeeded Experiment cannot be recorded as a succeeded result")
+		return Workspace{}, written{}, invalid("a non-succeeded Experiment cannot be recorded as a succeeded result")
 	}
 	if err := fillCloseRunMetric(ctx, experimentRecord, &input); err != nil {
-		return Workspace{}, err
+		return Workspace{}, written{}, err
 	}
 	if err := validateCloseRunMetric(ctx, experimentRecord, status, input.MetricName, input.MetricValue); err != nil {
-		return Workspace{}, err
+		return Workspace{}, written{}, err
 	}
 	verdict, err := normalizeVerdict(input.Verdict)
 	if err != nil {
-		return Workspace{}, err
+		return Workspace{}, written{}, err
 	}
 	// A crash, timeout, or invalid run says nothing about the claim, and a
 	// verdict without a number is an opinion, not evidence.
 	if verdict != verdictInconclusive {
 		if status != researchnode.StatusSucceeded {
-			return Workspace{}, invalid("only a succeeded run can support or contradict a hypothesis; close this run with verdict inconclusive")
+			return Workspace{}, written{}, invalid("only a succeeded run can support or contradict a hypothesis; close this run with verdict inconclusive")
 		}
 		if strings.TrimSpace(input.MetricName) == "" || input.MetricValue == nil {
-			return Workspace{}, invalid("a supports or contradicts verdict needs a recorded metric; pass metric_name from the terminal Experiment")
+			return Workspace{}, written{}, invalid("a supports or contradicts verdict needs a recorded metric; pass metric_name from the terminal Experiment")
 		}
 	}
 	title := input.Title
 	if strings.TrimSpace(title) == "" {
 		title = run.Title + " result"
-	}
-	hypothesis, err := hypothesisAncestor(ctx, tx.ResearchEdge, selected.ID, run.ID)
-	if err != nil {
-		return Workspace{}, err
 	}
 	// close_run is the only writer for a funded run, so its terminal writes are
 	// exempt from the study caps: a full Graph must never leave paid work
@@ -647,7 +650,7 @@ func (s *Service) closeRun(ctx context.Context, current actor, input CloseRunInp
 		systemWritten:   true,
 	})
 	if err != nil {
-		return Workspace{}, err
+		return Workspace{}, written{}, err
 	}
 	warning := ""
 	if hypothesis == nil {
@@ -655,20 +658,31 @@ func (s *Service) closeRun(ctx context.Context, current actor, input CloseRunInp
 		// write the result, skip the highlight, and tell the agent why.
 		warning = legacyCloseHighlightWarning
 	} else if err := writeHighlightObservation(ctx, tx, current, selected, hypothesis, resultNode, experimentRecord, input, title, status, verdict, resultCommitSHA); err != nil {
-		return Workspace{}, err
+		return Workspace{}, written{}, err
 	}
 	if _, err := run.Update().SetStatus(status).Save(ctx); err != nil {
-		return Workspace{}, err
+		return Workspace{}, written{}, err
 	}
 	if err := tx.Commit(); err != nil {
-		return Workspace{}, err
+		return Workspace{}, written{}, err
 	}
+	return s.closedRun(ctx, current, selected, run, hypothesis, warning)
+}
+
+// closedRun reads the workspace after close_run and names what it recorded
+// for run, so a retry on a closed run reports the same write as the first call.
+func (s *Service) closedRun(ctx context.Context, current actor, selected *ent.Study, run, hypothesis *ent.ResearchNode, warning string) (Workspace, written, error) {
 	workspace, err := s.workspace(ctx, current, selected.PublicID.String())
 	if err != nil {
-		return Workspace{}, err
+		return Workspace{}, written{}, err
 	}
 	workspace.Warning = warning
-	return workspace, nil
+	record := written{studyID: selected.PublicID.String(), runID: run.PublicID.String()}
+	if hypothesis != nil {
+		record.hypothesisID = hypothesis.PublicID.String()
+	}
+	record.addClosedRun(workspace.Study)
+	return workspace, record, nil
 }
 
 func writeHighlightObservation(ctx context.Context, tx *ent.Tx, current actor, selected *ent.Study, hypothesis, resultNode *ent.ResearchNode, experimentRecord *ent.Experiment, input CloseRunInput, resultTitle string, status researchnode.Status, verdict, resultCommitSHA string) error {

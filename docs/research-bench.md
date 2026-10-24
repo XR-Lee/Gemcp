@@ -72,38 +72,38 @@ A lab self-check re-simulates every Experiment from its stored argv; any mismatc
 
 ## Results
 
-Same Agents, same tasks, three builds: `main` before these fixes, the first fix commit (`df0a3bb`), and this branch. The scripted Agents behave the same on every build (careful 4/4 conclusions and both searches solved, S = 1.00; grid 4/4 but S = 0.74; hasty 1/4); only Gemcp's record changes.
+Same Agents, same tasks, four builds: `main` before these fixes, the first fix commit (`df0a3bb`), the evidence fixes (`6bd24cf`), and compact Graph writes on this branch. The scripted Agents behave the same on every build (careful 4/4 conclusions and both searches solved, S = 1.00; grid 4/4 but S = 0.74; hasty 1/4); only Gemcp's record, and how much of it each write sends back, changes.
 
-| Metric | main | df0a3bb | branch |
-| --- | --- | --- | --- |
-| Run verdicts recorded correctly | 15/49 (31%) | 49/49 (100%) | 49/49 (100%) |
-| False `supports` on the Graph | 29 | 0 | 0 |
-| Crashed runs recorded as evidence | 5/5 (100%) | 0/5 (0%) | 0/5 (0%) |
-| Runs with conflicting verdicts | 12 | 0 | 0 |
-| Runs closed | 49/49 (100%) | 49/49 (100%) | 49/49 (100%) |
-| Result metric equals the Experiment's | 49/49 (100%) | 49/49 (100%) | 49/49 (100%) |
-| Hypothesis criterion kept | 0/12 (0%) | 12/12 (100%) | 12/12 (100%) |
-| Numbers labelled measured vs asserted | 0/100 (0%) | 100/100 (100%) | 100/100 (100%) |
-| Owner hypothesis cards show metric + verdict | 0/49 (0%) | 49/49 (100%) | 49/49 (100%) |
-| Plan-sync report checks passed | 24/134 (18%) | 134/134 (100%) | 134/134 (100%) |
-| Misleading next step after a crash | 5/5 (100%) | 0/5 (0%) | 0/5 (0%) |
-| Verdict workarounds needed (close_run without verdict) | 49 | 0 | 0 |
-| Tool calls per run | 7.7 | 5.6 | 5.6 |
-| Response KB per run | 57.1 | 35.9 | 35.9 |
-| Lab mismatches (harness self-check) | 0 | 0 | 0 |
-| Evidence rewrites that changed the record | 4/5 | 2/5 | 0/5 |
-| Runs one hypothesis holds | 39 | 42 | 42 |
-| What the Agent is told when the Study is full | `internal control-plane error` | `internal control-plane error` | `research graph node limit reached` |
-| Out-of-range parameter accepted by prepare_experiment | no | no | no |
-| Unconfirmed proposal submitted by the Agent | yes | yes | yes |
+| Metric | main | df0a3bb | 6bd24cf | compact writes |
+| --- | --- | --- | --- | --- |
+| Run verdicts recorded correctly | 15/49 (31%) | 49/49 (100%) | 49/49 (100%) | 49/49 (100%) |
+| False `supports` on the Graph | 29 | 0 | 0 | 0 |
+| Crashed runs recorded as evidence | 5/5 (100%) | 0/5 (0%) | 0/5 (0%) | 0/5 (0%) |
+| Runs with conflicting verdicts | 12 | 0 | 0 | 0 |
+| Runs closed | 49/49 (100%) | 49/49 (100%) | 49/49 (100%) | 49/49 (100%) |
+| Result metric equals the Experiment's | 49/49 (100%) | 49/49 (100%) | 49/49 (100%) | 49/49 (100%) |
+| Hypothesis criterion kept | 0/12 (0%) | 12/12 (100%) | 12/12 (100%) | 12/12 (100%) |
+| Numbers labelled measured vs asserted | 0/100 (0%) | 100/100 (100%) | 100/100 (100%) | 100/100 (100%) |
+| Owner hypothesis cards show metric + verdict | 0/49 (0%) | 49/49 (100%) | 49/49 (100%) | 49/49 (100%) |
+| Plan-sync report checks passed | 24/134 (18%) | 134/134 (100%) | 134/134 (100%) | 134/134 (100%) |
+| Misleading next step after a crash | 5/5 (100%) | 0/5 (0%) | 0/5 (0%) | 0/5 (0%) |
+| Verdict workarounds needed (close_run without verdict) | 49 | 0 | 0 | 0 |
+| Tool calls per run | 7.7 | 5.6 | 5.6 | 5.6 |
+| Response KB per run | 57.1 | 35.9 | 35.9 | 15.0 |
+| Lab mismatches (harness self-check) | 0 | 0 | 0 | 0 |
+| Evidence rewrites that changed the record | 4/5 | 2/5 | 0/5 | 0/5 |
+| Runs one hypothesis holds | 39 | 42 | 42 | 42 |
+| What the Agent is told when the Study is full | `internal control-plane error` | `internal control-plane error` | `research graph node limit reached` | `research graph node limit reached` |
+| Out-of-range parameter accepted by prepare_experiment | no | no | no | no |
+| Unconfirmed proposal submitted by the Agent | yes | yes | yes | yes |
 
-| Rewrite attempt after `close_run` | main | df0a3bb | branch |
-| --- | --- | --- | --- |
-| Raise a measured result's metric | refused | refused | refused |
-| Retitle a crash highlight as a success | changed | refused | refused |
-| Mark a crashed run succeeded | changed | refused | refused |
-| Link a crashed result as `supports` | changed | changed | refused |
-| Link a crash highlight as `supports` | changed | changed | refused |
+| Rewrite attempt after `close_run` | main | df0a3bb | 6bd24cf | compact writes |
+| --- | --- | --- | --- | --- |
+| Raise a measured result's metric | refused | refused | refused | refused |
+| Retitle a crash highlight as a success | changed | refused | refused | refused |
+| Mark a crashed run succeeded | changed | refused | refused | refused |
+| Link a crashed result as `supports` | changed | changed | refused | refused |
+| Link a crash highlight as `supports` | changed | changed | refused | refused |
 
 What the numbers on `main` come from:
 
@@ -113,12 +113,14 @@ What the numbers on `main` come from:
 - After a crash, `get_next_actions` said "Record whether it supports or contradicts that claim."
 - The workaround cost 37% more tool calls and 59% more tool output per run, and the extra notes used Graph capacity (39 runs instead of 42).
 
-The first fix commit left two holes that the benchmark found: an edge-only update could still link a crashed result or its highlight as `supports`, and a full Study surfaced as `internal control-plane error` at submit. Both are fixed on this branch.
+The first fix commit left two holes that the benchmark found: an edge-only update could still link a crashed result or its highlight as `supports`, and a full Study surfaced as `internal control-plane error` at submit. Both are fixed in `6bd24cf`.
+
+Up to `6bd24cf`, every Graph write returned the whole workspace. The careful Agent's 12-run `lr-sweep` read 54 responses and 466 KB, about 39 KB per run; each `close_run` grew from 7.5 KB to 44.5 KB as the Study filled, and `close_run` alone was two thirds of the bytes. Compact writes return what the call recorded, the hypothesis record it touched, and next actions ([what a Graph write returns](graph-contract.md#what-a-graph-write-returns)). The same episode reads 160 KB: Graph writes fell from 365 KB to 59 KB, and every `close_run` stays at 4.2 to 4.3 KB however large the Graph gets. Over all Agents, Response KB per run fell from 35.9 to 15.0 (careful 34.5 → 14.5, grid 35.4 → 14.2, hasty 46.5 → 22.3; hasty spreads its Study setup and report over a single run) with every other row unchanged. The scripted Agents read node IDs from what each write returns and fall back to the whole workspace, so older builds still score the same.
 
 ### Still open
 
 - **Owner confirmation is not enforced.** `prepare_experiment` returns the digest to the Agent, and `submit_prepared_experiment` accepts it without the Owner. The guide tells Agents to wait; an unattended bot can skip that.
-- **Tool output grows with the Graph.** Every Graph write returns the whole workspace: the careful Agent's 12-run `lr-sweep` read 54 responses and 466 KB, about 39 KB per run, which is a real context cost for a language-model Agent.
+- **The Experiment views are not trimmed.** `prepare_experiment`, `submit_prepared_experiment`, and `get_experiment` return about 8 KB per run together, now more than half of what an Agent reads per run. They do not grow with the Graph.
 - **One hypothesis holds about 42 runs.** The 128-node Study cap counts the run, result, and highlight of each run. The refusal arrives at submit, after the Owner may already have confirmed the proposal.
 - **Execution is simulated.** The scheduler, Provider, Runner, and artifacts are not exercised here; use [diagnostics](diagnostics.md) and `./scripts/local-cpu-loop.sh` for those.
 

@@ -119,6 +119,22 @@ Because every new spend already required a hypothesis ancestor, that link exists
 
 Copy the scalar from `get_experiment`, pass only `metric_name` to have Gemcp copy that value from the Experiment, or omit `metric_name` to copy the prepared `expected_metric`. Optional `highlight` sets the observation title; omit it to reuse the result title. Optional `result_commit_sha` stamps the durable Git manifest. Host-process Cloud SSH experiments (including the local CPU loop) have no Git checkout: omit `result_commit_sha` and do not invent a SHA. `close_run` treats the stored host-process placeholder as absent evidence. When `experiment_id` already identifies a bound Graph run, `study_id` may be omitted even if the Project has several Studies. `get_experiment` returns that `study_id` on a Graph-linked run.
 
+## What a Graph write returns
+
+`update_research_workspace` and `close_run` answer with what the call recorded, not the whole Study, so an Agent's context does not grow with the Graph. `get_research_workspace` stays the full read.
+
+| Field | Meaning |
+| --- | --- |
+| `study_id` | The Study the write landed in. |
+| `nodes` | The nodes this call recorded, as `get_research_workspace` shows them: the question of a new Study, the node written or updated by `id`, or the result and highlight observation of `close_run`. |
+| `edges` | The edges this call recorded: the one named by `from_node_id` and `relation`, also when it already existed; for `close_run`, `run -produced-> result`, the two `leads_to` edges into the highlight, and the verdict edge when there is one. |
+| `hypothesis` | The hypothesis record the write touched: the recorded hypothesis, or the nearest hypothesis the recorded node hangs off. It keeps the claim, adds a `tally` of every run on it (`runs`, `open`, `supports`, `contradicts`, `inconclusive`), and after `close_run` carries that `run`'s record. The full read lists every run record. |
+| `plan` | The active plan, when the call replaced it. |
+| `next_actions` | The steps `get_next_actions` would return. |
+| `warning` | Why `close_run` wrote no highlight for a legacy run. |
+
+`view` is `compact` by default. `view: "full"` adds `studies` and the whole `study`, as `get_research_workspace` returns them. A retry of `close_run` on a closed run reports the same nodes and edges as the first call. The Owner console always reads the whole workspace.
+
 ## Owner view
 
 The Owner hypothesis list (same objects as MCP) shows, for each hypothesis:
