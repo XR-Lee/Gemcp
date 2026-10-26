@@ -194,4 +194,8 @@ Ideas, feedback, issues, and pull requests are very welcome.
 
 **Send a pull request.** Branch from `main` and open a pull request against `main`. Keep the change focused. Note what you changed and how you checked it. Usual commands are in [Develop](#develop). Coding agents working in this tree should read [AGENTS.md](AGENTS.md) first.
 
-Leave real credentials out of the issue and the diff. See [Security](#security).
+Leave real credentials out of the issue and the diff. See [Security](#security). Submitted contributions are licensed under the [MIT License](LICENSE).
+
+## License
+
+[MIT](LICENSE). Copyright (c) 2026 Xinrun Li.
