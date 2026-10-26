@@ -68,7 +68,7 @@ Gemcp 文档里已经支持的"Grok"，是交互式的 Grok Build（[MCP 客户�
 | S8 | 单 Owner，没有 RBAC | [architecture](architecture.md)："single-organization … one owner" | 多人使用的 Bot 无法区分谁有权批准 |
 | S9 | 没有限流和配额 | 代码里没有找到 MCP 或 API 层的限流 | 失控的 Bot 可以无限 prepare（零成本，但会写库）和写 Graph |
 
-`agentauth.LocalCPUScopes` 会在 `GEMCP_LOCAL_PROCESS_ENABLED` 打开时，把 `submit` Token 的有效权限提升到 `configure` 加 `operate_nodes`。这个开关要求 `GEMCP_ENV=development`，但仍要注意：不要把开着本地进程模式的开发实例暴露给 Bot。
+本地进程模式不会扩大 Token scope：`GEMCP_LOCAL_PROCESS_ENABLED` 打开时，有效权限仍等于 Owner 授予的 scope。远程 `register_ssh_cloud_node` 需要显式的 `operate_nodes`。该开关要求 `GEMCP_ENV=development`，仍不要把开发实例暴露给 Bot。
 
 ### 2.2 P1：Auto Research 能力缺口
 

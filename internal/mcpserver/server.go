@@ -291,9 +291,8 @@ func (s *Server) verifyToken(ctx context.Context, raw string, _ *http.Request) (
 		s.logger.Error("verify MCP Agent token", "error", err)
 		return nil, errors.New("Agent token verification failed")
 	}
-	if s.sshCloud != nil && s.sshCloud.LocalProcessEnabled() {
-		principal = agentauth.LocalCPUScopes(principal)
-	}
+	// Effective scopes are the stored grant in every execution mode. Local-process
+	// loopback tools check submit themselves; they must not add configure or operate_nodes.
 	expiration := time.Now().UTC().Add(24 * time.Hour)
 	if principal.ExpiresAt != nil && principal.ExpiresAt.Before(expiration) {
 		expiration = *principal.ExpiresAt
@@ -727,6 +726,8 @@ func (s *Server) registerSSHCloudNode(ctx context.Context, request *mcp.CallTool
 	if err != nil {
 		return nil, sshcloud.NodeView{}, err
 	}
+	// Remote hosts need an explicit operate_nodes grant. Local-process mode does not
+	// widen the token: only the loopback CPU stub also accepts submit.
 	localCPU := s.sshCloud != nil && s.sshCloud.LocalProcessEnabled() && sshcloud.LooksLikeLocalProcessNode(input)
 	if !principal.HasScope("operate_nodes") && !(localCPU && principal.HasScope("submit")) {
 		return nil, sshcloud.NodeView{}, experiment.ErrForbidden
