@@ -9,13 +9,16 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
 	"entgo.io/ent/dialect"
+	"github.com/XR-Lee/Gemcp/ent"
 	"github.com/XR-Lee/Gemcp/ent/enttest"
 	"github.com/XR-Lee/Gemcp/ent/nodeprojectaccess"
 	"github.com/XR-Lee/Gemcp/guides"
+	"github.com/XR-Lee/Gemcp/internal/agentaccess"
 	"github.com/XR-Lee/Gemcp/internal/agentauth"
 	"github.com/XR-Lee/Gemcp/internal/datasetcatalog"
 	"github.com/XR-Lee/Gemcp/internal/environmentcatalog"
@@ -477,6 +480,16 @@ func TestRegisterLocalCPUStubAllowsSubmitWithoutOperateNodes(t *testing.T) {
 	}
 	defer session.Close()
 
+	usage, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "get_usage_guide", Arguments: map[string]any{}})
+	if err != nil || usage.IsError {
+		t.Fatalf("get_usage_guide = %+v, %v", usage, err)
+	}
+	var usageOutput UsageGuide
+	decodeStructured(t, usage.StructuredContent, &usageOutput)
+	if strings.Join(usageOutput.TokenScopes, ",") != "read,submit,cancel" {
+		t.Fatalf("token_scopes = %v, want the stored grant only", usageOutput.TokenScopes)
+	}
+
 	node, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "register_ssh_cloud_node", Arguments: map[string]any{}})
 	if err != nil || node.IsError {
 		t.Fatalf("loopback CPU stub with submit = %+v, %v", node, err)
@@ -492,6 +505,199 @@ func TestRegisterLocalCPUStubAllowsSubmitWithoutOperateNodes(t *testing.T) {
 	}})
 	if err != nil || dataset.IsError {
 		t.Fatalf("modelnet40-mini with submit = %+v, %v", dataset, err)
+	}
+}
+
+func TestLocalProcessModeDoesNotWidenReadOnlyOrProvisionalTokens(t *testing.T) {
+	client := enttest.Open(t, dialect.SQLite, "file:mcp-local-scope?mode=memory&cache=shared&_fk=1")
+	defer client.Close()
+	ctx := context.Background()
+	tenant, err := client.Tenant.Create().SetName("Test").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	project, err := client.Project.Create().
+		SetTenantID(tenant.ID).SetName("Project").SetSlug("project").
+		SetMonthlyBudgetMilli(100000).SetMaxExperimentMilli(20000).SetMaxRuntimeSeconds(3600).
+		Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key, err := secrets.GenerateMasterKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	box, err := secrets.New(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	readOnly := mintAgentToken(t, client, box, project.ID, "read-only", []string{"read"})
+	configureOnly := mintAgentToken(t, client, box, project.ID, "configure-only", []string{"read", "configure"})
+	operator := mintAgentToken(t, client, box, project.ID, "node-operator", []string{"read", "operate_nodes"})
+	provisional := claimProvisionalToken(t, ctx, client, box, tenant.ID, project.PublicID.String())
+
+	config := sshcloud.DefaultConfig()
+	config.Enabled = true
+	config.LocalProcessEnabled = true
+	config.InstanceID = "test"
+	sshService, err := sshcloud.NewService(client, box, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sshService.WithDial(func(context.Context, sshcloud.Target, sshcloud.Credential, string) (sshcloud.Conn, string, error) {
+		return nil, "", errors.New("probe should stay in the background")
+	})
+	handler := New(
+		agentauth.NewService(client, box),
+		experiment.NewService(client, box, allowCommitVerifier{}),
+		"test", nil, WithSSHCloud(sshService),
+	).Handler()
+	httpServer := httptest.NewServer(handler)
+	defer httpServer.Close()
+
+	const sshPassword = "write-only-probe-secret"
+	remoteArgs := map[string]any{
+		"label": "remote-probe", "host": "192.0.2.1", "user": "nobody",
+		"auth_method": "password", "password": sshPassword,
+	}
+	loopbackArgs := map[string]any{"host": "127.0.0.1"}
+	rotateArgs := map[string]any{"node_id": uuid.NewString(), "auth_method": "password", "password": sshPassword}
+
+	for _, token := range []string{readOnly, provisional} {
+		session := connectMCPSession(t, ctx, httpServer.URL, token)
+		assertUsageScopes(t, ctx, session, "read")
+		assertScopeDenied(t, ctx, session, "register_ssh_cloud_node", remoteArgs, sshPassword)
+		assertScopeDenied(t, ctx, session, "register_ssh_cloud_node", loopbackArgs, "")
+		assertScopeDenied(t, ctx, session, "rotate_ssh_cloud_node_credential", rotateArgs, sshPassword)
+		assertScopeDenied(t, ctx, session, "register_repository", map[string]any{
+			"name": "outside", "ssh_url": "git@github.com:example/outside.git",
+		}, "")
+		session.Close()
+	}
+
+	configureSession := connectMCPSession(t, ctx, httpServer.URL, configureOnly)
+	assertUsageScopes(t, ctx, configureSession, "read,configure")
+	assertScopeDenied(t, ctx, configureSession, "register_ssh_cloud_node", remoteArgs, sshPassword)
+	assertScopeDenied(t, ctx, configureSession, "rotate_ssh_cloud_node_credential", rotateArgs, sshPassword)
+	configureSession.Close()
+
+	if count, err := client.CloudSSHNode.Query().Count(ctx); err != nil || count != 0 {
+		t.Fatalf("rejected registrations stored %d Cloud SSH nodes (err=%v)", count, err)
+	}
+
+	operatorSession := connectMCPSession(t, ctx, httpServer.URL, operator)
+	assertUsageScopes(t, ctx, operatorSession, "read,operate_nodes")
+	registered, err := operatorSession.CallTool(ctx, &mcp.CallToolParams{Name: "register_ssh_cloud_node", Arguments: remoteArgs})
+	if err != nil || registered.IsError {
+		t.Fatalf("operate_nodes register_ssh_cloud_node isError=%v err=%v", registered != nil && registered.IsError, err)
+	}
+	encoded, _ := json.Marshal(registered)
+	if strings.Contains(string(encoded), sshPassword) || strings.Contains(strings.ToLower(string(encoded)), "ciphertext") {
+		t.Fatal("register_ssh_cloud_node returned credential material")
+	}
+	if !strings.Contains(string(encoded), "192.0.2.1") || !strings.Contains(string(encoded), "nobody") {
+		t.Fatal("operate_nodes token did not register the remote host")
+	}
+	operatorSession.Close()
+	if count, err := client.CloudSSHNode.Query().Count(ctx); err != nil || count != 1 {
+		t.Fatalf("scoped registration stored %d Cloud SSH nodes (err=%v)", count, err)
+	}
+}
+
+func mintAgentToken(t *testing.T, client *ent.Client, box *secrets.Box, projectID int, label string, scopes []string) string {
+	t.Helper()
+	raw, prefix, err := secrets.RandomToken("gmc", 32)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.AgentToken.Create().
+		SetProjectID(projectID).SetLabel(label).SetPrefix(prefix).
+		SetTokenHash(box.Digest("agent-token", raw)).SetScopes(scopes).Save(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	return raw
+}
+
+func claimProvisionalToken(t *testing.T, ctx context.Context, client *ent.Client, box *secrets.Box, tenantID int, projectID string) string {
+	t.Helper()
+	access := agentaccess.NewService(client, box, "https://gemcp.example.test")
+	issued, err := access.IssueEnrollment(ctx, tenantID, "owner", projectID, agentaccess.EnrollmentIssueInput{
+		Label:  "provisional-agent",
+		Scopes: []string{"read", "submit", "configure", "operate_nodes"},
+	})
+	if err != nil {
+		t.Fatalf("IssueEnrollment() error = %v", err)
+	}
+	parsed, err := url.Parse(issued.SetupURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	values, err := url.ParseQuery(parsed.Fragment)
+	if err != nil {
+		t.Fatal(err)
+	}
+	code := values.Get("code")
+	if !strings.HasPrefix(code, "gme_") {
+		t.Fatal("setup URL did not include an enrollment code")
+	}
+	claimed, err := access.ClaimEnrollment(ctx, code)
+	if err != nil {
+		t.Fatalf("ClaimEnrollment() error = %v", err)
+	}
+	stored, err := client.AgentToken.Query().All(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var provisionalScopes []string
+	for _, record := range stored {
+		if record.Label == "provisional-agent" {
+			provisionalScopes = append([]string(nil), record.Scopes...)
+		}
+	}
+	if strings.Join(provisionalScopes, ",") != "read" {
+		t.Fatalf("provisional stored scopes = %v, want [read] until verification", provisionalScopes)
+	}
+	return claimed.AgentToken
+}
+
+func connectMCPSession(t *testing.T, ctx context.Context, endpoint, token string) *mcp.ClientSession {
+	t.Helper()
+	httpClient := &http.Client{Transport: bearerTransport{token: token, base: http.DefaultTransport}}
+	mcpClient := mcp.NewClient(&mcp.Implementation{Name: "gemcp-test", Version: "test"}, nil)
+	session, err := mcpClient.Connect(ctx, &mcp.StreamableClientTransport{
+		Endpoint: endpoint, HTTPClient: httpClient,
+	}, nil)
+	if err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	return session
+}
+
+func assertUsageScopes(t *testing.T, ctx context.Context, session *mcp.ClientSession, want string) {
+	t.Helper()
+	usage, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "get_usage_guide", Arguments: map[string]any{}})
+	if err != nil || usage.IsError {
+		t.Fatalf("get_usage_guide isError=%v err=%v", usage != nil && usage.IsError, err)
+	}
+	var output UsageGuide
+	decodeStructured(t, usage.StructuredContent, &output)
+	if strings.Join(output.TokenScopes, ",") != want {
+		t.Fatalf("token_scopes = %v, want %s", output.TokenScopes, want)
+	}
+}
+
+func assertScopeDenied(t *testing.T, ctx context.Context, session *mcp.ClientSession, tool string, args map[string]any, secret string) {
+	t.Helper()
+	result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: tool, Arguments: args})
+	if err != nil {
+		t.Fatalf("%s transport error = %v", tool, err)
+	}
+	encoded, _ := json.Marshal(result)
+	if secret != "" && strings.Contains(string(encoded), secret) {
+		t.Fatalf("%s result included a write-only SSH secret", tool)
+	}
+	if !result.IsError || !strings.Contains(strings.ToLower(string(encoded)), "scope") {
+		t.Fatalf("%s should be rejected for missing scope (isError=%v)", tool, result.IsError)
 	}
 }
 

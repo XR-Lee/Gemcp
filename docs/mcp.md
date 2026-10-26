@@ -309,7 +309,7 @@ Scope mapping:
 | Scope | Required for |
 | --- | --- |
 | `read` | usage guide, options, research workspace, next actions, experiment queries, artifact listing and bounded artifact reads, cost queries, image bake status, and `export_research_plan_sync` dry-run |
-| `submit` | research updates, close_run, prepare, prepared submission, Advanced direct submission, recording a plan-sync audit receipt, and the local CPU stub (`register_ssh_cloud_node` loopback, host Environment, catalog `modelnet40-mini`) when `GEMCP_LOCAL_PROCESS_ENABLED` is on. While that flag is on, MCP requests are verified as if the token also held `configure` and `operate_nodes`; the stored token scopes never change, so turning the flag off restores the token's real authority |
+| `submit` | research updates, close_run, prepare, prepared submission, Advanced direct submission, recording a plan-sync audit receipt, and the local CPU stub (`register_ssh_cloud_node` loopback, host Environment, catalog `modelnet40-mini`) when `GEMCP_LOCAL_PROCESS_ENABLED` is on. That flag does not add `configure` or `operate_nodes`. Remote Cloud SSH registration and credential rotation still require an explicit `operate_nodes` grant, and `get_usage_guide` reports only the scopes stored on the token |
 | `cancel` | `cancel_experiment` |
 | `configure` | register and verify Project repositories; register or disable trusted-workspace dataset paths and AutoDL dataset bindings; request a zero-cost image bake |
 | `operate_nodes` | register Cloud SSH hosts and rotate their credentials; off by default in production and not included in `configure`. skip_provider local setup tokens include it |
