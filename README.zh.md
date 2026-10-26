@@ -167,3 +167,7 @@ make frontend-e2e
 ## 安全
 
 仓库里不要放真实的 AutoDL、SMTP、Git、Runner、Agent setup、Node setup 或实验密钥。Provider、SMTP 和 Git 私钥静态加密。Agent / Node 的 setup code 和长期 Token 只存 HMAC 摘要。AutoDL Runner Token 按 Attempt 作用域发放，不会进用户命令环境。自建作业容器拿不到任何 Gemcp 凭据。
+
+## 许可证
+
+[MIT](LICENSE)。版权所有 © 2026 Xinrun Li。提交的贡献按同一许可证授权。
