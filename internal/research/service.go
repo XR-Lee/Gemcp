@@ -198,6 +198,10 @@ type HypothesisRunRecord struct {
 	MetricValue    *float64     `json:"metric_value,omitempty"`
 	MetricSource   string       `json:"metric_source,omitempty"`
 	Verdict        string       `json:"verdict,omitempty"`
+	// AgentReading is an observation the Agent linked from this result.
+	// It is the Agent's claim, not the close_run verdict.
+	AgentReading      string `json:"agent_reading,omitempty"`
+	AgentReadingTitle string `json:"agent_reading_title,omitempty"`
 }
 
 type HypothesisView struct {
@@ -1055,15 +1059,21 @@ func makeHypothesisRecords(view StudyView, identities map[string]GitIdentity) []
 			}
 			// close_run links the highlight observation to its result, which
 			// stays unambiguous when one hypothesis accumulates several runs.
+			// Prefer that system-written highlight over an Agent observation
+			// the result also leads to.
 			highlightID := ""
 			if producedResultID != "" {
 				for _, observation := range observations {
+					if !observation.SystemWritten {
+						continue
+					}
 					if hasEdge(view.Edges, producedResultID, observation.ID, "leads_to") {
 						record.HighlightTitle = observation.Title
 						highlightID = observation.ID
 						break
 					}
 				}
+				record.AgentReading, record.AgentReadingTitle = agentReadingOnResult(observations, view.Edges, outgoing, producedResultID, hypothesis.ID)
 			}
 			// Legacy fallbacks for graphs written before that edge existed.
 			if record.HighlightTitle == "" {
@@ -1097,6 +1107,38 @@ func makeHypothesisRecords(view StudyView, identities map[string]GitIdentity) []
 		})
 	}
 	return records
+}
+
+// agentReadingOnResult is the Agent's own supports or contradicts claim
+// hung off this result. It is not the close_run highlight.
+func agentReadingOnResult(observations []NodeView, edges []EdgeView, outgoing map[string][]EdgeView, resultID, hypothesisID string) (string, string) {
+	if resultID == "" {
+		return "", ""
+	}
+	found := map[string]string{}
+	var order []string
+	for _, observation := range observations {
+		if observation.SystemWritten || !hasEdge(edges, resultID, observation.ID, "leads_to") {
+			continue
+		}
+		relation := observationVerdict(outgoing, observation.ID, hypothesisID)
+		if relation != verdictSupports && relation != verdictContradicts {
+			continue
+		}
+		if _, ok := found[relation]; ok {
+			continue
+		}
+		order = append(order, relation)
+		found[relation] = observation.Title
+	}
+	switch len(order) {
+	case 0:
+		return "", ""
+	case 1:
+		return order[0], found[order[0]]
+	default:
+		return "conflict", found[verdictContradicts]
+	}
 }
 
 func hypothesisGit(experiments []HypothesisRunRecord) (string, *GitIdentity) {

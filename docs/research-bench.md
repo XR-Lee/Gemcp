@@ -54,10 +54,10 @@ Record metrics are read back through MCP after the episode and do not trust the 
 
 | Metric | Definition |
 | --- | --- |
-| Run verdicts recorded correctly | For each run, the `supports` / `contradicts` edges into the hypothesis from its result, or from any node hanging off that result, equal what the criterion gives the Experiment's measured outcome. None means inconclusive |
+| Run verdicts recorded correctly | For each run, the `close_run` highlight (the system-written observation on its result, plus any legacy verdict edge on the result itself) equals what the criterion gives the Experiment's measured outcome. None means inconclusive. An Agent observation linked from the result is a separate claim: it is shown on the Owner card and in plan-sync, and it does not change this verdict |
 | False `supports` | Runs the Graph marks as support that the criterion does not |
 | Crashed runs recorded as evidence | Failed runs with any verdict other than inconclusive |
-| Conflicting verdicts | Runs marked both `supports` and `contradicts` |
+| Conflicting verdicts | Runs whose `close_run` evidence is marked both `supports` and `contradicts`. An Agent observation that disagrees with the highlight is not a conflict |
 | Result metric equals the Experiment's | The result's metric matches `metrics.json`; a crashed run's result carries none |
 | Hypothesis criterion kept | The hypothesis summary still states the criterion at the end |
 | Numbers labelled measured vs asserted | Every scalar on the Graph has the right `metric_source` |

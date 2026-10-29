@@ -129,7 +129,7 @@ The Owner hypothesis list (same objects as MCP) shows, for each hypothesis:
 - linked Experiments (the Graph runs)
 - requested git ref (`requested_ref` from the latest bound run; omitted when none was recorded — never the repository default branch as a fallback)
 - commit
-- run records: state, result title, metric (marked measured when it matches the Experiment's `metrics.json`, asserted otherwise), verdict, and the highlight observation when its title differs from the result
+- run records: state, result title, metric (marked measured when it matches the Experiment's `metrics.json`, asserted otherwise), the `close_run` verdict, the highlight observation when its title differs from the result, and an Agent reading when the Agent linked their own observation from that result (`supports`, `contradicts`, or `conflict` when those claims disagree). The Agent reading sits beside the verdict. It does not replace it.
 - a tally of supports, contradicts, and inconclusive runs
 
 The Study heading shows the route when one is set. **Export plan sync** dry-runs the same docs-only amendment as MCP `export_research_plan_sync`.

@@ -74,6 +74,11 @@ function verdictLabel(value?: string) {
   }
 }
 
+function agentReadingLabel(value?: string) {
+  if (value === 'conflict') return t('Conflicts', '冲突')
+  return verdictLabel(value)
+}
+
 function relationLabel(value?: string) {
   switch (value) {
     case 'supports': return t('Supports', '支持')
@@ -381,6 +386,13 @@ function dateTime(value?: string) {
                 <div v-if="verdictLabel(record.verdict)">
                   <dt>{{ t('Verdict', '结论') }}</dt>
                   <dd><span class="hypothesis-verdict" :data-verdict="record.verdict">{{ verdictLabel(record.verdict) }}</span></dd>
+                </div>
+                <div v-if="agentReadingLabel(record.agent_reading)">
+                  <dt>{{ t('Agent reading', 'Agent 解读') }}</dt>
+                  <dd>
+                    <span class="hypothesis-verdict" :data-verdict="record.agent_reading" data-testid="agent-reading">{{ agentReadingLabel(record.agent_reading) }}</span>
+                    <template v-if="record.agent_reading_title"> — {{ record.agent_reading_title }}</template>
+                  </dd>
                 </div>
                 <div v-if="record.highlight_title && record.highlight_title !== record.result_title">
                   <dt>{{ t('Highlight', '亮点观察') }}</dt>

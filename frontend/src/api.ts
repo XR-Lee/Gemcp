@@ -695,6 +695,8 @@ export type ResearchHypothesisExperiment = {
   metric_value?: number
   metric_source?: 'experiment' | 'asserted'
   verdict?: 'supports' | 'contradicts' | 'inconclusive'
+  agent_reading?: 'supports' | 'contradicts' | 'conflict'
+  agent_reading_title?: string
 }
 export type ResearchHypothesis = {
   id: string

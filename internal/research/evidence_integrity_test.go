@@ -376,3 +376,48 @@ func TestPlanSyncReadsAsHypothesesWithNumbersAndVerdicts(t *testing.T) {
 		t.Log("\n" + export.Markdown)
 	}
 }
+
+func TestAgentReadingStaysBesideTheCloseRunVerdict(t *testing.T) {
+	f := newEvidenceFixture(t, "evidence-agent-reading")
+	experimentID := f.newRun("succeeded", map[string]any{"overall_accuracy": 0.88})
+	closed, err := f.service.AgentCloseRun(f.ctx, f.principal, CloseRunInput{
+		ExperimentID: experimentID, Title: "batch 2^7 seed 1", MetricName: "overall_accuracy", Verdict: "supports",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := nodeByTitle(t, closed.Study, "result", "batch 2^7 seed 1")
+	reading := 0.8
+	noted, err := f.service.AgentUpdate(f.ctx, f.principal, UpdateInput{Node: &NodeInput{
+		Kind: "observation", Title: "Agent reading: 0.88 looks like seed noise",
+		Summary: "Own reading; not a measurement.", MetricName: "val_accuracy", MetricValue: &reading,
+		FromNodeID: result.ID, Relation: "leads_to",
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	observation := nodeByTitle(t, noted.Study, "observation", "Agent reading: 0.88 looks like seed noise")
+	updated, err := f.service.AgentUpdate(f.ctx, f.principal, UpdateInput{Node: &NodeInput{
+		ID: f.hypothesisID, Kind: "hypothesis", FromNodeID: observation.ID, Relation: "contradicts",
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	record := runRecord(t, updated.Study, experimentID)
+	if record.Verdict != "supports" || record.AgentReading != "contradicts" || record.AgentReadingTitle != observation.Title {
+		t.Fatalf("run record = %+v", record)
+	}
+	export, err := f.service.AgentExportPlanSync(f.ctx, f.principal, PlanSyncInput{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"Verdict: supports.",
+		"Agent reading: contradicts. (Agent reading: 0.88 looks like seed noise)",
+		"- Observation (contradicts): Agent reading: 0.88 looks like seed noise.",
+	} {
+		if !strings.Contains(export.Markdown, want) {
+			t.Fatalf("plan sync missing %q:\n%s", want, export.Markdown)
+		}
+	}
+}
