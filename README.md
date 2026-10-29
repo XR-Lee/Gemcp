@@ -6,6 +6,14 @@ A coding agent can write a good experiment. It can also burn your budget and you
 
 **Gemcp is the gate in front of that spend.** An agent may only *prepare* a run. You confirm one exact digest — repository, full commit, argv, backend, worst-case CNY — and only then is budget reserved. Gemcp schedules the work and writes the result back onto a research Graph as evidence.
 
+> **Work in progress (WIP).** Gemcp is an early alpha. APIs, the UI, and the docs may change.
+
+> **This README is for people.**
+> Coding agents working in this repository: [AGENTS.md](AGENTS.md).
+> Agents connected to a running Gemcp over MCP: [guides/agent-mcp.md](guides/agent-mcp.md) (or call `get_usage_guide`).
+
+Current release: **v0.20.0** ([`VERSION`](VERSION), [notes](docs/releases.md)). Use `main`.
+
 ```text
 You record a hypothesis on the Graph
         │
@@ -26,14 +34,6 @@ Recording a Graph node never starts a machine. A `submit` scope is technical cap
 <p align="center"><em>The Graph is a scientific lineage, not a git commit graph. A paid run starts from a connected hypothesis.</em></p>
 
 Provider tokens, node credentials, and audit stay in a separate **Lab** layer. Agents never receive those secrets.
-
-> **Work in progress (WIP).** Gemcp is an early alpha. APIs, the UI, and the docs may change.
-
-> **This README is for people.**
-> Coding agents working in this repository: [AGENTS.md](AGENTS.md).
-> Agents connected to a running Gemcp over MCP: [guides/agent-mcp.md](guides/agent-mcp.md) (or call `get_usage_guide`).
-
-Current release: **v0.20.0** ([`VERSION`](VERSION), [notes](docs/releases.md)). Use `main`.
 
 ## What you get
 

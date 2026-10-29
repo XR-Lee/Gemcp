@@ -6,6 +6,12 @@
 
 **Gemcp 就是这笔钱前面的那道闸。** Agent 只能*准备*一次运行。你确认一条精确 digest —— 仓库、完整 commit、argv、后端、最坏情况人民币 —— 之后才会预留预算。然后 Gemcp 负责调度，并把结果写回研究 Graph 作为证据。
 
+> **这份 README 给人读。**
+> 在本仓库里改代码的 Agent：看 [AGENTS.md](AGENTS.md)。
+> 已经通过 MCP 连上运行中 Gemcp 的 Agent：看 [guides/agent-mcp.md](guides/agent-mcp.md)（或调用 `get_usage_guide`）。
+
+当前版本：**v0.20.0**（[`VERSION`](VERSION)，[更新说明](docs/releases.md)）。请用 `main`。
+
 ```text
 你在 Graph 上记下一条 hypothesis
         │
@@ -26,12 +32,6 @@ Gemcp 写入 run，再用 close_run 写回 result
 <p align="center"><em>Graph 是科学谱系，不是 git commit 图。付费运行必须从一条连得上的 hypothesis 出发。</em></p>
 
 Provider Token、节点凭据和审计留在单独的 **Lab** 层。Agent 拿不到这些秘密。
-
-> **这份 README 给人读。**
-> 在本仓库里改代码的 Agent：看 [AGENTS.md](AGENTS.md)。
-> 已经通过 MCP 连上运行中 Gemcp 的 Agent：看 [guides/agent-mcp.md](guides/agent-mcp.md)（或调用 `get_usage_guide`）。
-
-当前版本：**v0.20.0**（[`VERSION`](VERSION)，[更新说明](docs/releases.md)）。请用 `main`。
 
 ## 你能用来做什么
 
