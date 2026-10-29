@@ -2,7 +2,9 @@ package sshcloud
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -11,6 +13,7 @@ import (
 	"github.com/XR-Lee/Gemcp/ent/cloudsshassignment"
 	"github.com/XR-Lee/Gemcp/ent/cloudsshnode"
 	"github.com/XR-Lee/Gemcp/internal/executioncmd"
+	"golang.org/x/crypto/ssh"
 )
 
 func (s *Service) Reconcile(ctx context.Context, experimentID int, now time.Time) (bool, error) {
@@ -42,10 +45,23 @@ func (s *Service) Reconcile(ctx context.Context, experimentID int, now time.Time
 		return true, nil
 	}
 	if assignment.State == cloudsshassignment.StateStarting && assignment.ContainerID == nil {
+		// Nothing has a pid yet, so cancel does not need to wait out the
+		// provisioning deadline, and a start script that already exited 127
+		// (cd failed, command missing) will not succeed on a later tick.
+		if experiment.DesiredState == "cancelled" || assignment.StopRequestedAt != nil {
+			reason := stopReason(experiment, assignment, now)
+			if err := s.stopAndCollect(ctx, assignment, attempt, experiment, node, reason, now); err != nil {
+				return true, s.recordStartError(ctx, assignment, err)
+			}
+			return true, nil
+		}
 		if assignment.HardDeadlineAt != nil && !now.Before(*assignment.HardDeadlineAt) {
 			return true, s.failAttempt(ctx, assignment, attempt, experiment, "provision_timeout", "Cloud SSH workload did not start before the provisioning deadline", now)
 		}
 		if err := s.provision(ctx, assignment, experiment, node, now); err != nil {
+			if permanentStartFailure(err) {
+				return true, s.failUnstarted(ctx, assignment, attempt, experiment, err, now)
+			}
 			if assignment.HardDeadlineAt != nil && !now.Before(*assignment.HardDeadlineAt) {
 				return true, s.failAttempt(ctx, assignment, attempt, experiment, "provision_timeout", err.Error(), now)
 			}
@@ -283,6 +299,81 @@ func (s *Service) failAttempt(ctx context.Context, assignment *ent.CloudSSHAssig
 func (s *Service) recordStartError(ctx context.Context, assignment *ent.CloudSSHAssignment, cause error) error {
 	_, err := assignment.Update().SetLastError(strings.TrimSpace(cause.Error())).Save(ctx)
 	return err
+}
+
+// failUnstarted ends an assignment whose start command exited before a
+// process existed. Retrying until HardDeadlineAt cannot create a missing
+// directory or a missing binary, and it holds the node for the whole
+// provisioning window.
+func (s *Service) failUnstarted(ctx context.Context, assignment *ent.CloudSSHAssignment, attempt *ent.Attempt, experiment *ent.Experiment, cause error, now time.Time) error {
+	reason := strings.TrimSpace(cause.Error())
+	const code = "start_failed"
+	update := assignment.Update().SetState(cloudsshassignment.StateFailed).SetFinishedAt(now).
+		SetFailureCode(code).SetFailureReason(reason).SetLastError(reason)
+	if exitCode, ok := startExitCode(cause); ok {
+		update.SetExitCode(exitCode)
+	}
+	if _, err := update.Save(ctx); err != nil {
+		return err
+	}
+	attemptUpdate := s.client.Attempt.UpdateOneID(attempt.ID).SetState("failed").SetFinishedAt(now).
+		SetFailureCode(code).SetFailureReason(reason)
+	if exitCode, ok := startExitCode(cause); ok {
+		attemptUpdate.SetExitCode(exitCode)
+	}
+	if _, err := attemptUpdate.Save(ctx); err != nil {
+		return err
+	}
+	experimentUpdate := s.client.Experiment.UpdateOneID(experiment.ID).SetState("failed").SetFinishedAt(now).
+		SetBudgetFinalizedAt(now).SetFailureCode(code).SetFailureReason(reason).SetProviderStatus("finished").
+		ClearLeaseOwner().ClearLeaseExpiresAt()
+	if exitCode, ok := startExitCode(cause); ok {
+		experimentUpdate.SetExitCode(exitCode)
+	}
+	if _, err := experimentUpdate.Save(ctx); err != nil {
+		return err
+	}
+	if err := releaseReservation(ctx, s.client, experiment); err != nil {
+		return err
+	}
+	_, err := s.client.AuditEvent.Create().SetTenantID(experiment.TenantID).SetActorType("system").SetActorID(s.config.InstanceID).
+		SetAction("experiment.finalized").SetTargetType("experiment").SetTargetID(experiment.PublicID.String()).
+		SetMetadata(map[string]any{"state": "failed", "attempt_id": attempt.PublicID.String(), "failure_code": code, "backend": Backend}).Save(ctx)
+	return err
+}
+
+// permanentStartFailure reports a start command that exited 127 before it
+// had a pid. The host wrapper uses that status when cd fails or the shell
+// cannot find a command. Dial and timeout errors stay retryable until the
+// provisioning deadline.
+func permanentStartFailure(err error) bool {
+	_, ok := startExitCode(err)
+	return ok
+}
+
+func startExitCode(err error) (int, bool) {
+	if err == nil {
+		return 0, false
+	}
+	if exitStatus(err) == 127 || strings.Contains(err.Error(), "exit status 127") {
+		return 127, true
+	}
+	return 0, false
+}
+
+func exitStatus(err error) int {
+	if err == nil {
+		return 0
+	}
+	var execErr *exec.ExitError
+	if errors.As(err, &execErr) {
+		return execErr.ExitCode()
+	}
+	var sshErr *ssh.ExitError
+	if errors.As(err, &sshErr) {
+		return sshErr.ExitStatus()
+	}
+	return 0
 }
 
 func (s *Service) dialNode(ctx context.Context, node *ent.CloudSSHNode) (Conn, error) {
