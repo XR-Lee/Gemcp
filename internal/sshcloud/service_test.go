@@ -8,6 +8,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -460,6 +461,118 @@ func TestCancelKillsProcessWithoutDeletingCwd(t *testing.T) {
 	}
 }
 
+func TestCancelUnstartedAssignmentFinishesOnTheNextTick(t *testing.T) {
+	service, client, tenant, project := newServiceFixture(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+	experiment, assignment := seedStartingCloudSSH(t, service, client, tenant, project, now.Add(9*time.Minute))
+	if _, err := client.Experiment.UpdateOneID(experiment.ID).SetDesiredState("cancelled").SetState("cancelling").Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	conn := &scriptedConn{script: map[string]scriptedResult{}}
+	service.WithDial(func(context.Context, Target, Credential, string) (Conn, string, error) {
+		return conn, "SHA256:fixed-fingerprint", nil
+	})
+	handled, err := service.Reconcile(ctx, experiment.ID, now)
+	if err != nil || !handled {
+		t.Fatalf("Reconcile() handled=%t err=%v", handled, err)
+	}
+	experiment, _ = client.Experiment.Get(ctx, experiment.ID)
+	if experiment.State != "cancelled" || experiment.FinishedAt == nil {
+		t.Fatalf("cancel waited past the tick: state=%s finished=%v", experiment.State, experiment.FinishedAt)
+	}
+	assignment, _ = client.CloudSSHAssignment.Get(ctx, assignment.ID)
+	if !assignmentTerminal(assignment.State) {
+		t.Fatalf("assignment still holds the node: %s", assignment.State)
+	}
+	for _, command := range conn.runs {
+		if strings.Contains(command, "gemcp-host-start") {
+			t.Fatalf("cancel started a process that had not existed: %s", command)
+		}
+	}
+}
+
+func TestStartExit127FailsBeforeTheProvisioningDeadline(t *testing.T) {
+	service, client, tenant, project := newServiceFixture(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+	deadline := now.Add(9 * time.Minute)
+	experiment, _ := seedStartingCloudSSH(t, service, client, tenant, project, deadline)
+	startErr := fmt.Errorf("exit status 127: sh: 7: cd: can't cd to /workspace/gemcp-test/does-not-exist")
+	conn := &scriptedConn{script: map[string]scriptedResult{
+		"gemcp-host-start": {err: startErr},
+	}}
+	service.WithDial(func(context.Context, Target, Credential, string) (Conn, string, error) {
+		return conn, "SHA256:fixed-fingerprint", nil
+	})
+	if _, err := service.Reconcile(ctx, experiment.ID, now); err != nil {
+		t.Fatal(err)
+	}
+	experiment, _ = client.Experiment.Get(ctx, experiment.ID)
+	if experiment.State != "failed" || experiment.FailureCode == nil || *experiment.FailureCode != "start_failed" {
+		t.Fatalf("experiment = state=%s code=%v reason=%v", experiment.State, experiment.FailureCode, experiment.FailureReason)
+	}
+	if experiment.FailureReason == nil || !strings.Contains(*experiment.FailureReason, "exit status 127") || !strings.Contains(*experiment.FailureReason, "can't cd") {
+		t.Fatalf("failure reason = %v", experiment.FailureReason)
+	}
+	if experiment.FinishedAt == nil || !experiment.FinishedAt.Before(deadline) {
+		t.Fatalf("finished at %v, deadline %v", experiment.FinishedAt, deadline)
+	}
+	attempts, err := client.Attempt.Query().All(ctx)
+	if err != nil || len(attempts) != 1 {
+		t.Fatalf("attempts=%d err=%v", len(attempts), err)
+	}
+	attempt := attempts[0]
+	if attempt.State != "failed" || attempt.FailureReason == nil || !strings.Contains(*attempt.FailureReason, "exit status 127") {
+		t.Fatalf("attempt = state=%s reason=%v", attempt.State, attempt.FailureReason)
+	}
+	if attempt.ExitCode == nil || *attempt.ExitCode != 127 {
+		t.Fatalf("attempt exit = %v", attempt.ExitCode)
+	}
+}
+
+func TestTransientStartErrorStillWaitsForTheProvisioningDeadline(t *testing.T) {
+	service, client, tenant, project := newServiceFixture(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+	experiment, assignment := seedStartingCloudSSH(t, service, client, tenant, project, now.Add(9*time.Minute))
+	conn := &scriptedConn{script: map[string]scriptedResult{
+		"gemcp-host-start": {err: fmt.Errorf("connect Cloud SSH host: connection refused")},
+	}}
+	service.WithDial(func(context.Context, Target, Credential, string) (Conn, string, error) {
+		return conn, "SHA256:fixed-fingerprint", nil
+	})
+	if _, err := service.Reconcile(ctx, experiment.ID, now); err != nil {
+		t.Fatal(err)
+	}
+	experiment, _ = client.Experiment.Get(ctx, experiment.ID)
+	assignment, _ = client.CloudSSHAssignment.Get(ctx, assignment.ID)
+	if experiment.State != "provisioning" || assignment.State != cloudsshassignment.StateStarting || assignment.ContainerID != nil {
+		t.Fatalf("transient start became terminal: experiment=%s assignment=%s pid=%v", experiment.State, assignment.State, assignment.ContainerID)
+	}
+	if assignment.LastError == nil || !strings.Contains(*assignment.LastError, "connection refused") {
+		t.Fatalf("last error = %v", assignment.LastError)
+	}
+}
+
+func TestPermanentStartFailureDetectsExit127Only(t *testing.T) {
+	command := exec.Command("sh", "-c", "exit 127")
+	err := command.Run()
+	wrapped := fmt.Errorf("start host process: %w: sh: 1: cd: can't cd to /missing", err)
+	if !permanentStartFailure(wrapped) {
+		t.Fatalf("exit 127 was treated as retryable: %v", wrapped)
+	}
+	if code, ok := startExitCode(wrapped); !ok || code != 127 {
+		t.Fatalf("start exit = %d ok=%t", code, ok)
+	}
+	if permanentStartFailure(fmt.Errorf("connect Cloud SSH host: connection refused")) {
+		t.Fatal("a dial error was treated as a permanent start failure")
+	}
+	if permanentStartFailure(fmt.Errorf("start host process: exit status 1: boom")) {
+		t.Fatal("a non-127 start error was treated as permanent")
+	}
+}
+
 func TestDispatchStartsHostProcessWithoutImage(t *testing.T) {
 	service, client, tenant, project := newServiceFixture(t)
 	ctx := context.Background()
@@ -527,6 +640,56 @@ func TestDispatchStartsHostProcessWithoutImage(t *testing.T) {
 	if !started {
 		t.Fatalf("host process was not started in cwd: %q", conn.runs)
 	}
+}
+
+func seedStartingCloudSSH(t *testing.T, service *Service, client *ent.Client, tenant *ent.Tenant, project *ent.Project, hardDeadline time.Time) (*ent.Experiment, *ent.CloudSSHAssignment) {
+	t.Helper()
+	ctx := context.Background()
+	ciphertext, err := EncryptCredential(service.box, Credential{Method: "password", Password: "cloud-instance-password"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	environmentRecord, err := client.Environment.Create().SetProjectID(project.ID).SetBackend("ssh_cloud").SetName("ssh").
+		SetImageUUID(HostImage).SetRecipeRef(recipePrefix + "11111111-1111-1111-1111-111111111111").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	profile, err := client.ResourceProfile.Create().SetProjectID(project.ID).SetBackend("ssh_cloud").SetName("ssh").
+		SetRegion("ssh_cloud").SetGpuNames([]string{"host"}).SetGpuNum(1).SetCudaFrom(1).SetCudaTo(1).
+		SetCPUFrom(1).SetCPUTo(8).SetMemoryFromGB(1).SetMemoryToGB(32).SetPriceFromMilli(0).SetPriceToMilli(0).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	experiment, err := client.Experiment.Create().SetTenantID(tenant.ID).SetProjectID(project.ID).
+		SetEnvironmentID(environmentRecord.ID).SetResourceProfileID(profile.ID).SetCommitSha(HostCommit).
+		SetCommand("python train.py").SetState("provisioning").SetDesiredState("running").
+		SetMaxRuntimeSeconds(60).SetTimeoutExtensionSeconds(0).SetTerminationGraceSeconds(5).
+		SetReservedCostMilli(0).SetOutputPath("managed://experiments/x/outputs").
+		SetEnvironmentSnapshot(map[string]any{"backend": Backend, "image_uuid": HostImage, "working_directory": "/workspace/gemcp-test/does-not-exist"}).
+		SetResourceSnapshot(map[string]any{"backend": Backend, "cpu_to": 8, "memory_to_gb": 32}).
+		SetRepositorySnapshot(map[string]any{"source": "host"}).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	attemptRecord, err := client.Attempt.Create().SetTenantID(tenant.ID).SetProjectID(project.ID).
+		SetExperimentID(experiment.ID).SetNumber(1).SetState("starting").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	node, err := client.CloudSSHNode.Create().SetTenantID(tenant.ID).SetLabel("local-cpu").SetSSHHost("127.0.0.1").
+		SetSSHUser("ubuntu").SetAuthMethod("password").SetCredentialCiphertext(ciphertext).SetStatus("active").
+		SetHostKeyFingerprint("SHA256:fixed-fingerprint").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assignment, err := client.CloudSSHAssignment.Create().SetTenantID(tenant.ID).SetProjectID(project.ID).
+		SetExperimentID(experiment.ID).SetAttemptID(attemptRecord.ID).SetNodeID(node.ID).
+		SetState(cloudsshassignment.StateStarting).SetRemoteDir("/var/tmp/gemcp/11111111-1111-1111-1111-111111111111").
+		SetOutputRef("experiments/x/outputs").SetHardDeadlineAt(hardDeadline).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return experiment, assignment
 }
 
 func seedRunningCloudSSH(t *testing.T, service *Service, client *ent.Client, tenant *ent.Tenant, project *ent.Project) (*ent.Experiment, *ent.CloudSSHAssignment) {
