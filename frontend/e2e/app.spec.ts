@@ -945,6 +945,24 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await expect(page.locator('.graph-shell')).toHaveCSS('max-height', '560px')
   await expect(page.getByRole('button', { name: 'Fullscreen graph' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Fit graph' })).toBeVisible()
+  await expect(page.getByTestId('graph-axis-time')).toHaveAttribute('aria-pressed', 'true')
+  await page.getByTestId('graph-axis-lineage').click()
+  await expect(page.getByTestId('graph-axis-lineage')).toHaveAttribute('aria-pressed', 'true')
+  await page.getByTestId('graph-axis-time').click()
+  await expect(page.getByTestId('graph-axis-time')).toHaveAttribute('aria-pressed', 'true')
+  const cardBoxes = await page.locator('.flow-node').evaluateAll((els) => els.map((el) => {
+    const rect = el.getBoundingClientRect()
+    return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom }
+  }))
+  expect(cardBoxes.length).toBeGreaterThan(1)
+  for (let i = 0; i < cardBoxes.length; i += 1) {
+    for (let j = i + 1; j < cardBoxes.length; j += 1) {
+      const left = cardBoxes[i]
+      const right = cardBoxes[j]
+      const separated = left.right <= right.left + 1 || right.right <= left.left + 1 || left.bottom <= right.top + 1 || right.bottom <= left.top + 1
+      expect(separated).toBe(true)
+    }
+  }
   await expect(page.locator('.flow-node.is-success, .flow-node-outcome[data-outcome="success"]').first()).toBeVisible()
   await page.locator('.flow-node').first().dblclick()
   await expect(page.getByLabel('Node detail')).toBeVisible()

@@ -7,7 +7,7 @@ import { localizedState, useI18n } from '../i18n'
 import { buildResearchAttachPrompt } from '../researchAttachPrompt'
 import { formatMetric, normalizeVerdict } from '../researchFormat'
 import { historicalObservationsForHypothesis, selectLatestEvidence, selectLatestResult } from '../researchLatestResult'
-import { layoutResearchGraph } from '../researchGraphLayout'
+import { layoutResearchGraph, type CardSize } from '../researchGraphLayout'
 import AgentReadinessPanel from './AgentReadinessPanel.vue'
 import RepositoryReadinessPanel from './RepositoryReadinessPanel.vue'
 import ResearchGraphCanvas from './ResearchGraphCanvas.vue'
@@ -129,10 +129,20 @@ const agentHandoffDetail = computed(() => {
   )
 })
 const focusNodeIDs = computed(() => (props.workspace?.next_actions ?? []).map((action) => action.from_node_id).filter((id): id is string => Boolean(id)))
+const graphAxis = ref<'time' | 'lineage' | undefined>()
+const cardSizes = ref<Record<string, CardSize>>({})
+function onCardSizes(next: Record<string, CardSize>) {
+  const prev = cardSizes.value
+  const nextKeys = Object.keys(next)
+  const unchanged = nextKeys.length === Object.keys(prev).length && nextKeys.every((key) => prev[key]?.width === next[key]?.width && prev[key]?.height === next[key]?.height)
+  if (!unchanged) cardSizes.value = next
+}
 const graphLayout = computed(() => layoutResearchGraph({
   nodes: nodes.value,
   edges: edges.value,
   focusNodeIDs: focusNodeIDs.value,
+  axis: graphAxis.value,
+  cardSizes: cardSizes.value,
 }))
 const catalogRepositories = computed(() => {
   if (props.catalog?.repositories?.length) return props.catalog.repositories
@@ -449,6 +459,8 @@ function dateTime(value?: string) {
           :edges="edges"
           :layout="graphLayout"
           @open-experiment="emit('openExperiment', $event)"
+          @select-axis="graphAxis = $event"
+          @card-sizes="onCardSizes"
         />
         <div v-else class="empty-state compact-empty">
           <span class="empty-icon"><GitBranch :size="21" /></span>

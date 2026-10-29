@@ -110,6 +110,34 @@ describe('ResearchView', () => {
     expect(wrapper.find('.agent-readiness').exists()).toBe(false)
   })
 
+  it('recomputes the graph when the Owner picks a lineage axis', async () => {
+    useI18n().setLocale('en')
+    const dated = structuredClone(workspace)
+    dated.study.nodes = [
+      { id: 'q', kind: 'question', title: 'Question', status: 'open', occurred_at: '2025-01-01T00:00:00Z', created_at: '2025-01-01T00:00:00Z', updated_at: '2025-01-01T00:00:00Z' },
+      { id: 'h', kind: 'hypothesis', title: 'Hypothesis', status: 'open', occurred_at: '2025-06-01T12:00:00Z', created_at: '2025-06-01T12:00:00Z', updated_at: '2025-06-01T12:00:00Z' },
+      { id: 'obs', kind: 'observation', title: 'Observation', status: 'open', occurred_at: '2026-03-01T08:00:00Z', created_at: '2026-03-01T08:00:00Z', updated_at: '2026-03-01T08:00:00Z' },
+      { id: 'dec', kind: 'decision', title: 'Decision', status: 'open', occurred_at: '2026-03-01T14:00:00Z', created_at: '2026-03-01T14:00:00Z', updated_at: '2026-03-01T14:00:00Z' },
+      { id: 'next', kind: 'hypothesis', title: 'Follow-up', status: 'open', occurred_at: '2026-03-01T20:00:00Z', created_at: '2026-03-01T20:00:00Z', updated_at: '2026-03-01T20:00:00Z' },
+    ]
+    dated.study.edges = [
+      { id: 'e1', from_id: 'q', to_id: 'h', relation: 'leads_to' },
+      { id: 'e2', from_id: 'h', to_id: 'obs', relation: 'leads_to' },
+      { id: 'e3', from_id: 'obs', to_id: 'dec', relation: 'leads_to' },
+      { id: 'e4', from_id: 'dec', to_id: 'next', relation: 'leads_to' },
+    ]
+    const wrapper = mount(ResearchView, {
+      props: { workspace: dated, loading: false, selectedStudyId: 'study-1' },
+      global: { stubs: flowStubs },
+    })
+    expect(wrapper.get('[data-testid="graph-axis-time"]').attributes('aria-pressed')).toBe('true')
+    await wrapper.get('[data-testid="graph-axis-lineage"]').trigger('click')
+    expect(wrapper.get('[data-testid="graph-axis-lineage"]').attributes('aria-pressed')).toBe('true')
+    expect(wrapper.get('[data-testid="graph-axis-time"]').attributes('aria-pressed')).toBe('false')
+    await wrapper.get('[data-testid="graph-axis-time"]').trigger('click')
+    expect(wrapper.get('[data-testid="graph-axis-time"]').attributes('aria-pressed')).toBe('true')
+  })
+
   it('lets the Owner start close_run from the next-action card', async () => {
     useI18n().setLocale('en')
     const wrapper = mount(ResearchView, {

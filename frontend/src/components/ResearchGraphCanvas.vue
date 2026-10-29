@@ -20,6 +20,8 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{
   openExperiment: [experimentID: string]
+  selectAxis: [axis: 'time' | 'lineage']
+  cardSizes: [sizes: Record<string, { width: number; height: number }>]
 }>()
 
 const { languageTag, t } = useI18n()
@@ -28,6 +30,7 @@ const nodeTypes = {
   timeline: markRaw(ResearchGraphTick),
 }
 const flowID = 'research-graph'
+const shell = ref<HTMLElement | null>(null)
 const flow = ref<VueFlowStore | null>(null)
 const fullscreen = ref(false)
 const fittedOnce = ref(false)
@@ -183,6 +186,24 @@ function onPaneClick() {
   selectedID.value = ''
 }
 
+function readCardSizes() {
+  const root = shell.value
+  if (!root) return
+  const next: Record<string, { width: number; height: number }> = {}
+  for (const el of root.querySelectorAll<HTMLElement>('.vue-flow__node[data-id]')) {
+    const id = el.dataset.id
+    if (!id || id.startsWith('tick-')) continue
+    const card = el.querySelector<HTMLElement>('.flow-node')
+    if (!card) continue
+    const width = card.offsetWidth
+    const height = card.offsetHeight
+    if (width <= 0 || height <= 0) continue
+    next[id] = { width, height }
+  }
+  if (!Object.keys(next).length) return
+  emit('cardSizes', next)
+}
+
 function onPaneReady(instance: VueFlowStore) {
   flow.value = instance
   if (fittedOnce.value) return
@@ -212,7 +233,11 @@ watch(fullscreen, (open) => {
   document.body.style.overflow = open ? 'hidden' : ''
 })
 
-onMounted(() => window.addEventListener('keydown', onKey))
+watch(graphNodes, () => { void nextTick(readCardSizes) })
+onMounted(() => {
+  window.addEventListener('keydown', onKey)
+  void nextTick(readCardSizes)
+})
 onUnmounted(() => {
   window.removeEventListener('keydown', onKey)
   document.body.style.overflow = ''
@@ -221,10 +246,12 @@ onUnmounted(() => {
 
 <template>
   <Teleport to="body" :disabled="!fullscreen">
-  <div class="graph-shell" :class="{ 'is-fullscreen': fullscreen }" :style="fullscreen ? undefined : { maxHeight: `${CANVAS_MAX_HEIGHT}px` }">
+  <div ref="shell" class="graph-shell" :class="{ 'is-fullscreen': fullscreen }" :style="fullscreen ? undefined : { maxHeight: `${CANVAS_MAX_HEIGHT}px` }">
     <div class="graph-toolbar">
       <span class="graph-axis-label" :class="{ 'is-fallback': missingEvidenceTime }"><Clock3 :size="13" />{{ axisLabel }}</span>
       <div class="graph-toolbar-actions">
+        <button class="secondary-button small-button" type="button" data-testid="graph-axis-time" :aria-pressed="layout.axis === 'time'" @click="emit('selectAxis', 'time')">{{ t('Time', '时间') }}</button>
+        <button class="secondary-button small-button" type="button" data-testid="graph-axis-lineage" :aria-pressed="layout.axis === 'lineage'" @click="emit('selectAxis', 'lineage')">{{ t('Lineage', '谱系') }}</button>
         <button class="secondary-button small-button" type="button" :aria-label="t('Fit graph', '适配窗口')" @click="fitGraph">
           <Scan :size="15" />{{ t('Fit', '适配') }}
         </button>
