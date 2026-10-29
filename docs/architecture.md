@@ -1,6 +1,6 @@
 # Architecture
 
-Status: current as of **v0.20.0**. Shared words stay in [Hypothesis–experiment Graph contract](graph-contract.md). An interactive companion (roles, Graph, paid loop, package map) is [framework-map.html](framework-map.html) — open the file in a browser; the control plane does not serve it.
+Status: current as of **v0.20.0** on `main`. Shared words stay in [Hypothesis–experiment Graph contract](graph-contract.md). The interactive companion (roles, Graph, paid loop, package map) is [framework-map.html](framework-map.html), a Chinese diagram that opens with an English notice. English index: [framework-map.md](framework-map.md). Open the HTML file in a browser; the control plane does not serve it.
 
 ## Maps
 
