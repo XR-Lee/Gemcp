@@ -84,6 +84,28 @@ describe('ResearchView', () => {
     expect(records.text()).not.toContain('Highlight')
   })
 
+  it('shows an agent reading beside the close_run verdict', () => {
+    useI18n().setLocale('en')
+    const judged = structuredClone(workspace)
+    judged.study.hypotheses[0].experiments = [
+      {
+        run_node_id: 'node-run-1', experiment_id: 'experiment-1', title: 'batch 2^7 seed 1', state: 'succeeded',
+        result_title: 'batch 2^7 seed 1', metric_name: 'val_accuracy', metric_value: 0.88, metric_source: 'experiment',
+        verdict: 'supports', agent_reading: 'contradicts', agent_reading_title: 'Agent reading: 0.88 looks like seed noise',
+      },
+    ] as never
+    const wrapper = mount(ResearchView, {
+      props: { workspace: judged, loading: false, selectedStudyId: 'study-1' },
+      global: { stubs: flowStubs },
+    })
+    const records = wrapper.get('[data-testid="hypothesis-records"]')
+    expect(records.get('.hypothesis-verdict').text()).toBe('Supports')
+    expect(records.get('[data-testid="agent-reading"]').text()).toBe('Contradicts')
+    expect(records.text()).toContain('Agent reading')
+    expect(records.text()).toContain('0.88 looks like seed noise')
+    expect(records.get('[data-testid="hypothesis-tally"]').text()).toBe('Supports 1 · Contradicts 0 · Inconclusive 0')
+  })
+
   it('renders the study, next action, and Graph canvas', () => {
     useI18n().setLocale('en')
     const wrapper = mount(ResearchView, {

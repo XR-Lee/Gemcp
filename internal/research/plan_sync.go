@@ -255,7 +255,14 @@ func planSyncRunLine(record HypothesisRunRecord) string {
 	if verdict == "" {
 		verdict = verdictInconclusive
 	}
-	return line + ". Verdict: " + verdict + "."
+	line += ". Verdict: " + verdict + "."
+	if record.AgentReading != "" {
+		line += " Agent reading: " + record.AgentReading + "."
+		if title := oneLine(record.AgentReadingTitle); title != "" {
+			line += " (" + title + ")"
+		}
+	}
+	return line
 }
 
 // planSyncObservationLines lists observations that belong to this hypothesis:

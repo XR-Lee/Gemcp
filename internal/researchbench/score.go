@@ -71,12 +71,14 @@ type RunScore struct {
 	Params       string   `json:"params"`
 	State        string   `json:"state"`
 	Metric       *float64 `json:"metric,omitempty"`
-	// Expected is the verdict the task criterion gives the measured outcome;
-	// Recorded is what the Graph says: a verdict, or "conflict" when it says
-	// both supports and contradicts.
-	Expected string `json:"expected_verdict"`
-	Recorded string `json:"recorded_verdict"`
-	Closed   bool   `json:"closed"`
+	// Expected is the verdict the task criterion gives the measured outcome.
+	// Recorded is the close_run highlight's verdict, or "conflict" when that
+	// evidence itself says both supports and contradicts. An Agent observation
+	// linked from the result is AgentReading, not a second verdict.
+	Expected     string `json:"expected_verdict"`
+	Recorded     string `json:"recorded_verdict"`
+	AgentReading string `json:"agent_reading,omitempty"`
+	Closed       bool   `json:"closed"`
 }
 
 // ConclusionCorrect reports whether the Agent's decision matches the truth.
@@ -235,10 +237,8 @@ func ScoreStudy(ctx context.Context, tools Tools, task Task, studyID string) (Sc
 		if scored.Closed {
 			score.Closed++
 			result := graph.byID[resultIDs[0]]
-			evidence[resultIDs[0]] = true
-			for _, id := range graph.targets(resultIDs[0], "leads_to") {
-				evidence[id] = true
-			}
+			evidence = runVerdictEvidence(graph, resultIDs[0])
+			scored.AgentReading = agentReading(graph, resultIDs[0], hypothesisID)
 			resultValue, resultHasValue := number(result, "metric_value")
 			switch {
 			case !measured && resultHasValue:
@@ -354,9 +354,53 @@ func normalized(task Task, value, oracle float64) float64 {
 	return gain(value) / gain(oracle)
 }
 
-// recordedVerdict is what the Graph says one run means for the hypothesis:
-// any supports or contradicts edge into it from the run's result or from a
-// node hanging off that result.
+// runVerdictEvidence is the close_run record for one result: the result
+// itself (legacy verdict edges) and the system-written highlight hung off
+// it. An Agent observation on the same result is a separate claim.
+func runVerdictEvidence(graph studyGraph, resultID string) map[string]bool {
+	evidence := map[string]bool{resultID: true}
+	for _, id := range graph.targets(resultID, "leads_to") {
+		node := graph.byID[id]
+		if text(node, "kind") == "observation" && flag(node, "system_written") {
+			evidence[id] = true
+		}
+	}
+	return evidence
+}
+
+// agentReading is a supports or contradicts edge from an Agent observation
+// linked off the result. It does not change the run's recorded verdict.
+func agentReading(graph studyGraph, resultID, hypothesisID string) string {
+	found := map[string]bool{}
+	for _, id := range graph.targets(resultID, "leads_to") {
+		node := graph.byID[id]
+		if text(node, "kind") != "observation" || flag(node, "system_written") {
+			continue
+		}
+		for _, edge := range graph.edges {
+			if text(edge, "from_id") != id || text(edge, "to_id") != hypothesisID {
+				continue
+			}
+			relation := text(edge, "relation")
+			if relation == VerdictSupports || relation == VerdictContradicts {
+				found[relation] = true
+			}
+		}
+	}
+	switch {
+	case found[VerdictSupports] && found[VerdictContradicts]:
+		return "conflict"
+	case found[VerdictSupports]:
+		return VerdictSupports
+	case found[VerdictContradicts]:
+		return VerdictContradicts
+	}
+	return ""
+}
+
+// recordedVerdict is the close_run highlight's verdict for one run. An Agent
+// observation linked from the result is not Experiment evidence, so it cannot
+// turn the run into a conflict.
 func recordedVerdict(graph studyGraph, evidence map[string]bool, hypothesisID string) string {
 	found := map[string]bool{}
 	for _, edge := range graph.edges {
@@ -397,6 +441,9 @@ func ownerRecordComplete(record map[string]any, run RunScore) bool {
 			return false
 		}
 	}
+	if run.AgentReading != "" && text(record, "agent_reading") != run.AgentReading {
+		return false
+	}
 	return text(record, "verdict") == run.Recorded
 }
 
@@ -418,6 +465,26 @@ func parseConclusion(title, summary string) string {
 }
 
 var verdictWords = regexp.MustCompile(`(?i)\b(supports|contradicts|inconclusive)\b`)
+var verdictClause = regexp.MustCompile(`(?i)\bverdict:\s*(supports|contradicts|inconclusive)\b`)
+
+// lineVerdict reads the run's close_run verdict. "Verdict: supports" wins
+// even when the same line also records an Agent reading of contradicts.
+func lineVerdict(line string) (string, bool) {
+	if match := verdictClause.FindStringSubmatch(line); len(match) == 2 {
+		return strings.ToLower(match[1]), true
+	}
+	words := map[string]bool{}
+	for _, word := range verdictWords.FindAllString(line, -1) {
+		words[strings.ToLower(word)] = true
+	}
+	if len(words) != 1 {
+		return "", false
+	}
+	for word := range words {
+		return word, true
+	}
+	return "", false
+}
 
 // scoreRunReport checks that the plan-sync report lets a person read this run:
 // its number, its verdict, and whether it failed.
@@ -446,11 +513,9 @@ func (s *Score) scoreRunReport(lines []string, run scoredRun, graph studyGraph, 
 	}
 	verdictShown := false
 	for _, line := range mentions {
-		words := map[string]bool{}
-		for _, word := range verdictWords.FindAllString(line, -1) {
-			words[strings.ToLower(word)] = true
+		if got, ok := lineVerdict(line); ok && got == scored.Expected {
+			verdictShown = true
 		}
-		verdictShown = verdictShown || (len(words) == 1 && words[scored.Expected])
 	}
 	s.reportCheck(verdictShown, label+" verdict")
 	if run.outcome.Crashed {

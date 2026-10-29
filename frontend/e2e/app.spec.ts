@@ -208,6 +208,7 @@ const researchWorkspace = {
         run_node_id: 'node-run-1', experiment_id: experiments[0].id, title: 'OBJ-BG smoke',
         state: 'succeeded', branch: 'autoresearch/objbg-baseline', commit_sha: experiments[0].commit_sha,
         result_title: 'OBJ-BG smoke accuracy', highlight_title: 'Background noise still enters kNN',
+        verdict: 'supports', agent_reading: 'contradicts', agent_reading_title: 'Agent reading: smoke looks like seed noise',
       }],
     }],
   },
@@ -900,6 +901,8 @@ test('operations console and dialogs fit desktop', async ({ page }) => {
   await expect(page.getByTestId('study-route')).toContainText('research-plan')
   await expect(page.getByTestId('study-route')).toContainText('autoresearch/*')
   await expect(page.getByTestId('hypothesis-records')).toContainText('autoresearch/objbg-baseline')
+  await expect(page.getByTestId('agent-reading')).toHaveText('Contradicts')
+  await expect(page.getByTestId('hypothesis-records')).toContainText('smoke looks like seed noise')
   await expect(page.getByTestId('hypothesis-records')).not.toContainText('main')
   await expect(page.getByText('Record the current smoke-run accuracy as the first Graph result.')).toBeVisible()
   await expect(page.getByText('Record a hypothesis')).toBeVisible()
