@@ -2,8 +2,14 @@ import type { ResearchEdge, ResearchNode } from './api'
 
 export const RANK_RELATIONS = new Set(['leads_to', 'produced', 'supersedes'])
 
-export const COLUMN_WIDTH = 292
-export const ROW_HEIGHT = 176
+// Card box from `.flow-node`. Column and row strides keep those rectangles
+// from touching, including the gap between cards.
+export const CARD_WIDTH = 236
+export const CARD_MIN_HEIGHT = 126
+export const COLUMN_GAP = 56
+export const ROW_GAP = 50
+export const COLUMN_WIDTH = CARD_WIDTH + COLUMN_GAP
+export const ROW_HEIGHT = CARD_MIN_HEIGHT + ROW_GAP
 export const ORIGIN_X = 36
 export const ORIGIN_Y = 72
 export const TICK_Y = 10
@@ -46,10 +52,19 @@ export type GraphLayout = {
   axis: 'time' | 'lineage'
 }
 
+export type CardSize = {
+  width: number
+  height: number
+}
+
 export type GraphLayoutInput = {
   nodes: ResearchNode[]
   edges: ResearchEdge[]
   focusNodeIDs?: string[]
+  // Omit to pick time when evidence spans more than half an hour, otherwise lineage.
+  axis?: 'time' | 'lineage'
+  // Live card boxes from the canvas. Missing entries use the CSS card estimate.
+  cardSizes?: Readonly<Record<string, CardSize>>
 }
 
 export function layoutResearchGraph(input: GraphLayoutInput): GraphLayout {
@@ -66,8 +81,17 @@ export function layoutResearchGraph(input: GraphLayoutInput): GraphLayout {
   }
 
   const ranks = assignRanks(nodes, rankEdges)
-  const lanes = assignLanes(nodes, ranks, incoming)
-  const timeline = assignTimeline(nodes, ranks)
+  const timeline = assignTimeline(nodes, ranks, input.axis)
+  const columns = displayColumns(nodes, ranks, timeline)
+  const lanes = assignLanes(nodes, ranks, columns, incoming)
+  const heights = new Map(nodes.map((node) => [node.id, cardHeight(node, input.cardSizes?.[node.id]?.height)]))
+  const tops = assignTops(nodes, lanes, columns, heights)
+  let boxWidth = CARD_WIDTH
+  for (const node of nodes) {
+    const measured = input.cardSizes?.[node.id]?.width
+    if (measured && measured > boxWidth) boxWidth = measured
+  }
+  const columnStride = Math.max(COLUMN_WIDTH, boxWidth + COLUMN_GAP)
   const allIncoming = groupBy(edges.filter((edge) => byID.has(edge.from_id) && byID.has(edge.to_id)), (edge) => edge.to_id)
   const tip = pickActiveTip(nodes, incident)
   const activeNodeIDs = tip ? collectActivePath(tip, allIncoming) : []
@@ -84,11 +108,11 @@ export function layoutResearchGraph(input: GraphLayoutInput): GraphLayout {
     nodes: nodes.map((node) => {
       const rank = ranks.get(node.id) ?? 0
       const lane = lanes.get(node.id) ?? 0
-      const column = timeline.columns.get(node.id) ?? rank
+      const column = columns.get(node.id) ?? rank
       return {
         id: node.id,
-        x: ORIGIN_X + column * COLUMN_WIDTH,
-        y: ORIGIN_Y + lane * ROW_HEIGHT,
+        x: ORIGIN_X + column * columnStride,
+        y: tops.get(node.id) ?? ORIGIN_Y + lane * ROW_HEIGHT,
         rank,
         lane,
         bucket: timeline.buckets.get(node.id) ?? String(rank),
@@ -103,28 +127,57 @@ export function layoutResearchGraph(input: GraphLayoutInput): GraphLayout {
       active: active.has(edge.from_id) && active.has(edge.to_id),
     })),
     activeNodeIDs,
-    ticks: timeline.ticks,
+    ticks: timeline.ticks.map((tick) => ({
+      ...tick,
+      x: ORIGIN_X + ((tick.x - ORIGIN_X) / COLUMN_WIDTH) * columnStride,
+    })),
     axis: timeline.axis,
   }
+}
+
+// Box height for one card. A measured canvas height wins; otherwise the
+// estimate follows `.flow-node` (padding, clamped summary, wrapped title).
+export function cardHeight(node: ResearchNode, measured?: number) {
+  if (measured && Number.isFinite(measured) && measured > 0) return measured
+  const blocks = [16, lineCount(node.title || node.kind, 13) * 18]
+  if (node.summary?.trim()) blocks.push(Math.min(3, lineCount(node.summary, 12)) * 17)
+  if (node.metric_name && node.metric_value !== undefined) {
+    blocks.push(lineCount(`${node.metric_name} ${node.metric_value}`, 11) * 16)
+  }
+  if (node.experiment_id) blocks.push(28)
+  const height = 24 + (blocks.length - 1) * 6 + blocks.reduce((sum, item) => sum + item, 0)
+  return Math.max(CARD_MIN_HEIGHT, height)
+}
+
+function lineCount(text: string, fontSize: number) {
+  const trimmed = text.trim()
+  if (!trimmed) return 1
+  const inner = CARD_WIDTH - 28
+  let width = 0
+  for (const char of trimmed) {
+    const code = char.codePointAt(0) ?? 0
+    width += code > 0x2e80 ? fontSize : fontSize * 0.56
+  }
+  return Math.max(1, Math.ceil(width / inner))
 }
 
 export function nodeTimelineAt(node: ResearchNode) {
   return node.occurred_at || node.created_at
 }
 
-export function assignTimeline(nodes: ResearchNode[], ranks: Map<string, number>) {
+export function assignTimeline(nodes: ResearchNode[], ranks: Map<string, number>, preferred?: 'time' | 'lineage') {
   const stamps = nodes
     .map((node) => {
       const iso = nodeTimelineAt(node)
       return { id: node.id, at: Date.parse(iso), iso, rank: ranks.get(node.id) ?? 0 }
     })
     .filter((item) => Number.isFinite(item.at))
-    .sort((left, right) => left.at - right.at || left.rank - right.rank)
+    .sort((left, right) => left.at - right.at || left.rank - right.rank || left.id.localeCompare(right.id))
   if (!stamps.length) {
     return { axis: 'lineage' as const, columns: new Map<string, number>(), buckets: new Map<string, string>(), ticks: [] as TimelineTick[] }
   }
   const span = stamps[stamps.length - 1].at - stamps[0].at
-  const axis = span > 30 * 60 * 1000 ? 'time' as const : 'lineage' as const
+  const axis = preferred ?? (span > 30 * 60 * 1000 ? 'time' as const : 'lineage' as const)
   const columns = new Map<string, number>()
   const buckets = new Map<string, string>()
   const ticks: TimelineTick[] = []
@@ -215,17 +268,50 @@ function assignRanks(nodes: ResearchNode[], rankEdges: ResearchEdge[]) {
   return ranks
 }
 
-function assignLanes(nodes: ResearchNode[], ranks: Map<string, number>, incoming: Map<string, ResearchEdge[]>) {
+function displayColumns(nodes: ResearchNode[], ranks: Map<string, number>, timeline: ReturnType<typeof assignTimeline>) {
+  const columns = new Map<string, number>()
+  if (timeline.axis === 'lineage') {
+    for (const node of nodes) columns.set(node.id, ranks.get(node.id) ?? 0)
+    return columns
+  }
+  let max = -1
+  for (const node of nodes) {
+    const column = timeline.columns.get(node.id)
+    if (column === undefined) continue
+    columns.set(node.id, column)
+    if (column > max) max = column
+  }
+  const extra = new Map<number, number>()
+  let next = max + 1
+  const undated = nodes.filter((node) => !columns.has(node.id)).sort((left, right) => {
+    const rankDelta = (ranks.get(left.id) ?? 0) - (ranks.get(right.id) ?? 0)
+    if (rankDelta !== 0) return rankDelta
+    return left.id.localeCompare(right.id)
+  })
+  for (const node of undated) {
+    const rank = ranks.get(node.id) ?? 0
+    if (!extra.has(rank)) {
+      extra.set(rank, next)
+      next += 1
+    }
+    columns.set(node.id, extra.get(rank) ?? next)
+  }
+  return columns
+}
+
+function assignLanes(nodes: ResearchNode[], ranks: Map<string, number>, columns: Map<string, number>, incoming: Map<string, ResearchEdge[]>) {
   const lanes = new Map<string, number>()
   const ordered = [...nodes].sort((left, right) => {
     const rankDelta = (ranks.get(left.id) ?? 0) - (ranks.get(right.id) ?? 0)
     if (rankDelta !== 0) return rankDelta
-    return nodeTimelineAt(left).localeCompare(nodeTimelineAt(right))
+    const timeDelta = nodeTimelineAt(left).localeCompare(nodeTimelineAt(right))
+    if (timeDelta !== 0) return timeDelta
+    return left.id.localeCompare(right.id)
   })
-  const usedAtRank = new Map<number, Set<number>>()
+  const usedAtColumn = new Map<number, Set<number>>()
   let nextRootLane = 0
   for (const node of ordered) {
-    const rank = ranks.get(node.id) ?? 0
+    const column = columns.get(node.id) ?? ranks.get(node.id) ?? 0
     const parents = (incoming.get(node.id) ?? []).map((edge) => edge.from_id)
     let preferred = node.kind === 'question' ? 0 : nextRootLane
     if (parents.length) {
@@ -233,14 +319,41 @@ function assignLanes(nodes: ResearchNode[], ranks: Map<string, number>, incoming
     } else if (node.kind !== 'question') {
       nextRootLane += 1
     }
-    const taken = usedAtRank.get(rank) ?? new Set<number>()
+    const taken = usedAtColumn.get(column) ?? new Set<number>()
     let lane = preferred
     while (taken.has(lane)) lane += 1
     taken.add(lane)
-    usedAtRank.set(rank, taken)
+    usedAtColumn.set(column, taken)
     lanes.set(node.id, lane)
   }
   return lanes
+}
+
+function assignTops(nodes: ResearchNode[], lanes: Map<string, number>, columns: Map<string, number>, heights: Map<string, number>) {
+  const tops = new Map<string, number>()
+  const grouped = new Map<number, ResearchNode[]>()
+  for (const node of nodes) {
+    const column = columns.get(node.id) ?? 0
+    const list = grouped.get(column) ?? []
+    list.push(node)
+    grouped.set(column, list)
+  }
+  for (const list of grouped.values()) {
+    list.sort((left, right) => {
+      const laneDelta = (lanes.get(left.id) ?? 0) - (lanes.get(right.id) ?? 0)
+      if (laneDelta !== 0) return laneDelta
+      return left.id.localeCompare(right.id)
+    })
+    let floor = ORIGIN_Y
+    for (const node of list) {
+      const lane = lanes.get(node.id) ?? 0
+      const height = heights.get(node.id) ?? CARD_MIN_HEIGHT
+      const y = Math.max(ORIGIN_Y + lane * ROW_HEIGHT, floor)
+      tops.set(node.id, y)
+      floor = y + height + ROW_GAP
+    }
+  }
+  return tops
 }
 
 const FAILURE_STATES = new Set(['failed', 'cancelled', 'timed_out', 'budget_stopped', 'provider_error', 'rejected'])

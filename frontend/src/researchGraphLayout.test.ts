@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ResearchEdge, ResearchNode } from './api'
-import { COLUMN_WIDTH, layoutResearchGraph } from './researchGraphLayout'
+import { CARD_WIDTH, COLUMN_WIDTH, ROW_GAP, cardHeight, layoutResearchGraph } from './researchGraphLayout'
 
 function node(id: string, kind: string, extra: Partial<ResearchNode> = {}): ResearchNode {
   return {
@@ -175,5 +175,63 @@ describe('layoutResearchGraph', () => {
     expect(byID.refuted.outcome).toBe('contradicts')
     expect(byID.note.outcome).toBeNull()
     expect(byID.h.outcome).toBeNull()
+  })
+
+  it('keeps a same-day observation, decision, and hypothesis from sharing a point', () => {
+    const nodes = [
+      node('q', 'question', { occurred_at: '2025-01-01T00:00:00Z', created_at: '2025-01-01T00:00:00Z', updated_at: '2025-01-01T00:00:00Z' }),
+      node('h', 'hypothesis', { occurred_at: '2025-06-01T12:00:00Z', created_at: '2025-06-01T12:00:00Z', updated_at: '2025-06-01T12:00:00Z' }),
+      node('obs', 'observation', { occurred_at: '2026-03-01T08:00:00Z', created_at: '2026-03-01T08:00:00Z', updated_at: '2026-03-01T08:00:00Z' }),
+      node('dec', 'decision', { occurred_at: '2026-03-01T14:00:00Z', created_at: '2026-03-01T14:00:00Z', updated_at: '2026-03-01T14:00:00Z' }),
+      node('next', 'hypothesis', { title: '测'.repeat(180), occurred_at: '2026-03-01T20:00:00Z', created_at: '2026-03-01T20:00:00Z', updated_at: '2026-03-01T20:00:00Z' }),
+    ]
+    const edges = [
+      edge('e1', 'q', 'h'),
+      edge('e2', 'h', 'obs'),
+      edge('e3', 'obs', 'dec'),
+      edge('e4', 'dec', 'next'),
+    ]
+    const layout = layoutResearchGraph({ nodes, edges })
+    const reversed = layoutResearchGraph({ nodes: [...nodes].reverse(), edges: [...edges].reverse() })
+    expect(layout.axis).toBe('time')
+    const byID = Object.fromEntries(layout.nodes.map((item) => [item.id, item]))
+    const sameDay = [byID.obs, byID.dec, byID.next]
+    expect(new Set(sameDay.map((item) => `${item.x},${item.y}`)).size).toBe(3)
+    expect(byID.obs.x).toBe(byID.dec.x)
+    expect(byID.dec.x).toBe(byID.next.x)
+    const boxes = layout.nodes.map((item) => ({
+      ...item,
+      h: cardHeight(nodes.find((entry) => entry.id === item.id)!),
+    }))
+    for (let i = 0; i < boxes.length; i += 1) {
+      for (let j = i + 1; j < boxes.length; j += 1) {
+        const left = boxes[i]
+        const right = boxes[j]
+        const hit = left.x < right.x + CARD_WIDTH && left.x + CARD_WIDTH > right.x && left.y < right.y + right.h && left.y + left.h > right.y
+        expect(hit).toBe(false)
+      }
+    }
+    expect(byID.dec.y).toBeGreaterThanOrEqual(byID.obs.y + boxes.find((item) => item.id === 'obs')!.h + ROW_GAP)
+    const reversedByID = Object.fromEntries(reversed.nodes.map((item) => [item.id, item]))
+    for (const id of Object.keys(byID)) {
+      expect(reversedByID[id].x).toBe(byID[id].x)
+      expect(reversedByID[id].y).toBe(byID[id].y)
+    }
+
+    const measured = layoutResearchGraph({
+      nodes,
+      edges,
+      cardSizes: { obs: { width: CARD_WIDTH, height: 420 } },
+    })
+    const measuredByID = Object.fromEntries(measured.nodes.map((item) => [item.id, item]))
+    expect(measuredByID.dec.y).toBeGreaterThanOrEqual(measuredByID.obs.y + 420 + ROW_GAP)
+
+    const lineage = layoutResearchGraph({ nodes, edges, axis: 'lineage' })
+    const lineageByID = Object.fromEntries(lineage.nodes.map((item) => [item.id, item]))
+    expect(lineage.axis).toBe('lineage')
+    expect(lineageByID.obs.x).toBe(lineageByID.h.x + COLUMN_WIDTH)
+    expect(lineageByID.dec.x).toBe(lineageByID.obs.x + COLUMN_WIDTH)
+    expect(lineageByID.next.x).toBe(lineageByID.dec.x + COLUMN_WIDTH)
+    expect(new Set([lineageByID.obs, lineageByID.dec, lineageByID.next].map((item) => `${item.x},${item.y}`)).size).toBe(3)
   })
 })

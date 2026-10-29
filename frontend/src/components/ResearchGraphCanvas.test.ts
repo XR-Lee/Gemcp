@@ -195,4 +195,18 @@ describe('ResearchGraphCanvas', () => {
     expect(wrapper.find('.graph-detail').exists()).toBe(false)
     wrapper.unmount()
   })
+
+  it('offers time and lineage as selectable axes', async () => {
+    useI18n().setLocale('en')
+    const wrapper = mount(ResearchGraphCanvas, {
+      props: { nodes, edges, layout },
+      attachTo: document.body,
+      global: { stubs: flowStubs },
+    })
+    expect(wrapper.get('[data-testid="graph-axis-lineage"]').attributes('aria-pressed')).toBe('true')
+    await wrapper.get('[data-testid="graph-axis-time"]').trigger('click')
+    await wrapper.get('[data-testid="graph-axis-lineage"]').trigger('click')
+    expect(wrapper.emitted('selectAxis')).toEqual([['time'], ['lineage']])
+    wrapper.unmount()
+  })
 })
